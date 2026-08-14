@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../data/notification_service.dart';
 
 class StudyTask {
@@ -111,10 +112,17 @@ class TaskProvider extends ChangeNotifier {
       _saveTasks();
       notifyListeners();
 
-      // إرسال إشعار فوري عند إتمام المهمة
+      // إرسال إشعار فوري وصوت عند إتمام المهمة
       if (_tasks[index].isCompleted) {
         final task = _tasks[index];
         await NotificationService().cancelNotification(task.notificationId);
+        
+        // تشغيل صوت الإنجاز
+        try {
+          final player = AudioPlayer();
+          await player.play(AssetSource('sounds/success.mp3'));
+        } catch (_) {}
+
         final studyReminders = await _areStudyRemindersEnabled();
         if (studyReminders) {
           await NotificationService().showInstantNotification(

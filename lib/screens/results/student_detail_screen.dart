@@ -61,6 +61,10 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
   int? _rankWilaya;
   int? _rankCenter;
   int? _rankSchool;
+  bool _hasPlayedCelebration = false; // منع تشغيل الاحتفال أكثر من مرة
+
+  double? _topNationalScore;
+  double? _averageNationalScore;
 
   @override
   void initState() {
@@ -137,14 +141,25 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
       final idx = schoolList.indexWhere((r) => r.id == s.id);
       if (idx >= 0) _rankSchool = idx + 1;
     }
+
+    // حساب مقارنة النتائج الوطنية
+    final scoredAll = all.where((r) => r.score != null).toList();
+    if (scoredAll.isNotEmpty) {
+      _topNationalScore = scoredAll.map((e) => e.score!).reduce(math.max);
+      final sum = scoredAll.map((e) => e.score!).reduce((a, b) => a + b);
+      _averageNationalScore = sum / scoredAll.length;
+    }
   }
 
   void _checkAndPlayConfetti() {
     if (!widget.student.isPassed) return;
+    if (_hasPlayedCelebration) return; // تشغيل مرة واحدة فقط
+    _hasPlayedCelebration = true;
     Future.delayed(const Duration(milliseconds: 300), () async {
       if (mounted) {
         _confettiController.play();
         try {
+          await _audioPlayer.stop(); // إيقاف أي صوت سابق
           await _audioPlayer.play(AssetSource('sounds/success.mp3'));
         } catch (_) {}
       }
@@ -414,6 +429,12 @@ ${_rankNational != null ? '🏆 الترتيب الوطني: $_rankNational' : '
                                       _rankNational != null))
                                 _buildRanksRow(isDark),
                               const SizedBox(height: 12),
+
+                              // ── مقارنة النتيجة ─────────────────────────
+                              if (student.score != null && _topNationalScore != null)
+                                _buildScoreComparisonRow(isDark),
+                              if (student.score != null && _topNationalScore != null)
+                                const SizedBox(height: 12),
 
                               // ── تفاصيل إضافية ────────────────────────
                               _buildDetailsCard(student, statusColor, isDark),
@@ -871,6 +892,107 @@ ${_rankNational != null ? '🏆 الترتيب الوطني: $_rankNational' : '
           );
         }).toList(),
       ),
+    );
+  }
+
+  // ── مقارنة النتيجة ───────────────────────────────────────────────────
+
+  Widget _buildScoreComparisonRow(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.05)
+                : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          Expanded(
+            child: _buildComparisonItem(
+              label: 'نتيجتك',
+              value: widget.student.score!.toStringAsFixed(2),
+              color: AppTheme.primaryColor,
+              icon: Icons.person_rounded,
+              isDark: isDark,
+            ),
+          ),
+          Container(
+            width: 1,
+            height: 40,
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.1)
+                : Colors.grey[300],
+          ),
+          Expanded(
+            child: _buildComparisonItem(
+              label: 'أعلى نتيجة',
+              value: _topNationalScore!.toStringAsFixed(2),
+              color: const Color(0xFFF59E0B),
+              icon: Icons.emoji_events_rounded,
+              isDark: isDark,
+            ),
+          ),
+          if (_averageNationalScore != null) ...[
+            Container(
+              width: 1,
+              height: 40,
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.1)
+                  : Colors.grey[300],
+            ),
+            Expanded(
+              child: _buildComparisonItem(
+                label: 'المتوسط',
+                value: _averageNationalScore!.toStringAsFixed(2),
+                color: Colors.blue,
+                icon: Icons.stacked_bar_chart_rounded,
+                isDark: isDark,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildComparisonItem({
+    required String label,
+    required String value,
+    required Color color,
+    required IconData icon,
+    required bool isDark,
+  }) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: GoogleFonts.outfit(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.tajawal(
+            fontSize: 11,
+            color: Colors.grey[500],
+          ),
+        ),
+      ],
     );
   }
 

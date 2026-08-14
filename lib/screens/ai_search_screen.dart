@@ -13,7 +13,8 @@ import 'dart:convert';
 import '../config/secrets.dart';
 
 class AiSearchScreen extends StatefulWidget {
-  const AiSearchScreen({super.key});
+  final String? initialQuery;
+  const AiSearchScreen({super.key, this.initialQuery});
 
   @override
   State<AiSearchScreen> createState() => _AiSearchScreenState();
@@ -58,6 +59,11 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
           context,
           listen: false,
         ).loadSessions(auth.user!.uid);
+      }
+
+      if (widget.initialQuery != null && widget.initialQuery!.isNotEmpty) {
+        _promptController.text = widget.initialQuery!;
+        _sendMessage();
       }
     });
   }
@@ -450,24 +456,23 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'مساعدك الشخصي في المذاكرة والتحصيل العلمي',
+            'اختر أحد الأدوات الذكية للبدء',
             textAlign: TextAlign.center,
             style: GoogleFonts.tajawal(fontSize: 14, color: Colors.grey[600]),
           ),
           const SizedBox(height: 48),
-          _buildExampleCard('كيف أذاكر بذكاء للامتحان؟'),
-          _buildExampleCard('اشرح لي قاعدة كان وأخواتها'),
-          _buildExampleCard('ما هي أهم نصائح التفوق الدراسي؟'),
+          _buildExampleCard('🧑‍🏫 وضع المدرس: اشرح لي هذا الدرس خطوة بخطوة مع أمثلة...', Icons.school_rounded),
+          _buildExampleCard('🧠 تلخيص: قم بتلخيص هذا النص إلى 3 نقاط رئيسية...', Icons.summarize_rounded),
+          _buildExampleCard('❓ أسئلة تدريبية: أعطني 3 أسئلة اختيار من متعدد لاختبار فهمي...', Icons.quiz_rounded),
         ],
       ),
     );
   }
 
-  Widget _buildExampleCard(String text) {
+  Widget _buildExampleCard(String text, IconData icon) {
     return GestureDetector(
       onTap: () {
         _promptController.text = text;
-        _sendMessage();
       },
       child: Container(
         width: double.infinity,
@@ -503,8 +508,8 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
                 color: AppTheme.primaryColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(
-                Icons.lightbulb_outline_rounded,
+              child: Icon(
+                icon,
                 size: 20,
                 color: AppTheme.primaryColor,
               ),

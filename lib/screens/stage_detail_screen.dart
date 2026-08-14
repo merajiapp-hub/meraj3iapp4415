@@ -127,7 +127,12 @@ class _StageDetailScreenState extends State<StageDetailScreen> {
           // ── شبكة البطاقات ──
           Expanded(
             child: AnimationLimiter(
-              child: _buildSectionsGrid(sections, isDark, accentColor, screenWidth),
+              child: _buildSectionsGrid(
+                sections,
+                isDark,
+                accentColor,
+                screenWidth,
+              ),
             ),
           ),
         ],
@@ -141,33 +146,6 @@ class _StageDetailScreenState extends State<StageDetailScreen> {
     Color accentColor,
     double screenWidth,
   ) {
-    // إذا كان قسم واحد فقط، نعرضه كبطاقة عريضة مضغوطة
-    if (sections.length == 1) {
-      return Padding(
-        padding: const EdgeInsets.all(20),
-        child: AnimationConfiguration.staggeredList(
-          position: 0,
-          duration: const Duration(milliseconds: 400),
-          child: SlideAnimation(
-            verticalOffset: 30,
-            child: FadeInAnimation(
-              child: _SectionCard(
-                title: sections[0]['title'],
-                subtitle: sections[0]['subtitle'],
-                icon: sections[0]['icon'],
-                category: sections[0]['category'],
-                gradient: widget.gradient,
-                isDark: isDark,
-                isFull: true,
-                onTap: () => _navigate(sections[0]['category']),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    // بطاقتان أو أكثر
     return GridView.builder(
       padding: EdgeInsets.all(screenWidth < 360 ? 14 : 20),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -287,8 +265,10 @@ class _SectionCardState extends State<_SectionCard>
       vsync: this,
       duration: const Duration(milliseconds: 130),
     );
-    _scale = Tween<double>(begin: 1.0, end: 0.96)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+    _scale = Tween<double>(
+      begin: 1.0,
+      end: 0.96,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
   }
 
   @override
@@ -319,7 +299,9 @@ class _SectionCardState extends State<_SectionCard>
               borderRadius: BorderRadius.circular(22),
               boxShadow: [
                 BoxShadow(
-                  color: accentColor.withValues(alpha: widget.isDark ? 0.18 : 0.12),
+                  color: accentColor.withValues(
+                    alpha: widget.isDark ? 0.18 : 0.12,
+                  ),
                   blurRadius: 14,
                   offset: const Offset(0, 5),
                 ),
@@ -361,7 +343,9 @@ class _SectionCardState extends State<_SectionCard>
                           style: GoogleFonts.tajawal(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: widget.isDark ? Colors.white : const Color(0xFF0F172A),
+                            color: widget.isDark
+                                ? Colors.white
+                                : const Color(0xFF0F172A),
                           ),
                         ),
                         const SizedBox(height: 3),
@@ -382,7 +366,11 @@ class _SectionCardState extends State<_SectionCard>
                       color: accentColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: accentColor),
+                    child: Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 14,
+                      color: accentColor,
+                    ),
                   ),
                 ],
               ),
@@ -408,7 +396,9 @@ class _SectionCardState extends State<_SectionCard>
             borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
-                color: accentColor.withValues(alpha: widget.isDark ? 0.18 : 0.12),
+                color: accentColor.withValues(
+                  alpha: widget.isDark ? 0.18 : 0.12,
+                ),
                 blurRadius: 14,
                 offset: const Offset(0, 5),
               ),
@@ -449,7 +439,9 @@ class _SectionCardState extends State<_SectionCard>
                   style: GoogleFonts.tajawal(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
-                    color: widget.isDark ? Colors.white : const Color(0xFF0F172A),
+                    color: widget.isDark
+                        ? Colors.white
+                        : const Color(0xFF0F172A),
                   ),
                   textAlign: TextAlign.center,
                   maxLines: 2,

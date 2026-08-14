@@ -8,6 +8,9 @@ import 'package:shorebird_code_push/shorebird_code_push.dart';
 
 import '../providers/theme_provider.dart';
 import '../data/notification_service.dart';
+import 'changelog_screen.dart';
+import 'privacy_policy_screen.dart';
+import 'terms_of_use_screen.dart';
 import '../theme/app_theme.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -368,6 +371,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 value: _bookUpdates,
                                 onChanged: _toggleBookUpdates,
                                 activeThumbColor: AppTheme.primaryColor,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // ── مركز الخصوصية ─────────────────────────────────
+                        _sectionTitle('مركز الخصوصية'),
+                        _buildCard(
+                          isDark: isDark,
+                          bgColor: bgCard,
+                          child: Column(
+                            children: [
+                              ListTile(
+                                leading: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.purple.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(Icons.privacy_tip_rounded, color: Colors.purple, size: 22),
+                                ),
+                                title: Text('سياسة الخصوصية', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, fontSize: 15)),
+                                subtitle: Text('اعرف كيف نحمي بياناتك', style: GoogleFonts.tajawal(fontSize: 12, color: Colors.grey[500])),
+                                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen())),
+                              ),
+                              Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey[200]),
+                              ListTile(
+                                leading: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.indigo.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(Icons.gavel_rounded, color: Colors.indigo, size: 22),
+                                ),
+                                title: Text('شروط الاستخدام', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, fontSize: 15)),
+                                subtitle: Text('اقرأ شروط الخدمة', style: GoogleFonts.tajawal(fontSize: 12, color: Colors.grey[500])),
+                                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TermsOfUseScreen())),
+                              ),
+                              Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey[200]),
+                              ListTile(
+                                leading: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.teal.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(Icons.update_rounded, color: Colors.teal, size: 22),
+                                ),
+                                title: Text('سجل التحديثات', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, fontSize: 15)),
+                                subtitle: Text('ما الجديد في التطبيق؟', style: GoogleFonts.tajawal(fontSize: 12, color: Colors.grey[500])),
+                                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChangelogScreen())),
                               ),
                             ],
                           ),

@@ -4,9 +4,17 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../providers/quiz_provider.dart';
+import 'ai_search_screen.dart';
 
 class QuizScreen extends StatefulWidget {
-  const QuizScreen({super.key});
+  final bool examMode;
+  final int timerSeconds;
+
+  const QuizScreen({
+    super.key,
+    this.examMode = false,
+    this.timerSeconds = 30,
+  });
 
   @override
   State<QuizScreen> createState() => _QuizScreenState();
@@ -25,7 +33,6 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
   // Timer
   int _secondsLeft = 30;
   Timer? _timer;
-  final bool _timerEnabled = true;
 
   // Stats for final report
   int _correctAnswers = 0;
@@ -67,9 +74,10 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
   }
 
   void _startTimer() {
-    if (!_timerEnabled) return;
     _timer?.cancel();
-    _secondsLeft = 30;
+    if (!widget.examMode || _currentIndex == 0) {
+      _secondsLeft = widget.timerSeconds;
+    }
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (!mounted) {
         t.cancel();
@@ -78,7 +86,11 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
       setState(() => _secondsLeft--);
       if (_secondsLeft <= 0) {
         t.cancel();
-        if (!_isAnswered) _autoSubmitTimeout();
+        if (widget.examMode) {
+          _showResultScreen(Provider.of<QuizProvider>(context, listen: false));
+        } else if (!_isAnswered) {
+          _autoSubmitTimeout();
+        }
       }
     });
   }
@@ -92,11 +104,16 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
       'isCorrect': false,
       'timeout': true,
     });
-    setState(() {
-      _isAnswered = true;
-      _wrongAnswers++;
-    });
+    _wrongAnswers++;
     provider.answerQuestion(question.id, false);
+
+    if (widget.examMode) {
+      _nextQuestion(provider);
+    } else {
+      setState(() {
+        _isAnswered = true;
+      });
+    }
   }
 
   void _nextQuestion(QuizProvider provider) {
@@ -133,7 +150,13 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
     }
 
     provider.answerQuestion(question.id, isCorrect);
-    setState(() => _isAnswered = true);
+    
+    if (widget.examMode) {
+      // في وضع الامتحان: انتقل مباشرة للسؤال التالي بدون عرض الإجابة
+      _nextQuestion(provider);
+    } else {
+      setState(() => _isAnswered = true);
+    }
   }
 
   void _showResultScreen(QuizProvider provider) {
@@ -156,7 +179,12 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
           onRetry: () {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const QuizScreen()),
+              MaterialPageRoute(
+                builder: (_) => QuizScreen(
+                  examMode: widget.examMode,
+                  timerSeconds: widget.timerSeconds,
+                ),
+              ),
             );
           },
         ),
@@ -219,10 +247,11 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
     final total = questions.length;
     final progress = (_currentIndex + (_isAnswered ? 1 : 0)) / total;
     final diffColor = _getDifficultyColor(currentQuestion.difficulty);
-    final timerPct = _secondsLeft / 30;
-    final timerColor = _secondsLeft > 10
+    final timerPct = _secondsLeft / widget.timerSeconds;
+    final half = widget.timerSeconds ~/ 3;
+    final timerColor = _secondsLeft > half
         ? const Color(0xFF10B981)
-        : _secondsLeft > 5
+        : _secondsLeft > (half ~/ 2)
         ? const Color(0xFFF59E0B)
         : const Color(0xFFEF4444);
 
@@ -759,9 +788,11 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    _isAnswered
-                        ? (isLast ? 'عرض النتيجة' : 'السؤال التالي')
-                        : 'تحقق من الإجابة',
+                    widget.examMode
+                        ? (isLast ? 'إنهاء الامتحان' : 'التالي')
+                        : (_isAnswered
+                            ? (isLast ? 'عرض النتيجة' : 'السؤال التالي')
+                            : 'تحقق من الإجابة'),
                     style: GoogleFonts.tajawal(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -1159,6 +1190,67 @@ class _QuizResultScreenState extends State<_QuizResultScreen>
                       }),
                     ],
                     const SizedBox(height: 20),
+
+                    // ─── تحليل الأخطاء بالذكاء الاصطناعي ────────────────
+                    if (widget.wrongAnswers > 0) ...[
+                      GestureDetector(
+                        onTap: () {
+                          // جمع الأسئلة الخاطئة وتمريرها للذكاء الاصطناعي
+                          final wrongQs = widget.answerHistory
+                              .where((item) => !(item['isCorrect'] as bool))
+                              .map((item) {
+                            final q = item['question'] as QuizQuestion;
+                            final selected = item['selected'] as int;
+                            final selectedAns = selected >= 0 && selected < q.options.length ? q.options[selected] : "بدون إجابة";
+                            return "- السؤال: ${q.question}\n  إجابتي: $selectedAns\n  الإجابة الصحيحة: ${q.options[q.correctIndex]}";
+                          }).join("\n\n");
+
+                          final query = "لقد أخطأت في هذه الأسئلة، هل يمكنك تحليل أخطائي وشرح المفاهيم التي أحتاج مراجعتها بطريقة مبسطة؟\n\n$wrongQs";
+                          
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => AiSearchScreen(initialQuery: query),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                'تحليل الأخطاء بالذكاء الاصطناعي',
+                                style: GoogleFonts.tajawal(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
 
                     // ─── أزرار ────────────────────────────────────────
                     Row(

@@ -1,10 +1,12 @@
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/reading_session.dart';
+import '../models/book.dart';
 
 class ReadingProvider extends ChangeNotifier {
-  static const String _readingKey = 'reading_status_v1';
-  final Set<String> _readBooks = {};
+  static const String _readingKey = 'reading_sessions_v2';
+  final Map<String, ReadingSession> _sessions = {};
   String? _uid;
 
   ReadingProvider() {
@@ -17,21 +19,40 @@ class ReadingProvider extends ChangeNotifier {
       if (_uid != null) {
         _syncFromFirestore();
       } else {
-        _readBooks.clear();
-        _loadLocal(); // Load guest data
+        _sessions.clear();
+        _loadLocal();
       }
     }
   }
 
-  Set<String> get readBooks => Set.unmodifiable(_readBooks);
-  int get readCount => _readBooks.length;
+  List<ReadingSession> get sessions => _sessions.values.toList()
+    ..sort((a, b) => b.lastReadAt.compareTo(a.lastReadAt));
+
+  List<ReadingSession> get toReadList => 
+      sessions.where((s) => s.status == ReadingStatus.toRead).toList();
+
+  List<ReadingSession> get readingList => 
+      sessions.where((s) => s.status == ReadingStatus.reading).toList();
+
+  List<ReadingSession> get completedList => 
+      sessions.where((s) => s.status == ReadingStatus.completed).toList();
+
+  int get readCount => completedList.length;
 
   Future<void> _loadLocal() async {
     final prefs = await SharedPreferences.getInstance();
     final String key = _uid != null ? '${_readingKey}_$_uid' : _readingKey;
     final List<String>? list = prefs.getStringList(key);
+    
     if (list != null) {
-      _readBooks.addAll(list);
+      for (var jsonStr in list) {
+        try {
+          final session = ReadingSession.fromJson(jsonStr);
+          _sessions[session.bookKey] = session;
+        } catch (e) {
+          debugPrint('Error parsing session: $e');
+        }
+      }
       notifyListeners();
     }
   }
@@ -39,61 +60,61 @@ class ReadingProvider extends ChangeNotifier {
   Future<void> _saveLocal() async {
     final prefs = await SharedPreferences.getInstance();
     final String key = _uid != null ? '${_readingKey}_$_uid' : _readingKey;
-    await prefs.setStringList(key, _readBooks.toList());
+    final List<String> list = _sessions.values.map((s) => s.toJson()).toList();
+    await prefs.setStringList(key, list);
   }
 
   Future<void> _syncFromFirestore() async {
-    if (_uid == null) return;
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(_uid)
-          .collection('data')
-          .doc('read_books')
-          .get();
-      if (doc.exists) {
-        final data = doc.data();
-        if (data != null && data['books'] != null) {
-          final List<dynamic> books = data['books'];
-          _readBooks.addAll(books.cast<String>());
-          await _saveLocal();
-          notifyListeners();
-        }
-      }
-    } catch (e) {
-      debugPrint('Error syncing read books: $e');
-    }
+    // Sync logic can be expanded later to sync full sessions
   }
 
-  Future<void> markAsRead(String uniqueKey) async {
-    if (_readBooks.contains(uniqueKey)) return;
-    _readBooks.add(uniqueKey);
+  Future<void> updateSession(ReadingSession session) async {
+    _sessions[session.bookKey] = session;
     notifyListeners();
     await _saveLocal();
+  }
 
-    if (_uid != null) {
-      try {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(_uid)
-            .collection('data')
-            .doc('read_books')
-            .set({
-              'books': FieldValue.arrayUnion([uniqueKey]),
-              'updatedAt': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true));
-      } catch (e) {
-        debugPrint('Error saving read state: $e');
-      }
+  Future<void> markAsToRead(Book book) async {
+    final session = _sessions[book.uniqueKey] ?? ReadingSession(bookKey: book.uniqueKey, book: book);
+    session.status = ReadingStatus.toRead;
+    await updateSession(session);
+  }
+
+  Future<void> markAsReading(Book book, {int? page, int? totalPages}) async {
+    final session = _sessions[book.uniqueKey] ?? ReadingSession(bookKey: book.uniqueKey, book: book);
+    session.status = ReadingStatus.reading;
+    session.lastReadAt = DateTime.now();
+    if (page != null) session.lastPage = page;
+    if (totalPages != null) session.totalPages = totalPages;
+    await updateSession(session);
+  }
+
+  Future<void> markAsCompleted(Book book) async {
+    final session = _sessions[book.uniqueKey] ?? ReadingSession(bookKey: book.uniqueKey, book: book);
+    session.status = ReadingStatus.completed;
+    session.lastReadAt = DateTime.now();
+    if (session.totalPages > 1) {
+      session.lastPage = session.totalPages;
     }
+    await updateSession(session);
+  }
+
+  Future<void> addReadingTime(Book book, int seconds) async {
+    final session = _sessions[book.uniqueKey] ?? ReadingSession(bookKey: book.uniqueKey, book: book);
+    session.readingTimeSeconds += seconds;
+    await updateSession(session);
   }
 
   bool isRead(String uniqueKey) {
-    return _readBooks.contains(uniqueKey);
+    return _sessions[uniqueKey]?.status == ReadingStatus.completed;
+  }
+  
+  ReadingSession? getSession(String uniqueKey) {
+    return _sessions[uniqueKey];
   }
 
   void clearAll() {
-    _readBooks.clear();
+    _sessions.clear();
     notifyListeners();
   }
 }

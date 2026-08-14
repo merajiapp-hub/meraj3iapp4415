@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../../services/results_service.dart';
 import '../../theme/app_theme.dart';
 import 'school_stats_screen.dart';
+import 'wilaya_stats_screen.dart';
 import 'student_detail_screen.dart';
 
 class CompetitionStatsScreen extends StatefulWidget {
@@ -149,6 +150,11 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
         ? widget.allResults.where((r) => r.isComplementary).toList()
         : <StudentResult>[];
 
+    // ─── الأوائل ───
+    final passedStudents = widget.allResults.where((r) => r.isPassed && r.score != null).toList()
+      ..sort((a, b) => b.score!.compareTo(a.score!));
+    final topStudents = passedStudents.take(20).toList();
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -195,6 +201,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
             topScore: topScore,
             scoreLabel: scoreLabel,
             maxScore: maxScore,
+            topStudents: topStudents,
           ),
 
           // 2. ترتيب وإحصائيات المدارس
@@ -211,6 +218,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
             primaryColor: primaryColor,
             wilayas: sortedWilayas,
             scoreLabel: scoreLabel,
+            maxScore: maxScore,
           ),
 
           // 4. الدورة التكميلية (للبكالوريا فقط)
@@ -247,6 +255,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
     required double topScore,
     required String scoreLabel,
     required double maxScore,
+    required List<StudentResult> topStudents,
   }) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -530,9 +539,127 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
               ],
             ),
           ),
+          const SizedBox(height: 32),
+
+          // ── الأوائل ──
+          if (topStudents.isNotEmpty) ...[
+            Text(
+              '🥇 أوائل المسابقة (Top 20)',
+              style: GoogleFonts.tajawal(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            _buildTopStudentsSection(isDark, topStudents, primaryColor),
+          ],
+          
           const SizedBox(height: 40),
         ],
       ),
+    );
+  }
+
+  Widget _buildTopStudentsSection(bool isDark, List<StudentResult> students, Color primaryColor) {
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: students.length,
+      itemBuilder: (context, index) {
+        final student = students[index];
+        final rank = index + 1;
+        
+        Color rankColor;
+        if (rank == 1) { rankColor = const Color(0xFFFFD700); } // Gold
+        else if (rank == 2) { rankColor = const Color(0xFFC0C0C0); } // Silver
+        else if (rank == 3) { rankColor = const Color(0xFFCD7F32); } // Bronze
+        else { rankColor = primaryColor.withValues(alpha: 0.7); }
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE2E8F0),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            leading: CircleAvatar(
+              backgroundColor: rankColor.withValues(alpha: 0.15),
+              radius: 22,
+              child: Text(
+                '$rank',
+                style: GoogleFonts.outfit(
+                  color: rankColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+            title: Text(
+              student.name,
+              style: GoogleFonts.tajawal(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                if (student.school.isNotEmpty)
+                  Text(
+                    '🏫 ${student.school}',
+                    style: GoogleFonts.tajawal(fontSize: 12, color: Colors.grey),
+                  ),
+                if (student.wilaya.isNotEmpty)
+                  Text(
+                    '📍 ${student.wilaya}',
+                    style: GoogleFonts.tajawal(fontSize: 12, color: Colors.grey),
+                  ),
+              ],
+            ),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: primaryColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                student.score!.toStringAsFixed(2),
+                style: GoogleFonts.outfit(
+                  color: primaryColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => StudentDetailScreen(
+                    student: student,
+                    gradient: widget.gradient,
+                    emoji: '🏆',
+                    passScore: widget.examType == ExamType.concours ? 100.0 : 10.0,
+                    maxScore: widget.examType == ExamType.concours ? 200.0 : 20.0,
+                    scoreLabel: widget.examType == ExamType.concours ? 'المجموع' : 'المعدل',
+                    allResults: widget.allResults,
+                    examType: widget.examType,
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -1034,52 +1161,71 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
     required Color primaryColor,
     required List<_WilayaData> wilayas,
     required String scoreLabel,
+    required double maxScore,
   }) {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: wilayas.length,
       itemBuilder: (context, index) {
         final w = wilayas[index];
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE2E8F0),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => WilayaStatsScreen(
+                  wilayaName: w.name,
+                  allResults: widget.allResults,
+                  examType: widget.examType,
+                  gradient: widget.gradient,
+                  emoji: '📍',
+                  passScore: widget.examType == ExamType.concours ? 100.0 : 10.0,
+                  maxScore: maxScore,
+                  scoreLabel: scoreLabel,
                 ),
-                child: Center(
-                  child: Text(
-                    '#${w.rank}',
-                    style: GoogleFonts.outfit(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: AppTheme.primaryColor,
+              ),
+            );
+          },
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE2E8F0),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '#${w.rank}',
+                      style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: AppTheme.primaryColor,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -1120,8 +1266,9 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
               ),
             ],
           ),
-        );
-      },
+        ),
+      );
+    },
     );
   }
 

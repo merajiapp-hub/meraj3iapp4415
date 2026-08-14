@@ -995,12 +995,25 @@ class QuizProvider extends ChangeNotifier {
     await prefs.setStringList('used_question_ids', _usedQuestionIds);
   }
 
-  void generateNewQuiz({int count = 15}) {
-    final all = QuizBank.allQuestions;
+  void generateNewQuiz({
+    int count = 15,
+    String? category,
+    QuestionDifficulty? difficulty,
+  }) {
+    var all = QuizBank.allQuestions;
+    
+    if (category != null) {
+      all = all.where((q) => q.category == category).toList();
+    }
+    if (difficulty != null) {
+      all = all.where((q) => q.difficulty == difficulty).toList();
+    }
+
     var available = all.where((q) => !_usedQuestionIds.contains(q.id)).toList();
 
     if (available.length < count) {
-      _usedQuestionIds.clear();
+      // If we ran out of new questions for this filter, reset just the used ones for this filter
+      _usedQuestionIds.removeWhere((id) => all.any((q) => q.id == id));
       available = List.from(all);
     }
 

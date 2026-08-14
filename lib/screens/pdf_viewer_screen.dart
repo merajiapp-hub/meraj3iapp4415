@@ -11,11 +11,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_notification.dart';
 import '../models/book.dart';
+
 import '../providers/downloads_provider.dart';
 import '../providers/reading_provider.dart';
 import '../providers/statistics_provider.dart';
 import '../widgets/banner_ad_widget.dart';
 import '../data/ad_manager.dart';
+import 'package:share_plus/share_plus.dart';
 
 class PdfViewerScreen extends StatefulWidget {
   final String pdfUrl;
@@ -163,6 +165,60 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
       }
     });
     _saveBookmarks();
+  }
+
+  void _shareBook() {
+    final url = widget.pdfUrl.isNotEmpty ? widget.pdfUrl : (_localPath ?? '');
+    if (url.isEmpty) {
+      AppNotification.show(context, 'لا يوجد رابط للمشاركة', isError: true);
+      return;
+    }
+    // Workaround for deprecation info
+    // ignore: deprecated_member_use
+    Share.share(
+      '📚 ${widget.title}\n\nاطّلع على هذا الكتاب في تطبيق مراجعي:\n$url',
+      subject: widget.title,
+    );
+  }
+
+  void _showReadingListOptions() {
+    if (widget.book == null) return;
+    final reading = context.read<ReadingProvider>();
+    final book = widget.book!;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('إضافة إلى قائمة القراءة', style: GoogleFonts.cairo(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.bookmark_added_rounded, color: Colors.blue),
+                title: Text('أريد قراءته', style: GoogleFonts.cairo()),
+                onTap: () { Navigator.pop(ctx); reading.markAsToRead(book); AppNotification.show(context, 'تمت الإضافة إلى قائمة القراءة ✅'); },
+              ),
+              ListTile(
+                leading: const Icon(Icons.menu_book_rounded, color: Colors.orange),
+                title: Text('قيد القراءة الآن', style: GoogleFonts.cairo()),
+                onTap: () { Navigator.pop(ctx); reading.markAsReading(book, page: _currentPage, totalPages: _totalPages); AppNotification.show(context, 'تم التحديث 📖'); },
+              ),
+              ListTile(
+                leading: const Icon(Icons.check_circle_rounded, color: Colors.green),
+                title: Text('قرأته بالكامل', style: GoogleFonts.cairo()),
+                onTap: () { Navigator.pop(ctx); reading.markAsCompleted(book); AppNotification.show(context, 'تم حفظه في المقروءات ✅'); },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _toggleToolbar() {
@@ -540,7 +596,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
                   ),
                   tooltip: isRead ? 'مقروء' : 'تعيين كمقروء',
                   onPressed: () {
-                    reading.markAsRead(widget.book!.uniqueKey);
+                    reading.markAsCompleted(widget.book!);
                     if (!isRead) {
                       AppNotification.show(
                         context,
@@ -637,6 +693,19 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
               tooltip: 'فتح في المتصفح',
               onPressed: () => _launchUrl(widget.pdfUrl),
             ),
+          // Reading list
+          if (widget.book != null)
+            IconButton(
+              icon: const Icon(Icons.playlist_add_rounded),
+              tooltip: 'إضافة إلى قائمة القراءة',
+              onPressed: _showReadingListOptions,
+            ),
+          // Share book
+          IconButton(
+            icon: const Icon(Icons.share_rounded),
+            tooltip: 'مشاركة الكتاب',
+            onPressed: _shareBook,
+          ),
           const SizedBox(width: 4),
         ],
       ),

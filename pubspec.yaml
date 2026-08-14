@@ -2,7 +2,7 @@ name: meraj3i
 description: "MERAJ3I - منصة تعليمية شاملة للطلاب"
 publish_to: "none"
 
-version: 5.0.0+6
+version: 5.1.0+7
 
 environment:
   sdk: ^3.11.0
@@ -21,7 +21,7 @@ dependencies:
   firebase_messaging: ^16.1.2
   firebase_remote_config: any
   google_sign_in: ^6.2.2
-  share_plus: ^12.0.1
+  share_plus: ^12.0.2
   url_launcher: ^6.3.2
   shared_preferences: ^2.5.4
   provider: ^6.1.5+1
@@ -36,7 +36,7 @@ dependencies:
   permission_handler: ^11.3.1
   connectivity_plus: ^6.1.4
   path_provider: ^2.1.5
-  screenshot: any
+  screenshot: ^3.0.0
   http: ^1.2.2
   fl_chart: ^0.69.0
   open_filex: ^4.5.0
@@ -56,6 +56,7 @@ dependencies:
   audioplayers: ^6.8.1
   shorebird_code_push: ^2.0.7
   package_info_plus: ^9.0.1
+  table_calendar: ^3.1.2
 
 dev_dependencies:
   flutter_test:
@@ -68,4 +69,11 @@ flutter:
     - assets/images/
     - assets/sounds/
     - assets/fonts/
+    - assets/pay/
     - shorebird.yaml
+  fonts:
+    - family: Tajawal
+      fonts:
+        - asset: assets/fonts/Tajawal-Regular.ttf
+        - asset: assets/fonts/Tajawal-Bold.ttf
+          weight: 700

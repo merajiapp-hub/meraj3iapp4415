@@ -16,9 +16,14 @@ import 'profile_screen.dart';
 import 'info_screen.dart';
 import 'login_screen.dart';
 import 'stages_screen.dart';
+import 'schedule_screen.dart';
+import 'results/results_home_screen.dart';
 import 'swedd_screen.dart';
+import 'review_center_screen.dart';
 import 'ai_search_screen.dart';
-import 'quiz_screen.dart';
+import 'exam_generator_screen.dart';
+import 'countdown_screen.dart';
+import 'changelog_screen.dart';
 import 'downloads_screen.dart';
 import 'contact_screen.dart';
 import 'faq_screen.dart';
@@ -27,8 +32,14 @@ import 'terms_of_use_screen.dart';
 import 'national_exams_screen.dart';
 import 'notifications_screen.dart';
 import 'statistics_screen.dart';
+import 'donations_screen.dart';
+import 'dedication_screen.dart';
+import 'student/student_card_screen.dart';
+import 'student/progress_screen.dart';
+import 'student/reading_list_screen.dart';
+import 'student/reading_history_screen.dart';
 import '../widgets/banner_ad_widget.dart';
-import 'results/results_home_screen.dart';
+
 
 class HomePage extends StatefulWidget {
   final bool isGuest;
@@ -124,8 +135,9 @@ class _HomePageState extends State<HomePage>
       },
       child: Scaffold(
         drawer: _buildDrawer(),
-        bottomNavigationBar: _buildBottomNav(isDark),
-        body: CustomScrollView(
+        body: Stack(
+          children: [
+            CustomScrollView(
           slivers: [
             // ══════════════════════════════════════════
             //  Header — SliverAppBar محسّن
@@ -222,7 +234,8 @@ class _HomePageState extends State<HomePage>
                           builder: (context, auth, _) {
                             final name = widget.isGuest
                                 ? 'الزائر'
-                                : (auth.user?.displayName?.split(' ').first ?? 'الطالب');
+                                : (auth.user?.displayName?.split(' ').first ??
+                                      'الطالب');
                             return Text(
                               'أهلاً، $name 👋',
                               style: GoogleFonts.tajawal(
@@ -315,7 +328,8 @@ class _HomePageState extends State<HomePage>
                         backgroundImage: Provider.of<AuthProvider>(
                           context,
                         ).profileImageProvider,
-                        child: Provider.of<AuthProvider>(
+                        child:
+                            Provider.of<AuthProvider>(
                                   context,
                                 ).profileImageProvider ==
                                 null
@@ -355,6 +369,12 @@ class _HomePageState extends State<HomePage>
 
                         // ── حكمة اليوم ──
                         _buildWisdomBox(isDark),
+                        const SizedBox(height: 24),
+
+                        // ── الوصول السريع ──
+                        _buildSectionHeader('الوصول السريع', isDark),
+                        const SizedBox(height: 12),
+                        _buildQuickAccessRow(isDark),
                         const SizedBox(height: 28),
 
                         // ── عنوان القسم الرئيسي ──
@@ -393,7 +413,7 @@ class _HomePageState extends State<HomePage>
                             ],
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 100), // مساحة للشريط السفلي العائم
                       ],
                     ),
                   ),
@@ -402,7 +422,76 @@ class _HomePageState extends State<HomePage>
             ),
           ],
         ),
-      ),
+        // الشريط السفلي العائم
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: _buildBottomNav(isDark),
+        ),
+      ],
+    ),
+    ),
+  );
+}
+
+  // ══════════════════════════════════════════════════════
+  // الوصول السريع
+  // ══════════════════════════════════════════════════════
+  Widget _buildQuickAccessRow(bool isDark) {
+    final items = [
+      {'title': 'كتب', 'icon': Icons.menu_book_rounded, 'color': const Color(0xFF3B82F6)},
+      {'title': 'دروس', 'icon': Icons.play_lesson_rounded, 'color': const Color(0xFF10B981)},
+      {'title': 'تمارين', 'icon': Icons.assignment_rounded, 'color': const Color(0xFFF59E0B)},
+      {'title': 'امتحانات', 'icon': Icons.description_rounded, 'color': const Color(0xFF8B5CF6)},
+    ];
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: items.map((item) {
+        final color = item['color'] as Color;
+        return GestureDetector(
+          onTap: () {
+            // توجيه المستخدم للأقسام بناء على اختياره، سنوجهه الآن إلى المراحل كأمر افتراضي
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const StagesScreen()),
+            );
+          },
+          child: Column(
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: isDark ? color.withValues(alpha: 0.15) : color.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: color.withValues(alpha: 0.3),
+                    width: 1.5,
+                  ),
+                ),
+                child: Center(
+                  child: Icon(
+                    item['icon'] as IconData,
+                    color: color,
+                    size: 28,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                item['title'] as String,
+                style: GoogleFonts.tajawal(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: isDark ? Colors.white70 : const Color(0xFF475569),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -497,7 +586,11 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  Widget _buildServiceCard(_ServiceItem service, bool isDark, double cardWidth) {
+  Widget _buildServiceCard(
+    _ServiceItem service,
+    bool isDark,
+    double cardWidth,
+  ) {
     return _AnimatedCard(
       onTap: service.onTap,
       child: Container(
@@ -506,9 +599,7 @@ class _HomePageState extends State<HomePage>
           borderRadius: BorderRadius.circular(22),
           boxShadow: [
             BoxShadow(
-              color: (service.gradient as LinearGradient)
-                  .colors
-                  .first
+              color: (service.gradient as LinearGradient).colors.first
                   .withValues(alpha: isDark ? 0.2 : 0.12),
               blurRadius: 16,
               offset: const Offset(0, 6),
@@ -518,10 +609,9 @@ class _HomePageState extends State<HomePage>
           border: Border.all(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.06)
-                : (service.gradient as LinearGradient)
-                    .colors
-                    .first
-                    .withValues(alpha: 0.12),
+                : (service.gradient as LinearGradient).colors.first.withValues(
+                    alpha: 0.12,
+                  ),
             width: 1.2,
           ),
         ),
@@ -601,9 +691,7 @@ class _HomePageState extends State<HomePage>
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: (service.gradient as LinearGradient)
-                            .colors
-                            .first
+                        color: (service.gradient as LinearGradient).colors.first
                             .withValues(alpha: 0.4),
                         blurRadius: 6,
                         offset: const Offset(0, 2),
@@ -639,7 +727,6 @@ class _HomePageState extends State<HomePage>
       ),
     );
   }
-
 
   // ══════════════════════════════════════════════════════
   //  شريط البحث
@@ -822,59 +909,108 @@ class _HomePageState extends State<HomePage>
   }
 
   // ══════════════════════════════════════════════════════
-  //  شريط التنقل السفلي
+  //  شريط التنقل السفلي — منحني احترافي
   // ══════════════════════════════════════════════════════
   Widget _buildBottomNav(bool isDark) {
+    final items = [
+      _NavItem(icon: Icons.home_rounded, label: 'الرئيسية'),
+      _NavItem(icon: Icons.favorite_rounded, label: 'المفضلة'),
+      _NavItem(icon: Icons.task_alt_rounded, label: 'الخطة'),
+      _NavItem(icon: Icons.person_rounded, label: 'حسابي'),
+    ];
+
     return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: isDark ? AppTheme.surfaceDark : Colors.white,
+        borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.06),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
+            color: AppTheme.primaryColor.withValues(alpha: isDark ? 0.2 : 0.12),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+            spreadRadius: 0,
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 2),
           ),
         ],
-        border: Border(
-          top: BorderSide(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.06)
-                : const Color(0xFFD1EAE3),
-            width: 1,
-          ),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.07)
+              : AppTheme.primaryColor.withValues(alpha: 0.1),
+          width: 1,
         ),
       ),
-      child: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppTheme.primaryColor,
-        unselectedItemColor: Colors.grey[400],
-        selectedLabelStyle: GoogleFonts.tajawal(
-          fontWeight: FontWeight.bold,
-          fontSize: 12,
-        ),
-        unselectedLabelStyle: GoogleFonts.tajawal(fontSize: 11),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_rounded),
-            label: 'الرئيسية',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite_rounded),
-            label: 'المفضلة',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.task_alt_rounded),
-            label: 'الخطة',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_rounded),
-            label: 'حسابي',
-          ),
-        ],
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: List.generate(items.length, (index) {
+          final isSelected = _selectedIndex == index;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => _onItemTapped(index),
+              behavior: HitTestBehavior.opaque,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeOutCubic,
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppTheme.primaryColor.withValues(alpha: 0.12)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOutCubic,
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppTheme.primaryColor
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: AppTheme.primaryColor.withValues(alpha: 0.4),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                )
+                              ]
+                            : [],
+                      ),
+                      child: Icon(
+                        items[index].icon,
+                        size: 22,
+                        color: isSelected
+                            ? Colors.white
+                            : (isDark ? Colors.white38 : Colors.grey[400]),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 200),
+                      style: GoogleFonts.tajawal(
+                        fontSize: 10,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected
+                            ? AppTheme.primaryColor
+                            : (isDark ? Colors.white38 : Colors.grey[400]),
+                      ),
+                      child: Text(items[index].label),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
       ),
     );
   }
@@ -961,11 +1097,60 @@ class _HomePageState extends State<HomePage>
             child: ListView(
               padding: const EdgeInsets.only(top: 10),
               children: [
+                _buildDrawerItem(Icons.badge_rounded, 'بطاقة الطالب', () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const StudentCardScreen()),
+                  );
+                }),
+                _buildDrawerItem(Icons.trending_up_rounded, 'تطور المستوى', () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ProgressScreen()),
+                  );
+                }),
+                _buildDrawerItem(Icons.menu_book_rounded, 'قائمة القراءة', () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ReadingListScreen()),
+                  );
+                }),
+                _buildDrawerItem(Icons.history_edu_rounded, 'سجل القراءة', () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ReadingHistoryScreen()),
+                  );
+                }),
+                _buildDrawerItem(Icons.auto_stories_rounded, 'مركز المراجعة', () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ReviewCenterScreen()),
+                  );
+                }),
                 _buildDrawerItem(Icons.quiz_rounded, 'الاختبارات', () {
                   Navigator.pop(context);
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const QuizScreen()),
+                    MaterialPageRoute(builder: (_) => const ExamGeneratorScreen()),
+                  );
+                }),
+                _buildDrawerItem(Icons.timer_rounded, 'العد التنازلي', () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const CountdownScreen()),
+                  );
+                }),
+                _buildDrawerItem(Icons.update_rounded, 'سجل التحديثات', () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ChangelogScreen()),
                   );
                 }),
                 _buildDrawerItem(Icons.bar_chart_rounded, 'الإحصائيات', () {
@@ -984,6 +1169,19 @@ class _HomePageState extends State<HomePage>
                     ),
                   );
                 }),
+                _buildDrawerItem(
+                  Icons.edit_calendar_rounded,
+                  'الجدول الدراسي',
+                  () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ScheduleScreen(),
+                      ),
+                    );
+                  },
+                ),
                 _buildDrawerItem(
                   Icons.calendar_today_rounded,
                   'خطة الدراسة',
@@ -1035,6 +1233,26 @@ class _HomePageState extends State<HomePage>
                     );
                   },
                 ),
+                _buildDrawerItem(
+                  Icons.volunteer_activism_rounded,
+                  'دعم التطبيق',
+                  () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const DonationsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildDrawerItem(Icons.auto_awesome_rounded, 'الإهداء', () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const DedicationScreen()),
+                  );
+                }),
                 _buildDrawerItem(Icons.contact_support_rounded, 'اتصل بنا', () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -1194,6 +1412,15 @@ class _ServiceItem {
 }
 
 // ══════════════════════════════════════════════════════
+//  Model لعناصر الشريط السفلي
+// ══════════════════════════════════════════════════════
+class _NavItem {
+  final IconData icon;
+  final String label;
+  const _NavItem({required this.icon, required this.label});
+}
+
+// ══════════════════════════════════════════════════════
 //  AnimatedCard — تأثير الضغط
 // ══════════════════════════════════════════════════════
 class _AnimatedCard extends StatefulWidget {
@@ -1243,4 +1470,3 @@ class _AnimatedCardState extends State<_AnimatedCard>
     );
   }
 }
-
