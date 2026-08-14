@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shorebird_code_push/shorebird_code_push.dart';
 
 import '../providers/theme_provider.dart';
 import '../data/notification_service.dart';
@@ -26,11 +28,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
   static const _keyBookUpdates = 'notif_book_updates';
   static const _keyBiometrics = 'biometrics_enabled';
 
+  String _version = '';
+  String _patchNumber = '';
+
   @override
   void initState() {
     super.initState();
     _checkBiometrics();
     _loadPreferences();
+    _loadVersionInfo();
+  }
+
+  Future<void> _loadVersionInfo() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      final updater = ShorebirdUpdater();
+      final patch = await updater.readCurrentPatch();
+      if (mounted) {
+        setState(() {
+          _version = '${info.version}+${info.buildNumber}';
+          _patchNumber = patch != null ? 'Patch ${patch.number}' : '';
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _checkBiometrics() async {
@@ -356,12 +376,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                         // ── تذييل ───────────────────────────────────────────
                         Center(
-                          child: Text(
-                            '© 2025 MERAJ3I. جميع الحقوق محفوظة.',
-                            style: GoogleFonts.tajawal(
-                              fontSize: 12,
-                              color: Colors.grey[500],
-                            ),
+                          child: Column(
+                            children: [
+                              Text(
+                                '© 2025 MERAJ3I. جميع الحقوق محفوظة.',
+                                style: GoogleFonts.tajawal(
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                              if (_version.isNotEmpty) ...[
+                                const SizedBox(height: 6),
+                                Text(
+                                  'الإصدار: $_version${_patchNumber.isNotEmpty ? ' ($_patchNumber)' : ''}',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.primaryColor.withValues(alpha: 0.8),
+                                  ),
+                                  textDirection: TextDirection.ltr,
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                         const SizedBox(height: 16),

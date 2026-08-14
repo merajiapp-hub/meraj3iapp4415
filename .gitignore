@@ -43,3 +43,16 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# ════════════════════════════════════
+#  🔒 Secrets & API Keys — لا ترفعها
+# ════════════════════════════════════
+.env
+.env.local
+.env.*
+secrets.dart
+lib/secrets.dart
+lib/config/secrets.dart
+google-services.json.backup
+*.keystore
+key.properties

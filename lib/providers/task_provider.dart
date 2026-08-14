@@ -104,12 +104,26 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
-  void toggleTaskStatus(String id) {
+  Future<void> toggleTaskStatus(String id) async {
     final index = _tasks.indexWhere((t) => t.id == id);
     if (index != -1) {
       _tasks[index].isCompleted = !_tasks[index].isCompleted;
       _saveTasks();
       notifyListeners();
+
+      // إرسال إشعار فوري عند إتمام المهمة
+      if (_tasks[index].isCompleted) {
+        final task = _tasks[index];
+        await NotificationService().cancelNotification(task.notificationId);
+        final studyReminders = await _areStudyRemindersEnabled();
+        if (studyReminders) {
+          await NotificationService().showInstantNotification(
+            id: task.notificationId + 9000,
+            title: '✅ أنجزت مهمتك!',
+            body: '${task.title} — ${task.subject}، عمل رائع! 💪',
+          );
+        }
+      }
     }
   }
 

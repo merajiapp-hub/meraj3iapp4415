@@ -10,6 +10,7 @@ import 'package:screenshot/screenshot.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:confetti/confetti.dart';
 import 'package:provider/provider.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../../services/results_service.dart';
 import '../../services/result_pdf_service.dart';
 import '../../providers/favorite_results_provider.dart';
@@ -53,6 +54,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
   final ScreenshotController _screenshotController = ScreenshotController();
   bool _isExporting = false;
   late ConfettiController _confettiController;
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   // ترتيبات مُحسبة
   int? _rankNational;
@@ -139,8 +141,13 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
 
   void _checkAndPlayConfetti() {
     if (!widget.student.isPassed) return;
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) _confettiController.play();
+    Future.delayed(const Duration(milliseconds: 300), () async {
+      if (mounted) {
+        _confettiController.play();
+        try {
+          await _audioPlayer.play(AssetSource('sounds/success.mp3'));
+        } catch (_) {}
+      }
     });
   }
 
@@ -148,6 +155,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
   void dispose() {
     _ctrl.dispose();
     _confettiController.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 

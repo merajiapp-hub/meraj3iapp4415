@@ -141,7 +141,7 @@ class _StageDetailScreenState extends State<StageDetailScreen> {
     Color accentColor,
     double screenWidth,
   ) {
-    // إذا كان قسم واحد فقط، نعرضه كبطاقة عريضة
+    // إذا كان قسم واحد فقط، نعرضه كبطاقة عريضة مضغوطة
     if (sections.length == 1) {
       return Padding(
         padding: const EdgeInsets.all(20),
@@ -172,7 +172,7 @@ class _StageDetailScreenState extends State<StageDetailScreen> {
       padding: EdgeInsets.all(screenWidth < 360 ? 14 : 20),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: screenWidth < 360 ? 0.85 : 0.9,
+        childAspectRatio: screenWidth < 360 ? 1.1 : 1.25,
         crossAxisSpacing: 14,
         mainAxisSpacing: 14,
       ),
@@ -301,6 +301,98 @@ class _SectionCardState extends State<_SectionCard>
   Widget build(BuildContext context) {
     final accentColor = (widget.gradient as LinearGradient).colors.first;
 
+    // البطاقة الكاملة (قسم واحد): عرض أفقي مضغوط
+    if (widget.isFull) {
+      return ScaleTransition(
+        scale: _scale,
+        child: GestureDetector(
+          onTapDown: (_) => _ctrl.forward(),
+          onTapUp: (_) {
+            _ctrl.reverse();
+            widget.onTap();
+          },
+          onTapCancel: () => _ctrl.reverse(),
+          child: Container(
+            height: 90,
+            decoration: BoxDecoration(
+              color: widget.isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: accentColor.withValues(alpha: widget.isDark ? 0.18 : 0.12),
+                  blurRadius: 14,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+              border: Border.all(
+                color: widget.isDark
+                    ? Colors.white.withValues(alpha: 0.06)
+                    : accentColor.withValues(alpha: 0.12),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      gradient: widget.gradient,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: accentColor.withValues(alpha: 0.30),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Icon(widget.icon, color: Colors.white, size: 26),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          widget.title,
+                          style: GoogleFonts.tajawal(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: widget.isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          widget.subtitle,
+                          style: GoogleFonts.tajawal(
+                            fontSize: 12,
+                            color: accentColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: accentColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: accentColor),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // البطاقات في الـ Grid: عمودية مضغوطة
     return ScaleTransition(
       scale: _scale,
       child: GestureDetector(
@@ -316,8 +408,7 @@ class _SectionCardState extends State<_SectionCard>
             borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
-                color: accentColor.withValues(
-                    alpha: widget.isDark ? 0.18 : 0.12),
+                color: accentColor.withValues(alpha: widget.isDark ? 0.18 : 0.12),
                 blurRadius: 14,
                 offset: const Offset(0, 5),
               ),
@@ -333,77 +424,51 @@ class _SectionCardState extends State<_SectionCard>
             children: [
               // أيقونة مع تدرج
               Container(
-                width: 62,
-                height: 62,
+                width: 52,
+                height: 52,
                 decoration: BoxDecoration(
                   gradient: widget.gradient,
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: accentColor.withValues(alpha: 0.30),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+                      color: accentColor.withValues(alpha: 0.28),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
                     ),
                   ],
                 ),
-                child: Icon(widget.icon, color: Colors.white, size: 30),
+                child: Icon(widget.icon, color: Colors.white, size: 26),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
 
               // العنوان
-              Text(
-                widget.title,
-                style: GoogleFonts.tajawal(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: widget.isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 4),
-
-              // العنوان الفرعي
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Text(
-                  widget.subtitle,
+                  widget.title,
                   style: GoogleFonts.tajawal(
-                    fontSize: 10,
-                    color: accentColor,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: widget.isDark ? Colors.white : const Color(0xFF0F172A),
                   ),
                   textAlign: TextAlign.center,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 3),
 
-              // سهم "اضغط للدخول"
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                decoration: BoxDecoration(
-                  color: accentColor.withValues(
-                      alpha: widget.isDark ? 0.18 : 0.10),
-                  borderRadius: BorderRadius.circular(20),
+              // العنوان الفرعي
+              Text(
+                widget.subtitle,
+                style: GoogleFonts.tajawal(
+                  fontSize: 10,
+                  color: accentColor,
+                  fontWeight: FontWeight.w500,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.arrow_forward_rounded,
-                        size: 13, color: accentColor),
-                    const SizedBox(width: 4),
-                    Text(
-                      'اضغط للدخول',
-                      style: GoogleFonts.tajawal(
-                        fontSize: 10,
-                        color: accentColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),

@@ -7,11 +7,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/notifications_provider.dart';
 
-import '../providers/reading_provider.dart';
-import '../data/books_data.dart';
-import '../models/book.dart';
 import '../theme/app_theme.dart';
-import 'pdf_viewer_screen.dart';
 import 'search_screen.dart';
 import 'favorites_screen.dart';
 import 'task_manager_screen.dart';
@@ -68,10 +64,10 @@ class _HomePageState extends State<HomePage>
 
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 700),
     );
     _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeIn);
-    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero)
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero)
         .animate(
           CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
         );
@@ -115,6 +111,7 @@ class _HomePageState extends State<HomePage>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final size = MediaQuery.of(context).size;
 
     return PopScope(
       canPop: false,
@@ -130,9 +127,11 @@ class _HomePageState extends State<HomePage>
         bottomNavigationBar: _buildBottomNav(isDark),
         body: CustomScrollView(
           slivers: [
-            // Custom App Bar
+            // ══════════════════════════════════════════
+            //  Header — SliverAppBar محسّن
+            // ══════════════════════════════════════════
             SliverAppBar(
-              expandedHeight: 140,
+              expandedHeight: 160,
               pinned: true,
               elevation: 0,
               flexibleSpace: FlexibleSpaceBar(
@@ -141,54 +140,100 @@ class _HomePageState extends State<HomePage>
                   right: 48,
                   bottom: 16,
                 ),
-                title: Text(
-                  'MERAJ3I',
-                  style: GoogleFonts.outfit(
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.5,
-                    color: Colors.white,
-                  ),
+                title: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Logo صغير في الـ Header
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'MERAJ3I',
+                      style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.5,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
                 ),
                 background: Container(
                   decoration: const BoxDecoration(
-                    gradient: AppTheme.deepBlueGradient,
+                    gradient: AppTheme.brandGradient,
                   ),
                   child: Stack(
                     children: [
+                      // دوائر زخرفية
                       Positioned(
-                        right: -30,
-                        top: -30,
+                        right: -40,
+                        top: -40,
                         child: Container(
-                          width: 150,
-                          height: 150,
+                          width: 180,
+                          height: 180,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withValues(alpha: 0.06),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: -60,
+                        bottom: -50,
+                        child: Container(
+                          width: 200,
+                          height: 200,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withValues(alpha: 0.04),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        right: 100,
+                        top: 20,
+                        child: Container(
+                          width: 60,
+                          height: 60,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.white.withValues(alpha: 0.05),
                           ),
                         ),
                       ),
+                      // نص ترحيبي في الـ Header الكامل
                       Positioned(
-                        left: -50,
-                        bottom: -40,
-                        child: Container(
-                          width: 180,
-                          height: 180,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withValues(alpha: 0.08),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        right: 80,
-                        bottom: -20,
-                        child: Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withValues(alpha: 0.03),
-                          ),
+                        bottom: 52,
+                        right: 20,
+                        left: 60,
+                        child: Consumer<AuthProvider>(
+                          builder: (context, auth, _) {
+                            final name = widget.isGuest
+                                ? 'الزائر'
+                                : (auth.user?.displayName?.split(' ').first ?? 'الطالب');
+                            return Text(
+                              'أهلاً، $name 👋',
+                              style: GoogleFonts.tajawal(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            );
+                          },
                         ),
                       ),
                     ],
@@ -196,7 +241,7 @@ class _HomePageState extends State<HomePage>
                 ),
               ),
               actions: [
-                // زر الإشعارات مع مؤشر عدد غير المقروءة
+                // زر الإشعارات
                 Consumer<NotificationsProvider>(
                   builder: (context, notifProvider, _) => Stack(
                     children: [
@@ -260,20 +305,17 @@ class _HomePageState extends State<HomePage>
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.3),
+                          color: Colors.white.withValues(alpha: 0.35),
                           width: 2,
                         ),
                       ),
                       child: CircleAvatar(
                         radius: 16,
-                        backgroundColor: AppTheme.primaryColor.withValues(
-                          alpha: 0.1,
-                        ),
+                        backgroundColor: Colors.white.withValues(alpha: 0.15),
                         backgroundImage: Provider.of<AuthProvider>(
                           context,
                         ).profileImageProvider,
-                        child:
-                            Provider.of<AuthProvider>(
+                        child: Provider.of<AuthProvider>(
                                   context,
                                 ).profileImageProvider ==
                                 null
@@ -294,189 +336,39 @@ class _HomePageState extends State<HomePage>
               ],
             ),
 
-            // Body Content
+            // ══════════════════════════════════════════
+            //  Body Content
+            // ══════════════════════════════════════════
             SliverToBoxAdapter(
               child: FadeTransition(
                 opacity: _fadeAnim,
                 child: SlideTransition(
                   position: _slideAnim,
                   child: Padding(
-                    padding: const EdgeInsets.all(20.0),
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Search Bar
+                        // ── شريط البحث ──
                         _buildSearchBar(isDark),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
 
-                        // Wisdom Box
-                        _buildWisdomBox(),
+                        // ── حكمة اليوم ──
+                        _buildWisdomBox(isDark),
                         const SizedBox(height: 28),
 
-                        // الخدمات الرئيسية - أفقية
-                        Text(
-                          'الخدمات الرئيسية',
-                          style: GoogleFonts.tajawal(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          height: 120,
-                          child: ListView(
-                            scrollDirection: Axis.horizontal,
-                            children: [
-                              _buildHorizontalServiceCard(
-                                title: 'المراحل',
-                                icon: Icons.school_rounded,
-                                gradient: AppTheme.primaryGradient,
-                                isDark: isDark,
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const StagesScreen(),
-                                  ),
-                                ),
-                              ),
-                              _buildHorizontalServiceCard(
-                                title: 'النتائج',
-                                icon: Icons.emoji_events_rounded,
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFFFF6B35), Color(0xFFE53935)],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                isDark: isDark,
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const ResultsHomeScreen(),
-                                  ),
-                                ),
-                              ),
-                              _buildHorizontalServiceCard(
-                                title: 'الوطنية',
-                                icon: Icons.menu_book_rounded,
-                                gradient: AppTheme.goldGradient,
-                                isDark: isDark,
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const NationalExamsScreen(),
-                                  ),
-                                ),
-                              ),
-                              _buildHorizontalServiceCard(
-                                title: 'الذكاء',
-                                icon: Icons.auto_awesome_rounded,
-                                gradient: AppTheme.purpleGradient,
-                                isDark: isDark,
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const AiSearchScreen(),
-                                  ),
-                                ),
-                              ),
-                              _buildHorizontalServiceCard(
-                                title: 'التنزيلات',
-                                icon: Icons.download_for_offline_rounded,
-                                gradient: AppTheme.greenGradient,
-                                isDark: isDark,
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const DownloadsScreen(),
-                                  ),
-                                ),
-                              ),
-                              _buildHorizontalServiceCard(
-                                title: 'SWEDD',
-                                icon: Icons.health_and_safety_rounded,
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFFEC4899),
-                                    Color(0xFFBE185D),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                isDark: isDark,
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const SweddScreen(),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        // ── عنوان القسم الرئيسي ──
+                        _buildSectionHeader('الخدمات الرئيسية', isDark),
+                        const SizedBox(height: 14),
 
-                        const SizedBox(height: 32),
+                        // ── Grid الأزرار الرئيسية الست ──
+                        _buildMainServicesGrid(size, isDark),
 
-                        // أكمل القراءة
-                        Consumer<ReadingProvider>(
-                          builder: (context, reading, _) {
-                            if (reading.readCount == 0) {
-                              return const SizedBox.shrink();
-                            }
-
-                            final readBooks = BooksData.allBooks
-                                .where((b) => reading.isRead(b.uniqueKey))
-                                .take(6)
-                                .toList();
-
-                            if (readBooks.isEmpty) {
-                              return const SizedBox.shrink();
-                            }
-
-                            return Column(
-                              children: [
-                                _buildSectionTitle(
-                                  'أكمل القراءة',
-                                  Icons.auto_stories_rounded,
-                                  AppTheme.primaryColor,
-                                ),
-                                const SizedBox(height: 16),
-                                _buildBooksHorizontalList(readBooks, isDark),
-                                const SizedBox(height: 32),
-                              ],
-                            );
-                          },
-                        ),
-
-                        // المضاف حديثاً
-                        _buildSectionTitle(
-                          'المضاف حديثاً',
-                          Icons.new_releases_rounded,
-                          AppTheme.secondaryColor,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildBooksHorizontalList(
-                          BooksData.allBooks.take(6).toList(),
-                          isDark,
-                        ),
-
-                        const SizedBox(height: 32),
-
-                        // الأكثر قراءة
-                        _buildSectionTitle(
-                          'الأكثر قراءة',
-                          Icons.local_fire_department_rounded,
-                          Colors.orange,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildBooksHorizontalList(
-                          BooksData.allBooks.skip(10).take(6).toList(),
-                          isDark,
-                        ),
-
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 28),
                         const BannerAdWidget(),
-                        const SizedBox(height: 32),
-                        // Footer
+                        const SizedBox(height: 28),
+
+                        // ── Footer ──
                         Center(
                           child: Column(
                             children: [
@@ -501,7 +393,7 @@ class _HomePageState extends State<HomePage>
                             ],
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 24),
                       ],
                     ),
                   ),
@@ -514,17 +406,443 @@ class _HomePageState extends State<HomePage>
     );
   }
 
+  // ══════════════════════════════════════════════════════
+  //  Grid الأزرار الرئيسية الست
+  // ══════════════════════════════════════════════════════
+  Widget _buildMainServicesGrid(Size size, bool isDark) {
+    final services = [
+      _ServiceItem(
+        title: 'المراحل الدراسية',
+        icon: Icons.school_rounded,
+        gradient: AppTheme.blueGradient,
+        badge: null,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const StagesScreen()),
+        ),
+      ),
+      _ServiceItem(
+        title: 'نتائج المسابقات',
+        icon: Icons.emoji_events_rounded,
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFF6B35), Color(0xFFE53935)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        badge: 'جديد',
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ResultsHomeScreen()),
+        ),
+      ),
+      _ServiceItem(
+        title: 'الامتحانات الوطنية',
+        icon: Icons.menu_book_rounded,
+        gradient: AppTheme.goldGradient,
+        badge: null,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const NationalExamsScreen()),
+        ),
+      ),
+      _ServiceItem(
+        title: 'MERAJ3I AI',
+        icon: Icons.auto_awesome_rounded,
+        gradient: AppTheme.purpleGradient,
+        badge: 'AI',
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AiSearchScreen()),
+        ),
+      ),
+      _ServiceItem(
+        title: 'التنزيلات',
+        icon: Icons.download_for_offline_rounded,
+        gradient: AppTheme.greenGradient,
+        badge: null,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const DownloadsScreen()),
+        ),
+      ),
+      _ServiceItem(
+        title: 'SWEDD',
+        icon: Icons.health_and_safety_rounded,
+        gradient: AppTheme.pinkGradient,
+        badge: null,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SweddScreen()),
+        ),
+      ),
+    ];
+
+    // حساب عرض البطاقة بناءً على حجم الشاشة (2 عمود)
+    final cardWidth = (size.width - 32 - 12) / 2; // padding + spacing
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.55, // نسبة عرض/ارتفاع مثالية للبطاقات
+      ),
+      itemCount: services.length,
+      itemBuilder: (context, index) {
+        final s = services[index];
+        return _buildServiceCard(s, isDark, cardWidth);
+      },
+    );
+  }
+
+  Widget _buildServiceCard(_ServiceItem service, bool isDark, double cardWidth) {
+    return _AnimatedCard(
+      onTap: service.onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.surfaceDark : Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: (service.gradient as LinearGradient)
+                  .colors
+                  .first
+                  .withValues(alpha: isDark ? 0.2 : 0.12),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+              spreadRadius: 0,
+            ),
+          ],
+          border: Border.all(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.06)
+                : (service.gradient as LinearGradient)
+                    .colors
+                    .first
+                    .withValues(alpha: 0.12),
+            width: 1.2,
+          ),
+        ),
+        child: Stack(
+          children: [
+            // خط لوني علوي رفيع
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: 3,
+                decoration: BoxDecoration(
+                  gradient: service.gradient,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(22),
+                  ),
+                ),
+              ),
+            ),
+
+            // المحتوى الرئيسي
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // الأيقونة
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient: service.gradient,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (service.gradient as LinearGradient)
+                              .colors
+                              .first
+                              .withValues(alpha: 0.35),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Icon(service.icon, color: Colors.white, size: 22),
+                  ),
+
+                  // النص
+                  Text(
+                    service.title,
+                    style: GoogleFonts.tajawal(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13.5,
+                      color: isDark ? Colors.white : const Color(0xFF0A1A15),
+                      height: 1.3,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+
+            // شارة (Badge) اختيارية
+            if (service.badge != null)
+              Positioned(
+                top: 10,
+                left: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: service.gradient,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (service.gradient as LinearGradient)
+                            .colors
+                            .first
+                            .withValues(alpha: 0.4),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    service.badge!,
+                    style: GoogleFonts.outfit(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ),
+
+            // سهم في الركن السفلي الأيسر
+            Positioned(
+              bottom: 12,
+              left: 14,
+              child: Icon(
+                Icons.arrow_back_ios_rounded,
+                size: 12,
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.3)
+                    : const Color(0xFF0A1A15).withValues(alpha: 0.25),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+  // ══════════════════════════════════════════════════════
+  //  شريط البحث
+  // ══════════════════════════════════════════════════════
+  Widget _buildSearchBar(bool isDark) {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const SearchScreen()),
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.surfaceDark : Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.07)
+                : const Color(0xFFD1EAE3),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isDark
+                  ? Colors.black.withValues(alpha: 0.2)
+                  : AppTheme.primaryColor.withValues(alpha: 0.07),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                gradient: AppTheme.primaryGradient,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.search_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'ابحث عن الكتب والمذكرات...',
+                style: GoogleFonts.tajawal(
+                  color: isDark ? Colors.white38 : Colors.grey[400],
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'بحث',
+                style: GoogleFonts.tajawal(
+                  color: AppTheme.primaryColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════
+  //  صندوق الحكمة
+  // ══════════════════════════════════════════════════════
+  Widget _buildWisdomBox(bool isDark) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: isDark
+            ? const LinearGradient(
+                colors: [Color(0xFF0B3D2E), Color(0xFF0B6B58)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : const LinearGradient(
+                colors: [Color(0xFF083D2F), Color(0xFF0B6B58)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryColor.withValues(alpha: 0.25),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // أيقونة المصباح
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.15),
+                width: 1,
+              ),
+            ),
+            child: const Icon(
+              Icons.lightbulb_rounded,
+              color: Color(0xFFFCD34D),
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'حكمة اليوم',
+                  style: GoogleFonts.tajawal(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white.withValues(alpha: 0.65),
+                    fontSize: 11,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  _currentWisdom,
+                  style: GoogleFonts.tajawal(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════
+  //  عنوان القسم
+  // ══════════════════════════════════════════════════════
+  Widget _buildSectionHeader(String title, bool isDark) {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 22,
+          decoration: BoxDecoration(
+            gradient: AppTheme.primaryGradient,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: GoogleFonts.tajawal(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : const Color(0xFF0A1A15),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ══════════════════════════════════════════════════════
+  //  شريط التنقل السفلي
+  // ══════════════════════════════════════════════════════
   Widget _buildBottomNav(bool isDark) {
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        color: isDark ? AppTheme.surfaceDark : Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.06),
             blurRadius: 20,
             offset: const Offset(0, -4),
           ),
         ],
+        border: Border(
+          top: BorderSide(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.06)
+                : const Color(0xFFD1EAE3),
+            width: 1,
+          ),
+        ),
       ),
       child: BottomNavigationBar(
         currentIndex: _selectedIndex,
@@ -561,348 +879,9 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  Widget _buildSearchBar(bool isDark) {
-    return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const SearchScreen()),
-      ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.05)
-                : const Color(0xFFE2E8F0),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.search_rounded,
-              color: AppTheme.primaryColor,
-              size: 22,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'ابحث عن الكتب والمذكرات...',
-                style: GoogleFonts.tajawal(
-                  color: Colors.grey[400],
-                  fontSize: 14,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWisdomBox() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0F172A), Color(0xFF1E3A5F)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF1E3A5F).withValues(alpha: 0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.lightbulb_rounded,
-              color: Color(0xFFFCD34D),
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'حكمة اليوم',
-                  style: GoogleFonts.tajawal(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white70,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  _currentWisdom,
-                  style: GoogleFonts.tajawal(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHorizontalServiceCard({
-    required String title,
-    required IconData icon,
-    required Gradient gradient,
-    required bool isDark,
-    required VoidCallback onTap,
-  }) {
-    return _AnimatedCard(
-      onTap: onTap,
-      child: Container(
-        width: 105,
-        margin: const EdgeInsets.only(left: 12),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: (gradient as LinearGradient).colors.first.withValues(
-                alpha: 0.15,
-              ),
-              blurRadius: 15,
-              offset: const Offset(0, 6),
-            ),
-          ],
-          border: Border.all(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.05)
-                : const Color(0xFFF1F5F9),
-            width: 1.5,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: gradient,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: gradient.colors.first.withValues(alpha: 0.4),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Icon(icon, color: Colors.white, size: 28),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.tajawal(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title, IconData icon, Color color) {
-    return Row(
-      children: [
-        Icon(icon, color: color, size: 22),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: GoogleFonts.tajawal(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const Spacer(),
-        GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SearchScreen()),
-            );
-          },
-          child: Row(
-            children: [
-              Text(
-                'عرض الكل',
-                style: GoogleFonts.tajawal(
-                  fontSize: 13,
-                  color: AppTheme.primaryColor,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 12,
-                color: AppTheme.primaryColor,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBooksHorizontalList(List<Book> books, bool isDark) {
-    if (books.isEmpty) return const SizedBox.shrink();
-    return SizedBox(
-      height: 190,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: books.length,
-        itemBuilder: (context, index) {
-          final book = books[index];
-          return _AnimatedCard(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => PdfViewerScreen(
-                    pdfUrl: book.url,
-                    title: book.title,
-                    book: book,
-                  ),
-                ),
-              );
-            },
-            child: Container(
-              width: 150,
-              margin: const EdgeInsets.only(left: 16),
-              decoration: BoxDecoration(
-                color: isDark ? AppTheme.surfaceDark : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-                border: Border.all(
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.06)
-                      : const Color(0xFFE2E8F0),
-                  width: 1.2,
-                ),
-              ),
-              child: Stack(
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        height: 90,
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(20),
-                          ),
-                        ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.auto_stories_rounded,
-                            color: AppTheme.primaryColor,
-                            size: 40,
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              book.title,
-                              style: GoogleFonts.tajawal(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppTheme.secondaryColor.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                book.category,
-                                style: GoogleFonts.tajawal(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.secondaryColor,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  // الشريط اللوني العلوي الرفيع
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      height: 4,
-                      decoration: const BoxDecoration(
-                        gradient: AppTheme.primaryGradient,
-                        borderRadius: BorderRadius.vertical(
-                          top: Radius.circular(20),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
+  // ══════════════════════════════════════════════════════
+  //  Drawer
+  // ══════════════════════════════════════════════════════
   Widget _buildDrawer() {
     final auth = Provider.of<AuthProvider>(context);
     final user = auth.user;
@@ -936,7 +915,7 @@ class _HomePageState extends State<HomePage>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.2),
+                      color: Colors.white.withValues(alpha: 0.25),
                       width: 2,
                     ),
                   ),
@@ -982,7 +961,6 @@ class _HomePageState extends State<HomePage>
             child: ListView(
               padding: const EdgeInsets.only(top: 10),
               children: [
-
                 _buildDrawerItem(Icons.quiz_rounded, 'الاختبارات', () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -1091,6 +1069,9 @@ class _HomePageState extends State<HomePage>
     );
   }
 
+  // ══════════════════════════════════════════════════════
+  //  Dialog الخروج
+  // ══════════════════════════════════════════════════════
   Future<bool?> _showExitDialog(BuildContext context) {
     return showDialog<bool>(
       context: context,
@@ -1160,6 +1141,9 @@ class _HomePageState extends State<HomePage>
     );
   }
 
+  // ══════════════════════════════════════════════════════
+  //  عنصر Drawer
+  // ══════════════════════════════════════════════════════
   Widget _buildDrawerItem(
     IconData icon,
     String title,
@@ -1190,7 +1174,28 @@ class _HomePageState extends State<HomePage>
   }
 }
 
-// Simple custom widget for scaling effect on tap
+// ══════════════════════════════════════════════════════
+//  Model للخدمات
+// ══════════════════════════════════════════════════════
+class _ServiceItem {
+  final String title;
+  final IconData icon;
+  final Gradient gradient;
+  final String? badge;
+  final VoidCallback onTap;
+
+  const _ServiceItem({
+    required this.title,
+    required this.icon,
+    required this.gradient,
+    required this.badge,
+    required this.onTap,
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  AnimatedCard — تأثير الضغط
+// ══════════════════════════════════════════════════════
 class _AnimatedCard extends StatefulWidget {
   final Widget child;
   final VoidCallback onTap;
@@ -1211,11 +1216,11 @@ class _AnimatedCardState extends State<_AnimatedCard>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 150),
+      duration: const Duration(milliseconds: 130),
     );
     _scale = Tween<double>(
       begin: 1.0,
-      end: 0.95,
+      end: 0.96,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
   }
 
@@ -1238,3 +1243,4 @@ class _AnimatedCardState extends State<_AnimatedCard>
     );
   }
 }
+

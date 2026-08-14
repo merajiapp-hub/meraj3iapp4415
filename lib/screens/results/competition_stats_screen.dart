@@ -653,8 +653,134 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
           s.wilaya.toLowerCase().contains(_schoolSearchQuery);
     }).toList();
 
+    // أفضل 10 مدارس للرسم البياني
+    final top10 = schools.take(10).toList();
+
     return Column(
       children: [
+        // ── رسم بياني شريطي: أفضل 10 مدارس ──────────────────────────────
+        if (top10.length >= 2)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE2E8F0),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '📊 نسب نجاح أفضل ${top10.length} مدارس',
+                    style: GoogleFonts.tajawal(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: 180,
+                    child: BarChart(
+                      BarChartData(
+                        alignment: BarChartAlignment.spaceAround,
+                        maxY: 100,
+                        barTouchData: BarTouchData(
+                          touchTooltipData: BarTouchTooltipData(
+                            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                              final s = top10[group.x];
+                              return BarTooltipItem(
+                                '${s.name.split(' ').first}\n${rod.toY.toStringAsFixed(0)}%',
+                                GoogleFonts.tajawal(color: Colors.white, fontSize: 10),
+                              );
+                            },
+                          ),
+                        ),
+                        titlesData: FlTitlesData(
+                          show: true,
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              getTitlesWidget: (value, meta) {
+                                final idx = value.toInt();
+                                if (idx >= top10.length) return const SizedBox();
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    '#${idx + 1}',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: primaryColor,
+                                    ),
+                                  ),
+                                );
+                              },
+                              reservedSize: 22,
+                            ),
+                          ),
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              interval: 25,
+                              getTitlesWidget: (value, meta) => Text(
+                                '${value.toInt()}%',
+                                style: GoogleFonts.outfit(fontSize: 9, color: Colors.grey),
+                              ),
+                              reservedSize: 30,
+                            ),
+                          ),
+                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        ),
+                        gridData: FlGridData(
+                          show: true,
+                          drawHorizontalLine: true,
+                          horizontalInterval: 25,
+                          getDrawingHorizontalLine: (_) => FlLine(
+                            color: isDark ? Colors.white12 : Colors.grey.shade200,
+                            strokeWidth: 1,
+                          ),
+                          drawVerticalLine: false,
+                        ),
+                        borderData: FlBorderData(show: false),
+                        barGroups: List.generate(top10.length, (i) {
+                          final rate = top10[i].passRate;
+                          final barColor = rate >= 80
+                              ? const Color(0xFF16A34A)
+                              : rate >= 50
+                                  ? const Color(0xFFD97706)
+                                  : Colors.red;
+                          return BarChartGroupData(
+                            x: i,
+                            barRods: [
+                              BarChartRodData(
+                                toY: rate,
+                                color: barColor,
+                                width: 14,
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                              ),
+                            ],
+                          );
+                        }),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
         // شريط البحث بين المدارس
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),

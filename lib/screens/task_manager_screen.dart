@@ -265,24 +265,36 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
           margin: const EdgeInsets.only(bottom: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
+            side: task.isCompleted
+                ? BorderSide(color: Colors.green.withValues(alpha: 0.4), width: 1.5)
+                : BorderSide.none,
           ),
           child: Column(
             children: [
               ListTile(
                 contentPadding: const EdgeInsets.all(16),
-                leading: CircleAvatar(
-                  backgroundColor: isRunning
-                      ? Colors.green.withValues(alpha: 0.1)
-                      : Colors.grey[100],
-                  child: Icon(
-                    isRunning
-                        ? Icons.play_arrow
-                        : (isFinished
-                              ? Icons.check_circle
-                              : Icons.timer_outlined),
-                    color: isRunning
-                        ? Colors.green
-                        : (isFinished ? Colors.grey : AppTheme.primaryColor),
+                leading: GestureDetector(
+                  onTap: () => provider.toggleTaskStatus(task.id),
+                  child: CircleAvatar(
+                    backgroundColor: task.isCompleted
+                        ? Colors.green.withValues(alpha: 0.15)
+                        : isRunning
+                            ? Colors.green.withValues(alpha: 0.1)
+                            : Colors.grey[100],
+                    child: Icon(
+                      task.isCompleted
+                          ? Icons.task_alt_rounded
+                          : isRunning
+                              ? Icons.play_arrow
+                              : (isFinished
+                                    ? Icons.check_circle_outline
+                                    : Icons.timer_outlined),
+                      color: task.isCompleted
+                          ? Colors.green
+                          : isRunning
+                              ? Colors.green
+                              : (isFinished ? Colors.grey : AppTheme.primaryColor),
+                    ),
                   ),
                 ),
                 title: Text(
@@ -290,7 +302,8 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
                   style: GoogleFonts.tajawal(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
-                    decoration: isFinished ? TextDecoration.lineThrough : null,
+                    decoration: task.isCompleted ? TextDecoration.lineThrough : null,
+                    color: task.isCompleted ? Colors.grey : null,
                   ),
                 ),
                 subtitle: Column(
@@ -299,7 +312,7 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
                     Text(
                       task.subject,
                       style: GoogleFonts.tajawal(
-                        color: AppTheme.primaryColor,
+                        color: task.isCompleted ? Colors.grey : AppTheme.primaryColor,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                       ),
@@ -312,18 +325,51 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
                         color: Colors.grey[600],
                       ),
                     ),
+                    if (task.isCompleted)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.verified_rounded, color: Colors.green, size: 14),
+                            const SizedBox(width: 4),
+                            Text(
+                              'تم الإنجاز',
+                              style: GoogleFonts.tajawal(
+                                fontSize: 11,
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
-                trailing: IconButton(
-                  icon: const Icon(
-                    Icons.delete_outline,
-                    color: Colors.grey,
-                    size: 20,
-                  ),
-                  onPressed: () => provider.deleteTask(task.id),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!task.isCompleted)
+                      IconButton(
+                        icon: const Icon(
+                          Icons.check_circle_outline_rounded,
+                          color: Colors.green,
+                          size: 22,
+                        ),
+                        tooltip: 'إتمام المهمة',
+                        onPressed: () => provider.toggleTaskStatus(task.id),
+                      ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: Colors.grey,
+                        size: 20,
+                      ),
+                      onPressed: () => provider.deleteTask(task.id),
+                    ),
+                  ],
                 ),
               ),
-              if (isRunning) _buildCountdownBar(task),
+              if (isRunning && !task.isCompleted) _buildCountdownBar(task),
             ],
           ),
         );

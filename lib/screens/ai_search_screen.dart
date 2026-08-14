@@ -10,6 +10,7 @@ import '../providers/chat_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:convert';
+import '../config/secrets.dart';
 
 class AiSearchScreen extends StatefulWidget {
   const AiSearchScreen({super.key});
@@ -32,7 +33,11 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
   @override
   void initState() {
     super.initState();
-    const apiKey = 'AQ.Ab8RN6Jjn9X1' + 'TQDC4NSzAfXzXqbsebvQ9dPje2lvYG650Ou5GA';
+    // ════════════════════════════════════════════════════════════════════
+    //  🔑  MERAJ3I AI — مفتاح Gemini API
+    //  تم نقل المفتاح إلى lib/config/secrets.dart لحمايته
+    // ════════════════════════════════════════════════════════════════════
+    final apiKey = AppSecrets.geminiApiKey;
     _model = genai.GenerativeModel(
       model: 'gemini-flash-latest',
       apiKey: apiKey,
@@ -162,10 +167,14 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
           errorMsg = 'لقد استنفدت الحد المسموح به للذكاء الاصطناعي حالياً.';
         } else if (errorText.contains('socket') ||
             errorText.contains('connection') ||
-            errorText.contains('network')) {
+            errorText.contains('network') ||
+            errorText.contains('host lookup') ||
+            errorText.contains('timeout')) {
           errorMsg = 'تأكد من اتصالك بالإنترنت ثم حاول مجدداً.';
-        } else if (errorText.contains('turn')) {
-          errorMsg = 'حدث خطأ في تسلسل المحادثة. حاول بدء محادثة جديدة.';
+        } else if (errorText.contains('turn') || errorText.contains('role')) {
+          errorMsg = 'حدث خطأ في تسلسل المحادثة. نرجو بدء محادثة جديدة.';
+        } else {
+          errorMsg = 'حدث خطأ غير متوقع. حاول مرة أخرى.';
         }
 
         AppNotification.show(context, errorMsg, isError: true);
@@ -196,6 +205,11 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
           );
           expectedRole = expectedRole == 'user' ? 'model' : 'user';
         }
+      }
+
+      // Generative AI requires the history to end with a model response if the next message is a user message.
+      if (expectedRole == 'model' && history.isNotEmpty) {
+        history.removeLast();
       }
 
       try {
@@ -639,14 +653,14 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
                     Icons.image_outlined,
                     color: AppTheme.primaryColor,
                   ),
-                  onPressed: () => _pickImage(ImageSource.gallery),
+                  onPressed: _isTyping ? null : () => _pickImage(ImageSource.gallery),
                 ),
                 IconButton(
                   icon: const Icon(
                     Icons.camera_alt_outlined,
                     color: AppTheme.primaryColor,
                   ),
-                  onPressed: () => _pickImage(ImageSource.camera),
+                  onPressed: _isTyping ? null : () => _pickImage(ImageSource.camera),
                 ),
                 Expanded(
                   child: Container(
@@ -662,6 +676,7 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
                     child: TextField(
                       controller: _promptController,
                       style: GoogleFonts.tajawal(fontSize: 14),
+                      enabled: !_isTyping,
                       decoration: InputDecoration(
                         hintText: 'اسأل مراجعي AI...',
                         hintStyle: GoogleFonts.tajawal(color: Colors.grey),
@@ -671,7 +686,7 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
                           vertical: 12,
                         ),
                       ),
-                      onSubmitted: (_) => _sendMessage(),
+                      onSubmitted: _isTyping ? null : (_) => _sendMessage(),
                     ),
                   ),
                 ),
@@ -682,12 +697,12 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.send_rounded,
-                      color: Colors.white,
+                      color: _isTyping ? Colors.white54 : Colors.white,
                       size: 20,
                     ),
-                    onPressed: _sendMessage,
+                    onPressed: _isTyping ? null : _sendMessage,
                   ),
                 ),
               ],

@@ -72,6 +72,29 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           Expanded(
             child: Consumer<NotificationsProvider>(
               builder: (context, provider, _) {
+                // ─── حالة التحميل ───────────────────────────────────
+                if (provider.isLoading) {
+                  return Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(
+                          color: AppTheme.primaryColor,
+                          strokeWidth: 3,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'جارٍ تحميل الإشعارات...',
+                          style: GoogleFonts.tajawal(
+                            fontSize: 14,
+                            color: isDark ? Colors.white54 : Colors.grey[500],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
                 List<AppNotificationModel> notifications;
                 if (_searchQuery.isNotEmpty) {
                   notifications = provider.search(_searchQuery);
@@ -102,6 +125,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               },
             ),
           ),
+
         ],
       ),
     );
@@ -117,9 +141,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           clipper: _CurvedClipper(),
           child: Container(
             height: 180,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF0F172A), Color(0xFF14B8A6)],
+                colors: [Color(0xFF0A1A15), AppTheme.primaryColor],
                 begin: Alignment.topRight,
                 end: Alignment.bottomLeft,
               ),
@@ -253,39 +277,44 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   // ─── الحالة الفارغة ─────────────────────────────────────────────────────────
   Widget _buildEmptyState(bool isDark) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(28),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withValues(alpha: 0.08),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.notifications_none_rounded,
-              size: 64,
-              color: AppTheme.primaryColor,
-            ),
+    return SizedBox.expand(
+      child: Container(
+        color: isDark ? AppTheme.backgroundDark : const Color(0xFFF0F4F8),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(28),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.notifications_none_rounded,
+                  size: 64,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                _searchQuery.isNotEmpty ? 'لا توجد نتائج للبحث' : 'لا توجد إشعارات',
+                style: GoogleFonts.tajawal(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : const Color(0xFF475569),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _searchQuery.isNotEmpty
+                    ? 'حاول البحث بكلمات أخرى'
+                    : 'ستظهر هنا إشعاراتك الجديدة',
+                style: GoogleFonts.tajawal(fontSize: 14, color: Colors.grey[500]),
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
-          Text(
-            _searchQuery.isNotEmpty ? 'لا توجد نتائج للبحث' : 'لا توجد إشعارات',
-            style: GoogleFonts.tajawal(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white70 : const Color(0xFF475569),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _searchQuery.isNotEmpty
-                ? 'حاول البحث بكلمات أخرى'
-                : 'ستظهر هنا إشعاراتك الجديدة',
-            style: GoogleFonts.tajawal(fontSize: 14, color: Colors.grey[500]),
-          ),
-        ],
+        ),
       ),
     );
   }

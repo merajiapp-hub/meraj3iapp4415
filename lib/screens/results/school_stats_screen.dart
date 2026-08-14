@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/results_service.dart';
+import '../../services/school_pdf_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/top_students_section.dart';
 import 'student_detail_screen.dart';
@@ -346,6 +347,54 @@ class _SchoolStatsScreenState extends State<SchoolStatsScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
+
+                  // ── أزرار تصدير PDF ────────────────────────────────────
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            final passed = _schoolStudents.where((s) => s.isPassed).toList();
+                            SchoolPdfService.generateAndShareList(
+                              context: context,
+                              students: passed,
+                              listTitle: 'قائمة الناجحين',
+                              schoolName: widget.schoolName,
+                              competitionTitle: widget.examType.name.toUpperCase(),
+                            );
+                          },
+                          icon: const Icon(Icons.picture_as_pdf_rounded, size: 18, color: Color(0xFF16A34A)),
+                          label: Text('قائمة الناجحين', style: GoogleFonts.tajawal(color: const Color(0xFF16A34A), fontSize: 13)),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFF16A34A)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            final failed = _schoolStudents.where((s) => !s.isPassed && !s.isAbsent).toList();
+                            SchoolPdfService.generateAndShareList(
+                              context: context,
+                              students: failed,
+                              listTitle: 'قائمة الراسبين',
+                              schoolName: widget.schoolName,
+                              competitionTitle: widget.examType.name.toUpperCase(),
+                            );
+                          },
+                          icon: const Icon(Icons.picture_as_pdf_rounded, size: 18, color: Colors.red),
+                          label: Text('قائمة الراسبين', style: GoogleFonts.tajawal(color: Colors.red, fontSize: 13)),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.red),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
 
                   // أوائل المدرسة
                   if (_schoolStudents.isNotEmpty) ...[
