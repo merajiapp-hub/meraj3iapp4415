@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "1097879132279",
+    "firebase_url": "https://meraj3iapp-default-rtdb.firebaseio.com",
+    "project_id": "meraj3iapp",
+    "storage_bucket": "meraj3iapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1097879132279:android:bf2ec0e3494d7a1ca58e72",
+        "android_client_info": {
+          "package_name": "com.bebeye.myapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1097879132279-bd0ssd789t9ja3ok04l7ae1dcj57s1uj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bebeye.myapp",
+            "certificate_hash": "67d92700467824e875c9adf33bc8d4e9f1d1dcc1"
+          }
+        },
+        {
+          "client_id": "1097879132279-qhk3t9fjh0um7jkklfiau5hrtu02lbo4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAISy88MUdF0al-PjCGWpqUcbQI0cumzYo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1097879132279-qhk3t9fjh0um7jkklfiau5hrtu02lbo4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

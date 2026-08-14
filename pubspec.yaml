@@ -1,0 +1,66 @@
+name: meraj3i
+description: "MERAJ3I - منصة تعليمية شاملة للطلاب"
+publish_to: "none"
+
+version: 5.0.0+6
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  firebase_core: ^4.5.0
+  firebase_auth: ^6.2.0
+  cloud_firestore: ^6.1.3
+  firebase_storage: ^13.1.0
+  firebase_messaging: ^16.1.2
+  firebase_remote_config: any
+  google_sign_in: ^6.2.2
+  share_plus: ^12.0.1
+  url_launcher: ^6.3.2
+  shared_preferences: ^2.5.4
+  provider: ^6.1.5+1
+  google_fonts: ^8.0.2
+  syncfusion_flutter_pdfviewer: ^32.2.9
+  syncfusion_flutter_pdf: ^32.2.9
+  intl: ^0.20.2
+  image_cropper: ^11.0.0
+  flutter_local_notifications: ^21.0.0
+  timezone: ^0.11.0
+  image_picker: ^1.2.1
+  permission_handler: ^11.3.1
+  connectivity_plus: ^6.1.4
+  path_provider: ^2.1.5
+  screenshot: any
+  http: ^1.2.2
+  fl_chart: ^0.69.0
+  open_filex: ^4.5.0
+  dio: ^5.4.3+1
+  google_generative_ai: ^0.4.5
+  flutter_math_fork: ^0.7.2
+  flutter_spinkit: ^5.2.1
+
+  local_auth: ^2.1.8
+  device_info_plus: ^12.3.0
+  shimmer: ^3.0.0
+  flutter_staggered_animations: ^1.1.1
+  google_mobile_ads: ^9.0.0
+  file_picker: 8.1.6
+  receive_intent: 0.2.7
+  confetti: ^0.8.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - shorebird.yaml
