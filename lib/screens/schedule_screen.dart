@@ -228,6 +228,32 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 style: GoogleFonts.cairo(fontSize: 13, color: Colors.grey[600]),
               ),
             ],
+            if (item.teacher != null && item.teacher!.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.person, size: 14, color: Colors.grey[500]),
+                  const SizedBox(width: 4),
+                  Text(
+                    'الأستاذ: ${item.teacher}',
+                    style: GoogleFonts.cairo(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ],
+            if (item.room != null && item.room!.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.room, size: 14, color: Colors.grey[500]),
+                  const SizedBox(width: 4),
+                  Text(
+                    'القاعة: ${item.room}',
+                    style: GoogleFonts.cairo(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 8),
             Row(
               children: [
@@ -278,6 +304,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   void _showAddItemDialog() {
     final titleController = TextEditingController();
     final descController = TextEditingController();
+    final teacherController = TextEditingController();
+    final roomController = TextEditingController();
+    bool isWeekly = true;
     TimeOfDay startTime = TimeOfDay.now();
     TimeOfDay endTime = TimeOfDay(hour: (startTime.hour + 1) % 24, minute: startTime.minute);
 
@@ -298,6 +327,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                       labelText: 'المادة / المهمة',
                       labelStyle: GoogleFonts.cairo(),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      prefixIcon: const Icon(Icons.menu_book_rounded),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -307,9 +337,50 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                       labelText: 'التفاصيل (اختياري)',
                       labelStyle: GoogleFonts.cairo(),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      prefixIcon: const Icon(Icons.description_rounded),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: teacherController,
+                          decoration: InputDecoration(
+                            labelText: 'الأستاذ (اختياري)',
+                            labelStyle: GoogleFonts.cairo(fontSize: 12),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            prefixIcon: const Icon(Icons.person_rounded),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: roomController,
+                          decoration: InputDecoration(
+                            labelText: 'القاعة (اختياري)',
+                            labelStyle: GoogleFonts.cairo(fontSize: 12),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            prefixIcon: const Icon(Icons.room_rounded),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 16),
+                  SwitchListTile(
+                    title: Text('تكرار أسبوعي', style: GoogleFonts.cairo(fontWeight: FontWeight.bold)),
+                    subtitle: Text('تتكرر هذه الحصة كل أسبوع في نفس اليوم', style: GoogleFonts.cairo(fontSize: 11)),
+                    value: isWeekly,
+                    activeTrackColor: AppTheme.primaryColor.withValues(alpha: 0.5),
+                    activeThumbColor: AppTheme.primaryColor,
+                    onChanged: (val) {
+                      setStateBuilder(() => isWeekly = val);
+                    },
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -319,7 +390,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                           final time = await showTimePicker(context: context, initialTime: startTime);
                           if (time != null) setStateBuilder(() => startTime = time);
                         },
-                        child: Text(startTime.format(context)),
+                        child: Text(startTime.format(context), style: GoogleFonts.cairo(fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
@@ -332,7 +403,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                           final time = await showTimePicker(context: context, initialTime: endTime);
                           if (time != null) setStateBuilder(() => endTime = time);
                         },
-                        child: Text(endTime.format(context)),
+                        child: Text(endTime.format(context), style: GoogleFonts.cairo(fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
@@ -342,7 +413,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: Text('إلغاء', style: GoogleFonts.cairo(color: Colors.grey)),
+                child: Text('إلغاء', style: GoogleFonts.cairo(color: Colors.grey, fontWeight: FontWeight.bold)),
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
@@ -363,6 +434,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                     startTime: startDateTime,
                     endTime: endDateTime,
                     color: AppTheme.primaryColor,
+                    isWeekly: isWeekly,
+                    teacher: teacherController.text.trim(),
+                    room: roomController.text.trim(),
                   );
 
                   context.read<ScheduleProvider>().addItem(newItem);

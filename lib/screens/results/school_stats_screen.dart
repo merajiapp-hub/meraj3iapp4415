@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/results_service.dart';
-import '../../services/school_pdf_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/top_students_section.dart';
 import 'student_detail_screen.dart';
+import 'pdf_preview_screen.dart';
 
 class SchoolStatsScreen extends StatefulWidget {
   final String schoolName;
@@ -355,12 +355,26 @@ class _SchoolStatsScreenState extends State<SchoolStatsScreen> {
                         child: OutlinedButton.icon(
                           onPressed: () {
                             final passed = _schoolStudents.where((s) => s.isPassed).toList();
-                            SchoolPdfService.generateAndShareList(
-                              context: context,
-                              students: passed,
-                              listTitle: 'قائمة الناجحين',
-                              schoolName: widget.schoolName,
-                              competitionTitle: widget.examType.name.toUpperCase(),
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => PdfPreviewScreen(
+                                  students: passed,
+                                  listTitle: 'قائمة الناجحين',
+                                  listType: 'passed',
+                                  competitionTitle: widget.examType.name.toUpperCase(),
+                                  examType: widget.examType,
+                                  maxScore: widget.maxScore,
+                                  passScore: widget.passScore,
+                                  totalCount: _total,
+                                  passedCount: _passed,
+                                  failedCount: _failed,
+                                  absentCount: _absent,
+                                  expelledCount: _expelled,
+                                  complementaryCount: _complementary,
+                                  filterSchool: widget.schoolName,
+                                ),
+                              ),
                             );
                           },
                           icon: const Icon(Icons.picture_as_pdf_rounded, size: 18, color: Color(0xFF16A34A)),
@@ -376,12 +390,26 @@ class _SchoolStatsScreenState extends State<SchoolStatsScreen> {
                         child: OutlinedButton.icon(
                           onPressed: () {
                             final failed = _schoolStudents.where((s) => !s.isPassed && !s.isAbsent).toList();
-                            SchoolPdfService.generateAndShareList(
-                              context: context,
-                              students: failed,
-                              listTitle: 'قائمة الراسبين',
-                              schoolName: widget.schoolName,
-                              competitionTitle: widget.examType.name.toUpperCase(),
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => PdfPreviewScreen(
+                                  students: failed,
+                                  listTitle: 'قائمة الراسبين',
+                                  listType: 'failed',
+                                  competitionTitle: widget.examType.name.toUpperCase(),
+                                  examType: widget.examType,
+                                  maxScore: widget.maxScore,
+                                  passScore: widget.passScore,
+                                  totalCount: _total,
+                                  passedCount: _passed,
+                                  failedCount: _failed,
+                                  absentCount: _absent,
+                                  expelledCount: _expelled,
+                                  complementaryCount: _complementary,
+                                  filterSchool: widget.schoolName,
+                                ),
+                              ),
                             );
                           },
                           icon: const Icon(Icons.picture_as_pdf_rounded, size: 18, color: Colors.red),

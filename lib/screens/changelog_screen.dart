@@ -24,6 +24,32 @@ class ChangelogScreen extends StatelessWidget {
 
   static const List<_ChangelogEntry> _changelog = [
     _ChangelogEntry(
+      version: '5.2.0',
+      date: 'تحديث شامل',
+      items: [
+        _ChangelogItem('إصلاح جذري لمحرك الذكاء الاصطناعي (Gemini 1.5 Flash)', _ChangelogType.fix),
+        _ChangelogItem('حل نهائي لمشكلة تنزيل وحفظ ملفات الـ PDF', _ChangelogType.fix),
+        _ChangelogItem('شاشة معاينة PDF احترافية قبل الحفظ', _ChangelogType.feature),
+        _ChangelogItem('إحصائيات حقيقية 100% من بيانات المستخدم', _ChangelogType.improvement),
+        _ChangelogItem('تحسين نظام الإشعارات وتوافقه مع التحديثات الجديدة', _ChangelogType.fix),
+        _ChangelogItem('تصفير جميع أخطاء التحليل في محرك Dart', _ChangelogType.fix),
+        _ChangelogItem('تحديث التسميات: الباكلوريا / ختم الدروس الإعدادية', _ChangelogType.improvement),
+      ],
+    ),
+    _ChangelogEntry(
+      version: '2.6.0',
+      date: 'تحديث MERAJ3I الشامل',
+      items: [
+        _ChangelogItem('إصلاح جذري لنظام الإحصائيات مع بيانات حقيقية', _ChangelogType.improvement),
+        _ChangelogItem('تحديث بطاقة الطالب لتدعم تعديل الملف الشخصي مباشرة', _ChangelogType.feature),
+        _ChangelogItem('دعم إضافة الكتب للمجتمع بروابط Google Drive', _ChangelogType.feature),
+        _ChangelogItem('تصدير قوائم النتائج إلى PDF بشكل صحيح ودقيق', _ChangelogType.fix),
+        _ChangelogItem('الجدول الدراسي مع دعم القاعات وأسماء الأساتذة والتكرار الأسبوعي', _ChangelogType.feature),
+        _ChangelogItem('شاشة عد تنازلي جديدة لمواعيد BAC و BEM', _ChangelogType.feature),
+        _ChangelogItem('تحسين صفحة التبرع لدعم نسخ رقم الدعم بنقرة واحدة', _ChangelogType.improvement),
+      ],
+    ),
+    _ChangelogEntry(
       version: '2.5.0',
       date: 'أغسطس 2026',
       items: [
@@ -54,7 +80,7 @@ class ChangelogScreen extends StatelessWidget {
       items: [
         _ChangelogItem('صفحة التبرع مع روابط تطبيقات الدفع', _ChangelogType.feature),
         _ChangelogItem('إضافة قسم كتب مرفوعة من المجتمع', _ChangelogType.feature),
-        _ChangelogItem('نتائج البكالوريا والبريفي 2026', _ChangelogType.feature),
+        _ChangelogItem('نتائج الباكلوريا وختم الدروس الإعدادية 2026', _ChangelogType.feature),
         _ChangelogItem('إحصائيات مدرسة SWEDD', _ChangelogType.feature),
         _ChangelogItem('تحسين أداء البحث عن النتائج', _ChangelogType.improvement),
       ],

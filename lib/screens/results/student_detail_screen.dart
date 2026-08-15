@@ -12,10 +12,10 @@ import 'package:confetti/confetti.dart';
 import 'package:provider/provider.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../services/results_service.dart';
-import '../../services/result_pdf_service.dart';
 import '../../providers/favorite_results_provider.dart';
 import '../../theme/app_theme.dart';
 import 'school_stats_screen.dart';
+import 'pdf_preview_screen.dart';
 
 class StudentDetailScreen extends StatefulWidget {
   final StudentResult student;
@@ -234,18 +234,25 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
               title: Text('تحميل كملف PDF', style: GoogleFonts.tajawal()),
               onTap: () {
                 Navigator.pop(context);
-                ResultPdfService.generateAndShare(
-                  context: context,
-                  student: widget.student,
-                  examType: widget.examType,
-                  competitionTitle: widget.title,
-                  scoreLabel: widget.scoreLabel,
-                  maxScore: widget.maxScore,
-                  rankNational: _rankNational,
-                  rankWilaya: _rankWilaya,
-                  rankCenter: _rankCenter,
-                  rankSchool: _rankSchool,
-                  saveToDownloads: true,
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PdfPreviewScreen(
+                      students: const [], // قائمة فارغة لأننا نمرر طالباً واحداً
+                      listTitle: 'بطاقة نتيجة الطالب',
+                      listType: 'student',
+                      competitionTitle: widget.title,
+                      examType: widget.examType,
+                      maxScore: widget.maxScore,
+                      passScore: widget.passScore,
+                      singleStudent: widget.student,
+                      scoreLabel: widget.scoreLabel,
+                      rankNational: _rankNational,
+                      rankWilaya: _rankWilaya,
+                      rankCenter: _rankCenter,
+                      rankSchool: _rankSchool,
+                    ),
+                  ),
                 );
               },
             ),

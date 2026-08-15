@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
@@ -72,6 +73,8 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   late Animation<double> _toolbarAnim;
   bool _toolbarVisible = true;
 
+  Timer? _readingTimer;
+
   String get _prefsKey =>
       'last_page_${widget.book?.uniqueKey ?? widget.localPath?.hashCode ?? widget.title.hashCode}';
   String get _bookmarksKey =>
@@ -115,6 +118,16 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
           docId: isUploaded ? widget.book!.id : null,
         );
         stats.incrementUserStat('readBooks');
+
+        final reading = Provider.of<ReadingProvider>(context, listen: false);
+        reading.markAsReading(widget.book!);
+      }
+    });
+
+    _readingTimer = Timer.periodic(const Duration(seconds: 60), (timer) {
+      if (widget.book != null && mounted) {
+        final reading = Provider.of<ReadingProvider>(context, listen: false);
+        reading.addReadingTime(widget.book!, 60);
       }
     });
 
@@ -123,6 +136,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
 
   @override
   void dispose() {
+    _readingTimer?.cancel();
     _toolbarAnimController.dispose();
     _pageJumpController.dispose();
     AdManager.showInterstitialAd(chance: 0.3);
@@ -143,6 +157,11 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   Future<void> _saveCurrentPage(int page) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_prefsKey, page);
+    
+    if (widget.book != null && mounted) {
+      final reading = Provider.of<ReadingProvider>(context, listen: false);
+      reading.markAsReading(widget.book!, page: page, totalPages: _totalPages > 0 ? _totalPages : null);
+    }
   }
 
   Future<void> _saveBookmarks() async {

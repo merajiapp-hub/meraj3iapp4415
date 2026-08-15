@@ -159,7 +159,7 @@ class _WilayaStatsScreenState extends State<WilayaStatsScreen> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   Text(
-                                    'إحصائيات الولاية - ${widget.examType == ExamType.bac ? 'البكالوريا' : widget.examType == ExamType.brevet ? 'البيام' : 'السانكيام'}',
+                                    'إحصائيات الولاية - ${widget.examType == ExamType.bac ? 'الباكلوريا' : widget.examType == ExamType.brevet ? 'ختم الدروس الإعدادية' : 'مسابقة دخول الإعدادية'}',
                                     style: GoogleFonts.tajawal(color: Colors.white70, fontSize: 13),
                                   ),
                                 ],

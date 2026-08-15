@@ -37,13 +37,13 @@ class RemoteConfigService {
       'order': 1,
     },
     'bac': {
-      'title': 'البكالوريا – الدورة العادية',
+      'title': 'الباكلوريا – الدورة العادية',
       'link': 'https://docs.google.com/spreadsheets/d/1jMXqMtXHFdWdkzVz9OpYKr8XxUPfW3B0GQ2L7NvCeRI/export?format=csv&gid=1215098731',
       'is_published': true,
       'order': 2,
     },
     'complementary': {
-      'title': 'البكالوريا – الدورة التكميلية',
+      'title': 'الباكلوريا – الدورة التكميلية',
       'link': '',
       'is_published': false,
       'order': 3,

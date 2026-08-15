@@ -82,8 +82,8 @@ class CompetitionModel {
     switch (type) {
       case CompetitionType.concours: return 'كونكور 2026';
       case CompetitionType.brevet: return 'ابريفة 2026';
-      case CompetitionType.bac: return 'البكالوريا – الدورة العادية';
-      case CompetitionType.complementary: return 'البكالوريا – الدورة التكميلية';
+      case CompetitionType.bac: return 'الباكلوريا – الدورة العادية';
+      case CompetitionType.complementary: return 'الباكلوريا – الدورة التكميلية';
       case CompetitionType.excellence: return 'نتائج الامتياز';
       case CompetitionType.generic: return key.replaceAll('_', ' ');
     }
@@ -120,8 +120,8 @@ class CompetitionModel {
     switch (type) {
       case CompetitionType.concours: return "مسابقة دخول السنة الأولى إعدادية";
       case CompetitionType.brevet: return "مسابقة ختم الدروس الإعدادية (BEPC)";
-      case CompetitionType.bac: return "شهادة البكالوريا — الدورة العادية";
-      case CompetitionType.complementary: return "شهادة البكالوريا — الدورة التكميلية";
+      case CompetitionType.bac: return 'الباكلوريا – الدورة العادية';
+      case CompetitionType.complementary: return 'الباكلوريا – الدورة التكميلية';
       case CompetitionType.excellence: return "نتائج الامتياز الوطنية";
       case CompetitionType.generic: return "نتائج المسابقة";
     }

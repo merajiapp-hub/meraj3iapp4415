@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../providers/favorites_provider.dart';
-import '../providers/downloads_provider.dart';
+import '../providers/statistics_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/curved_header.dart';
 
@@ -46,11 +45,14 @@ class _StatisticsScreenState extends State<StatisticsScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final favorites = Provider.of<FavoritesProvider>(context);
-    final downloads = Provider.of<DownloadsProvider>(context);
+    final stats = Provider.of<StatisticsProvider>(context);
 
-    final favCount = favorites.favoriteBooks.length;
-    final dlCount = downloads.downloads.length;
+    // تحديث البيانات العامة إذا لزم الأمر
+    final favCount = stats.userFavoriteBooks;
+    final dlCount = stats.userDownloadedBooks;
+    final readCount = stats.userReadBooks;
+    final tasksCount = stats.userCompletedTasks;
+    final totalBooks = stats.totalBooks > 0 ? stats.totalBooks : 400;
 
     return Scaffold(
       backgroundColor: isDark
@@ -79,7 +81,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
                   ),
                   children: [
                     // ─── بطاقات الإحصائيات ──────────────────────────────────────
-                    _buildStatsGrid(isDark, favCount, dlCount),
+                    _buildStatsGrid(isDark, favCount, dlCount, readCount, tasksCount, totalBooks),
                     const SizedBox(height: 24),
 
                     // ─── مؤشرات النشاط ──────────────────────────────────────────
@@ -87,7 +89,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
                     const SizedBox(height: 24),
 
                     // ─── الرسم البياني الدائري ───────────────────────────────────
-                    _buildPieChart(isDark, favCount, dlCount),
+                    _buildPieChart(isDark, favCount, dlCount, totalBooks),
                     const SizedBox(height: 24),
 
                     // ─── شريط الفترة الزمنية ─────────────────────────────────────
@@ -108,8 +110,24 @@ class _StatisticsScreenState extends State<StatisticsScreen>
   }
 
   // ─── شبكة الإحصائيات ───────────────────────────────────────────────────────
-  Widget _buildStatsGrid(bool isDark, int favCount, int dlCount) {
-    final stats = [
+  Widget _buildStatsGrid(bool isDark, int favCount, int dlCount, int readCount, int tasksCount, int totalBooks) {
+    final statsList = [
+      _StatItem(
+        label: 'الكتب المقروءة',
+        value: '$readCount',
+        icon: Icons.menu_book_rounded,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+        ),
+      ),
+      _StatItem(
+        label: 'المهام المنجزة',
+        value: '$tasksCount',
+        icon: Icons.task_alt_rounded,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF10B981), Color(0xFF059669)],
+        ),
+      ),
       _StatItem(
         label: 'المفضلة',
         value: '$favCount',
@@ -119,24 +137,10 @@ class _StatisticsScreenState extends State<StatisticsScreen>
         ),
       ),
       _StatItem(
-        label: 'التنزيلات',
-        value: '$dlCount',
-        icon: Icons.download_done_rounded,
-        gradient: const LinearGradient(
-          colors: [Color(0xFF10B981), Color(0xFF059669)],
-        ),
-      ),
-      _StatItem(
         label: 'الكتب المتاحة',
-        value: '400+',
+        value: '$totalBooks',
         icon: Icons.library_books_rounded,
         gradient: AppTheme.primaryGradient,
-      ),
-      _StatItem(
-        label: 'المراحل',
-        value: '6',
-        icon: Icons.school_rounded,
-        gradient: AppTheme.purpleGradient,
       ),
     ];
 
@@ -147,7 +151,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
       crossAxisSpacing: 12,
       mainAxisSpacing: 12,
       childAspectRatio: 1.4,
-      children: stats.map((s) => _buildStatCard(s, isDark)).toList(),
+      children: statsList.map((s) => _buildStatCard(s, isDark)).toList(),
     );
   }
 
@@ -220,6 +224,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
 
   // ─── الرسم البياني العمودي ──────────────────────────────────────────────────
   Widget _buildActivityChart(bool isDark) {
+    final isWeekly = _selectedPeriodIndex == 0;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -237,7 +242,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'النشاط الأسبوعي',
+            isWeekly ? 'النشاط الأسبوعي' : 'النشاط الشهري',
             style: GoogleFonts.tajawal(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -246,7 +251,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
           ),
           const SizedBox(height: 4),
           Text(
-            'عدد الكتب التي فتحتها هذا الأسبوع',
+            isWeekly ? 'عدد المهام والنشاطات هذا الأسبوع' : 'عدد المهام والنشاطات هذا الشهر',
             style: GoogleFonts.tajawal(fontSize: 12, color: Colors.grey[500]),
           ),
           const SizedBox(height: 24),
@@ -313,7 +318,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
                   ),
                 ),
                 borderData: FlBorderData(show: false),
-                barGroups: [
+                barGroups: isWeekly ? [
                   _buildBarGroup(0, 3),
                   _buildBarGroup(1, 7),
                   _buildBarGroup(2, 5),
@@ -321,6 +326,11 @@ class _StatisticsScreenState extends State<StatisticsScreen>
                   _buildBarGroup(4, 4),
                   _buildBarGroup(5, 8),
                   _buildBarGroup(6, 6),
+                ] : [
+                  _buildBarGroup(0, 15),
+                  _buildBarGroup(1, 20),
+                  _buildBarGroup(2, 10),
+                  _buildBarGroup(3, 25),
                 ],
               ),
             ),
@@ -345,8 +355,8 @@ class _StatisticsScreenState extends State<StatisticsScreen>
   }
 
   // ─── الرسم البياني الدائري ──────────────────────────────────────────────────
-  Widget _buildPieChart(bool isDark, int favCount, int dlCount) {
-    final total = (favCount + dlCount + 400).toDouble();
+  Widget _buildPieChart(bool isDark, int favCount, int dlCount, int totalBooks) {
+    final total = (favCount + dlCount + totalBooks).toDouble();
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -383,9 +393,9 @@ class _StatisticsScreenState extends State<StatisticsScreen>
                     centerSpaceRadius: 40,
                     sections: [
                       PieChartSectionData(
-                        value: 400 / total * 100,
+                        value: totalBooks / total * 100,
                         color: AppTheme.primaryColor,
-                        title: '${(400 / total * 100).toInt()}%',
+                        title: '${(totalBooks / total * 100).toInt()}%',
                         radius: 50,
                         titleStyle: GoogleFonts.outfit(
                           fontSize: 12,
@@ -432,7 +442,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
                     _buildLegendItem(
                       'الكتب المتاحة',
                       AppTheme.primaryColor,
-                      '400+',
+                      '$totalBooks',
                     ),
                     const SizedBox(height: 12),
                     _buildLegendItem(

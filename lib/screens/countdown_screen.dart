@@ -46,18 +46,36 @@ class _CountdownScreenState extends State<CountdownScreen> {
 
   Future<void> _loadEvents() async {
     final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getStringList(_prefsKey) ?? [];
+    final saved = prefs.getStringList(_prefsKey);
+    
     if (mounted) {
       setState(() {
         _events.clear();
-        for (var s in saved) {
-          final parts = s.split('|');
-          if (parts.length >= 3) {
-            _events.add(_CountdownEvent(
-              name: parts[0],
-              date: DateTime.parse(parts[1]),
-              color: Color(int.parse(parts[2])),
-            ));
+        if (saved == null || saved.isEmpty) {
+          // أحداث افتراضية عند فتح الشاشة لأول مرة
+          _events.addAll([
+            _CountdownEvent(
+              name: 'ختم الدروس الإعدادية (BEPC)',
+              date: DateTime(2026, 5, 26),
+              color: AppTheme.primaryColor,
+            ),
+            _CountdownEvent(
+              name: 'الباكلوريا (BAC)',
+              date: DateTime(2026, 6, 1),
+              color: Colors.orange,
+            ),
+          ]);
+          _saveEvents();
+        } else {
+          for (var s in saved) {
+            final parts = s.split('|');
+            if (parts.length >= 3) {
+              _events.add(_CountdownEvent(
+                name: parts[0],
+                date: DateTime.parse(parts[1]),
+                color: Color(int.parse(parts[2])),
+              ));
+            }
           }
         }
         _events.sort((a, b) => a.date.compareTo(b.date));

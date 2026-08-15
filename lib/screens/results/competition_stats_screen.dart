@@ -1334,7 +1334,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${compStudents.length} طالب مؤهل (يمثلون ${compRate.toStringAsFixed(1)}% من إجمالي مترشحي البكالوريا)',
+                        '${compStudents.length} طالب مؤهل (يمثلون ${compRate.toStringAsFixed(1)}% من إجمالي مترشحي الباكلوريا)',
                         style: GoogleFonts.tajawal(fontSize: 12, color: Colors.orange[800]),
                       ),
                     ],

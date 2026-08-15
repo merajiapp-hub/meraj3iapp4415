@@ -1,33 +1,17 @@
 // services/result_pdf_service.dart
 // إنشاء ملف PDF احترافي لنتيجة الطالب — v5.1.0
 import 'dart:io';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import '../services/results_service.dart';
-
+import '../models/result_pdf_file.dart';
+import '../services/school_pdf_service.dart';
 class ResultPdfService {
-  /// المجلد المخصص لحفظ النتائج في مراجعي
-  static Future<Directory> _getResultsDir() async {
-    Directory base;
-    if (Platform.isAndroid) {
-      final extDir = await getExternalStorageDirectory();
-      base = extDir ?? await getApplicationDocumentsDirectory();
-    } else {
-      base = await getApplicationDocumentsDirectory();
-    }
-    final resultsDir = Directory('${base.path}/Meraj3i_Results');
-    if (!resultsDir.existsSync()) {
-      await resultsDir.create(recursive: true);
-    }
-    return resultsDir;
-  }
 
-  /// ينشئ PDF احترافي ويشاركه أو يحفظه
-  static Future<void> generateAndShare({
-    required BuildContext context,
+
+  /// ينشئ PDF احترافي ويرجع النتيجة (للمعاينة والحفظ)
+  static Future<PdfBuildResult> buildAndSave({
     required StudentResult student,
     required ExamType examType,
     required String competitionTitle,
@@ -37,10 +21,10 @@ class ResultPdfService {
     int? rankWilaya,
     int? rankCenter,
     int? rankSchool,
-    bool saveToDownloads = false,
   }) async {
     try {
-      final file = await _buildPdf(
+      // بناء الملف في مكان مؤقت أولاً
+      final tempFile = await _buildPdf(
         student: student,
         examType: examType,
         competitionTitle: competitionTitle,
@@ -52,56 +36,66 @@ class ResultPdfService {
         rankSchool: rankSchool,
       );
 
-      if (!context.mounted) return;
-
-      if (saveToDownloads) {
-        // ── حفظ في مجلد Meraj3i_Results ──
-        final resultsDir = await _getResultsDir();
-        final now = DateTime.now();
-        final stamp =
-            '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
-        final saveName = 'meraj3i_${_safeFileName(student.name)}_$stamp.pdf';
-        final savedFile = await file.copy('${resultsDir.path}/$saveName');
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(children: [
-                const Icon(Icons.check_circle, color: Colors.white, size: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'تم حفظ PDF في: ${savedFile.path}',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ),
-              ]),
-              backgroundColor: const Color(0xFF16A34A),
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 4),
-              shape:
-                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          );
+      // المجلد المخصص للحفظ الدائم
+      Directory? saveDir;
+      if (Platform.isAndroid) {
+        final candidates = [
+          '/storage/emulated/0/Download/Meraj3i_Results',
+          '/storage/emulated/0/Documents/Meraj3i_Results',
+        ];
+        for (final path in candidates) {
+          try {
+            final d = Directory(path);
+            if (!d.existsSync()) d.createSync(recursive: true);
+            final testFile = File('${d.path}/.write_test');
+            testFile.writeAsBytesSync([0]);
+            testFile.deleteSync();
+            saveDir = d;
+            break;
+          } catch (_) {}
         }
-      } else {
-        // ── مشاركة مباشرة ──
-        await SharePlus.instance.share(ShareParams(
-          text:
-              '📊 نتيجة ${student.name} — $competitionTitle\n\nمن تطبيق مراجعي',
-          files: [XFile(file.path, mimeType: 'application/pdf')],
-          subject: 'نتيجة $competitionTitle',
-        ));
       }
+      if (saveDir == null) {
+        final appDir = await getApplicationDocumentsDirectory();
+        saveDir = Directory('${appDir.path}/Meraj3i_Results');
+        if (!saveDir.existsSync()) saveDir.createSync(recursive: true);
+      }
+
+      final now = DateTime.now();
+      final stamp =
+          '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
+      final safeName = _safeFileName(student.name);
+      final fileName = 'meraj3i_card_${safeName}_$stamp.pdf';
+      final filePath = '${saveDir.path}/$fileName';
+
+      // نسخ الملف من المؤقت إلى الدائم
+      final savedFile = await tempFile.copy(filePath);
+
+      // التحقق
+      if (!savedFile.existsSync() || savedFile.lengthSync() == 0) {
+        if (savedFile.existsSync()) await savedFile.delete();
+        return PdfBuildResult(success: false, errorMessage: 'فشل حفظ الملف على الجهاز');
+      }
+
+      final sizeMb = savedFile.lengthSync() / (1024 * 1024);
+      
+      return PdfBuildResult(
+        success: true,
+        filePath: filePath,
+        pdfFile: ResultPdfFile(
+          id: '${now.millisecondsSinceEpoch}',
+          fileName: fileName,
+          localPath: filePath,
+          title: 'بطاقة الطالب: ${student.name.isNotEmpty ? student.name : student.id}',
+          competition: competitionTitle,
+          listType: 'student',
+          fileSizeMb: sizeMb,
+          savedAt: now,
+          studentCount: 1,
+        ),
+      );
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('تعذر إنشاء PDF: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      return PdfBuildResult(success: false, errorMessage: 'تعذر إنشاء PDF: $e');
     }
   }
 
@@ -327,6 +321,7 @@ class ResultPdfService {
       boldFont,
       brush: PdfSolidBrush(primaryColor),
       bounds: Rect.fromLTWH(0, y, pageWidth, 20),
+      format: rtlFormat,
     );
     y += 24;
 
@@ -364,6 +359,10 @@ class ResultPdfService {
         smallFont,
         brush: PdfSolidBrush(PdfColor(100, 116, 139)),
         bounds: Rect.fromLTWH(10, y + 5, pageWidth * 0.4, 18),
+        format: PdfStringFormat(
+          alignment: PdfTextAlignment.left,
+          textDirection: PdfTextDirection.rightToLeft,
+        ),
       );
       // القيمة (يمين)
       page.graphics.drawString(
@@ -397,6 +396,7 @@ class ResultPdfService {
         boldFont,
         brush: PdfSolidBrush(primaryColor),
         bounds: Rect.fromLTWH(0, y, pageWidth, 20),
+        format: rtlFormat,
       );
       y += 24;
 

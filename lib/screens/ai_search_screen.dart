@@ -40,7 +40,7 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
     // ════════════════════════════════════════════════════════════════════
     final apiKey = AppSecrets.geminiApiKey;
     _model = genai.GenerativeModel(
-      model: 'gemini-flash-latest',
+      model: 'gemini-1.5-flash',
       apiKey: apiKey,
       systemInstruction: genai.Content.system(
         'أنت MERAJ3I AI، المساعد التعليمي والعبقري للطلاب في موريتانيا والوطن العربي. '
@@ -160,6 +160,9 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
         });
       }
     } catch (e) {
+      // 🚀 تصفير جلسة الذكاء الاصطناعي لكي يتخطى المشكلة السابقة 
+      _currentChat = null;
+
       if (mounted) {
         String errorMsg = 'حدث خطأ في الاتصال، يرجى المحاولة لاحقاً.';
         final errorText = e.toString().toLowerCase();
@@ -168,7 +171,7 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
             errorText.contains('403') ||
             errorText.contains('unauthorized')) {
           errorMsg =
-              'مفتاح الذكاء الاصطناعي (API Key) غير صالح أو منتهي الصلاحية.';
+              'مفتاح الذكاء الاصطناعي غير صالح أو منتهي الصلاحية.';
         } else if (errorText.contains('quota') || errorText.contains('429')) {
           errorMsg = 'لقد استنفدت الحد المسموح به للذكاء الاصطناعي حالياً.';
         } else if (errorText.contains('socket') ||
@@ -178,9 +181,9 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
             errorText.contains('timeout')) {
           errorMsg = 'تأكد من اتصالك بالإنترنت ثم حاول مجدداً.';
         } else if (errorText.contains('turn') || errorText.contains('role')) {
-          errorMsg = 'حدث خطأ في تسلسل المحادثة. نرجو بدء محادثة جديدة.';
+          errorMsg = 'حدث خطأ في تسلسل المحادثة. تم إصلاح الخلل، أرسل مجدداً.';
         } else {
-          errorMsg = 'حدث خطأ غير متوقع. حاول مرة أخرى.';
+          errorMsg = 'حدث خطأ غير متوقع. تم تصفير المحرك، حاول مجدداً.';
         }
 
         AppNotification.show(context, errorMsg, isError: true);
@@ -200,29 +203,50 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
 
     if (session != null) {
       final history = <genai.Content>[];
-      String expectedRole = 'user';
+      
+      // 🚀 إصلاح وتصفير سجل الأخطاء: تجميع الرسائل المتتالية لتجنب أخطاء التسلسل (user ثم model)
+      String? lastRole;
+      String combinedText = '';
 
       for (var m in session.messages) {
-        if (m['role'] == expectedRole) {
-          history.add(
-            expectedRole == 'user'
-                ? genai.Content.text(m['text']!)
-                : genai.Content.model([genai.TextPart(m['text']!)]),
-          );
-          expectedRole = expectedRole == 'user' ? 'model' : 'user';
+        final role = m['role'] == 'user' ? 'user' : 'model';
+        final text = m['text'] ?? '';
+
+        if (role == lastRole) {
+          // دمج الرسائل المتتالية من نفس الطرف لتفادي خطأ التسلسل
+          combinedText += '\n$text';
+        } else {
+          // إضافة الرسالة السابقة المجمعة إلى السجل
+          if (lastRole != null && combinedText.trim().isNotEmpty) {
+            history.add(
+              lastRole == 'user'
+                  ? genai.Content.text(combinedText)
+                  : genai.Content.model([genai.TextPart(combinedText)]),
+            );
+          }
+          lastRole = role;
+          combinedText = text;
         }
       }
 
-      // Generative AI requires the history to end with a model response if the next message is a user message.
-      if (expectedRole == 'model' && history.isNotEmpty) {
+      // إضافة آخر رسالة مجمعة
+      if (lastRole != null && combinedText.trim().isNotEmpty) {
+        history.add(
+          lastRole == 'user'
+              ? genai.Content.text(combinedText)
+              : genai.Content.model([genai.TextPart(combinedText)]),
+        );
+      }
+
+      // الذكاء الاصطناعي يتطلب أن ينتهي السجل بـ model إذا كانت الرسالة الجديدة user
+      if (history.isNotEmpty && lastRole == 'user') {
         history.removeLast();
       }
 
       try {
         _currentChat = _model.startChat(history: history);
       } catch (e) {
-        // Fallback in case of history issues
-        _currentChat = _model.startChat();
+        _currentChat = _model.startChat(); // تصفير كامل في حال الفشل
       }
     } else {
       _currentChat = _model.startChat();

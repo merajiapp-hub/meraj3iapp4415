@@ -45,19 +45,19 @@ class DonationsScreen extends StatelessWidget {
       {
         'name': 'Bankily',
         'image': 'assets/pay/Bankily.png',
-        'number': '41919108', // استبدل برقمك
+        'number': '26270009', // استبدل برقمك
         'color': const Color(0xFF00B0FF),
       },
       {
         'name': 'Masrvi',
         'image': 'assets/pay/Masrvi.png',
-        'number': '41919108', // استبدل برقمك
+        'number': '26270009', // استبدل برقمك
         'color': const Color(0xFFF57F17),
       },
       {
         'name': 'SEDAD',
         'image': 'assets/pay/SEDAD.png',
-        'number': '41919108', // استبدل برقمك
+        'number': '26270009', // استبدل برقمك
         'color': const Color(0xFF1B5E20),
       },
     ];

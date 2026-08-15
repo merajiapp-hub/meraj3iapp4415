@@ -5,9 +5,11 @@ import 'package:provider/provider.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../providers/student_provider.dart';
 import '../../models/student_profile.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_notification.dart';
 
 class StudentCardScreen extends StatefulWidget {
   const StudentCardScreen({super.key});
@@ -19,6 +21,68 @@ class StudentCardScreen extends StatefulWidget {
 class _StudentCardScreenState extends State<StudentCardScreen> {
   final ScreenshotController _screenshotController = ScreenshotController();
   bool _isSharing = false;
+  final _formKey = GlobalKey<FormState>();
+
+  late TextEditingController _nameCtrl;
+  late TextEditingController _schoolCtrl;
+  late TextEditingController _wilayaCtrl;
+  late TextEditingController _cityCtrl;
+  late TextEditingController _phoneCtrl;
+
+  String _selectedGrade = 'السنة الثالثة ثانوي';
+  String _selectedDepartment = 'علوم تجريبية';
+
+  final List<String> _grades = [
+    'السنة الأولى',
+    'السنة الثانية',
+    'السنة الثالثة',
+    'السنة الرابعة',
+    'السنة الخامسة',
+    'السنة السادسة',
+    'السنة الأولى إعدادي',
+    'السنة الثانية إعدادي',
+    'السنة الثالثة إعدادي',
+    'السنة الرابعة إعدادي',
+    'السنة الأولى ثانوي',
+    'السنة الثانية ثانوي',
+    'السنة الثالثة ثانوي',
+  ];
+
+  final List<String> _departments = [
+    'عام',
+    'علوم تجريبية',
+    'رياضيات',
+    'آداب عصرية',
+    'آداب أصلية',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final profile = context.read<StudentProvider>().profile;
+    _nameCtrl = TextEditingController(text: profile.name);
+    _schoolCtrl = TextEditingController(text: profile.school);
+    _wilayaCtrl = TextEditingController(text: profile.wilaya ?? '');
+    _cityCtrl = TextEditingController(text: profile.city ?? '');
+    _phoneCtrl = TextEditingController(text: profile.phoneNumber ?? '');
+    
+    if (_grades.contains(profile.grade)) {
+      _selectedGrade = profile.grade;
+    }
+    if (_departments.contains(profile.department)) {
+      _selectedDepartment = profile.department;
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _schoolCtrl.dispose();
+    _wilayaCtrl.dispose();
+    _cityCtrl.dispose();
+    _phoneCtrl.dispose();
+    super.dispose();
+  }
 
   Future<void> _shareCard() async {
     setState(() => _isSharing = true);
@@ -39,13 +103,51 @@ class _StudentCardScreenState extends State<StudentCardScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('حدث خطأ أثناء المشاركة.')),
-        );
+        AppNotification.show(context, 'حدث خطأ أثناء المشاركة.', isError: true);
       }
     } finally {
       if (mounted) {
         setState(() => _isSharing = false);
+      }
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null && mounted) {
+      await context.read<StudentProvider>().updateField('avatarPath', pickedFile.path);
+      if (mounted) AppNotification.show(context, 'تم تحديث الصورة الشخصية');
+    }
+  }
+
+  void _saveChanges() async {
+    if (_formKey.currentState?.validate() ?? false) {
+      final provider = context.read<StudentProvider>();
+      final currentProfile = provider.profile;
+
+      final updatedProfile = StudentProfile(
+        name: _nameCtrl.text.trim(),
+        grade: _selectedGrade,
+        department: _selectedDepartment,
+        school: _schoolCtrl.text.trim(),
+        avatarPath: currentProfile.avatarPath,
+        wilaya: _wilayaCtrl.text.trim(),
+        city: _cityCtrl.text.trim(),
+        studentId: currentProfile.studentId,
+        phoneNumber: _phoneCtrl.text.trim(),
+        bio: currentProfile.bio,
+        email: currentProfile.email,
+        cardCreatedAt: currentProfile.cardCreatedAt,
+        booksRead: currentProfile.booksRead,
+        quizzesTaken: currentProfile.quizzesTaken,
+        progressLevel: currentProfile.progressLevel,
+        achievements: currentProfile.achievements,
+      );
+
+      await provider.updateProfile(updatedProfile);
+      if (mounted) {
+        AppNotification.show(context, 'تم حفظ المعلومات وتحديث البطاقة');
       }
     }
   }
@@ -76,38 +178,210 @@ class _StudentCardScreenState extends State<StudentCardScreen> {
           ),
         ],
       ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Screenshot(
-                controller: _screenshotController,
-                child: _buildDigitalCard(student, isDark),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            // ── البطاقة الرقمية ──
+            Screenshot(
+              controller: _screenshotController,
+              child: _buildDigitalCard(student, isDark),
+            ),
+            
+            const SizedBox(height: 32),
+            Divider(color: Colors.grey.withValues(alpha: 0.3)),
+            const SizedBox(height: 16),
+            
+            Text(
+              'تحديث بيانات الطالب',
+              style: GoogleFonts.tajawal(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black87,
               ),
-              const SizedBox(height: 32),
-              ElevatedButton.icon(
-                onPressed: _isSharing ? null : _shareCard,
-                icon: const Icon(Icons.share_rounded),
-                label: Text(
-                  'مشاركة البطاقة كصورة',
-                  style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 16,
+            ),
+            const SizedBox(height: 16),
+
+            // ── نموذج تعديل البيانات ──
+            Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildTextField(
+                    controller: _nameCtrl,
+                    label: 'الاسم الكامل',
+                    icon: Icons.person_rounded,
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                  const SizedBox(height: 16),
+                  
+                  _buildTextField(
+                    controller: _schoolCtrl,
+                    label: 'المؤسسة التعليمية',
+                    icon: Icons.account_balance_rounded,
                   ),
-                ),
+                  const SizedBox(height: 16),
+                  
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDropdown(
+                          label: 'المرحلة / السنة',
+                          value: _selectedGrade,
+                          items: _grades,
+                          onChanged: (val) {
+                            if (val != null) setState(() => _selectedGrade = val);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildDropdown(
+                          label: 'الشعبة',
+                          value: _selectedDepartment,
+                          items: _departments,
+                          onChanged: (val) {
+                            if (val != null) setState(() => _selectedDepartment = val);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
+                          controller: _wilayaCtrl,
+                          label: 'الولاية',
+                          icon: Icons.map_rounded,
+                          required: false,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildTextField(
+                          controller: _cityCtrl,
+                          label: 'المدينة / المقاطعة',
+                          icon: Icons.location_city_rounded,
+                          required: false,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  _buildTextField(
+                    controller: _phoneCtrl,
+                    label: 'رقم الهاتف',
+                    icon: Icons.phone_rounded,
+                    isPhone: true,
+                    required: false,
+                  ),
+                  const SizedBox(height: 32),
+
+                  ElevatedButton.icon(
+                    onPressed: _saveChanges,
+                    icon: const Icon(Icons.save_rounded),
+                    label: Text(
+                      'حفظ التعديلات',
+                      style: GoogleFonts.cairo(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 4,
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool required = true,
+    bool isPhone = false,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return TextFormField(
+      controller: controller,
+      keyboardType: isPhone ? TextInputType.phone : TextInputType.text,
+      textDirection: isPhone ? TextDirection.ltr : TextDirection.rtl,
+      style: GoogleFonts.cairo(color: isDark ? Colors.white : Colors.black87),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: GoogleFonts.cairo(color: Colors.grey),
+        prefixIcon: Icon(icon, color: AppTheme.primaryColor),
+        filled: true,
+        fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey[50],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
+        ),
+      ),
+      validator: (value) {
+        if (required && (value == null || value.trim().isEmpty)) {
+          return 'هذا الحقل مطلوب';
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _buildDropdown({
+    required String label,
+    required String value,
+    required List<String> items,
+    required void Function(String?) onChanged,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return DropdownButtonFormField<String>(
+      initialValue: value,
+      isExpanded: true,
+      icon: const Icon(Icons.arrow_drop_down_circle, color: AppTheme.primaryColor),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: GoogleFonts.cairo(color: Colors.grey),
+        filled: true,
+        fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey[50],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+      ),
+      style: GoogleFonts.cairo(color: isDark ? Colors.white : Colors.black87, fontSize: 14),
+      dropdownColor: isDark ? AppTheme.surfaceDark : Colors.white,
+      items: items.map((item) {
+        return DropdownMenuItem(
+          value: item,
+          child: Text(item),
+        );
+      }).toList(),
+      onChanged: onChanged,
     );
   }
 
@@ -191,40 +465,43 @@ class _StudentCardScreenState extends State<StudentCardScreen> {
                 // Avatar + Name
                 Row(
                   children: [
-                    Container(
-                      width: 90,
-                      height: 90,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppTheme.primaryColor,
-                          width: 3,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                            blurRadius: 10,
-                            spreadRadius: 2,
+                    GestureDetector(
+                      onTap: _pickImage,
+                      child: Container(
+                        width: 90,
+                        height: 90,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppTheme.primaryColor,
+                            width: 3,
                           ),
-                        ],
-                        image: DecorationImage(
-                          image: student.avatarPath != null
-                              ? FileImage(File(student.avatarPath!))
-                                    as ImageProvider
-                              : const AssetImage(
-                                  'assets/images/avatar_placeholder.png',
-                                ),
-                          fit: BoxFit.cover,
-                          onError: (_, _) {},
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                              blurRadius: 10,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                          image: DecorationImage(
+                            image: student.avatarPath != null
+                                ? FileImage(File(student.avatarPath!))
+                                      as ImageProvider
+                                : const AssetImage(
+                                    'assets/images/avatar_placeholder.png',
+                                  ),
+                            fit: BoxFit.cover,
+                            onError: (_, _) {},
+                          ),
                         ),
+                        child: student.avatarPath == null
+                            ? const Icon(
+                                Icons.add_a_photo_rounded,
+                                size: 30,
+                                color: Colors.white70,
+                              )
+                            : null,
                       ),
-                      child: student.avatarPath == null
-                          ? const Icon(
-                              Icons.person_rounded,
-                              size: 40,
-                              color: Colors.grey,
-                            )
-                          : null,
                     ),
                     const SizedBox(width: 20),
                     Expanded(
@@ -285,6 +562,29 @@ class _StudentCardScreenState extends State<StudentCardScreen> {
                     ),
                   ],
                 ),
+                if ((student.wilaya?.isNotEmpty ?? false) || (student.city?.isNotEmpty ?? false)) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      if (student.wilaya?.isNotEmpty ?? false)
+                        Expanded(
+                          child: _buildInfoItem(
+                            Icons.map_rounded,
+                            'الولاية',
+                            student.wilaya!,
+                          ),
+                        ),
+                      if (student.city?.isNotEmpty ?? false)
+                        Expanded(
+                          child: _buildInfoItem(
+                            Icons.location_city_rounded,
+                            'المدينة',
+                            student.city!,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 24),
                 Divider(color: Colors.white.withValues(alpha: 0.1)),
                 const SizedBox(height: 24),

@@ -7,7 +7,7 @@ import 'faq_screen.dart';
 class InfoScreen extends StatelessWidget {
   const InfoScreen({super.key});
 
-  final String _appVersion = 'الإصدار 4.4.0';
+  final String _appVersion = 'الإصدار 5.2.0';
 
   @override
   Widget build(BuildContext context) {
@@ -62,17 +62,16 @@ class InfoScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
-                _buildSectionTitle('✨ ما الجديد في الإصدار 4.4.0'),
+                _buildSectionTitle('✨ ما الجديد في الإصدار 5.2.0'),
                 _buildListCard(
                   isDark: isDark,
                   items: [
-                    'إصلاح نظام الإشعارات — يظهر في شريط الإشعارات ويبقى محفوظاً',
-                    'إصلاح زر التنزيل الخارجي مع شريط التقدم',
-                    'تحسين سرعة فتح الكتب وتحميلها',
-                    'فصل الدروس والتمارين عن الكتب المدرسية',
-                    'تصحيح تصنيف الكتب وإزالة الخلط بين الأقسام',
-                    'تحديث روابط كتب السنة السادسة ابتدائية',
-                    'تحسين الأداء العام واستهلاك الذاكرة',
+                    'إصلاح جذري لمحرك الذكاء الاصطناعي (Gemini 1.5 Flash) وتصفير أخطاء الاتصال',
+                    'حل نهائي لمشكلة تنزيل وحفظ ملفات الـ PDF مع إضافة شاشة معاينة احترافية',
+                    'تطوير نظام الإحصائيات ليعتمد كلياً على الأرقام الحقيقية والمفضلة',
+                    'إعادة تصميم بطاقات نتائج الطلاب لتصبح أكثر احترافية وجمالاً',
+                    'تحسين شاشة التنزيلات لفصل الكتب عن النتائج المحفوظة',
+                    'تحسين نظام الإشعارات والتوافق مع التحديثات الجديدة (Flutter Local Notifications)',
                   ],
                   iconColor: const Color(0xFF8B5CF6),
                 ),

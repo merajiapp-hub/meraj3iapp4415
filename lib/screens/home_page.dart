@@ -12,7 +12,11 @@ import 'search_screen.dart';
 import 'favorites_screen.dart';
 import 'task_manager_screen.dart';
 import 'settings_screen.dart';
+import 'add_book_screen.dart';
 import 'profile_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/book.dart';
+import '../widgets/book_card.dart';
 import 'info_screen.dart';
 import 'login_screen.dart';
 import 'stages_screen.dart';
@@ -135,6 +139,7 @@ class _HomePageState extends State<HomePage>
       },
       child: Scaffold(
         drawer: _buildDrawer(),
+        floatingActionButton: _buildFloatingActionButton(),
         body: Stack(
           children: [
             CustomScrollView(
@@ -371,10 +376,10 @@ class _HomePageState extends State<HomePage>
                         _buildWisdomBox(isDark),
                         const SizedBox(height: 24),
 
-                        // ── الوصول السريع ──
-                        _buildSectionHeader('الوصول السريع', isDark),
+                        // ── الكتب المضافة حديثاً ──
+                        _buildSectionHeader('الكتب المضافة حديثاً', isDark),
                         const SizedBox(height: 12),
-                        _buildQuickAccessRow(isDark),
+                        _buildRecentlyAddedBooks(isDark),
                         const SizedBox(height: 28),
 
                         // ── عنوان القسم الرئيسي ──
@@ -436,62 +441,101 @@ class _HomePageState extends State<HomePage>
 }
 
   // ══════════════════════════════════════════════════════
-  // الوصول السريع
+  // الكتب المضافة حديثاً
   // ══════════════════════════════════════════════════════
-  Widget _buildQuickAccessRow(bool isDark) {
-    final items = [
-      {'title': 'كتب', 'icon': Icons.menu_book_rounded, 'color': const Color(0xFF3B82F6)},
-      {'title': 'دروس', 'icon': Icons.play_lesson_rounded, 'color': const Color(0xFF10B981)},
-      {'title': 'تمارين', 'icon': Icons.assignment_rounded, 'color': const Color(0xFFF59E0B)},
-      {'title': 'امتحانات', 'icon': Icons.description_rounded, 'color': const Color(0xFF8B5CF6)},
-    ];
+  Widget _buildRecentlyAddedBooks(bool isDark) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('uploaded_books')
+          .orderBy('uploadDate', descending: true)
+          .limit(5)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox(
+            height: 160,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.hasError) {
+          return SizedBox(
+            height: 100,
+            child: Center(
+              child: Text(
+                'تعذر تحميل الكتب',
+                style: GoogleFonts.tajawal(color: Colors.red),
+              ),
+            ),
+          );
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return SizedBox(
+            height: 100,
+            child: Center(
+              child: Text(
+                'لا توجد كتب مضافة حالياً.',
+                style: GoogleFonts.tajawal(color: isDark ? Colors.white70 : Colors.black54),
+              ),
+            ),
+          );
+        }
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: items.map((item) {
-        final color = item['color'] as Color;
-        return GestureDetector(
-          onTap: () {
-            // توجيه المستخدم للأقسام بناء على اختياره، سنوجهه الآن إلى المراحل كأمر افتراضي
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const StagesScreen()),
-            );
-          },
-          child: Column(
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: isDark ? color.withValues(alpha: 0.15) : color.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: color.withValues(alpha: 0.3),
-                    width: 1.5,
+        final docs = snapshot.data!.docs;
+        return SizedBox(
+          height: 200,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              final data = docs[index].data() as Map<String, dynamic>;
+              final book = Book.fromMap(data, docs[index].id);
+              return Padding(
+                padding: const EdgeInsets.only(left: 12),
+                child: SizedBox(
+                  width: 140,
+                  child: BookCard(
+                    book: book,
+                    isDark: isDark,
+                    gradient: AppTheme.blueGradient,
                   ),
                 ),
-                child: Center(
-                  child: Icon(
-                    item['icon'] as IconData,
-                    color: color,
-                    size: 28,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                item['title'] as String,
-                style: GoogleFonts.tajawal(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  color: isDark ? Colors.white70 : const Color(0xFF475569),
-                ),
-              ),
-            ],
+              );
+            },
           ),
         );
-      }).toList(),
+      },
+    );
+  }
+
+  // ══════════════════════════════════════════════════════
+  //  زر إضافة كتاب (FAB)
+  // ══════════════════════════════════════════════════════
+  Widget _buildFloatingActionButton() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 70), // لتجنب الشريط السفلي
+      decoration: BoxDecoration(
+        gradient: AppTheme.brandGradient,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryColor.withValues(alpha: 0.4),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AddBookScreen()),
+          );
+        },
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: const Icon(Icons.add_rounded, size: 30, color: Colors.white),
+      ),
     );
   }
 

@@ -26,7 +26,7 @@ class ProgressScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildWeeklyComparison(isDark),
+            _buildWeeklyComparison(context, isDark),
             const SizedBox(height: 24),
             Text(
               'نتائج الاختبارات',
@@ -53,7 +53,7 @@ class ProgressScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildWeeklyComparison(bool isDark) {
+  Widget _buildWeeklyComparison(BuildContext context, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -83,9 +83,9 @@ class ProgressScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildComparisonItem('المهام', '12', '+3', true, isDark),
-              _buildComparisonItem('الاختبارات', '5', '-1', false, isDark),
-              _buildComparisonItem('المعدل', '15.5', '+0.5', true, isDark),
+              _buildComparisonItem('المهام', '${context.watch<StatisticsProvider>().userCompletedTasks}', '+3', true, isDark),
+              _buildComparisonItem('الكتب', '${context.watch<StatisticsProvider>().userReadBooks}', '+1', true, isDark),
+              _buildComparisonItem('التقييم', context.watch<StatisticsProvider>().userAvgScore.toStringAsFixed(1), '+0.5', true, isDark),
             ],
           ),
         ],
