@@ -13,10 +13,7 @@ import '../theme/app_theme.dart';
 import '../widgets/app_notification.dart';
 import 'login_screen.dart';
 import 'statistics_screen.dart';
-import 'student_card_screen.dart';
-import 'progress_screen.dart';
-import 'reading_list_screen.dart';
-import 'reading_history_screen.dart';
+import 'student/reading_history_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -748,39 +745,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   Widget _buildActionsCard(bool isDark) {
     return Column(
       children: [
-        _buildActionButton(
-          label: 'البطاقة الرقمية',
-          icon: Icons.badge_rounded,
-          color: const Color(0xFF14B8A6), // AppTheme.primaryColor
-          isDark: isDark,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const StudentCardScreen()),
-          ),
-        ),
-        const SizedBox(height: 12),
-        _buildActionButton(
-          label: 'تطور مستواي',
-          icon: Icons.auto_graph_rounded,
-          color: Colors.orange,
-          isDark: isDark,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const ProgressScreen()),
-          ),
-        ),
-        const SizedBox(height: 12),
-        _buildActionButton(
-          label: 'قائمة القراءة',
-          icon: Icons.menu_book_rounded,
-          color: Colors.indigo,
-          isDark: isDark,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const ReadingListScreen()),
-          ),
-        ),
-        const SizedBox(height: 12),
+
         _buildActionButton(
           label: 'سجل القراءة',
           icon: Icons.history_rounded,

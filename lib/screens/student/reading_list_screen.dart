@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/reading_provider.dart';
 import '../../models/reading_session.dart';
 import '../../theme/app_theme.dart';
@@ -90,6 +91,7 @@ class _ReadingListScreenState extends State<ReadingListScreen> with SingleTicker
 
   Widget _buildBookCard(ReadingSession session, bool isDark) {
     final progress = session.progress;
+    final book = session.book;
     
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -125,15 +127,31 @@ class _ReadingListScreenState extends State<ReadingListScreen> with SingleTicker
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 60,
-                height: 85,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
+              if (book.coverUrl.isNotEmpty)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: CachedNetworkImage(
+                    imageUrl: book.coverUrl,
+                    width: 50,
+                    height: 70,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => const SizedBox(
+                      width: 50, height: 70, 
+                      child: Center(child: CircularProgressIndicator())
+                    ),
+                    errorWidget: (context, url, error) => const Icon(Icons.error),
+                  ),
+                )
+              else
+                Container(
+                  width: 50,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  ),
+                  child: const Icon(Icons.book, color: AppTheme.primaryColor),
                 ),
-                child: const Icon(Icons.book, color: AppTheme.primaryColor),
-              ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(

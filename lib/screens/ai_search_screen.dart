@@ -40,8 +40,14 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
     // ════════════════════════════════════════════════════════════════════
     final apiKey = AppSecrets.geminiApiKey;
     _model = genai.GenerativeModel(
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.0-flash-exp',
       apiKey: apiKey,
+      generationConfig: genai.GenerationConfig(
+        temperature: 0.7,
+        topP: 0.8,
+        topK: 40,
+        maxOutputTokens: 2048,
+      ),
       systemInstruction: genai.Content.system(
         'أنت MERAJ3I AI، المساعد التعليمي والعبقري للطلاب في موريتانيا والوطن العربي. '
         'دورك الأساسي هو تقديم شروحات دراسية ذكية واحترافية. يمكنك الإجابة على أي سؤال بذكاء فائق. '
@@ -140,9 +146,9 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
           if (text.isNotEmpty) genai.TextPart(text),
           genai.DataPart('image/jpeg', bytes),
         ]);
-        response = await chatSession.sendMessage(content);
+        response = await chatSession.sendMessage(content).timeout(const Duration(seconds: 30));
       } else {
-        response = await chatSession.sendMessage(genai.Content.text(text));
+        response = await chatSession.sendMessage(genai.Content.text(text)).timeout(const Duration(seconds: 30));
       }
 
       final responseText = response.text ?? 'لم أستطع معالجة هذا الطلب.';

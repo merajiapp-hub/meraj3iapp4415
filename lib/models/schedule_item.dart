@@ -5,56 +5,52 @@ class ScheduleItem {
   final String id;
   final String title;
   final String description;
-  final DateTime startTime;
-  final DateTime endTime;
+  final int weekday; // 1 = Monday, 7 = Sunday
+  final TimeOfDay startTime;
+  final TimeOfDay endTime;
   final Color color;
-  final bool isCompleted;
-  final bool notify;
-  final bool isWeekly;
   final String? teacher;
   final String? room;
+  final bool notify;
   final int notifyMinutesBefore;
 
   ScheduleItem({
     required this.id,
     required this.title,
     this.description = '',
+    required this.weekday,
     required this.startTime,
     required this.endTime,
     required this.color,
-    this.isCompleted = false,
-    this.notify = true,
-    this.isWeekly = false,
     this.teacher,
     this.room,
+    this.notify = true,
     this.notifyMinutesBefore = 10,
   });
 
   ScheduleItem copyWith({
     String? title,
     String? description,
-    DateTime? startTime,
-    DateTime? endTime,
+    int? weekday,
+    TimeOfDay? startTime,
+    TimeOfDay? endTime,
     Color? color,
-    bool? isCompleted,
-    bool? notify,
-    bool? isWeekly,
     String? teacher,
     String? room,
+    bool? notify,
     int? notifyMinutesBefore,
   }) {
     return ScheduleItem(
       id: id,
       title: title ?? this.title,
       description: description ?? this.description,
+      weekday: weekday ?? this.weekday,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
       color: color ?? this.color,
-      isCompleted: isCompleted ?? this.isCompleted,
-      notify: notify ?? this.notify,
-      isWeekly: isWeekly ?? this.isWeekly,
       teacher: teacher ?? this.teacher,
       room: room ?? this.room,
+      notify: notify ?? this.notify,
       notifyMinutesBefore: notifyMinutesBefore ?? this.notifyMinutesBefore,
     );
   }
@@ -64,14 +60,15 @@ class ScheduleItem {
       'id': id,
       'title': title,
       'description': description,
-      'startTime': startTime.toIso8601String(),
-      'endTime': endTime.toIso8601String(),
+      'weekday': weekday,
+      'startHour': startTime.hour,
+      'startMinute': startTime.minute,
+      'endHour': endTime.hour,
+      'endMinute': endTime.minute,
       'color': color.toARGB32(),
-      'isCompleted': isCompleted,
-      'notify': notify,
-      'isWeekly': isWeekly,
       'teacher': teacher,
       'room': room,
+      'notify': notify,
       'notifyMinutesBefore': notifyMinutesBefore,
     };
   }
@@ -81,20 +78,18 @@ class ScheduleItem {
       id: map['id'] ?? '',
       title: map['title'] ?? '',
       description: map['description'] ?? '',
-      startTime: DateTime.parse(map['startTime']),
-      endTime: DateTime.parse(map['endTime']),
+      weekday: map['weekday'] ?? 1,
+      startTime: TimeOfDay(hour: map['startHour'] ?? 8, minute: map['startMinute'] ?? 0),
+      endTime: TimeOfDay(hour: map['endHour'] ?? 9, minute: map['endMinute'] ?? 0),
       color: Color(map['color'] ?? 0xFF13A286),
-      isCompleted: map['isCompleted'] ?? false,
-      notify: map['notify'] ?? true,
-      isWeekly: map['isWeekly'] ?? false,
       teacher: map['teacher'],
       room: map['room'],
+      notify: map['notify'] ?? true,
       notifyMinutesBefore: map['notifyMinutesBefore'] ?? 10,
     );
   }
 
   String toJson() => json.encode(toMap());
 
-  factory ScheduleItem.fromJson(String source) =>
-      ScheduleItem.fromMap(json.decode(source));
+  factory ScheduleItem.fromJson(String source) => ScheduleItem.fromMap(json.decode(source));
 }

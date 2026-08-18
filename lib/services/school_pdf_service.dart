@@ -1,5 +1,7 @@
-// services/school_pdf_service.dart — v3.0.0
-// إنشاء PDF احترافي لقوائم النتائج مع حفظ دائم وتحقق كامل
+// services/school_pdf_service.dart
+// PDF النتائج الاحترافي — مطابق للتصميم المرجعي
+// v6.0.0 — RTL + Arabic Shaping + Header مطابق للصورة
+
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -7,7 +9,6 @@ import 'package:syncfusion_flutter_pdf/pdf.dart';
 import '../services/results_service.dart';
 import '../models/result_pdf_file.dart';
 
-/// نتيجة عملية إنشاء PDF
 class PdfBuildResult {
   final bool success;
   final String? filePath;
@@ -23,12 +24,17 @@ class PdfBuildResult {
 }
 
 class SchoolPdfService {
-  // ─── المجلد الرئيسي للحفظ ──────────────────────────────────────────────
+  // ── ألوان التصميم المرجعي ──────────────────────────────
+  static final _darkGreen = PdfColor(15, 60, 30);      // #0F3C1E — رأس الجدول
+  static final _lightGreen = PdfColor(210, 230, 210);  // #D2E6D2 — صفوف زوجية
+  static final _white = PdfColor(255, 255, 255);
+  static final _black = PdfColor(0, 0, 0);
+  static final _separatorBlue = PdfColor(30, 80, 110); // الفاصل الأزرق
+  static final _textGray = PdfColor(80, 80, 80);
+
   static Future<Directory> _getResultsDir() async {
     Directory? dir;
-
     if (Platform.isAndroid) {
-      // أولوية: مجلد Downloads/Meraj3i_Results (مرئي للمستخدم)
       final candidates = [
         '/storage/emulated/0/Download/Meraj3i_Results',
         '/storage/emulated/0/Documents/Meraj3i_Results',
@@ -37,7 +43,6 @@ class SchoolPdfService {
         try {
           final d = Directory(path);
           if (!d.existsSync()) d.createSync(recursive: true);
-          // اختبار الكتابة
           final testFile = File('${d.path}/.write_test');
           testFile.writeAsBytesSync([0]);
           testFile.deleteSync();
@@ -46,18 +51,14 @@ class SchoolPdfService {
         } catch (_) {}
       }
     }
-
-    // Fallback: مجلد التطبيق الداخلي (ثابت لا يُحذف)
     if (dir == null) {
       final appDir = await getApplicationDocumentsDirectory();
       dir = Directory('${appDir.path}/Meraj3i_Results');
       if (!dir.existsSync()) dir.createSync(recursive: true);
     }
-
     return dir;
   }
 
-  /// إنشاء اسم ملف آمن (بدون مسافات أو حروف خاصة)
   static String _safeFileName(String input) {
     return input
         .replaceAll(RegExp(r'[^\w\u0600-\u06FF]'), '_')
@@ -65,104 +66,10 @@ class SchoolPdfService {
         .substring(0, input.length.clamp(0, 40));
   }
 
-  // ─── الدالة الرئيسية: إنشاء وحفظ PDF وإرجاع النتيجة ──────────────────
-
-  /// يبني ملف PDF ويحفظه ويرجع نتيجة مفصلة
   static Future<PdfBuildResult> buildAndSave({
     required List<StudentResult> students,
-    required String listTitle,         // 'قائمة الناجحين' / 'قائمة الراسبين'
-    required String listType,          // 'passed' / 'failed' / 'all'
-    required String competitionTitle,  // اسم المسابقة
-    required ExamType examType,
-    required double maxScore,
-    required double passScore,
-    // إحصائيات المسابقة لعرضها في الرأس
-    required int totalCount,
-    required int passedCount,
-    required int failedCount,
-    int absentCount = 0,
-    int expelledCount = 0,
-    int complementaryCount = 0,
-    String filterWilaya = '',
-    String filterCenter = '',
-    String filterSchool = '',
-    String filterBranch = '',
-  }) async {
-    try {
-      // إنشاء مجلد الحفظ
-      final saveDir = await _getResultsDir();
-
-      // اسم الملف
-      final now = DateTime.now();
-      final stamp =
-          '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
-      final safeName = _safeFileName(listTitle);
-      final safeComp = _safeFileName(competitionTitle);
-      final fileName = 'meraj3i_${safeName}_${safeComp}_$stamp.pdf';
-      final filePath = '${saveDir.path}/$fileName';
-
-      // إنشاء مستند PDF
-      final bytes = await _buildListPdf(
-        students: students,
-        listTitle: listTitle,
-        competitionTitle: competitionTitle,
-        examType: examType,
-        maxScore: maxScore,
-        passScore: passScore,
-        totalCount: totalCount,
-        passedCount: passedCount,
-        failedCount: failedCount,
-        absentCount: absentCount,
-        expelledCount: expelledCount,
-        complementaryCount: complementaryCount,
-        filterWilaya: filterWilaya,
-        filterCenter: filterCenter,
-        filterSchool: filterSchool,
-        filterBranch: filterBranch,
-      );
-
-      // كتابة الملف
-      final file = File(filePath);
-      await file.writeAsBytes(bytes, flush: true);
-
-      // ── التحقق الإلزامي من نجاح الحفظ ──
-      if (!file.existsSync()) {
-        return PdfBuildResult(success: false, errorMessage: 'فشل إنشاء الملف على الجهاز');
-      }
-      final fileSize = file.lengthSync();
-      if (fileSize == 0) {
-        await file.delete();
-        return PdfBuildResult(success: false, errorMessage: 'الملف المُنشأ فارغ — حاول مجدداً');
-      }
-
-      final sizeMb = fileSize / (1024 * 1024);
-      final pdfFile = ResultPdfFile(
-        id: '${now.millisecondsSinceEpoch}',
-        fileName: fileName,
-        localPath: filePath,
-        title: '$listTitle — $competitionTitle',
-        competition: competitionTitle,
-        listType: listType,
-        fileSizeMb: sizeMb,
-        savedAt: now,
-        studentCount: students.length,
-      );
-
-      return PdfBuildResult(
-        success: true,
-        filePath: filePath,
-        pdfFile: pdfFile,
-      );
-    } catch (e) {
-      return PdfBuildResult(success: false, errorMessage: 'تعذر إنشاء PDF: $e');
-    }
-  }
-
-  // ─── بناء محتوى PDF ────────────────────────────────────────────────────
-
-  static Future<List<int>> _buildListPdf({
-    required List<StudentResult> students,
     required String listTitle,
+    required String listType,
     required String competitionTitle,
     required ExamType examType,
     required double maxScore,
@@ -178,424 +85,443 @@ class SchoolPdfService {
     String filterSchool = '',
     String filterBranch = '',
   }) async {
+    try {
+      final saveDir = await _getResultsDir();
+      final now = DateTime.now();
+      final stamp =
+          '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
+      final safeName = _safeFileName(listTitle);
+      final safeComp = _safeFileName(competitionTitle);
+      final fileName = 'meraj3i_${safeName}_${safeComp}_$stamp.pdf';
+      final filePath = '${saveDir.path}/$fileName';
+
+      final bytes = await _buildListPdf(
+        students: students,
+        competitionTitle: competitionTitle,
+        examType: examType,
+        totalCount: totalCount,
+        passedCount: passedCount,
+        failedCount: failedCount,
+        filterWilaya: filterWilaya,
+        filterCenter: filterCenter,
+        filterSchool: filterSchool,
+        filterBranch: filterBranch,
+        listTitle: listTitle,
+      );
+
+      final file = File(filePath);
+      await file.writeAsBytes(bytes, flush: true);
+
+      if (!file.existsSync() || file.lengthSync() == 0) {
+        if (file.existsSync()) await file.delete();
+        return PdfBuildResult(success: false, errorMessage: 'فشل حفظ الملف.');
+      }
+
+      final sizeMb = file.lengthSync() / (1024 * 1024);
+      return PdfBuildResult(
+        success: true,
+        filePath: filePath,
+        pdfFile: ResultPdfFile(
+          id: '${now.millisecondsSinceEpoch}',
+          fileName: fileName,
+          localPath: filePath,
+          title: '$listTitle — $competitionTitle',
+          competition: competitionTitle,
+          listType: listType,
+          fileSizeMb: sizeMb,
+          savedAt: now,
+          studentCount: students.length,
+        ),
+      );
+    } catch (e) {
+      return PdfBuildResult(success: false, errorMessage: 'تعذر إنشاء PDF: $e');
+    }
+  }
+
+  /// بناء PDF مطابق للصورة المرجعية
+  static Future<List<int>> _buildListPdf({
+    required List<StudentResult> students,
+    required String competitionTitle,
+    required ExamType examType,
+    required int totalCount,
+    required int passedCount,
+    required int failedCount,
+    required String filterWilaya,
+    required String filterCenter,
+    required String filterSchool,
+    required String filterBranch,
+    required String listTitle,
+  }) async {
     final document = PdfDocument();
+
+    // ── إعداد الصفحة A4 عمودي ──────────────────────────────
     document.pageSettings.size = PdfPageSize.a4;
-    document.pageSettings.margins.all = 32;
-    document.pageSettings.orientation = PdfPageOrientation.portrait;
+    document.pageSettings.margins.left = 20;
+    document.pageSettings.margins.right = 20;
+    document.pageSettings.margins.top = 20;
+    document.pageSettings.margins.bottom = 20;
 
-    // ─── تحميل الخطوط العربية ───────────────────────────────────────────
-    final ByteData regularData = await rootBundle.load('assets/fonts/Tajawal-Regular.ttf');
-    final ByteData boldData = await rootBundle.load('assets/fonts/Tajawal-Bold.ttf');
-    final Uint8List regularBytes = regularData.buffer.asUint8List();
-    final Uint8List boldBytes = boldData.buffer.asUint8List();
+    // ── تحميل الخطوط العربية (مضمّنة في PDF) ──────────────
+    final regularData = await rootBundle.load('assets/fonts/Tajawal-Regular.ttf');
+    final boldData = await rootBundle.load('assets/fonts/Tajawal-Bold.ttf');
+    final regularBytes = regularData.buffer.asUint8List();
+    final boldBytes = boldData.buffer.asUint8List();
 
-    final regularFont = PdfTrueTypeFont(regularBytes, 10);
-    final boldFont = PdfTrueTypeFont(boldBytes, 11);
-    final titleFont = PdfTrueTypeFont(boldBytes, 16);
-    final subtitleFont = PdfTrueTypeFont(boldBytes, 12);
-    final smallFont = PdfTrueTypeFont(regularBytes, 9);
+    // خطوط بأحجام مختلفة
+    final fontTitle = PdfTrueTypeFont(boldBytes, 26);   // MERAJ3I
+    final fontDate = PdfTrueTypeFont(boldBytes, 22);    // التاريخ
+    final fontInfo = PdfTrueTypeFont(boldBytes, 10);    // معلومات الرأس
+    final fontHeader = PdfTrueTypeFont(boldBytes, 10);  // رأس الجدول
+    final fontRow = PdfTrueTypeFont(regularBytes, 9);   // صفوف البيانات
+    final fontPage = PdfTrueTypeFont(regularBytes, 8);  // أرقام الصفحات
 
-    // ─── ألوان ───────────────────────────────────────────────────────────
-    final primaryColor = PdfColor(13, 148, 136);     // #0D9488
-    final darkColor = PdfColor(15, 23, 42);           // #0F172A
-    final passedColor = PdfColor(22, 163, 74);        // #16A34A
-    final failedColor = PdfColor(239, 68, 68);        // #EF4444
-    final lightGray = PdfColor(241, 245, 249);        // #F1F5F9
-    final headerBg = listTitle.contains('الناجح') ? passedColor : failedColor;
+    // ── تحميل الشعار ──────────────────────────────────────
+    PdfBitmap? logoImage;
+    try {
+      final logoData = await rootBundle.load('assets/images/logo.png');
+      logoImage = PdfBitmap(logoData.buffer.asUint8List());
+    } catch (_) {}
 
-    // ─── صياغة RTL ───────────────────────────────────────────────────────
-    final centerRtl = PdfStringFormat(
+    // ── تنسيق RTL الأساسي ──────────────────────────────────
+    final rtlRight = PdfStringFormat(
+      alignment: PdfTextAlignment.right,
+      textDirection: PdfTextDirection.rightToLeft,
+      lineAlignment: PdfVerticalAlignment.middle,
+    );
+    final rtlCenter = PdfStringFormat(
       alignment: PdfTextAlignment.center,
       textDirection: PdfTextDirection.rightToLeft,
       lineAlignment: PdfVerticalAlignment.middle,
     );
-    // ─── الصفحة الأولى ───────────────────────────────────────────────────
-    final page = document.pages.add();
-    final w = page.getClientSize().width;
-    double y = 0;
-
-    // HEADER: رأس الصفحة
-    page.graphics.drawRectangle(
-      brush: PdfSolidBrush(darkColor),
-      bounds: Rect.fromLTWH(0, y, w, 72),
+    final ltrRight = PdfStringFormat(
+      alignment: PdfTextAlignment.right,
+      lineAlignment: PdfVerticalAlignment.middle,
     );
-    page.graphics.drawRectangle(
-      brush: PdfSolidBrush(headerBg),
-      bounds: Rect.fromLTWH(0, y + 68, w, 4),
-    );
-    page.graphics.drawString(
-      'MERAJ3I — مراجعي',
-      PdfTrueTypeFont(boldBytes, 20),
-      brush: PdfSolidBrush(PdfColor(255, 255, 255)),
-      bounds: Rect.fromLTWH(0, y + 12, w, 30),
-      format: centerRtl,
-    );
-    page.graphics.drawString(
-      'تطبيق MERAJ3I — المنصة الطلابية',
-      PdfTrueTypeFont(regularBytes, 9),
-      brush: PdfSolidBrush(PdfColor(180, 210, 210)),
-      bounds: Rect.fromLTWH(0, y + 44, w, 18),
-      format: centerRtl,
-    );
-    y += 80;
 
-    // عنوان القائمة
-    page.graphics.drawRectangle(
-      brush: PdfSolidBrush(headerBg),
-      bounds: Rect.fromLTWH(0, y, w, 36),
-    );
-    page.graphics.drawString(
-      listTitle,
-      titleFont,
-      brush: PdfSolidBrush(PdfColor(255, 255, 255)),
-      bounds: Rect.fromLTWH(0, y, w, 36),
-      format: centerRtl,
-    );
-    y += 44;
-
-    // اسم المسابقة
-    page.graphics.drawString(
-      competitionTitle,
-      subtitleFont,
-      brush: PdfSolidBrush(darkColor),
-      bounds: Rect.fromLTWH(0, y, w, 22),
-      format: centerRtl,
-    );
-    y += 28;
-
-    // معلومات الفلترة إن وجدت
-    final filterParts = <String>[];
-    if (filterBranch.isNotEmpty) filterParts.add('الشعبة: $filterBranch');
-    if (filterWilaya.isNotEmpty) filterParts.add('الولاية: $filterWilaya');
-    if (filterCenter.isNotEmpty) filterParts.add('المركز: $filterCenter');
-    if (filterSchool.isNotEmpty) filterParts.add('المدرسة: $filterSchool');
-    if (filterParts.isNotEmpty) {
-      page.graphics.drawString(
-        filterParts.join('  |  '),
-        smallFont,
-        brush: PdfSolidBrush(PdfColor(100, 116, 139)),
-        bounds: Rect.fromLTWH(0, y, w, 18),
-        format: centerRtl,
-      );
-      y += 22;
-    }
-
-    // خط فاصل
-    page.graphics.drawLine(
-      PdfPen(primaryColor, width: 1),
-      Offset(0, y),
-      Offset(w, y),
-    );
-    y += 12;
-
-    // ─── إحصائيات المسابقة في صناديق ────────────────────────────────────
-    final passRate = totalCount > 0 ? (passedCount / totalCount * 100) : 0.0;
-    final statsData = <_StatBox>[
-      _StatBox('المترشحون', '$totalCount', PdfColor(59, 130, 246)),
-      _StatBox('الناجحون', '$passedCount', passedColor),
-      _StatBox('الراسبون', '$failedCount', failedColor),
-      _StatBox('نسبة النجاح', '${passRate.toStringAsFixed(1)}%', primaryColor),
-    ];
-    if (absentCount > 0) {
-      statsData.add(_StatBox('الغائبون', '$absentCount', PdfColor(107, 114, 128)));
-    }
-    if (expelledCount > 0) {
-      statsData.add(_StatBox('المطرودون', '$expelledCount', PdfColor(139, 92, 246)));
-    }
-    if (examType == ExamType.bac && complementaryCount > 0) {
-      statsData.add(_StatBox('التكميلي', '$complementaryCount', PdfColor(234, 179, 8)));
-    }
-
-    // رسم صناديق الإحصائيات
-    final boxW = (w - (statsData.length - 1) * 6) / statsData.length;
-    for (int i = 0; i < statsData.length; i++) {
-      final stat = statsData[i];
-      final bx = i * (boxW + 6);
-      page.graphics.drawRectangle(
-        brush: PdfSolidBrush(lightGray),
-        pen: PdfPen(stat.color, width: 1.5),
-        bounds: Rect.fromLTWH(bx, y, boxW, 48),
-      );
-      page.graphics.drawString(
-        stat.value,
-        PdfTrueTypeFont(boldBytes, 14),
-        brush: PdfSolidBrush(stat.color),
-        bounds: Rect.fromLTWH(bx, y + 6, boxW, 22),
-        format: centerRtl,
-      );
-      page.graphics.drawString(
-        stat.label,
-        PdfTrueTypeFont(regularBytes, 8),
-        brush: PdfSolidBrush(PdfColor(100, 116, 139)),
-        bounds: Rect.fromLTWH(bx, y + 28, boxW, 16),
-        format: centerRtl,
-      );
-    }
-    y += 58;
-
-    // تاريخ التصدير
+    // ── التاريخ ────────────────────────────────────────────
     final now = DateTime.now();
     final dateStr =
-        '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}  —  ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-    page.graphics.drawString(
-      'تاريخ التصدير: $dateStr    |    عدد النتائج: ${students.length}',
-      smallFont,
-      brush: PdfSolidBrush(PdfColor(148, 163, 184)),
-      bounds: Rect.fromLTWH(0, y, w, 16),
-      format: centerRtl,
-    );
-    y += 22;
+        '${now.year}/${now.month.toString().padLeft(2, '0')}/${now.day.toString().padLeft(2, '0')}';
 
-    // ─── بناء جدول النتائج ───────────────────────────────────────────────
-    _drawResultsTable(
+    // ── الصفحة الأولى ──────────────────────────────────────
+    final firstPage = document.pages.add();
+    final w = firstPage.getClientSize().width;
+
+    double y = 0;
+
+    // ══════════════════════════════════════════════════════
+    // HEADER — رأس الصفحة المطابق للصورة
+    // يسار: الشعار + MERAJ3I (عمودي)
+    // يمين: MERAJ3I (اسم) + التاريخ (تحته)
+    // ══════════════════════════════════════════════════════
+
+    // الشعار في اليسار
+    if (logoImage != null) {
+      firstPage.graphics.drawImage(
+        logoImage,
+        Rect.fromLTWH(5, y, 65, 65),
+      );
+    }
+
+    // "MERAJ3I" على اليمين — كبير وعريض
+    firstPage.graphics.drawString(
+      'MERAJ3I',
+      fontTitle,
+      brush: PdfSolidBrush(_black),
+      bounds: Rect.fromLTWH(w - 220, y + 4, 215, 32),
+      format: ltrRight,
+    );
+
+    // التاريخ تحت الاسم على اليمين
+    firstPage.graphics.drawString(
+      dateStr,
+      fontDate,
+      brush: PdfSolidBrush(_black),
+      bounds: Rect.fromLTWH(w - 220, y + 38, 215, 28),
+      format: ltrRight,
+    );
+
+    y += 75;
+
+    // ── الفاصل الأزرق ─────────────────────────────────────
+    firstPage.graphics.drawRectangle(
+      brush: PdfSolidBrush(_separatorBlue),
+      bounds: Rect.fromLTWH(0, y, w, 2),
+    );
+    y += 6;
+
+    // ══════════════════════════════════════════════════════
+    // سطر المعلومات: اسم المسابقة | الولاية | عدد المترشحين | الناجحون/الراسبون
+    // مطابق للصورة: 4 أعمدة من اليمين لليسار
+    // ══════════════════════════════════════════════════════
+    const infoH = 16.0;
+    double infoY = y;
+
+    // العمود 1 (أقصى اليمين) — اسم المسابقة
+    if (competitionTitle.isNotEmpty) {
+      firstPage.graphics.drawString(
+        competitionTitle,
+        fontInfo,
+        brush: PdfSolidBrush(_textGray),
+        bounds: Rect.fromLTWH(w - 200, infoY, 195, infoH),
+        format: rtlRight,
+      );
+    }
+
+    // المركز أو المدرسة تحت اسم المسابقة
+    if (filterCenter.isNotEmpty || filterSchool.isNotEmpty) {
+      firstPage.graphics.drawString(
+        filterCenter.isNotEmpty ? filterCenter : filterSchool,
+        fontInfo,
+        brush: PdfSolidBrush(_textGray),
+        bounds: Rect.fromLTWH(w - 200, infoY + infoH, 195, infoH),
+        format: rtlRight,
+      );
+    }
+
+    // القسم/الشعبة
+    if (filterBranch.isNotEmpty) {
+      firstPage.graphics.drawString(
+        filterBranch,
+        fontInfo,
+        brush: PdfSolidBrush(_textGray),
+        bounds: Rect.fromLTWH(w - 200, infoY + infoH * 2, 195, infoH),
+        format: rtlRight,
+      );
+    }
+
+    // العمود 2 — الولاية
+    if (filterWilaya.isNotEmpty) {
+      firstPage.graphics.drawString(
+        filterWilaya,
+        fontInfo,
+        brush: PdfSolidBrush(_textGray),
+        bounds: Rect.fromLTWH(w / 2 + 10, infoY + infoH, 140, infoH),
+        format: rtlRight,
+      );
+    }
+
+    // العمود 3 — عدد المترشحين
+    if (totalCount > 0) {
+      firstPage.graphics.drawString(
+        'عدد المترشحين: $totalCount',
+        fontInfo,
+        brush: PdfSolidBrush(_textGray),
+        bounds: Rect.fromLTWH(w / 4 + 10, infoY + infoH, 130, infoH),
+        format: rtlRight,
+      );
+    }
+
+    // العمود 4 (أقصى اليسار) — الناجحون والراسبون
+    if (passedCount > 0 || failedCount > 0) {
+      firstPage.graphics.drawString(
+        'الناجحون: $passedCount    الراسبون: $failedCount',
+        fontInfo,
+        brush: PdfSolidBrush(_textGray),
+        bounds: Rect.fromLTWH(0, infoY + infoH, w / 4 + 40, infoH),
+        format: rtlRight,
+      );
+    }
+
+    // listTitle إذا كان مختلفاً
+    if (listTitle.isNotEmpty && listTitle != competitionTitle) {
+      firstPage.graphics.drawString(
+        listTitle,
+        fontInfo,
+        brush: PdfSolidBrush(_textGray),
+        bounds: Rect.fromLTWH(0, infoY + infoH * 2, w / 4 + 40, infoH),
+        format: rtlRight,
+      );
+    }
+
+    y += infoH * 3 + 6;
+
+    // ══════════════════════════════════════════════════════
+    // الجدول — مطابق للصورة
+    // ══════════════════════════════════════════════════════
+
+    // تحديد عمود "المجموع أو المعدل حسب المسابقة" حسب النوع
+    final scoreColLabel = examType == ExamType.concours
+        ? 'المجموع أو المعدل حسب\nالمسابقة'
+        : 'المجموع أو المعدل حسب\nالمسابقة';
+
+    _drawTableWithPagination(
       document: document,
       students: students,
       examType: examType,
-      maxScore: maxScore,
-      regularFont: regularFont,
-      boldFont: boldFont,
-      smallFont: smallFont,
-      primaryColor: primaryColor,
-      darkColor: darkColor,
-      lightGray: lightGray,
-      passedColor: passedColor,
-      failedColor: failedColor,
-      regularBytes: regularBytes,
-      boldBytes: boldBytes,
-      firstPage: page,
+      firstPage: firstPage,
       startY: y,
+      regularFont: fontRow,
+      boldFont: fontHeader,
+      pageFont: fontPage,
+      scoreColLabel: scoreColLabel,
+      rtlCenter: rtlCenter,
     );
-
-    // ─── تذييل كل الصفحات ────────────────────────────────────────────────
-    _addFooter(document, regularFont, primaryColor, lightGray);
 
     final List<int> bytes = await document.save();
     document.dispose();
     return bytes;
   }
 
-  // ─── رسم الجدول المتعدد الصفحات ─────────────────────────────────────────
-
-  static void _drawResultsTable({
+  /// رسم الجدول مع دعم الصفحات المتعددة وتكرار الرأس
+  static void _drawTableWithPagination({
     required PdfDocument document,
     required List<StudentResult> students,
     required ExamType examType,
-    required double maxScore,
-    required PdfFont regularFont,
-    required PdfFont boldFont,
-    required PdfFont smallFont,
-    required PdfColor primaryColor,
-    required PdfColor darkColor,
-    required PdfColor lightGray,
-    required PdfColor passedColor,
-    required PdfColor failedColor,
-    required Uint8List regularBytes,
-    required Uint8List boldBytes,
     required PdfPage firstPage,
     required double startY,
+    required PdfFont regularFont,
+    required PdfFont boldFont,
+    required PdfFont pageFont,
+    required String scoreColLabel,
+    required PdfStringFormat rtlCenter,
   }) {
-    final bool hasBranch = students.any((s) => s.branch.isNotEmpty);
-    final bool hasCenter = students.any((s) => s.center.isNotEmpty);
-    final bool hasSchool = students.any((s) => s.school.isNotEmpty);
-    final bool hasScore = students.any((s) => s.score != null);
-    final scoreLabel = examType == ExamType.concours ? 'المجموع' : 'المعدل';
-    final scoreMax = maxScore == 200.0 ? '200' : '20';
-
-    // تحديد الأعمدة بشكل ديناميكي
-    final columns = <_TableColumn>[];
-    columns.add(_TableColumn('#', 30));
-    columns.add(_TableColumn('الاسم الكامل', 130));
-    columns.add(_TableColumn('الرقم', 65));
-    if (hasBranch) columns.add(_TableColumn('الشعبة', 60));
-    if (hasCenter || hasSchool) columns.add(_TableColumn(hasSchool ? 'المدرسة' : 'المركز', 90));
-    columns.add(_TableColumn('الولاية', 55));
-    if (hasScore) columns.add(_TableColumn('$scoreLabel/$scoreMax', 55));
-    columns.add(_TableColumn('الحالة', 55));
-
     final w = firstPage.getClientSize().width;
-    // إعادة حساب عرض الأعمدة لتملأ العرض
-    final totalFixed = columns.fold<double>(0, (sum, c) => sum + c.width);
-    final scale = totalFixed > 0 ? w / totalFixed : 1.0;
+    
+    // ── عرض الأعمدة المطابق للصورة (5 أعمدة RTL) ──────────
+    // الترتيب من اليمين: الرقم | رقم الجلوس | الاسم | المجموع/المعدل | النتيجة
+    const colWidths = <double>[35.0, 65.0, 0, 100.0, 55.0]; // 0 = يُحسب تلقائياً
+    final nameColWidth = w - colWidths[0] - colWidths[1] - colWidths[3] - colWidths[4];
 
-    final headerH = 28.0;
-    final rowH = 24.0;
-    const bottomMargin = 60.0; // مكان للتذييل
+    final headers = <String>[
+      'الرقم',
+      'رقم الجلوس',
+      'الاسم',
+      scoreColLabel,
+      'النتيجة',
+    ];
+    final widths = <double>[colWidths[0], colWidths[1], nameColWidth, colWidths[3], colWidths[4]];
 
-    final rowRtl = PdfStringFormat(
-      alignment: PdfTextAlignment.center,
-      textDirection: PdfTextDirection.rightToLeft,
-      lineAlignment: PdfVerticalAlignment.middle,
-    );
+    const rowH = 22.0;
+    const headerH = 28.0; // رأس أعلى قليلاً للنص الطويل
 
     PdfPage currentPage = firstPage;
     double y = startY;
+    int pageNum = 1;
+    final totalPages = _estimatePageCount(students.length, firstPage.getClientSize().height, startY, headerH, rowH);
 
-    // دالة رسم رأس الجدول
-    void drawHeader(PdfPage pg, double headerY) {
-      double cx = 0;
-      final pw = pg.getClientSize().width;
+    // رسم رأس الجدول
+    void drawHeader(PdfPage pg, double cy) {
       pg.graphics.drawRectangle(
-        brush: PdfSolidBrush(primaryColor),
-        bounds: Rect.fromLTWH(0, headerY, pw, headerH),
+        brush: PdfSolidBrush(_darkGreen),
+        bounds: Rect.fromLTWH(0, cy, w, headerH),
       );
-      for (final col in columns) {
-        final colW = col.width * scale;
+
+      // رسم الأعمدة من اليمين لليسار (RTL)
+      double cx = w;
+      for (int i = 0; i < headers.length; i++) {
+        cx -= widths[i];
+        // فاصل بين الأعمدة
+        if (i < headers.length - 1) {
+          pg.graphics.drawLine(
+            PdfPen(_white, width: 0.5),
+            Offset(cx, cy),
+            Offset(cx, cy + headerH),
+          );
+        }
         pg.graphics.drawString(
-          col.label,
-          PdfTrueTypeFont(boldBytes, 9),
-          brush: PdfSolidBrush(PdfColor(255, 255, 255)),
-          bounds: Rect.fromLTWH(cx, headerY, colW, headerH),
-          format: rowRtl,
+          headers[i],
+          boldFont,
+          brush: PdfSolidBrush(_white),
+          bounds: Rect.fromLTWH(cx + 2, cy, widths[i] - 4, headerH),
+          format: rtlCenter,
         );
-        cx += colW;
       }
     }
 
     drawHeader(currentPage, y);
     y += headerH;
 
+    // رسم الصفوف
     for (int i = 0; i < students.length; i++) {
       final s = students[i];
-      final pageH = currentPage.getClientSize().height;
 
-      // هل نحتاج صفحة جديدة؟
-      if (y + rowH > pageH - bottomMargin) {
+      // التحقق من الحاجة لصفحة جديدة
+      if (y + rowH > currentPage.getClientSize().height - 24) {
+        // رقم الصفحة في نهاية الصفحة الحالية
+        _drawPageNumber(currentPage, pageFont, pageNum, totalPages);
+        pageNum++;
+
         currentPage = document.pages.add();
         y = 20;
         drawHeader(currentPage, y);
         y += headerH;
       }
 
-      // لون صف متناوب
-      final rowBg = i.isEven
-          ? PdfColor(248, 250, 252)
-          : PdfColor(255, 255, 255);
-      final pw = currentPage.getClientSize().width;
-
+      // لون صف متبادل (أبيض / أخضر فاتح)
+      final rowBg = i.isEven ? _lightGreen : _white;
       currentPage.graphics.drawRectangle(
         brush: PdfSolidBrush(rowBg),
-        bounds: Rect.fromLTWH(0, y, pw, rowH),
-      );
-      // خط رفيع في الأسفل
-      currentPage.graphics.drawLine(
-        PdfPen(PdfColor(226, 232, 240), width: 0.5),
-        Offset(0, y + rowH),
-        Offset(pw, y + rowH),
+        bounds: Rect.fromLTWH(0, y, w, rowH),
       );
 
-      // لون الحالة
-      final statusColor = s.isPassed
-          ? passedColor
-          : s.isAbsent
-              ? PdfColor(107, 114, 128)
-              : s.isComplementary
-                  ? PdfColor(234, 179, 8)
-                  : failedColor;
+      // بيانات الصف: [الرقم, رقم الجلوس, الاسم, المجموع/المعدل, النتيجة]
+      final rowData = <String>[
+        '${i + 1}',
+        s.id,
+        s.name.trim(), // الاسم كما هو بالضبط من المصدر
+        s.score != null ? s.score!.toStringAsFixed(2) : '—',
+        s.status.trim(),
+      ];
 
-      double cx = 0;
-      for (final col in columns) {
-        final colW = col.width * scale;
-        String cellValue = '';
-        PdfBrush textBrush = PdfSolidBrush(darkColor);
+      double cx = w;
+      for (int j = 0; j < rowData.length; j++) {
+        cx -= widths[j];
 
-        switch (col.label) {
-          case '#':
-            cellValue = '${i + 1}';
-            break;
-          case 'الاسم الكامل':
-            cellValue = s.name.isNotEmpty ? s.name : '—';
-            break;
-          case 'الرقم':
-            cellValue = s.id.isNotEmpty ? s.id : '—';
-            break;
-          case 'الشعبة':
-            cellValue = s.branch.isNotEmpty ? s.branch : '—';
-            break;
-          case 'المدرسة':
-          case 'المركز':
-            cellValue = (s.school.isNotEmpty ? s.school : s.center).isNotEmpty
-                ? (s.school.isNotEmpty ? s.school : s.center)
-                : '—';
-            break;
-          case 'الولاية':
-            cellValue = s.wilaya.isNotEmpty ? s.wilaya : '—';
-            break;
-          default:
-            if (col.label.contains(scoreLabel)) {
-              cellValue = s.score != null ? s.score!.toStringAsFixed(2) : '—';
-              textBrush = PdfSolidBrush(statusColor);
-            } else if (col.label == 'الحالة') {
-              cellValue = s.status.isNotEmpty ? s.status : '—';
-              textBrush = PdfSolidBrush(statusColor);
-            }
+        // فاصل بين الأعمدة
+        if (j < rowData.length - 1) {
+          currentPage.graphics.drawLine(
+            PdfPen(_white, width: 1),
+            Offset(cx, y),
+            Offset(cx, y + rowH),
+          );
         }
 
+        // الاسم (عمود 2) يحتاج RTL مع Arabic Shaping
+        // باقي الأعمدة بالوسط
+        final fmt = j == 2 // عمود الاسم
+            ? PdfStringFormat(
+                alignment: PdfTextAlignment.right,
+                textDirection: PdfTextDirection.rightToLeft,
+                lineAlignment: PdfVerticalAlignment.middle,
+              )
+            : rtlCenter;
+
         currentPage.graphics.drawString(
-          cellValue,
-          PdfTrueTypeFont(
-            col.label == 'الاسم الكامل' ? regularBytes : regularBytes,
-            col.label == 'الاسم الكامل' ? 8 : 8,
-          ),
-          brush: textBrush,
-          bounds: Rect.fromLTWH(cx + 2, y, colW - 4, rowH),
-          format: rowRtl,
+          rowData[j],
+          regularFont,
+          brush: PdfSolidBrush(_black),
+          bounds: Rect.fromLTWH(cx + 3, y, widths[j] - 6, rowH),
+          format: fmt,
         );
-        cx += colW;
       }
 
       y += rowH;
     }
+
+    // رقم الصفحة الأخيرة
+    _drawPageNumber(currentPage, pageFont, pageNum, totalPages);
   }
 
-  // ─── تذييل كل الصفحات ────────────────────────────────────────────────────
-
-  static void _addFooter(
-    PdfDocument document,
-    PdfFont font,
-    PdfColor primaryColor,
-    PdfColor lightGray,
-  ) {
-    final total = document.pages.count;
-    for (int i = 0; i < total; i++) {
-      final pg = document.pages[i];
-      final ph = pg.getClientSize().height;
-      final pw = pg.getClientSize().width;
-
-      pg.graphics.drawLine(
-        PdfPen(PdfColor(203, 213, 225), width: 0.8),
-        Offset(0, ph - 28),
-        Offset(pw, ph - 28),
-      );
-      pg.graphics.drawString(
-        'تطبيق مراجعي — MERAJ3I',
-        font,
-        brush: PdfSolidBrush(PdfColor(148, 163, 184)),
-        bounds: Rect.fromLTWH(0, ph - 24, pw / 2, 20),
-        format: PdfStringFormat(
-          alignment: PdfTextAlignment.right,
-          textDirection: PdfTextDirection.rightToLeft,
-        ),
-      );
-      pg.graphics.drawString(
-        'صفحة ${i + 1} من $total',
-        font,
-        brush: PdfSolidBrush(PdfColor(148, 163, 184)),
-        bounds: Rect.fromLTWH(pw / 2, ph - 24, pw / 2, 20),
-        format: PdfStringFormat(alignment: PdfTextAlignment.left),
-      );
-    }
+  static int _estimatePageCount(int studentCount, double pageH, double startY, double headerH, double rowH) {
+    final rowsFirstPage = ((pageH - startY - headerH - 24) / rowH).floor();
+    if (studentCount <= rowsFirstPage) return 1;
+    final rowsPerPage = ((pageH - 20 - headerH - 24) / rowH).floor();
+    return 1 + ((studentCount - rowsFirstPage) / rowsPerPage).ceil();
   }
-}
 
-class _StatBox {
-  final String label;
-  final String value;
-  final PdfColor color;
-  _StatBox(this.label, this.value, this.color);
-}
-
-class _TableColumn {
-  final String label;
-  final double width;
-  _TableColumn(this.label, this.width);
+  static void _drawPageNumber(PdfPage page, PdfFont font, int pageNum, int totalPages) {
+    final w = page.getClientSize().width;
+    final h = page.getClientSize().height;
+    page.graphics.drawString(
+      'صـ $pageNum / $totalPages',
+      font,
+      brush: PdfSolidBrush(_textGray),
+      bounds: Rect.fromLTWH(0, h - 18, w, 16),
+      format: PdfStringFormat(
+        alignment: PdfTextAlignment.center,
+        textDirection: PdfTextDirection.rightToLeft,
+      ),
+    );
+  }
 }

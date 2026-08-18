@@ -15,22 +15,32 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
 
   final adUnitId = Platform.isAndroid
       ? 'ca-app-pub-7381352612061383/9877064981' // Real ID for Android
-      : 'ca-app-pub-7381352612061383/9877064981'; // Using same ID for iOS for now if provided only 1
+      : 'ca-app-pub-7381352612061383/9877064981'; // iOS ID
 
   @override
-  void initState() {
-    super.initState();
-    _loadAd();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isLoaded && _bannerAd == null) {
+      _loadAd();
+    }
   }
 
-  void _loadAd() {
+  Future<void> _loadAd() async {
+    // الحصول على العرض المناسب للشاشة للإعلان المتكيف
+    final width = MediaQuery.of(context).size.width.truncate();
+    final size = await AdSize.getLargeAnchoredAdaptiveBannerAdSize(width);
+
+    if (size == null) {
+      return;
+    }
+
     _bannerAd = BannerAd(
       adUnitId: adUnitId,
       request: const AdRequest(),
-      size: AdSize.banner,
+      size: size,
       listener: BannerAdListener(
         onAdLoaded: (ad) {
-          debugPrint('$ad loaded.');
+          debugPrint('BannerAd loaded successfully.');
           if (mounted) {
             setState(() {
               _isLoaded = true;
@@ -40,6 +50,7 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
         onAdFailedToLoad: (ad, err) {
           debugPrint('BannerAd failed to load: $err');
           ad.dispose();
+          // يمكن هنا إضافة كود لإعادة المحاولة إن لزم الأمر
         },
       ),
     )..load();
@@ -65,3 +76,4 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
     return const SizedBox.shrink();
   }
 }
+

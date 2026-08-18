@@ -5,13 +5,15 @@ import 'package:timezone/timezone.dart' as tz;
 import '../models/schedule_item.dart';
 
 class ScheduleProvider extends ChangeNotifier {
-  static const _prefsKey = 'schedule_items_v2';
+  static const _prefsKey = 'schedule_items_v3';
 
-  final Map<DateTime, List<ScheduleItem>> _items = {};
-  final FlutterLocalNotificationsPlugin _notifications =
-      FlutterLocalNotificationsPlugin();
+  final Map<int, List<ScheduleItem>> _items = {
+    1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [],
+  }; // Key is weekday 1..7 (1 = Monday, 7 = Sunday)
 
-  Map<DateTime, List<ScheduleItem>> get items => _items;
+  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+
+  Map<int, List<ScheduleItem>> get items => _items;
 
   ScheduleProvider() {
     _initNotifications();
@@ -31,23 +33,32 @@ class ScheduleProvider extends ChangeNotifier {
   Future<void> _loadFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     final List<String> saved = prefs.getStringList(_prefsKey) ?? [];
-    _items.clear();
+    for (int i = 1; i <= 7; i++) {
+      _items[i] = [];
+    }
+
     for (final s in saved) {
       try {
         final item = ScheduleItem.fromJson(s);
-        final date = DateTime(
-            item.startTime.year, item.startTime.month, item.startTime.day);
-        _items[date] ??= [];
-        _items[date]!.add(item);
+        _items[item.weekday]?.add(item);
       } catch (e) {
         debugPrint('Error loading schedule item: $e');
       }
     }
-    // ترتيب كل يوم حسب وقت البداية
-    for (final key in _items.keys) {
-      _items[key]!.sort((a, b) => a.startTime.compareTo(b.startTime));
-    }
+
+    _sortItems();
     notifyListeners();
+  }
+
+  void _sortItems() {
+    for (int i = 1; i <= 7; i++) {
+      _items[i]?.sort((a, b) {
+        if (a.startTime.hour != b.startTime.hour) {
+          return a.startTime.hour.compareTo(b.startTime.hour);
+        }
+        return a.startTime.minute.compareTo(b.startTime.minute);
+      });
+    }
   }
 
   // ─── حفظ في الذاكرة ────────────────────────────────────
@@ -62,13 +73,57 @@ class ScheduleProvider extends ChangeNotifier {
     await prefs.setStringList(_prefsKey, list);
   }
 
+  // ─── إحصائيات ──────────────────────────────────────────
+  int getTotalSessions() {
+    int total = 0;
+    for (final dayItems in _items.values) {
+      total += dayItems.length;
+    }
+    return total;
+  }
+
+  double getTotalHours() {
+    double hours = 0;
+    for (final dayItems in _items.values) {
+      for (final item in dayItems) {
+        final startMinutes = item.startTime.hour * 60 + item.startTime.minute;
+        final endMinutes = item.endTime.hour * 60 + item.endTime.minute;
+        int diff = endMinutes - startMinutes;
+        if (diff < 0) diff += 24 * 60; // handle wrap around midnight
+        hours += diff / 60.0;
+      }
+    }
+    return hours;
+  }
+
   // ─── جدولة إشعار ───────────────────────────────────────
+  DateTime _nextInstanceOfWeekdayAndTime(int weekday, TimeOfDay time) {
+    DateTime now = DateTime.now();
+    DateTime scheduledDate = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      time.hour,
+      time.minute,
+    );
+    
+    // Adjust to next target weekday
+    while (scheduledDate.weekday != weekday || scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+    
+    return scheduledDate;
+  }
+
   Future<void> _scheduleNotification(ScheduleItem item) async {
     if (!item.notify) return;
 
-    final notifyTime = item.startTime
-        .subtract(Duration(minutes: item.notifyMinutesBefore));
-    if (notifyTime.isBefore(DateTime.now())) return;
+    DateTime nextInstance = _nextInstanceOfWeekdayAndTime(item.weekday, item.startTime);
+    DateTime notifyTime = nextInstance.subtract(Duration(minutes: item.notifyMinutesBefore));
+    
+    if (notifyTime.isBefore(DateTime.now())) {
+      notifyTime = notifyTime.add(const Duration(days: 7));
+    }
 
     try {
       final tzTime = tz.TZDateTime.from(notifyTime, tz.local);
@@ -77,7 +132,7 @@ class ScheduleProvider extends ChangeNotifier {
       await _notifications.zonedSchedule(
         id: notifId,
         title: '📚 حصة ${item.title} تبدأ قريباً',
-        body: 'بعد ${item.notifyMinutesBefore} دقيقة${item.teacher != null ? " — ${item.teacher}" : ""}${item.room != null ? " — ${item.room}" : ""}',
+        body: 'بعد ${item.notifyMinutesBefore} دقيقة${item.teacher != null && item.teacher!.isNotEmpty ? " — ${item.teacher}" : ""}${item.room != null && item.room!.isNotEmpty ? " — ${item.room}" : ""}',
         scheduledDate: tzTime,
         notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
@@ -91,6 +146,7 @@ class ScheduleProvider extends ChangeNotifier {
           iOS: const DarwinNotificationDetails(),
         ),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime, // Repeats weekly!
       );
     } catch (e) {
       debugPrint('Error scheduling notification: $e');
@@ -103,90 +159,36 @@ class ScheduleProvider extends ChangeNotifier {
   }
 
   // ─── العمليات الأساسية ──────────────────────────────────
-  List<ScheduleItem> getItemsForDay(DateTime day) {
-    final date = DateTime(day.year, day.month, day.day);
-    final directItems = _items[date] ?? [];
-
-    // إضافة الحصص الأسبوعية المتكررة
-    final weeklyItems = <ScheduleItem>[];
-    for (final entry in _items.entries) {
-      for (final item in entry.value) {
-        if (item.isWeekly &&
-            entry.key != date &&
-            entry.key.weekday == day.weekday) {
-          // إنشاء نسخة بتاريخ اليوم المطلوب
-          final diff = day.difference(entry.key);
-          weeklyItems.add(item.copyWith(
-            startTime: item.startTime.add(diff),
-            endTime: item.endTime.add(diff),
-          ));
-        }
-      }
-    }
-
-    final all = [...directItems, ...weeklyItems];
-    all.sort((a, b) => a.startTime.compareTo(b.startTime));
-    return all;
+  List<ScheduleItem> getItemsForDay(int weekday) {
+    return _items[weekday] ?? [];
   }
 
   Future<void> addItem(ScheduleItem item) async {
-    final date =
-        DateTime(item.startTime.year, item.startTime.month, item.startTime.day);
-    _items[date] ??= [];
-    _items[date]!.add(item);
-    _items[date]!.sort((a, b) => a.startTime.compareTo(b.startTime));
+    _items[item.weekday]?.add(item);
+    _sortItems();
     notifyListeners();
     await _saveToPrefs();
     await _scheduleNotification(item);
   }
 
   Future<void> updateItem(ScheduleItem oldItem, ScheduleItem newItem) async {
-    final oldDate = DateTime(oldItem.startTime.year, oldItem.startTime.month,
-        oldItem.startTime.day);
-    final newDate = DateTime(newItem.startTime.year, newItem.startTime.month,
-        newItem.startTime.day);
+    // Remove old
+    _items[oldItem.weekday]?.removeWhere((i) => i.id == oldItem.id);
+    await _cancelNotification(oldItem);
 
-    // حذف من الموقع القديم
-    if (_items[oldDate] != null) {
-      _items[oldDate]!.removeWhere((i) => i.id == oldItem.id);
-      if (_items[oldDate]!.isEmpty) _items.remove(oldDate);
-    }
-
-    // إضافة في الموقع الجديد
-    _items[newDate] ??= [];
-    _items[newDate]!.add(newItem);
-    _items[newDate]!.sort((a, b) => a.startTime.compareTo(b.startTime));
-
+    // Add new
+    _items[newItem.weekday]?.add(newItem);
+    _sortItems();
+    
     notifyListeners();
     await _saveToPrefs();
-    await _cancelNotification(oldItem);
     await _scheduleNotification(newItem);
   }
 
   Future<void> removeItem(ScheduleItem item) async {
-    final date =
-        DateTime(item.startTime.year, item.startTime.month, item.startTime.day);
-    if (_items[date] != null) {
-      _items[date]!.removeWhere((i) => i.id == item.id);
-      if (_items[date]!.isEmpty) _items.remove(date);
-      notifyListeners();
-      await _saveToPrefs();
-      await _cancelNotification(item);
-    }
-  }
-
-  Future<void> toggleItemCompletion(ScheduleItem item) async {
-    final date =
-        DateTime(item.startTime.year, item.startTime.month, item.startTime.day);
-    if (_items[date] != null) {
-      final index = _items[date]!.indexWhere((i) => i.id == item.id);
-      if (index != -1) {
-        _items[date]![index] =
-            item.copyWith(isCompleted: !item.isCompleted);
-        notifyListeners();
-        await _saveToPrefs();
-      }
-    }
+    _items[item.weekday]?.removeWhere((i) => i.id == item.id);
+    notifyListeners();
+    await _saveToPrefs();
+    await _cancelNotification(item);
   }
 }
-

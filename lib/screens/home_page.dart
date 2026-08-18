@@ -12,22 +12,18 @@ import 'search_screen.dart';
 import 'favorites_screen.dart';
 import 'task_manager_screen.dart';
 import 'settings_screen.dart';
+import 'added_books_screen.dart';
 import 'add_book_screen.dart';
 import 'profile_screen.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/book.dart';
-import '../widgets/book_card.dart';
+
 import 'info_screen.dart';
 import 'login_screen.dart';
 import 'stages_screen.dart';
 import 'schedule_screen.dart';
 import 'results/results_home_screen.dart';
 import 'swedd_screen.dart';
-import 'review_center_screen.dart';
 import 'ai_search_screen.dart';
 import 'exam_generator_screen.dart';
-import 'countdown_screen.dart';
-import 'changelog_screen.dart';
 import 'downloads_screen.dart';
 import 'contact_screen.dart';
 import 'faq_screen.dart';
@@ -38,7 +34,6 @@ import 'notifications_screen.dart';
 import 'statistics_screen.dart';
 import 'donations_screen.dart';
 import 'dedication_screen.dart';
-import 'student/student_card_screen.dart';
 import 'student/progress_screen.dart';
 import 'student/reading_list_screen.dart';
 import 'student/reading_history_screen.dart';
@@ -160,23 +155,6 @@ class _HomePageState extends State<HomePage>
                 title: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Logo صغير في الـ Header
-                    Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.asset(
-                          'assets/images/logo.png',
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
                     Text(
                       'MERAJ3I',
                       style: GoogleFonts.outfit(
@@ -376,12 +354,6 @@ class _HomePageState extends State<HomePage>
                         _buildWisdomBox(isDark),
                         const SizedBox(height: 24),
 
-                        // ── الكتب المضافة حديثاً ──
-                        _buildSectionHeader('الكتب المضافة حديثاً', isDark),
-                        const SizedBox(height: 12),
-                        _buildRecentlyAddedBooks(isDark),
-                        const SizedBox(height: 28),
-
                         // ── عنوان القسم الرئيسي ──
                         _buildSectionHeader('الخدمات الرئيسية', isDark),
                         const SizedBox(height: 14),
@@ -440,73 +412,7 @@ class _HomePageState extends State<HomePage>
   );
 }
 
-  // ══════════════════════════════════════════════════════
-  // الكتب المضافة حديثاً
-  // ══════════════════════════════════════════════════════
-  Widget _buildRecentlyAddedBooks(bool isDark) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('uploaded_books')
-          .orderBy('uploadDate', descending: true)
-          .limit(5)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SizedBox(
-            height: 160,
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
-        if (snapshot.hasError) {
-          return SizedBox(
-            height: 100,
-            child: Center(
-              child: Text(
-                'تعذر تحميل الكتب',
-                style: GoogleFonts.tajawal(color: Colors.red),
-              ),
-            ),
-          );
-        }
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return SizedBox(
-            height: 100,
-            child: Center(
-              child: Text(
-                'لا توجد كتب مضافة حالياً.',
-                style: GoogleFonts.tajawal(color: isDark ? Colors.white70 : Colors.black54),
-              ),
-            ),
-          );
-        }
 
-        final docs = snapshot.data!.docs;
-        return SizedBox(
-          height: 200,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              final data = docs[index].data() as Map<String, dynamic>;
-              final book = Book.fromMap(data, docs[index].id);
-              return Padding(
-                padding: const EdgeInsets.only(left: 12),
-                child: SizedBox(
-                  width: 140,
-                  child: BookCard(
-                    book: book,
-                    isDark: isDark,
-                    gradient: AppTheme.blueGradient,
-                  ),
-                ),
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
 
   // ══════════════════════════════════════════════════════
   //  زر إضافة كتاب (FAB)
@@ -1141,13 +1047,6 @@ class _HomePageState extends State<HomePage>
             child: ListView(
               padding: const EdgeInsets.only(top: 10),
               children: [
-                _buildDrawerItem(Icons.badge_rounded, 'بطاقة الطالب', () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const StudentCardScreen()),
-                  );
-                }),
                 _buildDrawerItem(Icons.trending_up_rounded, 'تطور المستوى', () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -1169,32 +1068,11 @@ class _HomePageState extends State<HomePage>
                     MaterialPageRoute(builder: (_) => const ReadingHistoryScreen()),
                   );
                 }),
-                _buildDrawerItem(Icons.auto_stories_rounded, 'مركز المراجعة', () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ReviewCenterScreen()),
-                  );
-                }),
                 _buildDrawerItem(Icons.quiz_rounded, 'الاختبارات', () {
                   Navigator.pop(context);
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const ExamGeneratorScreen()),
-                  );
-                }),
-                _buildDrawerItem(Icons.timer_rounded, 'العد التنازلي', () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const CountdownScreen()),
-                  );
-                }),
-                _buildDrawerItem(Icons.update_rounded, 'سجل التحديثات', () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ChangelogScreen()),
                   );
                 }),
                 _buildDrawerItem(Icons.bar_chart_rounded, 'الإحصائيات', () {
@@ -1226,19 +1104,7 @@ class _HomePageState extends State<HomePage>
                     );
                   },
                 ),
-                _buildDrawerItem(
-                  Icons.calendar_today_rounded,
-                  'خطة الدراسة',
-                  () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const TaskManagerScreen(),
-                      ),
-                    );
-                  },
-                ),
+
                 _buildDrawerItem(Icons.settings_rounded, 'الإعدادات', () {
                   Navigator.pop(context);
                   Navigator.push(

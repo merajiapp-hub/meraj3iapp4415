@@ -207,15 +207,14 @@ class _BookCardState extends State<BookCard> {
               ),
 
               // ── محتوى البطاقة ──
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // الأيقونة
-                    Container(
-                      width: 48,
-                      height: 48,
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isNarrow = constraints.maxWidth < 250;
+
+                    final iconWidget = Container(
+                      width: isNarrow ? 40 : 48,
+                      height: isNarrow ? 40 : 48,
                       decoration: BoxDecoration(
                         gradient: widget.gradient,
                         borderRadius: BorderRadius.circular(14),
@@ -227,153 +226,137 @@ class _BookCardState extends State<BookCard> {
                           ),
                         ],
                       ),
-                      child: Icon(_subjectIcon, color: Colors.white, size: 22),
-                    ),
-                    const SizedBox(width: 12),
+                      child: Icon(_subjectIcon, color: Colors.white, size: isNarrow ? 20 : 22),
+                    );
 
-                    // المحتوى النصي
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // اسم الكتاب
-                          Text(
+                    final textContent = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: isNarrow ? MainAxisAlignment.start : MainAxisAlignment.center,
+                      children: [
+                        // اسم الكتاب باتجاه RTL صحيح منعاً لتقطيع الحروف
+                        Directionality(
+                          textDirection: TextDirection.rtl,
+                          child: Text(
                             widget.book.title,
                             style: GoogleFonts.tajawal(
                               fontWeight: FontWeight.bold,
-                              fontSize: 13.5,
-                              color: widget.isDark
-                                  ? Colors.white
-                                  : const Color(0xFF0F172A),
-                              height: 1.3,
+                              fontSize: isNarrow ? 12 : 13.5,
+                              color: widget.isDark ? Colors.white : const Color(0xFF0F172A),
+                              height: 1.4,
                             ),
-                            maxLines: 2,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: true,
+                          ),
+                        ),
+                        if (widget.book.subject.isNotEmpty && widget.book.subject != widget.book.title) ...[
+
+                          const SizedBox(height: 3),
+                          Text(
+                            widget.book.subject,
+                            style: GoogleFonts.tajawal(
+                              fontSize: 11,
+                              color: accentColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-
-                          // اسم المادة إذا كان مختلفاً عن العنوان
-                          if (widget.book.subject.isNotEmpty &&
-                              widget.book.subject != widget.book.title) ...[
-                            const SizedBox(height: 3),
-                            Text(
-                              widget.book.subject,
-                              style: GoogleFonts.tajawal(
-                                fontSize: 11,
-                                color: accentColor,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-
-                          const SizedBox(height: 5),
-
-                          // الشارات
-                          Wrap(
-                            spacing: 5,
-                            runSpacing: 3,
-                            children: [
-                              _buildBadge(widget.book.grade, accentColor),
-                              _buildBadge(widget.book.category, accentColor),
-                              if (widget.showStage)
-                                _buildBadge(widget.book.section, accentColor),
-                            ],
-                          ),
                         ],
-                      ),
-                    ),
+                        const SizedBox(height: 5),
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 3,
+                          children: [
+                            _buildBadge(widget.book.grade, accentColor),
+                            _buildBadge(widget.book.category, accentColor),
+                            if (widget.showStage) _buildBadge(widget.book.section, accentColor),
+                          ],
+                        ),
+                      ],
+                    );
 
-                    // الأزرار
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    final actionsWidget = Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: isNarrow ? MainAxisAlignment.spaceBetween : MainAxisAlignment.center,
                       children: [
-                        // علامة المقروء
                         Consumer<ReadingProvider>(
                           builder: (context, reading, _) {
                             final isRead = reading.isRead(widget.book.uniqueKey);
                             if (!isRead) return const SizedBox.shrink();
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 2),
-                              child: Icon(
-                                Icons.check_circle_rounded,
-                                color: const Color(0xFF16A34A),
-                                size: 18,
-                              ),
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 4),
+                              child: Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 18),
                             );
                           },
                         ),
-
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // زر التنزيل
-                            Consumer<DownloadsProvider>(
-                              builder: (context, downloads, _) {
-                                final isDownloaded =
-                                    downloads.isDownloaded(widget.book.uniqueKey);
-
-                                if (_isDownloading) {
-                                  return SizedBox(
-                                    width: 34,
-                                    height: 34,
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(7),
-                                      child: CircularProgressIndicator(
-                                        value: _downloadProgress > 0
-                                            ? _downloadProgress
-                                            : null,
-                                        strokeWidth: 2.5,
-                                        color: accentColor,
-                                      ),
-                                    ),
-                                  );
-                                }
-
-                                return _ActionIconBtn(
-                                  icon: isDownloaded
-                                      ? Icons.download_done_rounded
-                                      : Icons.download_rounded,
-                                  color: isDownloaded
-                                      ? const Color(0xFF16A34A)
-                                      : (widget.isDark
-                                          ? Colors.grey[500]!
-                                          : Colors.grey[400]!),
-                                  tooltip: isDownloaded
-                                      ? 'تم التنزيل'
-                                      : 'تنزيل',
-                                  onTap: _downloadBook,
-                                );
-                              },
-                            ),
-
-                            // زر المفضلة
-                            Consumer<FavoritesProvider>(
-                              builder: (context, favorites, _) {
-                                final isFav = favorites.isFavorite(
-                                    widget.book.uniqueKey);
-                                return _ActionIconBtn(
-                                  icon: isFav
-                                      ? Icons.favorite_rounded
-                                      : Icons.favorite_outline_rounded,
-                                  color: isFav
-                                      ? Colors.red
-                                      : (widget.isDark
-                                          ? Colors.grey[500]!
-                                          : Colors.grey[400]!),
-                                  tooltip: isFav
-                                      ? 'إزالة من المفضلة'
-                                      : 'أضف للمفضلة',
-                                  onTap: () =>
-                                      favorites.toggleFavorite(context, widget.book),
-                                );
-                              },
-                            ),
-                          ],
+                        Consumer<DownloadsProvider>(
+                          builder: (context, downloads, _) {
+                            final isDownloaded = downloads.isDownloaded(widget.book.uniqueKey);
+                            if (_isDownloading) {
+                              return SizedBox(
+                                width: 30,
+                                height: 30,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(6),
+                                  child: CircularProgressIndicator(
+                                    value: _downloadProgress > 0 ? _downloadProgress : null,
+                                    strokeWidth: 2.5,
+                                    color: accentColor,
+                                  ),
+                                ),
+                              );
+                            }
+                            return _ActionIconBtn(
+                              icon: isDownloaded ? Icons.download_done_rounded : Icons.download_rounded,
+                              color: isDownloaded ? const Color(0xFF16A34A) : (widget.isDark ? Colors.grey[500]! : Colors.grey[400]!),
+                              tooltip: isDownloaded ? 'تم التنزيل' : 'تنزيل',
+                              onTap: _downloadBook,
+                            );
+                          },
+                        ),
+                        Consumer<FavoritesProvider>(
+                          builder: (context, favorites, _) {
+                            final isFav = favorites.isFavorite(widget.book.uniqueKey);
+                            return _ActionIconBtn(
+                              icon: isFav ? Icons.favorite_rounded : Icons.favorite_outline_rounded,
+                              color: isFav ? Colors.red : (widget.isDark ? Colors.grey[500]! : Colors.grey[400]!),
+                              tooltip: isFav ? 'إزالة من المفضلة' : 'أضف للمفضلة',
+                              onTap: () => favorites.toggleFavorite(context, widget.book),
+                            );
+                          },
                         ),
                       ],
-                    ),
-                  ],
+                    );
+
+                    if (isNarrow) {
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            iconWidget,
+                            const SizedBox(height: 8),
+                            Expanded(child: textContent),
+                            actionsWidget,
+                          ],
+                        ),
+                      );
+                    } else {
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            iconWidget,
+                            const SizedBox(width: 12),
+                            Expanded(child: textContent),
+                            actionsWidget,
+                          ],
+                        ),
+                      );
+                    }
+                  },
                 ),
               ),
 

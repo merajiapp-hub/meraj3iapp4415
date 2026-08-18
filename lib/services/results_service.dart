@@ -87,7 +87,18 @@ class StudentResult {
 
   factory StudentResult.fromCsv(Map<String, String> row, ExamType type) {
     // ─── الاسم والرقم ─────────────────────────────────────────────────────
-    final name = _findField(row, ['nom', 'name', 'prenom', 'prénom', 'الاسم']);
+    String name = _findField(row, ['nom_prenom', 'prenom_nom', 'name', 'الاسم']);
+    if (name.isEmpty) {
+      final prenom = _findField(row, ['prenom', 'prénom', 'الاسم الاول']);
+      final nom = _findField(row, ['nom', 'الاسم العائلي', 'لقب']);
+      if (prenom.isNotEmpty && nom.isNotEmpty) {
+        name = '$prenom $nom';
+      } else if (prenom.isNotEmpty) {
+        name = prenom;
+      } else if (nom.isNotEmpty) {
+        name = nom;
+      }
+    }
     final id = _findField(
         row, ['num', 'matricule', 'numéro', 'numero', 'code', 'noreg', 'رقم']);
 
