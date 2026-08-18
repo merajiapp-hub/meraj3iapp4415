@@ -170,7 +170,7 @@ class NationalExamsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'كونكور  •  بريفية  •  باكالوريا',
+                  'كونكور  •  ابريفة  •  باكالوريا',
                   style: GoogleFonts.tajawal(
                     color: Colors.white70,
                     fontSize: 12,

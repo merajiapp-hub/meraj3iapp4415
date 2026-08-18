@@ -137,21 +137,36 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
     _scrollToBottom();
 
     try {
-      final chatSession = _getChatSession(sessionId);
+      genai.GenerateContentResponse? response;
+      int retries = 3;
 
-      genai.GenerateContentResponse response;
-      if (imageFile != null) {
-        final bytes = await imageFile.readAsBytes();
-        final content = genai.Content.multi([
-          if (text.isNotEmpty) genai.TextPart(text),
-          genai.DataPart('image/jpeg', bytes),
-        ]);
-        response = await chatSession.sendMessage(content).timeout(const Duration(seconds: 30));
-      } else {
-        response = await chatSession.sendMessage(genai.Content.text(text)).timeout(const Duration(seconds: 30));
+      while (retries > 0) {
+        try {
+          final chatSession = _getChatSession(sessionId);
+
+          if (imageFile != null) {
+            final bytes = await imageFile.readAsBytes();
+            final content = genai.Content.multi([
+              if (text.isNotEmpty) genai.TextPart(text),
+              genai.DataPart('image/jpeg', bytes),
+            ]);
+            response = await chatSession.sendMessage(content).timeout(const Duration(seconds: 30));
+          } else {
+            response = await chatSession.sendMessage(genai.Content.text(text)).timeout(const Duration(seconds: 30));
+          }
+          break; // نجاح المحاولة
+        } catch (e) {
+          debugPrint('AI Error (Retries left: \${retries - 1}): \$e');
+          retries--;
+          _currentChat = null; // تصفير الجلسة لإعادة المحاولة من جديد
+          if (retries == 0) {
+            rethrow; // تمرير الخطأ في حال نفاد المحاولات
+          }
+          await Future.delayed(const Duration(seconds: 2));
+        }
       }
 
-      final responseText = response.text ?? 'لم أستطع معالجة هذا الطلب.';
+      final responseText = response?.text ?? 'لم أستطع معالجة هذا الطلب.';
 
       // إزالة الرموز النجمة والشباك من الرد
       final cleanText = responseText.replaceAll(RegExp(r'[\*\#]'), '');
@@ -166,18 +181,17 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
         });
       }
     } catch (e) {
-      // 🚀 تصفير جلسة الذكاء الاصطناعي لكي يتخطى المشكلة السابقة 
       _currentChat = null;
 
       if (mounted) {
-        String errorMsg = 'حدث خطأ في الاتصال، يرجى المحاولة لاحقاً.';
+        // عرض الخطأ الحقيقي للمستخدم بناءً على طلبه
+        String errorMsg = 'تعذر الاتصال بالمحرك. الخطأ: \$e';
         final errorText = e.toString().toLowerCase();
 
         if (errorText.contains('api key') ||
             errorText.contains('403') ||
             errorText.contains('unauthorized')) {
-          errorMsg =
-              'مفتاح الذكاء الاصطناعي غير صالح أو منتهي الصلاحية.';
+          errorMsg = 'مفتاح الذكاء الاصطناعي غير صالح أو منتهي الصلاحية.';
         } else if (errorText.contains('quota') || errorText.contains('429')) {
           errorMsg = 'لقد استنفدت الحد المسموح به للذكاء الاصطناعي حالياً.';
         } else if (errorText.contains('socket') ||
@@ -186,10 +200,6 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
             errorText.contains('host lookup') ||
             errorText.contains('timeout')) {
           errorMsg = 'تأكد من اتصالك بالإنترنت ثم حاول مجدداً.';
-        } else if (errorText.contains('turn') || errorText.contains('role')) {
-          errorMsg = 'حدث خطأ في تسلسل المحادثة. تم إصلاح الخلل، أرسل مجدداً.';
-        } else {
-          errorMsg = 'حدث خطأ غير متوقع. تم تصفير المحرك، حاول مجدداً.';
         }
 
         AppNotification.show(context, errorMsg, isError: true);

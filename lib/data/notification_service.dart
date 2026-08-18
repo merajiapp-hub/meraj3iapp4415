@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../main.dart' show navigatorKey;
 import '../providers/notifications_provider.dart';
 import '../screens/notification_details_screen.dart';
+import '../models/schedule_item.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._();
@@ -207,6 +208,118 @@ class NotificationService {
 
   Future<void> cancelAll() async {
     await _plugin.cancelAll();
+  }
+
+  // ─── إشعارات الجدول الدراسي الثلاثية ────────────────────────────────────────
+
+  DateTime _nextInstanceOfWeekdayAndTime(int weekday, TimeOfDay time) {
+    DateTime now = DateTime.now();
+    DateTime scheduledDate = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      time.hour,
+      time.minute,
+    );
+
+    // Adjust to next target weekday
+    while (scheduledDate.weekday != weekday || scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+    return scheduledDate;
+  }
+
+  Future<void> scheduleSessionNotifications(ScheduleItem item) async {
+    // دائماً نلغي القديم قبل جدولة جديد لتجنب التكرار
+    await cancelSessionNotifications(item.id);
+
+    if (!item.notify) return;
+
+    final int baseId = (item.id.hashCode.abs() % 100000) * 10;
+    
+    final nextStart = _nextInstanceOfWeekdayAndTime(item.weekday, item.startTime);
+    final nextEnd = _nextInstanceOfWeekdayAndTime(item.weekday, item.endTime);
+
+    // 1. إشعار التذكير قبل الموعد بـ 10 دقائق (أو حسب الإعداد)
+    DateTime prepTime = nextStart.subtract(Duration(minutes: item.notifyMinutesBefore));
+    if (prepTime.isBefore(DateTime.now())) {
+      prepTime = prepTime.add(const Duration(days: 7));
+    }
+
+    // 2. إشعار وقت البدء
+    DateTime startTime = nextStart;
+    if (startTime.isBefore(DateTime.now())) {
+      startTime = startTime.add(const Duration(days: 7));
+    }
+
+    // 3. إشعار وقت الانتهاء
+    DateTime endTime = nextEnd;
+    if (endTime.isBefore(DateTime.now())) {
+      endTime = endTime.add(const Duration(days: 7));
+    }
+
+    const details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        'meraj3i_schedule',
+        'الجدول الدراسي',
+        channelDescription: 'تنبيهات مواعيد الحصص الأسبوعية',
+        importance: Importance.max,
+        priority: Priority.high,
+        enableVibration: true,
+        playSound: true,
+      ),
+      iOS: DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
+    );
+
+    try {
+      // جدولة تنبيه الاستعداد (BaseID + 0)
+      if (item.notifyMinutesBefore > 0) {
+        await _plugin.zonedSchedule(
+          id: baseId,
+          title: '🔔 تذكير بالحصة',
+          body: 'ستبدأ حصة "${item.title}" بعد ${item.notifyMinutesBefore} دقيقة',
+          scheduledDate: tz.TZDateTime.from(prepTime, tz.local),
+          notificationDetails: details,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+        );
+      }
+
+      // جدولة تنبيه البدء (BaseID + 1)
+      await _plugin.zonedSchedule(
+        id: baseId + 1,
+        title: '📚 بدأت الحصة الآن',
+        body: 'حان وقت البدء في حصة "${item.title}"',
+        scheduledDate: tz.TZDateTime.from(startTime, tz.local),
+        notificationDetails: details,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+      );
+
+      // جدولة تنبيه الانتهاء (BaseID + 2)
+      await _plugin.zonedSchedule(
+        id: baseId + 2,
+        title: '✅ انتهت الحصة',
+        body: 'أحسنت، لقد أكملت الوقت المحدد لحصة "${item.title}"',
+        scheduledDate: tz.TZDateTime.from(endTime, tz.local),
+        notificationDetails: details,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+      );
+    } catch (e) {
+      debugPrint('Error scheduling session notifications: $e');
+    }
+  }
+
+  Future<void> cancelSessionNotifications(String sessionId) async {
+    final int baseId = (sessionId.hashCode.abs() % 100000) * 10;
+    await _plugin.cancel(id: baseId);     // Prep
+    await _plugin.cancel(id: baseId + 1); // Start
+    await _plugin.cancel(id: baseId + 2); // End
   }
 }
 

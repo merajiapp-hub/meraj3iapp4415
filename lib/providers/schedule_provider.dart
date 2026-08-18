@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:timezone/timezone.dart' as tz;
 import '../models/schedule_item.dart';
+import '../data/notification_service.dart';
 
 class ScheduleProvider extends ChangeNotifier {
   static const _prefsKey = 'schedule_items_v3';
@@ -11,22 +10,8 @@ class ScheduleProvider extends ChangeNotifier {
     1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [],
   }; // Key is weekday 1..7 (1 = Monday, 7 = Sunday)
 
-  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
-
-  Map<int, List<ScheduleItem>> get items => _items;
-
   ScheduleProvider() {
-    _initNotifications();
     _loadFromPrefs();
-  }
-
-  // ─── تهيئة الإشعارات ───────────────────────────────────
-  Future<void> _initNotifications() async {
-    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const ios = DarwinInitializationSettings();
-    await _notifications.initialize(
-      settings: const InitializationSettings(android: android, iOS: ios),
-    );
   }
 
   // ─── تحميل من الذاكرة ──────────────────────────────────
@@ -96,66 +81,12 @@ class ScheduleProvider extends ChangeNotifier {
     return hours;
   }
 
-  // ─── جدولة إشعار ───────────────────────────────────────
-  DateTime _nextInstanceOfWeekdayAndTime(int weekday, TimeOfDay time) {
-    DateTime now = DateTime.now();
-    DateTime scheduledDate = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      time.hour,
-      time.minute,
-    );
-    
-    // Adjust to next target weekday
-    while (scheduledDate.weekday != weekday || scheduledDate.isBefore(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
-    }
-    
-    return scheduledDate;
-  }
-
   Future<void> _scheduleNotification(ScheduleItem item) async {
-    if (!item.notify) return;
-
-    DateTime nextInstance = _nextInstanceOfWeekdayAndTime(item.weekday, item.startTime);
-    DateTime notifyTime = nextInstance.subtract(Duration(minutes: item.notifyMinutesBefore));
-    
-    if (notifyTime.isBefore(DateTime.now())) {
-      notifyTime = notifyTime.add(const Duration(days: 7));
-    }
-
-    try {
-      final tzTime = tz.TZDateTime.from(notifyTime, tz.local);
-      final int notifId = item.id.hashCode.abs() % 100000;
-
-      await _notifications.zonedSchedule(
-        id: notifId,
-        title: '📚 حصة ${item.title} تبدأ قريباً',
-        body: 'بعد ${item.notifyMinutesBefore} دقيقة${item.teacher != null && item.teacher!.isNotEmpty ? " — ${item.teacher}" : ""}${item.room != null && item.room!.isNotEmpty ? " — ${item.room}" : ""}',
-        scheduledDate: tzTime,
-        notificationDetails: NotificationDetails(
-          android: AndroidNotificationDetails(
-            'schedule_channel',
-            'الجدول الدراسي',
-            channelDescription: 'إشعارات الحصص الدراسية',
-            importance: Importance.high,
-            priority: Priority.high,
-            icon: '@mipmap/ic_launcher',
-          ),
-          iOS: const DarwinNotificationDetails(),
-        ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime, // Repeats weekly!
-      );
-    } catch (e) {
-      debugPrint('Error scheduling notification: $e');
-    }
+    await NotificationService().scheduleSessionNotifications(item);
   }
 
   Future<void> _cancelNotification(ScheduleItem item) async {
-    final int notifId = item.id.hashCode.abs() % 100000;
-    await _notifications.cancel(id: notifId);
+    await NotificationService().cancelSessionNotifications(item.id);
   }
 
   // ─── العمليات الأساسية ──────────────────────────────────

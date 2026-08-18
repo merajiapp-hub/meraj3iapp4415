@@ -783,208 +783,214 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
     // أفضل 10 مدارس للرسم البياني
     final top10 = schools.take(10).toList();
 
-    return Column(
-      children: [
-        // ── رسم بياني شريطي: أفضل 10 مدارس ──────────────────────────────
-        if (top10.length >= 2)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE2E8F0),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+    // استخدام NestedScrollView لجعل الرسم البياني وحقل البحث يتمرران مع القائمة
+    return ScrollConfiguration(
+      behavior: ScrollBehavior().copyWith(scrollbars: false),
+      child: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          // ── رسم بياني شريطي: أفضل 10 مدارس ──────────────────────────────
+          if (top10.length >= 2)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE2E8F0),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                ],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '📊 نسب نجاح أفضل ${top10.length} مدارس',
+                        style: GoogleFonts.tajawal(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        height: 180,
+                        child: BarChart(
+                          BarChartData(
+                            alignment: BarChartAlignment.spaceAround,
+                            maxY: 100,
+                            barTouchData: BarTouchData(
+                              touchTooltipData: BarTouchTooltipData(
+                                getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                                  final s = top10[group.x];
+                                  return BarTooltipItem(
+                                    '${s.name.split(' ').first}\n${rod.toY.toStringAsFixed(0)}%',
+                                    GoogleFonts.tajawal(color: Colors.white, fontSize: 10),
+                                  );
+                                },
+                              ),
+                            ),
+                            titlesData: FlTitlesData(
+                              show: true,
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  getTitlesWidget: (value, meta) {
+                                    final idx = value.toInt();
+                                    if (idx >= top10.length) return const SizedBox();
+                                    return Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(
+                                        '#${idx + 1}',
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: primaryColor,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  reservedSize: 22,
+                                ),
+                              ),
+                              leftTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  interval: 25,
+                                  getTitlesWidget: (value, meta) => Text(
+                                    '${value.toInt()}%',
+                                    style: GoogleFonts.outfit(fontSize: 9, color: Colors.grey),
+                                  ),
+                                  reservedSize: 30,
+                                ),
+                              ),
+                              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            ),
+                            gridData: FlGridData(
+                              show: true,
+                              drawHorizontalLine: true,
+                              horizontalInterval: 25,
+                              getDrawingHorizontalLine: (_) => FlLine(
+                                color: isDark ? Colors.white12 : Colors.grey.shade200,
+                                strokeWidth: 1,
+                              ),
+                              drawVerticalLine: false,
+                            ),
+                            borderData: FlBorderData(show: false),
+                            barGroups: List.generate(top10.length, (i) {
+                              final rate = top10[i].passRate;
+                              final barColor = rate >= 80
+                                  ? const Color(0xFF16A34A)
+                                  : rate >= 50
+                                      ? const Color(0xFFD97706)
+                                      : Colors.red;
+                              return BarChartGroupData(
+                                x: i,
+                                barRods: [
+                                  BarChartRodData(
+                                    toY: rate,
+                                    color: barColor,
+                                    width: 14,
+                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                                  ),
+                                ],
+                              );
+                            }),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+
+          // شريط البحث
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: TextField(
+                  controller: _schoolSearchCtrl,
+                  style: GoogleFonts.tajawal(),
+                  decoration: InputDecoration(
+                    hintText: 'ابحث عن مدرسة أو ولاية...',
+                    hintStyle: GoogleFonts.tajawal(color: Colors.grey[400], fontSize: 13),
+                    prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.primaryColor, size: 20),
+                    suffixIcon: _schoolSearchCtrl.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear_rounded, size: 16),
+                            onPressed: () => _schoolSearchCtrl.clear(),
+                          )
+                        : null,
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // عنوان وعدّاد المدارس
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+              child: Row(
                 children: [
                   Text(
-                    '📊 نسب نجاح أفضل ${top10.length} مدارس',
+                    '🏫 إحصائيات وترتيب المدارس (${filtered.length})',
                     style: GoogleFonts.tajawal(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white70 : Colors.black87,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 180,
-                    child: BarChart(
-                      BarChartData(
-                        alignment: BarChartAlignment.spaceAround,
-                        maxY: 100,
-                        barTouchData: BarTouchData(
-                          touchTooltipData: BarTouchTooltipData(
-                            getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                              final s = top10[group.x];
-                              return BarTooltipItem(
-                                '${s.name.split(' ').first}\n${rod.toY.toStringAsFixed(0)}%',
-                                GoogleFonts.tajawal(color: Colors.white, fontSize: 10),
-                              );
-                            },
-                          ),
-                        ),
-                        titlesData: FlTitlesData(
-                          show: true,
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              getTitlesWidget: (value, meta) {
-                                final idx = value.toInt();
-                                if (idx >= top10.length) return const SizedBox();
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Text(
-                                    '#${idx + 1}',
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: primaryColor,
-                                    ),
-                                  ),
-                                );
-                              },
-                              reservedSize: 22,
-                            ),
-                          ),
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              interval: 25,
-                              getTitlesWidget: (value, meta) => Text(
-                                '${value.toInt()}%',
-                                style: GoogleFonts.outfit(fontSize: 9, color: Colors.grey),
-                              ),
-                              reservedSize: 30,
-                            ),
-                          ),
-                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        ),
-                        gridData: FlGridData(
-                          show: true,
-                          drawHorizontalLine: true,
-                          horizontalInterval: 25,
-                          getDrawingHorizontalLine: (_) => FlLine(
-                            color: isDark ? Colors.white12 : Colors.grey.shade200,
-                            strokeWidth: 1,
-                          ),
-                          drawVerticalLine: false,
-                        ),
-                        borderData: FlBorderData(show: false),
-                        barGroups: List.generate(top10.length, (i) {
-                          final rate = top10[i].passRate;
-                          final barColor = rate >= 80
-                              ? const Color(0xFF16A34A)
-                              : rate >= 50
-                                  ? const Color(0xFFD97706)
-                                  : Colors.red;
-                          return BarChartGroupData(
-                            x: i,
-                            barRods: [
-                              BarChartRodData(
-                                toY: rate,
-                                color: barColor,
-                                width: 14,
-                                borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                              ),
-                            ],
-                          );
-                        }),
-                      ),
-                    ),
+                  const Spacer(),
+                  Text(
+                    'مرتبة حسب نسبة النجاح',
+                    style: GoogleFonts.tajawal(fontSize: 11, color: Colors.grey[500]),
                   ),
                 ],
               ),
             ),
           ),
-
-        // شريط البحث بين المدارس
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Container(
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE2E8F0),
-              ),
-            ),
-            child: TextField(
-              controller: _schoolSearchCtrl,
-              style: GoogleFonts.tajawal(),
-              decoration: InputDecoration(
-                hintText: 'ابحث عن مدرسة أو ولاية...',
-                hintStyle: GoogleFonts.tajawal(color: Colors.grey[400], fontSize: 13),
-                prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.primaryColor, size: 20),
-                suffixIcon: _schoolSearchCtrl.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear_rounded, size: 16),
-                        onPressed: () => _schoolSearchCtrl.clear(),
-                      )
-                    : null,
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
-            ),
-          ),
-        ),
-
-        // عنوان وعدّاد المدارس
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-          child: Row(
-            children: [
-              Text(
-                '🏫 إحصائيات وترتيب المدارس (${filtered.length})',
-                style: GoogleFonts.tajawal(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white70 : Colors.black87,
+        ],
+        body: filtered.isEmpty
+            ? Center(
+                child: Text(
+                  'لا توجد مدارس مطابقة للبحث.',
+                  style: GoogleFonts.tajawal(color: Colors.grey),
                 ),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
+                itemCount: filtered.length,
+                itemBuilder: (context, index) {
+                  final school = filtered[index];
+                  return _buildSchoolCard(
+                    school: school,
+                    isDark: isDark,
+                    primaryColor: primaryColor,
+                    scoreLabel: scoreLabel,
+                  );
+                },
               ),
-              const Spacer(),
-              Text(
-                'مرتبة حسب نسبة النجاح',
-                style: GoogleFonts.tajawal(fontSize: 11, color: Colors.grey[500]),
-              ),
-            ],
-          ),
-        ),
-
-        // قائمة المدارس
-        Expanded(
-          child: filtered.isEmpty
-              ? Center(
-                  child: Text(
-                    'لا توجد مدارس مطابقة للبحث.',
-                    style: GoogleFonts.tajawal(color: Colors.grey),
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    final school = filtered[index];
-                    return _buildSchoolCard(
-                      school: school,
-                      isDark: isDark,
-                      primaryColor: primaryColor,
-                      scoreLabel: scoreLabel,
-                    );
-                  },
-                ),
-        ),
-      ],
+      ),
     );
   }
 

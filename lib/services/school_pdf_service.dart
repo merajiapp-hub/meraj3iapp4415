@@ -6,6 +6,8 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
+import 'package:arabic_reshaper/arabic_reshaper.dart';
+import 'package:bidi/bidi.dart' as bidi;
 import '../services/results_service.dart';
 import '../models/result_pdf_file.dart';
 
@@ -31,6 +33,17 @@ class SchoolPdfService {
   static final _black = PdfColor(0, 0, 0);
   static final _separatorBlue = PdfColor(30, 80, 110); // الفاصل الأزرق
   static final _textGray = PdfColor(80, 80, 80);
+
+  /// Helper to shape Arabic text and apply Bidi logical-to-visual
+  static String _ar(String text) {
+    if (text.isEmpty) return text;
+    try {
+      final reshaped = ArabicReshaper.instance.reshape(text);
+      return String.fromCharCodes(bidi.logicalToVisual(reshaped));
+    } catch (_) {
+      return text; // fallback
+    }
+  }
 
   static Future<Directory> _getResultsDir() async {
     Directory? dir;
@@ -185,12 +198,12 @@ class SchoolPdfService {
     // ── تنسيق RTL الأساسي ──────────────────────────────────
     final rtlRight = PdfStringFormat(
       alignment: PdfTextAlignment.right,
-      textDirection: PdfTextDirection.rightToLeft,
+      textDirection: PdfTextDirection.leftToRight,
       lineAlignment: PdfVerticalAlignment.middle,
     );
     final rtlCenter = PdfStringFormat(
       alignment: PdfTextAlignment.center,
-      textDirection: PdfTextDirection.rightToLeft,
+      textDirection: PdfTextDirection.leftToRight,
       lineAlignment: PdfVerticalAlignment.middle,
     );
     final ltrRight = PdfStringFormat(
@@ -260,7 +273,7 @@ class SchoolPdfService {
     // العمود 1 (أقصى اليمين) — اسم المسابقة
     if (competitionTitle.isNotEmpty) {
       firstPage.graphics.drawString(
-        competitionTitle,
+        _ar(competitionTitle),
         fontInfo,
         brush: PdfSolidBrush(_textGray),
         bounds: Rect.fromLTWH(w - 200, infoY, 195, infoH),
@@ -271,7 +284,7 @@ class SchoolPdfService {
     // المركز أو المدرسة تحت اسم المسابقة
     if (filterCenter.isNotEmpty || filterSchool.isNotEmpty) {
       firstPage.graphics.drawString(
-        filterCenter.isNotEmpty ? filterCenter : filterSchool,
+        _ar(filterCenter.isNotEmpty ? filterCenter : filterSchool),
         fontInfo,
         brush: PdfSolidBrush(_textGray),
         bounds: Rect.fromLTWH(w - 200, infoY + infoH, 195, infoH),
@@ -282,7 +295,7 @@ class SchoolPdfService {
     // القسم/الشعبة
     if (filterBranch.isNotEmpty) {
       firstPage.graphics.drawString(
-        filterBranch,
+        _ar(filterBranch),
         fontInfo,
         brush: PdfSolidBrush(_textGray),
         bounds: Rect.fromLTWH(w - 200, infoY + infoH * 2, 195, infoH),
@@ -293,7 +306,7 @@ class SchoolPdfService {
     // العمود 2 — الولاية
     if (filterWilaya.isNotEmpty) {
       firstPage.graphics.drawString(
-        filterWilaya,
+        _ar(filterWilaya),
         fontInfo,
         brush: PdfSolidBrush(_textGray),
         bounds: Rect.fromLTWH(w / 2 + 10, infoY + infoH, 140, infoH),
@@ -304,7 +317,7 @@ class SchoolPdfService {
     // العمود 3 — عدد المترشحين
     if (totalCount > 0) {
       firstPage.graphics.drawString(
-        'عدد المترشحين: $totalCount',
+        _ar('عدد المترشحين: $totalCount'),
         fontInfo,
         brush: PdfSolidBrush(_textGray),
         bounds: Rect.fromLTWH(w / 4 + 10, infoY + infoH, 130, infoH),
@@ -315,7 +328,7 @@ class SchoolPdfService {
     // العمود 4 (أقصى اليسار) — الناجحون والراسبون
     if (passedCount > 0 || failedCount > 0) {
       firstPage.graphics.drawString(
-        'الناجحون: $passedCount    الراسبون: $failedCount',
+        _ar('الناجحون: $passedCount    الراسبون: $failedCount'),
         fontInfo,
         brush: PdfSolidBrush(_textGray),
         bounds: Rect.fromLTWH(0, infoY + infoH, w / 4 + 40, infoH),
@@ -326,7 +339,7 @@ class SchoolPdfService {
     // listTitle إذا كان مختلفاً
     if (listTitle.isNotEmpty && listTitle != competitionTitle) {
       firstPage.graphics.drawString(
-        listTitle,
+        _ar(listTitle),
         fontInfo,
         brush: PdfSolidBrush(_textGray),
         bounds: Rect.fromLTWH(0, infoY + infoH * 2, w / 4 + 40, infoH),
@@ -420,7 +433,7 @@ class SchoolPdfService {
           );
         }
         pg.graphics.drawString(
-          headers[i],
+          _ar(headers[i]),
           boldFont,
           brush: PdfSolidBrush(_white),
           bounds: Rect.fromLTWH(cx + 2, cy, widths[i] - 4, headerH),
@@ -482,13 +495,13 @@ class SchoolPdfService {
         final fmt = j == 2 // عمود الاسم
             ? PdfStringFormat(
                 alignment: PdfTextAlignment.right,
-                textDirection: PdfTextDirection.rightToLeft,
+                textDirection: PdfTextDirection.leftToRight,
                 lineAlignment: PdfVerticalAlignment.middle,
               )
             : rtlCenter;
 
         currentPage.graphics.drawString(
-          rowData[j],
+          _ar(rowData[j]),
           regularFont,
           brush: PdfSolidBrush(_black),
           bounds: Rect.fromLTWH(cx + 3, y, widths[j] - 6, rowH),
@@ -514,14 +527,16 @@ class SchoolPdfService {
     final w = page.getClientSize().width;
     final h = page.getClientSize().height;
     page.graphics.drawString(
-      'صـ $pageNum / $totalPages',
+      _ar('صـ $pageNum / $totalPages'),
       font,
       brush: PdfSolidBrush(_textGray),
       bounds: Rect.fromLTWH(0, h - 18, w, 16),
       format: PdfStringFormat(
         alignment: PdfTextAlignment.center,
-        textDirection: PdfTextDirection.rightToLeft,
+        textDirection: PdfTextDirection.leftToRight,
       ),
     );
   }
 }
+
+

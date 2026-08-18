@@ -52,6 +52,12 @@ class _HomePageState extends State<HomePage>
     with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
 
+  // إخفاء/إظهار شريط التنقل السفلي بشكل ذكي
+  bool _showNavBar = true;
+
+  // نظام Toast الخروج
+  bool _exitToastShown = false;
+
   final List<String> _wisdomQuotes = [
     "من جد وجد، ومن زرع حصد.",
     "العلم يبني بيوتاً لا عماد لها.",
@@ -118,6 +124,63 @@ class _HomePageState extends State<HomePage>
     }
   }
 
+  /// إظهار Toast أنيق عند الضغط على زر الرجوع (مرتان للخروج)
+  void _handleBackButton() {
+    if (_exitToastShown) {
+      SystemNavigator.pop();
+      return;
+    }
+    _exitToastShown = true;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final overlay = Overlay.of(context);
+    final entry = OverlayEntry(
+      builder: (ctx) => Positioned(
+        bottom: 80,
+        left: 24,
+        right: 24,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFF333333),
+              borderRadius: BorderRadius.circular(50),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                )
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.exit_to_app_rounded, color: Colors.white70, size: 20),
+                const SizedBox(width: 12),
+                Text(
+                  'اضغط مرة أخرى للخروج من التطبيق',
+                  style: GoogleFonts.tajawal(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(entry);
+    Future.delayed(const Duration(seconds: 2), () {
+      entry.remove();
+      if (mounted) _exitToastShown = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -125,19 +188,35 @@ class _HomePageState extends State<HomePage>
 
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
         if (didPop) return;
-        final bool shouldPop = await _showExitDialog(context) ?? false;
-        if (shouldPop) {
-          SystemNavigator.pop();
-        }
+        _handleBackButton();
       },
       child: Scaffold(
         drawer: _buildDrawer(),
         floatingActionButton: _buildFloatingActionButton(),
         body: Stack(
           children: [
-            CustomScrollView(
+            NotificationListener<ScrollNotification>(
+              onNotification: (ScrollNotification notification) {
+                if (notification is ScrollUpdateNotification) {
+                  final delta = notification.scrollDelta ?? 0;
+                  final offset = notification.metrics.pixels;
+                  // إخفاء عند التمرير للأسفل (بعد 50px)، إظهار عند التمرير للأعلى
+                  if (delta > 8 && offset > 50 && _showNavBar) {
+                    setState(() => _showNavBar = false);
+                  } else if (delta < -8 && !_showNavBar) {
+                    setState(() => _showNavBar = true);
+                  }
+                } else if (notification is ScrollEndNotification) {
+                  // إظهار مجدداً عند توقف التمرير
+                  if (notification.metrics.pixels <= 10) {
+                    if (!_showNavBar) setState(() => _showNavBar = true);
+                  }
+                }
+                return false;
+              },
+              child: CustomScrollView(
           slivers: [
             // ══════════════════════════════════════════
             //  Header — SliverAppBar محسّن
@@ -399,17 +478,20 @@ class _HomePageState extends State<HomePage>
             ),
           ],
         ),
-        // الشريط السفلي العائم
-        Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          child: _buildBottomNav(isDark),
-        ),
-      ],
-    ),
-    ),
-  );
+      ),
+      // شريط التنقل السفلي مع حركة إخفاء/إظهار ذكية
+      AnimatedPositioned(
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeInOutCubic,
+        bottom: _showNavBar ? 0 : -100,
+        left: 0,
+        right: 0,
+        child: _buildBottomNav(isDark),
+      ),
+    ],
+  ),
+  ),
+);
 }
 
 
@@ -1047,6 +1129,13 @@ class _HomePageState extends State<HomePage>
             child: ListView(
               padding: const EdgeInsets.only(top: 10),
               children: [
+                _buildDrawerItem(Icons.library_books_rounded, 'الكتب المضافة', () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AddedBooksScreen()),
+                  );
+                }),
                 _buildDrawerItem(Icons.trending_up_rounded, 'تطور المستوى', () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -1197,77 +1286,6 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  // ══════════════════════════════════════════════════════
-  //  Dialog الخروج
-  // ══════════════════════════════════════════════════════
-  Future<bool?> _showExitDialog(BuildContext context) {
-    return showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: Text(
-          'هل تريد الخروج؟',
-          style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
-          textAlign: TextAlign.center,
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.exit_to_app_rounded,
-              size: 50,
-              color: AppTheme.primaryColor,
-            ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                '﷽\nاللهم صَلِّ وَسَلِّمْ وَبَارِكْ عَلَى سَيِّدِنَا مُحَمَّدٍ',
-                style: GoogleFonts.amiri(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryColor,
-                  height: 1.6,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(
-              'إلغاء',
-              style: GoogleFonts.tajawal(
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: Text(
-              'خروج',
-              style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   // ══════════════════════════════════════════════════════
   //  عنصر Drawer
