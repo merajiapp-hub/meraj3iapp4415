@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../providers/auth_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -105,6 +106,9 @@ class _AddedBooksScreenState extends State<AddedBooksScreen> {
 
           return Column(
             children: [
+              // بطاقة الإحصائيات
+              if (docs.isNotEmpty) _buildStatisticsCard(docs, isDark),
+              const SizedBox(height: 10),
               // شريط الفلاتر
               if (sections.isNotEmpty || subjects.isNotEmpty)
                 _buildFilterBar(sections, subjects, grades, isDark),
@@ -155,6 +159,50 @@ class _AddedBooksScreenState extends State<AddedBooksScreen> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildStatisticsCard(List<QueryDocumentSnapshot> docs, bool isDark) {
+    if (docs.isEmpty) return const SizedBox();
+    final totalBooks = docs.length;
+    final uploaders = docs.map((d) => (d.data() as Map<String, dynamic>)['uploaderName'] as String?).where((n) => n != null && n.isNotEmpty).toSet();
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.surfaceDark : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.1) : AppTheme.primaryColor.withValues(alpha: 0.1),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildStatCol('الكتب المضافة', '$totalBooks', Icons.library_books_rounded, AppTheme.primaryColor, isDark),
+          Container(width: 1, height: 40, color: Colors.grey.withValues(alpha: 0.2)),
+          _buildStatCol('المساهمون', '${uploaders.length}', Icons.group_rounded, Colors.teal, isDark),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCol(String label, String value, IconData icon, Color color, bool isDark) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 28),
+        const SizedBox(height: 8),
+        Text(value, style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+        Text(label, style: GoogleFonts.tajawal(fontSize: 12, color: Colors.grey[500])),
+      ],
     );
   }
 
@@ -431,8 +479,30 @@ class _AddedBooksScreenState extends State<AddedBooksScreen> {
   }
 
   Widget _buildActionButtons(BuildContext context, Book book, bool isDark) {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final isAdmin = auth.userData?['role'] == 'admin' || auth.user?.email == 'merajiapp@gmail.com';
+    // لا نمتلك uploaderId في الموديل، لذا نعتمد على isAdmin مؤقتاً أو يمكن التحقق لاحقاً
+
     return Row(
       children: [
+        // زر الحذف
+        if (isAdmin) ...[
+          SizedBox(
+            width: 34,
+            height: 34,
+            child: IconButton.filled(
+              padding: EdgeInsets.zero,
+              onPressed: () => _confirmDelete(context, book.id),
+              icon: const Icon(Icons.delete_outline_rounded, size: 18),
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.red.withValues(alpha: 0.1),
+                foregroundColor: Colors.red,
+              ),
+              tooltip: 'حذف',
+            ),
+          ),
+          const SizedBox(width: 6),
+        ],
         // زر فتح
         Expanded(
           child: SizedBox(
@@ -517,6 +587,32 @@ class _AddedBooksScreenState extends State<AddedBooksScreen> {
         ),
       ],
     );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, String docId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('تأكيد الحذف', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, color: Colors.red)),
+        content: Text('هل أنت متأكد أنك تريد حذف هذا الكتاب؟', style: GoogleFonts.tajawal()),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('إلغاء', style: GoogleFonts.tajawal())),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            child: Text('حذف', style: GoogleFonts.tajawal()),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      try {
+        await FirebaseFirestore.instance.collection('uploaded_books').doc(docId).delete();
+        if (context.mounted) AppNotification.show(context, 'تم حذف الكتاب بنجاح');
+      } catch (e) {
+        if (context.mounted) AppNotification.show(context, 'حدث خطأ أثناء الحذف', isError: true);
+      }
+    }
   }
 
   Future<void> _downloadBook(BuildContext context, Book book, DownloadsProvider downloads) async {

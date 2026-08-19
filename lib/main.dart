@@ -132,11 +132,19 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // شريط الحالة شفاف
+  // تفعيل وضع الشاشة الكاملة وإخفاء أزرار النظام السفلية
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
+  // شريط الحالة وشريط التنقل شفافان مع تعطيل التباين الإجباري لتحقيق Edge-to-Edge حقيقي
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.light,
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemStatusBarContrastEnforced: false,
+      systemNavigationBarContrastEnforced: false,
     ),
   );
 

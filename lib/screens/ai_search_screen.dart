@@ -40,11 +40,11 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
     // ════════════════════════════════════════════════════════════════════
     final apiKey = AppSecrets.geminiApiKey;
     _model = genai.GenerativeModel(
-      model: 'gemini-2.0-flash-exp',
+      model: 'gemini-1.5-pro',
       apiKey: apiKey,
       generationConfig: genai.GenerationConfig(
         temperature: 0.7,
-        topP: 0.8,
+        topP: 0.9,
         topK: 40,
         maxOutputTokens: 2048,
       ),
@@ -138,9 +138,10 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
 
     try {
       genai.GenerateContentResponse? response;
-      int retries = 3;
-
-      while (retries > 0) {
+      // إعادة محاولة بأسلوب exponential backoff لتجنب Rate Limit
+      const maxRetries = 3;
+      int attempt = 0;
+      while (attempt < maxRetries) {
         try {
           final chatSession = _getChatSession(sessionId);
 
@@ -150,19 +151,20 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
               if (text.isNotEmpty) genai.TextPart(text),
               genai.DataPart('image/jpeg', bytes),
             ]);
-            response = await chatSession.sendMessage(content).timeout(const Duration(seconds: 30));
+            response = await chatSession.sendMessage(content).timeout(const Duration(seconds: 45));
           } else {
-            response = await chatSession.sendMessage(genai.Content.text(text)).timeout(const Duration(seconds: 30));
+            response = await chatSession.sendMessage(genai.Content.text(text)).timeout(const Duration(seconds: 45));
           }
           break; // نجاح المحاولة
         } catch (e) {
-          debugPrint('AI Error (Retries left: \${retries - 1}): \$e');
-          retries--;
-          _currentChat = null; // تصفير الجلسة لإعادة المحاولة من جديد
-          if (retries == 0) {
-            rethrow; // تمرير الخطأ في حال نفاد المحاولات
-          }
-          await Future.delayed(const Duration(seconds: 2));
+          attempt++;
+          debugPrint('AI attempt $attempt/$maxRetries failed: $e');
+          // تصفير الجلسة لإعادة البدء نظيفاً
+          _currentChat = null;
+          if (attempt >= maxRetries) rethrow;
+          // تأخير تصاعدي: 3ث، 6ث، 12ث...
+          final delay = Duration(seconds: 3 * attempt);
+          await Future.delayed(delay);
         }
       }
 
@@ -182,24 +184,25 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
       }
     } catch (e) {
       _currentChat = null;
+      // إعادة السؤال إلى حقل الكتابة حتى لا يفقده المستخدم
+      if (mounted && text.isNotEmpty) {
+        _promptController.text = text;
+      }
 
       if (mounted) {
-        // عرض الخطأ الحقيقي للمستخدم بناءً على طلبه
-        String errorMsg = 'تعذر الاتصال بالمحرك. الخطأ: \$e';
-        final errorText = e.toString().toLowerCase();
+        final errStr = e.toString().toLowerCase();
+        String errorMsg;
 
-        if (errorText.contains('api key') ||
-            errorText.contains('403') ||
-            errorText.contains('unauthorized')) {
-          errorMsg = 'مفتاح الذكاء الاصطناعي غير صالح أو منتهي الصلاحية.';
-        } else if (errorText.contains('quota') || errorText.contains('429')) {
-          errorMsg = 'لقد استنفدت الحد المسموح به للذكاء الاصطناعي حالياً.';
-        } else if (errorText.contains('socket') ||
-            errorText.contains('connection') ||
-            errorText.contains('network') ||
-            errorText.contains('host lookup') ||
-            errorText.contains('timeout')) {
+        if (errStr.contains('429') || errStr.contains('quota') || errStr.contains('resource_exhausted')) {
+          errorMsg = 'المحرك مشغول حالياً. سؤالك محفوظ في الحقل، حاول مجدداً خلال دقيقة.';
+        } else if (errStr.contains('api key') || errStr.contains('403') || errStr.contains('unauthorized') || errStr.contains('permission_denied')) {
+          errorMsg = 'مفتاح الذكاء الاصطناعي غير صالح. تواصل مع الدعم.';
+        } else if (errStr.contains('socket') || errStr.contains('connection') || errStr.contains('network') || errStr.contains('timeout') || errStr.contains('host lookup')) {
           errorMsg = 'تأكد من اتصالك بالإنترنت ثم حاول مجدداً.';
+        } else if (errStr.contains('404') || errStr.contains('not_found')) {
+          errorMsg = 'النموذج غير متاح حالياً. جاري الإصلاح.';
+        } else {
+          errorMsg = 'حدث خطأ. سؤالك محفوظ في الحقل. حاول الإرسال مجدداً.';
         }
 
         AppNotification.show(context, errorMsg, isError: true);

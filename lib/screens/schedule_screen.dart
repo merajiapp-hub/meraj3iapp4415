@@ -5,6 +5,7 @@ import '../providers/schedule_provider.dart';
 import '../models/schedule_item.dart';
 import '../theme/app_theme.dart';
 
+
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key});
 
@@ -13,277 +14,370 @@ class ScheduleScreen extends StatefulWidget {
 }
 
 class _ScheduleScreenState extends State<ScheduleScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  
   // order: Saturday (6), Sunday (7), Monday (1), Tuesday (2), Wednesday (3), Thursday (4), Friday (5)
   final List<int> _weekdaysOrder = [6, 7, 1, 2, 3, 4, 5];
   final List<String> _weekdayNames = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+  
+  late int _selectedDay;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 7, vsync: this);
-    
-    // Select today's tab by default
     int todayWeekday = DateTime.now().weekday;
-    int index = _weekdaysOrder.indexOf(todayWeekday);
-    if (index != -1) {
-      _tabController.index = index;
+    if (_weekdaysOrder.contains(todayWeekday)) {
+      _selectedDay = todayWeekday;
+    } else {
+      _selectedDay = _weekdaysOrder[0];
     }
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final schedule = context.watch<ScheduleProvider>();
+    final todayItems = schedule.getItemsForDay(_selectedDay);
     
+    // Calculate today's stats
+    int todaySessions = todayItems.length;
+    double todayHours = 0;
+    for (var item in todayItems) {
+      final start = item.startTime.hour * 60 + item.startTime.minute;
+      final end = item.endTime.hour * 60 + item.endTime.minute;
+      int diff = end - start;
+      if (diff < 0) diff += 24 * 60;
+      todayHours += diff / 60.0;
+    }
+
     return Scaffold(
       backgroundColor: isDark ? AppTheme.backgroundDark : AppTheme.backgroundLight,
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return [
-            SliverAppBar(
-              expandedHeight: 220,
-              floating: false,
-              pinned: true,
-              backgroundColor: AppTheme.primaryColor,
-              elevation: 0,
-              flexibleSpace: FlexibleSpaceBar(
-                title: Text(
-                  'الجدول الأسبوعي',
-                  style: GoogleFonts.cairo(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontSize: 18,
-                  ),
-                ),
-                centerTitle: true,
-                background: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF0B6B58), Color(0xFF13A286)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+      appBar: AppBar(
+        title: Text('الجدول الدراسي', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold)),
+        centerTitle: true,
+        elevation: 0,
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // البطاقة العلوية للإحصائيات
+          _buildTopStatsCard(todaySessions, todayHours, isDark),
+          
+          const SizedBox(height: 24),
+          
+          // أيام الأسبوع (دوائر / أزرار متجاورة)
+          SizedBox(
+            height: 90,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: _weekdaysOrder.length,
+              itemBuilder: (context, index) {
+                final dayNum = _weekdaysOrder[index];
+                final dayName = _weekdayNames[index];
+                final isSelected = _selectedDay == dayNum;
+                
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedDay = dayNum),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOutCubic,
+                    margin: const EdgeInsets.only(left: 12),
+                    width: 70,
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppTheme.primaryColor : (isDark ? AppTheme.surfaceDark : Colors.white),
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: isSelected ? [
+                        BoxShadow(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.4),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        )
+                      ] : [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        )
+                      ],
+                      border: Border.all(
+                        color: isSelected ? Colors.transparent : (isDark ? Colors.white10 : Colors.grey[200]!),
+                      )
                     ),
-                  ),
-                  child: SafeArea(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const SizedBox(height: 20),
-                        // الإحصائيات
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _buildStatCard('مجموع الحصص', schedule.getTotalSessions().toString(), Icons.library_books),
-                            _buildStatCard('إجمالي الساعات', schedule.getTotalHours().toStringAsFixed(1), Icons.schedule),
-                          ],
+                        Text(
+                          dayName.substring(0, 3), // e.g. "السب" -> could just be the name
+                          style: GoogleFonts.tajawal(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                          ),
                         ),
-                        const SizedBox(height: 40),
+                        if (isSelected) ...[
+                          const SizedBox(height: 4),
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                ),
-              ),
-              bottom: TabBar(
-                controller: _tabController,
-                isScrollable: true,
-                indicatorColor: Colors.white,
-                indicatorWeight: 3,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.white60,
-                labelStyle: GoogleFonts.cairo(fontWeight: FontWeight.bold),
-                tabs: _weekdayNames.map((name) => Tab(text: name)).toList(),
-              ),
-            ),
-          ];
-        },
-        body: TabBarView(
-          controller: _tabController,
-          children: _weekdaysOrder.map((weekday) {
-            final items = schedule.getItemsForDay(weekday);
-            if (items.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.event_busy, size: 80, color: Colors.grey[400]),
-                    const SizedBox(height: 16),
-                    Text(
-                      'لا يوجد حصص في هذا اليوم',
-                      style: GoogleFonts.cairo(
-                        color: Colors.grey[500],
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-            
-            return ListView.builder(
-              padding: const EdgeInsets.only(top: 8, bottom: 100),
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                return _buildScheduleItem(items[index], isDark, schedule);
+                );
               },
-            );
-          }).toList(),
-        ),
+            ),
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // قائمة الحصص
+          Expanded(
+            child: todayItems.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.event_available_rounded, size: 80, color: Colors.grey.withValues(alpha: 0.3)),
+                        const SizedBox(height: 16),
+                        Text(
+                          'لا توجد حصص مبرمجة في هذا اليوم',
+                          style: GoogleFonts.tajawal(
+                            color: Colors.grey[500],
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.only(left: 16, right: 16, bottom: 100),
+                    itemCount: todayItems.length,
+                    itemBuilder: (context, index) {
+                      return _buildScheduleItemCard(todayItems[index], isDark, schedule);
+                    },
+                  ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddItemDialog(_weekdaysOrder[_tabController.index]),
+        onPressed: () => _showAddItemDialog(_selectedDay),
         backgroundColor: AppTheme.primaryColor,
-        child: const Icon(Icons.add, color: Colors.white),
+        child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
       ),
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon) {
+  Widget _buildTopStatsCard(int sessions, double hours, bool isDark) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(16),
+        gradient: AppTheme.primaryGradient,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryColor.withValues(alpha: 0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-      child: Column(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          Icon(icon, color: Colors.white, size: 24),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: GoogleFonts.cairo(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              height: 1,
-            ),
-          ),
-          Text(
-            title,
-            style: GoogleFonts.cairo(
-              color: Colors.white70,
-              fontSize: 12,
-            ),
-          ),
+          _buildStatItem('الحصص اليوم', '$sessions', Icons.auto_stories_rounded),
+          Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.3)),
+          _buildStatItem('ساعات الدراسة', hours.toStringAsFixed(1), Icons.timer_rounded),
         ],
       ),
     );
   }
 
-  Widget _buildScheduleItem(ScheduleItem item, bool isDark, ScheduleProvider provider) {
+  Widget _buildStatItem(String title, String value, IconData icon) {
+    return Column(
+      children: [
+        Icon(icon, color: Colors.white.withValues(alpha: 0.9), size: 28),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: GoogleFonts.outfit(
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(
+          title,
+          style: GoogleFonts.tajawal(
+            color: Colors.white.withValues(alpha: 0.8),
+            fontSize: 13,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildScheduleItemCard(ScheduleItem item, bool isDark, ScheduleProvider provider) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: isDark ? AppTheme.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border(
-          right: BorderSide(color: item.color, width: 6),
-        ),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.withValues(alpha: 0.1),
+        ),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: item.color.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(Icons.book, color: item.color),
-        ),
-        title: Text(
-          item.title,
-          style: GoogleFonts.cairo(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (item.description.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                item.description,
-                style: GoogleFonts.cairo(fontSize: 13, color: Colors.grey[600]),
-              ),
-            ],
-            if (item.teacher != null && item.teacher!.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Icon(Icons.person, size: 14, color: Colors.grey[500]),
-                  const SizedBox(width: 4),
-                  Text(
-                    'الأستاذ: ${item.teacher}',
-                    style: GoogleFonts.cairo(fontSize: 12, color: Colors.grey[600]),
-                  ),
-                ],
-              ),
-            ],
-            if (item.room != null && item.room!.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Icon(Icons.room, size: 14, color: Colors.grey[500]),
-                  const SizedBox(width: 4),
-                  Text(
-                    'القاعة: ${item.room}',
-                    style: GoogleFonts.cairo(fontSize: 12, color: Colors.grey[600]),
-                  ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 8),
-            Row(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onLongPress: () => _showEditOrDeleteDialog(item, provider),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
               children: [
-                Icon(Icons.access_time, size: 14, color: Colors.grey[500]),
-                const SizedBox(width: 4),
-                Text(
-                  '${item.startTime.format(context)} - ${item.endTime.format(context)}',
-                  style: GoogleFonts.tajawal(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.bold),
+                // مؤشر لوني على اليمين
+                Container(
+                  width: 6,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: item.color,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                
+                // تفاصيل الحصة
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              item.title,
+                              style: GoogleFonts.tajawal(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: item.color.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${item.startTime.format(context)} - ${item.endTime.format(context)}',
+                              style: GoogleFonts.outfit(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: item.color,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      if (item.description.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          item.description,
+                          style: GoogleFonts.tajawal(fontSize: 13, color: Colors.grey[500]),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          if (item.teacher != null && item.teacher!.isNotEmpty) ...[
+                            Icon(Icons.person_rounded, size: 16, color: Colors.grey[400]),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                item.teacher!,
+                                style: GoogleFonts.tajawal(fontSize: 13, color: Colors.grey[600]),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                          if (item.room != null && item.room!.isNotEmpty) ...[
+                            Icon(Icons.room_rounded, size: 16, color: Colors.grey[400]),
+                            const SizedBox(width: 4),
+                            Text(
+                              item.room!,
+                              style: GoogleFonts.tajawal(fontSize: 13, color: Colors.grey[600]),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-          ],
+          ),
         ),
-        onLongPress: () {
-          // Edit or Delete option
-          showDialog(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              title: Text('خيارات', style: GoogleFonts.cairo(fontWeight: FontWeight.bold)),
-              content: Text('ماذا تريد أن تفعل؟', style: GoogleFonts.cairo()),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: Text('إلغاء', style: GoogleFonts.cairo()),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    provider.removeItem(item);
-                  },
-                  child: Text('حذف', style: GoogleFonts.cairo(color: Colors.red)),
-                ),
-              ],
-            ),
-          );
-        },
       ),
+    );
+  }
+
+  void _showEditOrDeleteDialog(ScheduleItem item, ScheduleProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.backgroundDark : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 24),
+              ListTile(
+                leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                title: Text('حذف الحصة', style: GoogleFonts.tajawal(color: Colors.red, fontWeight: FontWeight.bold)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  provider.removeItem(item);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.close_rounded),
+                title: Text('إلغاء', style: GoogleFonts.tajawal()),
+                onTap: () => Navigator.pop(ctx),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -295,37 +389,41 @@ class _ScheduleScreenState extends State<ScheduleScreen> with SingleTickerProvid
     TimeOfDay startTime = TimeOfDay.now();
     TimeOfDay endTime = TimeOfDay(hour: (startTime.hour + 1) % 24, minute: startTime.minute);
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateBuilder) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Text('إضافة للجدول', style: GoogleFonts.cairo(fontWeight: FontWeight.bold)),
-            content: SingleChildScrollView(
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          return Container(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom,
+              left: 20, right: 20, top: 24,
+            ),
+            decoration: BoxDecoration(
+              color: isDark ? AppTheme.backgroundDark : Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+            ),
+            child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text('إضافة حصة جديدة', style: GoogleFonts.tajawal(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 24),
+                  
                   TextField(
                     controller: titleController,
                     decoration: InputDecoration(
                       labelText: 'المادة / المهمة',
-                      labelStyle: GoogleFonts.cairo(),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      labelStyle: GoogleFonts.tajawal(),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
                       prefixIcon: const Icon(Icons.menu_book_rounded),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: descController,
-                    decoration: InputDecoration(
-                      labelText: 'التفاصيل (اختياري)',
-                      labelStyle: GoogleFonts.cairo(),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      prefixIcon: const Icon(Icons.description_rounded),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
+                  
                   Row(
                     children: [
                       Expanded(
@@ -333,20 +431,20 @@ class _ScheduleScreenState extends State<ScheduleScreen> with SingleTickerProvid
                           controller: teacherController,
                           decoration: InputDecoration(
                             labelText: 'الأستاذ',
-                            labelStyle: GoogleFonts.cairo(fontSize: 12),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            labelStyle: GoogleFonts.tajawal(),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
                             prefixIcon: const Icon(Icons.person_rounded),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: TextField(
                           controller: roomController,
                           decoration: InputDecoration(
                             labelText: 'القاعة',
-                            labelStyle: GoogleFonts.cairo(fontSize: 12),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            labelStyle: GoogleFonts.tajawal(),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
                             prefixIcon: const Icon(Icons.room_rounded),
                           ),
                         ),
@@ -354,68 +452,112 @@ class _ScheduleScreenState extends State<ScheduleScreen> with SingleTickerProvid
                     ],
                   ),
                   const SizedBox(height: 16),
+                  
+                  TextField(
+                    controller: descController,
+                    decoration: InputDecoration(
+                      labelText: 'ملاحظات',
+                      labelStyle: GoogleFonts.tajawal(),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                      prefixIcon: const Icon(Icons.description_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('وقت البداية:', style: GoogleFonts.cairo(fontWeight: FontWeight.bold)),
-                      TextButton(
-                        onPressed: () async {
-                          final time = await showTimePicker(context: context, initialTime: startTime);
-                          if (time != null) setStateBuilder(() => startTime = time);
-                        },
-                        child: Text(startTime.format(context), style: GoogleFonts.cairo(fontWeight: FontWeight.bold)),
+                      Expanded(
+                        child: _buildTimePickerBox(
+                          title: 'من',
+                          time: startTime,
+                          isDark: isDark,
+                          onTap: () async {
+                            final time = await showTimePicker(context: context, initialTime: startTime);
+                            if (time != null) setStateBuilder(() => startTime = time);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildTimePickerBox(
+                          title: 'إلى',
+                          time: endTime,
+                          isDark: isDark,
+                          onTap: () async {
+                            final time = await showTimePicker(context: context, initialTime: endTime);
+                            if (time != null) setStateBuilder(() => endTime = time);
+                          },
+                        ),
                       ),
                     ],
                   ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('وقت النهاية:', style: GoogleFonts.cairo(fontWeight: FontWeight.bold)),
-                      TextButton(
-                        onPressed: () async {
-                          final time = await showTimePicker(context: context, initialTime: endTime);
-                          if (time != null) setStateBuilder(() => endTime = time);
-                        },
-                        child: Text(endTime.format(context), style: GoogleFonts.cairo(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 32),
+                  
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
                       ),
-                    ],
+                      onPressed: () {
+                        if (titleController.text.trim().isEmpty) return;
+
+                        final newItem = ScheduleItem(
+                          id: DateTime.now().millisecondsSinceEpoch.toString(),
+                          title: titleController.text.trim(),
+                          description: descController.text.trim(),
+                          weekday: selectedWeekday,
+                          startTime: startTime,
+                          endTime: endTime,
+                          color: AppTheme.primaryColor,
+                          teacher: teacherController.text.trim(),
+                          room: roomController.text.trim(),
+                        );
+
+                        context.read<ScheduleProvider>().addItem(newItem);
+                        Navigator.pop(ctx);
+                      },
+                      child: Text('حفظ الحصة', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, fontSize: 18)),
+                    ),
                   ),
+                  const SizedBox(height: 32),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text('إلغاء', style: GoogleFonts.cairo(color: Colors.grey, fontWeight: FontWeight.bold)),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () {
-                  if (titleController.text.trim().isEmpty) return;
-
-                  final newItem = ScheduleItem(
-                    id: DateTime.now().millisecondsSinceEpoch.toString(),
-                    title: titleController.text.trim(),
-                    description: descController.text.trim(),
-                    weekday: selectedWeekday,
-                    startTime: startTime,
-                    endTime: endTime,
-                    color: AppTheme.primaryColor,
-                    teacher: teacherController.text.trim(),
-                    room: roomController.text.trim(),
-                  );
-
-                  context.read<ScheduleProvider>().addItem(newItem);
-                  Navigator.pop(ctx);
-                },
-                child: Text('حفظ', style: GoogleFonts.cairo(color: Colors.white)),
-              ),
-            ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildTimePickerBox({required String title, required TimeOfDay time, required bool isDark, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.surfaceDark : Colors.grey[50],
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: isDark ? Colors.white12 : Colors.grey[300]!),
+        ),
+        child: Column(
+          children: [
+            Text(title, style: GoogleFonts.tajawal(color: Colors.grey[500], fontSize: 12)),
+            const SizedBox(height: 4),
+            Text(
+              time.format(context),
+              style: GoogleFonts.outfit(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

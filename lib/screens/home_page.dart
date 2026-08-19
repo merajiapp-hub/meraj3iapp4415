@@ -15,6 +15,8 @@ import 'settings_screen.dart';
 import 'added_books_screen.dart';
 import 'add_book_screen.dart';
 import 'profile_screen.dart';
+import 'reviews_screen.dart';
+import 'review_statistics_screen.dart';
 
 import 'info_screen.dart';
 import 'login_screen.dart';
@@ -296,8 +298,7 @@ class _HomePageState extends State<HomePage>
                           builder: (context, auth, _) {
                             final name = widget.isGuest
                                 ? 'الزائر'
-                                : (auth.user?.displayName?.split(' ').first ??
-                                      'الطالب');
+                                : (auth.user?.displayName ?? 'الطالب');
                             return Text(
                               'أهلاً، $name 👋',
                               style: GoogleFonts.tajawal(
@@ -550,7 +551,7 @@ class _HomePageState extends State<HomePage>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        badge: 'جديد',
+        badge: null,
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const ResultsHomeScreen()),
@@ -1171,6 +1172,28 @@ class _HomePageState extends State<HomePage>
                     MaterialPageRoute(builder: (_) => const StatisticsScreen()),
                   );
                 }),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  child: Divider(height: 1),
+                ),
+                _buildDrawerItem(Icons.reviews_rounded, 'آراء المستخدمين', () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ReviewsScreen()),
+                  );
+                }),
+                _buildDrawerItem(Icons.analytics_rounded, 'إحصائيات التقييمات', () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ReviewStatisticsScreen()),
+                  );
+                }),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  child: Divider(height: 1),
+                ),
                 _buildDrawerItem(Icons.notifications_rounded, 'الإشعارات', () {
                   Navigator.pop(context);
                   Navigator.push(

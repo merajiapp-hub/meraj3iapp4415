@@ -234,6 +234,19 @@ class _ProfileScreenState extends State<ProfileScreen>
     final userName = auth.user?.displayName ?? 'المستخدم';
     final userEmail = auth.user?.email ?? '';
 
+    if (!_isEditing) {
+      if (_nameController.text != (auth.user?.displayName ?? '')) {
+        _nameController.text = auth.user?.displayName ?? '';
+      }
+      if (_emailController.text != (auth.user?.email ?? '')) {
+        _emailController.text = auth.user?.email ?? '';
+      }
+      final phone = auth.userData?['phone'] ?? '';
+      if (_phoneController.text != phone) {
+        _phoneController.text = phone;
+      }
+    }
+
     return Scaffold(
       backgroundColor: isDark
           ? AppTheme.backgroundDark
