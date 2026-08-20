@@ -481,12 +481,13 @@ class _AddedBooksScreenState extends State<AddedBooksScreen> {
   Widget _buildActionButtons(BuildContext context, Book book, bool isDark) {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final isAdmin = auth.userData?['role'] == 'admin' || auth.user?.email == 'merajiapp@gmail.com';
-    // لا نمتلك uploaderId في الموديل، لذا نعتمد على isAdmin مؤقتاً أو يمكن التحقق لاحقاً
+    final isUploader = auth.user?.uid == book.uploaderId;
+    final canDelete = isAdmin || (isUploader && auth.user?.uid != null);
 
     return Row(
       children: [
         // زر الحذف
-        if (isAdmin) ...[
+        if (canDelete) ...[
           SizedBox(
             width: 34,
             height: 34,

@@ -600,22 +600,25 @@ class ResultsService {
 
       if (response.statusCode != 200) return null;
 
-      // UTF-8 أولاً
-      try {
-        final body = utf8.decode(response.bodyBytes);
-        if (_looksLikeCsv(body)) return body;
-      } catch (_) {}
-
-      // Latin-1 fallback
-      try {
-        final body = latin1.decode(response.bodyBytes);
-        if (_looksLikeCsv(body)) return body;
-      } catch (_) {}
-
-      return null;
+      // Offload decoding to isolate to prevent main thread freezing
+      return await compute(_decodeResponseBytes, response.bodyBytes);
     } catch (_) {
       return null;
     }
+  }
+
+  static String? _decodeResponseBytes(List<int> bytes) {
+    try {
+      final body = utf8.decode(bytes);
+      if (_looksLikeCsv(body)) return body;
+    } catch (_) {}
+
+    try {
+      final body = latin1.decode(bytes);
+      if (_looksLikeCsv(body)) return body;
+    } catch (_) {}
+
+    return null;
   }
 
   static bool _looksLikeCsv(String s) {
@@ -864,10 +867,16 @@ class ResultsService {
   }
 
   static List<String> _splitLine(String line, String sep) {
+    if (line.isEmpty) return [];
+    if (!line.contains('"')) {
+      return line.split(sep);
+    }
     final result = <String>[];
     bool inQuotes = false;
     final buf = StringBuffer();
-    for (final char in line.split('')) {
+    final len = line.length;
+    for (int i = 0; i < len; i++) {
+      final char = line[i];
       if (char == '"') {
         inQuotes = !inQuotes;
       } else if (char == sep && !inQuotes) {

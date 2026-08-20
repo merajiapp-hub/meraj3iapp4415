@@ -87,6 +87,31 @@ class DedicationScreen extends StatelessWidget {
                           ),
                           textAlign: TextAlign.center,
                         ),
+                        const SizedBox(height: 16),
+                        Container(
+                          width: 80,
+                          height: 1,
+                          color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'إهداء خاص',
+                          style: GoogleFonts.tajawal(
+                            fontSize: 13,
+                            color: Colors.grey[500],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'عبد اللهِ سيدي محمد',
+                          style: GoogleFonts.amiri(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white70 : const Color(0xFF334155),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ],
                     ),
                   ),

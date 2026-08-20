@@ -21,6 +21,7 @@ import 'providers/reading_provider.dart';
 import 'providers/statistics_provider.dart';
 import 'providers/schedule_provider.dart';
 import 'providers/student_provider.dart';
+import 'providers/notes_provider.dart';
 import 'screens/splash_screen.dart';
 import 'data/notification_service.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -195,6 +196,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => StatisticsProvider()),
         ChangeNotifierProvider(create: (_) => ScheduleProvider()),
         ChangeNotifierProvider(create: (_) => StudentProvider()),
+        ChangeNotifierProvider(create: (_) => NotesProvider()),
       ],
       child: const Meraj3iApp(),
     ),

@@ -33,7 +33,8 @@ class _AddBookScreenState extends State<AddBookScreen> {
     'الإعدادية',
     'الثانوية',
     'الوطنية',
-    'SWEDD'
+    'SWEDD',
+    'كتب أخرى'
   ];
 
   final List<String> _categories = [

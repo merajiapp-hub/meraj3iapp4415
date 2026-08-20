@@ -46,7 +46,7 @@ class ChatProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   ChatSession? get currentSession => _currentSessionId != null
-      ? _sessions.firstWhere((s) => s.id == _currentSessionId)
+      ? _sessions.where((s) => s.id == _currentSessionId).firstOrNull
       : null;
 
   Future<void> loadSessions(String userId) async {
@@ -88,7 +88,17 @@ class ChatProvider extends ChangeNotifier {
         });
 
     _currentSessionId = docRef.id;
-    await loadSessions(userId);
+
+    // ✅ إضافة الجلسة مباشرةً للقائمة المحلية بدلاً من إعادة تحميل الكل
+    final newSession = ChatSession(
+      id: docRef.id,
+      title: title,
+      updatedAt: DateTime.now(),
+      messages: [],
+    );
+    _sessions.insert(0, newSession);
+    notifyListeners();
+
     return docRef.id;
   }
 
@@ -97,22 +107,34 @@ class ChatProvider extends ChangeNotifier {
     String sessionId,
     Map<String, String> message,
   ) async {
-    final sessionRef = _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('chats')
-        .doc(sessionId);
-
-    await sessionRef.update({
-      'messages': FieldValue.arrayUnion([message]),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-
-    // Update local state
+    // ✅ تحديث الحالة المحلية فوراً لتحديث الـ UI في الحال
     final index = _sessions.indexWhere((s) => s.id == sessionId);
     if (index != -1) {
       _sessions[index].messages.add(message);
       notifyListeners();
+    } else {
+      // إذا لم تكن الجلسة محلياً، نُحمّلها أولاً
+      await loadSessions(userId);
+      final newIndex = _sessions.indexWhere((s) => s.id == sessionId);
+      if (newIndex != -1) {
+        _sessions[newIndex].messages.add(message);
+        notifyListeners();
+      }
+    }
+
+    // ثم نحفظ في Firestore بشكل غير متزامن
+    try {
+      final sessionRef = _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('chats')
+          .doc(sessionId);
+      await sessionRef.update({
+        'messages': FieldValue.arrayUnion([message]),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Error saving message to Firestore: $e');
     }
   }
 

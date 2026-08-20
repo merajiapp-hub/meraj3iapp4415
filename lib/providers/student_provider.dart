@@ -58,13 +58,22 @@ class StudentProvider with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('student_profile', _profile.toJson());
 
-    final user = _auth.currentUser;
+      final user = _auth.currentUser;
     if (user != null) {
       try {
         await _firestore.collection('users').doc(user.uid).collection('data').doc('profile').set(
           _profile.toMap(),
           SetOptions(merge: true),
         );
+        // Also update the root user document for leaderboard querying
+        await _firestore.collection('users').doc(user.uid).set({
+          'points': _profile.points,
+          'booksRead': _profile.booksRead,
+          'completedTasks': _profile.completedTasks,
+          'quizzesTaken': _profile.quizzesTaken,
+          'progressLevel': _profile.progressLevel,
+          'name': _profile.name, // Ensure name is synced
+        }, SetOptions(merge: true));
       } catch (e) {
         debugPrint('Error updating profile in Firestore: $e');
       }
@@ -78,19 +87,45 @@ class StudentProvider with ChangeNotifier {
     await updateProfile(_profile);
   }
 
-  // يمكن الإبقاء على هذه الوظائف لكن يفضل الاعتماد على StatisticsProvider
   Future<void> incrementBooksRead() async {
     _profile.booksRead++;
-    await updateProfile(_profile);
+    await calculatePointsAndUpdate();
   }
 
-  Future<void> incrementQuizzesTaken() async {
+  Future<void> incrementQuizzesTaken(double score) async {
     _profile.quizzesTaken++;
-    await updateProfile(_profile);
+    // We can add the score to points, but for now we'll just recalculate based on stats
+    // A better approach is to store sum of scores, but we can do a simplified point addition
+    _profile.points += score.toInt();
+    await calculatePointsAndUpdate();
+  }
+
+  Future<void> incrementCompletedTasks() async {
+    _profile.completedTasks++;
+    await calculatePointsAndUpdate();
   }
 
   Future<void> updateProgressLevel(double level) async {
     _profile.progressLevel = level;
+    await calculatePointsAndUpdate();
+  }
+
+  Future<void> calculatePointsAndUpdate() async {
+    // Basic point calculation
+    // int newPoints = 0;
+    // newPoints += _profile.booksRead * 50;
+    // newPoints += _profile.completedTasks * 20;
+    // newPoints += _profile.quizzesTaken * 10;
+    // adding existing points (from quiz scores) back in, or just relying on this formula.
+    // Let's actually just update points directly from activities or here.
+    // If we only rely on formula, we lose specific quiz scores unless stored.
+    // So let's make points cumulative instead of recalculated from scratch.
+    // We just call updateProfile.
+    await updateProfile(_profile);
+  }
+
+  Future<void> addPoints(int amount) async {
+    _profile.points += amount;
     await updateProfile(_profile);
   }
 }

@@ -6,6 +6,11 @@ import 'dart:math';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/notifications_provider.dart';
+import '../providers/favorites_provider.dart';
+import '../providers/downloads_provider.dart';
+import '../providers/task_provider.dart';
+import '../providers/reading_provider.dart';
+import '../widgets/app_notification.dart';
 
 import '../theme/app_theme.dart';
 import 'search_screen.dart';
@@ -17,11 +22,12 @@ import 'add_book_screen.dart';
 import 'profile_screen.dart';
 import 'reviews_screen.dart';
 import 'review_statistics_screen.dart';
+import 'student_competition_screen.dart';
+import 'notes_screen.dart';
 
 import 'info_screen.dart';
 import 'login_screen.dart';
 import 'stages_screen.dart';
-import 'schedule_screen.dart';
 import 'results/results_home_screen.dart';
 import 'swedd_screen.dart';
 import 'ai_search_screen.dart';
@@ -53,9 +59,6 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage>
     with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
-
-  // إخفاء/إظهار شريط التنقل السفلي بشكل ذكي
-  bool _showNavBar = true;
 
   // نظام Toast الخروج
   bool _exitToastShown = false;
@@ -201,21 +204,7 @@ class _HomePageState extends State<HomePage>
           children: [
             NotificationListener<ScrollNotification>(
               onNotification: (ScrollNotification notification) {
-                if (notification is ScrollUpdateNotification) {
-                  final delta = notification.scrollDelta ?? 0;
-                  final offset = notification.metrics.pixels;
-                  // إخفاء عند التمرير للأسفل (بعد 50px)، إظهار عند التمرير للأعلى
-                  if (delta > 8 && offset > 50 && _showNavBar) {
-                    setState(() => _showNavBar = false);
-                  } else if (delta < -8 && !_showNavBar) {
-                    setState(() => _showNavBar = true);
-                  }
-                } else if (notification is ScrollEndNotification) {
-                  // إظهار مجدداً عند توقف التمرير
-                  if (notification.metrics.pixels <= 10) {
-                    if (!_showNavBar) setState(() => _showNavBar = true);
-                  }
-                }
+                // تم إيقاف إخفاء الشريط السفلي بناءً على طلب المستخدم
                 return false;
               },
               child: CustomScrollView(
@@ -470,7 +459,7 @@ class _HomePageState extends State<HomePage>
                             ],
                           ),
                         ),
-                        const SizedBox(height: 100), // مساحة للشريط السفلي العائم
+                        const SizedBox(height: 120), // مساحة للشريط السفلي العائم لكي لا يغطي المحتوى
                       ],
                     ),
                   ),
@@ -480,11 +469,9 @@ class _HomePageState extends State<HomePage>
           ],
         ),
       ),
-      // شريط التنقل السفلي مع حركة إخفاء/إظهار ذكية
-      AnimatedPositioned(
-        duration: const Duration(milliseconds: 280),
-        curve: Curves.easeInOutCubic,
-        bottom: _showNavBar ? 0 : -100,
+      // شريط التنقل السفلي الثابت
+      Positioned(
+        bottom: 0,
         left: 0,
         right: 0,
         child: _buildBottomNav(isDark),
@@ -502,7 +489,7 @@ class _HomePageState extends State<HomePage>
   // ══════════════════════════════════════════════════════
   Widget _buildFloatingActionButton() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 70), // لتجنب الشريط السفلي
+      margin: const EdgeInsets.only(bottom: 90), // مرفوع قليلاً لكي لا يصطدم بالشريط السفلي
       decoration: BoxDecoration(
         gradient: AppTheme.brandGradient,
         shape: BoxShape.circle,
@@ -544,8 +531,22 @@ class _HomePageState extends State<HomePage>
         ),
       ),
       _ServiceItem(
-        title: 'نتائج المسابقات',
+        title: 'التنافس بين الطلاب',
         icon: Icons.emoji_events_rounded,
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFB75E), Color(0xFFED8F03)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        badge: 'جديد',
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const StudentCompetitionScreen()),
+        ),
+      ),
+      _ServiceItem(
+        title: 'نتائج المسابقات',
+        icon: Icons.leaderboard_rounded,
         gradient: const LinearGradient(
           colors: [Color(0xFFFF6B35), Color(0xFFE53935)],
           begin: Alignment.topLeft,
@@ -588,6 +589,16 @@ class _HomePageState extends State<HomePage>
         ),
       ),
       _ServiceItem(
+        title: 'ملاحظاتي',
+        icon: Icons.notes_rounded,
+        gradient: AppTheme.purpleGradient,
+        badge: null,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const NotesScreen()),
+        ),
+      ),
+      _ServiceItem(
         title: 'SWEDD',
         icon: Icons.health_and_safety_rounded,
         gradient: AppTheme.pinkGradient,
@@ -597,24 +608,78 @@ class _HomePageState extends State<HomePage>
           MaterialPageRoute(builder: (_) => const SweddScreen()),
         ),
       ),
+      // منقولة من الشريط الجانبي
+      _ServiceItem(
+        title: 'الاختبارات',
+        icon: Icons.quiz_rounded,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        badge: null,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ExamGeneratorScreen()),
+        ),
+      ),
+      _ServiceItem(
+        title: 'الإحصائيات',
+        icon: Icons.bar_chart_rounded,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0EA5E9), Color(0xFF0284C7)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        badge: null,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const StatisticsScreen()),
+        ),
+      ),
+      _ServiceItem(
+        title: 'قائمة القراءة',
+        icon: Icons.menu_book_rounded,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF14B8A6), Color(0xFF0D9488)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        badge: null,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ReadingListScreen()),
+        ),
+      ),
+      _ServiceItem(
+        title: 'تطور المستوى',
+        icon: Icons.trending_up_rounded,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF10B981), Color(0xFF059669)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        badge: null,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ProgressScreen()),
+        ),
+      ),
     ];
-
-    // حساب عرض البطاقة بناءً على حجم الشاشة (2 عمود)
-    final cardWidth = (size.width - 32 - 12) / 2; // padding + spacing
 
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.55, // نسبة عرض/ارتفاع مثالية للبطاقات
+        crossAxisCount: 3,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 1.05,
       ),
       itemCount: services.length,
       itemBuilder: (context, index) {
         final s = services[index];
-        return _buildServiceCard(s, isDark, cardWidth);
+        return _buildServiceCard(s, isDark, 0);
       },
     );
   }
@@ -629,14 +694,13 @@ class _HomePageState extends State<HomePage>
       child: Container(
         decoration: BoxDecoration(
           color: isDark ? AppTheme.surfaceDark : Colors.white,
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
               color: (service.gradient as LinearGradient).colors.first
-                  .withValues(alpha: isDark ? 0.2 : 0.12),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-              spreadRadius: 0,
+                  .withValues(alpha: isDark ? 0.18 : 0.10),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
           ],
           border: Border.all(
@@ -645,7 +709,7 @@ class _HomePageState extends State<HomePage>
                 : (service.gradient as LinearGradient).colors.first.withValues(
                     alpha: 0.12,
                   ),
-            width: 1.2,
+            width: 1,
           ),
         ),
         child: Stack(
@@ -656,11 +720,11 @@ class _HomePageState extends State<HomePage>
               left: 0,
               right: 0,
               child: Container(
-                height: 3,
+                height: 2.5,
                 decoration: BoxDecoration(
                   gradient: service.gradient,
                   borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(22),
+                    top: Radius.circular(18),
                   ),
                 ),
               ),
@@ -668,29 +732,29 @@ class _HomePageState extends State<HomePage>
 
             // المحتوى الرئيسي
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
+              padding: const EdgeInsets.fromLTRB(10, 14, 10, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   // الأيقونة
                   Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       gradient: service.gradient,
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(11),
                       boxShadow: [
                         BoxShadow(
                           color: (service.gradient as LinearGradient)
                               .colors
                               .first
-                              .withValues(alpha: 0.35),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
+                              .withValues(alpha: 0.30),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                    child: Icon(service.icon, color: Colors.white, size: 22),
+                    child: Icon(service.icon, color: Colors.white, size: 18),
                   ),
 
                   // النص
@@ -698,9 +762,9 @@ class _HomePageState extends State<HomePage>
                     service.title,
                     style: GoogleFonts.tajawal(
                       fontWeight: FontWeight.bold,
-                      fontSize: 13.5,
+                      fontSize: 11.5,
                       color: isDark ? Colors.white : const Color(0xFF0A1A15),
-                      height: 1.3,
+                      height: 1.25,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -712,49 +776,28 @@ class _HomePageState extends State<HomePage>
             // شارة (Badge) اختيارية
             if (service.badge != null)
               Positioned(
-                top: 10,
-                left: 10,
+                top: 8,
+                left: 8,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 3,
+                    horizontal: 5,
+                    vertical: 2,
                   ),
                   decoration: BoxDecoration(
                     gradient: service.gradient,
                     borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: (service.gradient as LinearGradient).colors.first
-                            .withValues(alpha: 0.4),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
                   ),
                   child: Text(
                     service.badge!,
                     style: GoogleFonts.outfit(
                       color: Colors.white,
-                      fontSize: 9,
+                      fontSize: 8,
                       fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
+                      letterSpacing: 0.4,
                     ),
                   ),
                 ),
               ),
-
-            // سهم في الركن السفلي الأيسر
-            Positioned(
-              bottom: 12,
-              left: 14,
-              child: Icon(
-                Icons.arrow_back_ios_rounded,
-                size: 12,
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.3)
-                    : const Color(0xFF0A1A15).withValues(alpha: 0.25),
-              ),
-            ),
           ],
         ),
       ),
@@ -942,7 +985,7 @@ class _HomePageState extends State<HomePage>
   }
 
   // ══════════════════════════════════════════════════════
-  //  شريط التنقل السفلي — منحني احترافي
+  //  شريط التنقل السفلي — هندسي وعصري
   // ══════════════════════════════════════════════════════
   Widget _buildBottomNav(bool isDark) {
     final items = [
@@ -952,98 +995,87 @@ class _HomePageState extends State<HomePage>
       _NavItem(icon: Icons.person_rounded, label: 'حسابي'),
     ];
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryColor.withValues(alpha: isDark ? 0.2 : 0.12),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-            spreadRadius: 0,
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.surfaceDark.withValues(alpha: 0.95) : Colors.white.withValues(alpha: 0.95),
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primaryColor.withValues(alpha: isDark ? 0.2 : 0.15),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+          border: Border.all(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.1)
+                : AppTheme.primaryColor.withValues(alpha: 0.1),
+            width: 1.5,
           ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 2),
-          ),
-        ],
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.07)
-              : AppTheme.primaryColor.withValues(alpha: 0.1),
-          width: 1,
         ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(items.length, (index) {
-          final isSelected = _selectedIndex == index;
-          return Expanded(
-            child: GestureDetector(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: List.generate(items.length, (index) {
+            final isSelected = _selectedIndex == index;
+            return GestureDetector(
               onTap: () => _onItemTapped(index),
               behavior: HitTestBehavior.opaque,
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
+                duration: const Duration(milliseconds: 350),
                 curve: Curves.easeOutCubic,
-                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppTheme.primaryColor.withValues(alpha: 0.12)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(18),
+                padding: EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: isSelected ? 20 : 16,
                 ),
-                child: Column(
+                decoration: BoxDecoration(
+                  gradient: isSelected ? AppTheme.brandGradient : null,
+                  color: isSelected ? null : Colors.transparent,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppTheme.primaryColor.withValues(alpha: 0.4),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          )
+                        ]
+                      : [],
+                ),
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      curve: Curves.easeOutCubic,
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppTheme.primaryColor
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: AppTheme.primaryColor.withValues(alpha: 0.4),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                )
-                              ]
-                            : [],
-                      ),
-                      child: Icon(
-                        items[index].icon,
-                        size: 22,
-                        color: isSelected
-                            ? Colors.white
-                            : (isDark ? Colors.white38 : Colors.grey[400]),
-                      ),
+                    Icon(
+                      items[index].icon,
+                      size: 24,
+                      color: isSelected
+                          ? Colors.white
+                          : (isDark ? Colors.white54 : Colors.grey[500]),
                     ),
-                    const SizedBox(height: 4),
-                    AnimatedDefaultTextStyle(
-                      duration: const Duration(milliseconds: 200),
-                      style: GoogleFonts.tajawal(
-                        fontSize: 10,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        color: isSelected
-                            ? AppTheme.primaryColor
-                            : (isDark ? Colors.white38 : Colors.grey[400]),
+                    if (isSelected) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        items[index].label,
+                        style: GoogleFonts.tajawal(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
-                      child: Text(items[index].label),
-                    ),
+                    ],
                   ],
                 ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
+        ),
       ),
     );
   }
@@ -1137,39 +1169,11 @@ class _HomePageState extends State<HomePage>
                     MaterialPageRoute(builder: (_) => const AddedBooksScreen()),
                   );
                 }),
-                _buildDrawerItem(Icons.trending_up_rounded, 'تطور المستوى', () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ProgressScreen()),
-                  );
-                }),
-                _buildDrawerItem(Icons.menu_book_rounded, 'قائمة القراءة', () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ReadingListScreen()),
-                  );
-                }),
                 _buildDrawerItem(Icons.history_edu_rounded, 'سجل القراءة', () {
                   Navigator.pop(context);
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const ReadingHistoryScreen()),
-                  );
-                }),
-                _buildDrawerItem(Icons.quiz_rounded, 'الاختبارات', () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ExamGeneratorScreen()),
-                  );
-                }),
-                _buildDrawerItem(Icons.bar_chart_rounded, 'الإحصائيات', () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const StatisticsScreen()),
                   );
                 }),
                 const Padding(
@@ -1203,19 +1207,6 @@ class _HomePageState extends State<HomePage>
                     ),
                   );
                 }),
-                _buildDrawerItem(
-                  Icons.edit_calendar_rounded,
-                  'الجدول الدراسي',
-                  () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ScheduleScreen(),
-                      ),
-                    );
-                  },
-                ),
 
                 _buildDrawerItem(Icons.settings_rounded, 'الإعدادات', () {
                   Navigator.pop(context);
@@ -1294,10 +1285,81 @@ class _HomePageState extends State<HomePage>
                   child: Divider(height: 1),
                 ),
                 _buildDrawerItem(Icons.logout_rounded, 'تسجيل الخروج', () {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    (route) => false,
+                  final isDark = Theme.of(context).brightness == Brightness.dark;
+                  showDialog(
+                    context: context,
+                    builder: (context) {
+                      return AlertDialog(
+                        backgroundColor: isDark ? AppTheme.surfaceDark : Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        title: Column(
+                          children: [
+                            Image.asset('assets/images/logo.png', height: 60),
+                            const SizedBox(height: 12),
+                            Text(
+                              'تسجيل الخروج',
+                              style: GoogleFonts.tajawal(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.redAccent,
+                              ),
+                            ),
+                          ],
+                        ),
+                        content: Text(
+                          'هل أنت متأكد من أنك تريد تسجيل الخروج من حسابك؟',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.tajawal(
+                            color: isDark ? Colors.white70 : Colors.black87,
+                          ),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: Text(
+                              'إلغاء',
+                              style: GoogleFonts.tajawal(
+                                color: Colors.grey,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          ElevatedButton(
+                            onPressed: () async {
+                              Navigator.pop(context);
+                              final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                              await authProvider.signOut();
+                              try {
+                                await authProvider.signOutGoogle();
+                              } catch (_) {}
+                              if (context.mounted) {
+                                Provider.of<FavoritesProvider>(context, listen: false).clearAll();
+                                Provider.of<DownloadsProvider>(context, listen: false).clearAll();
+                                Provider.of<TaskProvider>(context, listen: false).clearAll();
+                                Provider.of<ReadingProvider>(context, listen: false).clearAll();
+                                AppNotification.showLogout(context);
+                                Navigator.of(context).pushAndRemoveUntil(
+                                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                                  (route) => false,
+                                );
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.redAccent,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              'تسجيل الخروج',
+                              style: GoogleFonts.tajawal(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   );
                 }, color: Colors.redAccent),
                 const SizedBox(height: 20),

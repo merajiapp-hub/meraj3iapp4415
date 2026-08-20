@@ -16,6 +16,8 @@ class StudentProfile {
   int booksRead;
   int quizzesTaken;
   double progressLevel;
+  int completedTasks;
+  int points;
   List<String> achievements;
 
   StudentProfile({
@@ -34,6 +36,8 @@ class StudentProfile {
     this.booksRead = 0,
     this.quizzesTaken = 0,
     this.progressLevel = 0.0,
+    this.completedTasks = 0,
+    this.points = 0,
     this.achievements = const [],
   });
 
@@ -54,6 +58,8 @@ class StudentProfile {
       'booksRead': booksRead,
       'quizzesTaken': quizzesTaken,
       'progressLevel': progressLevel,
+      'completedTasks': completedTasks,
+      'points': points,
       'achievements': achievements,
     };
   }
@@ -77,6 +83,8 @@ class StudentProfile {
       booksRead: map['booksRead'] ?? 0,
       quizzesTaken: map['quizzesTaken'] ?? 0,
       progressLevel: (map['progressLevel'] ?? 0.0).toDouble(),
+      completedTasks: map['completedTasks'] ?? 0,
+      points: map['points'] ?? 0,
       achievements: List<String>.from(map['achievements'] ?? []),
     );
   }

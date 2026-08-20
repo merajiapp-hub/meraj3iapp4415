@@ -179,6 +179,70 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
+  void _showLogoutConfirmDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: isDark ? AppTheme.surfaceDark : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Column(
+            children: [
+              Image.asset('assets/images/logo.png', height: 60),
+              const SizedBox(height: 12),
+              Text(
+                'تسجيل الخروج',
+                style: GoogleFonts.tajawal(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.redAccent,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'هل أنت متأكد من أنك تريد تسجيل الخروج من حسابك؟',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.tajawal(
+              color: isDark ? Colors.white70 : Colors.black87,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'إلغاء',
+                style: GoogleFonts.tajawal(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _logout();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(
+                'تسجيل الخروج',
+                style: GoogleFonts.tajawal(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _logout() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     await authProvider.signOut();
@@ -794,7 +858,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           icon: Icons.logout_rounded,
           color: Colors.redAccent,
           isDark: isDark,
-          onTap: _logout,
+          onTap: _showLogoutConfirmDialog,
         ),
         const SizedBox(height: 24),
         Text(

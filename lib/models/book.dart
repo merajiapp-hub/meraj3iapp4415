@@ -9,6 +9,7 @@ class Book {
   final String url;
   final String solutionUrl;
   final String coverUrl;
+  final String uploaderId;
 
   const Book({
     required this.id,
@@ -21,6 +22,7 @@ class Book {
     required this.url,
     this.solutionUrl = '',
     this.coverUrl = '',
+    this.uploaderId = '',
   });
 
   /// مفتاح فريد يجمع كل خصائص الكتاب لتجنب التكرار
@@ -38,6 +40,7 @@ class Book {
       url: map['url'] ?? '',
       solutionUrl: map['solutionUrl'] ?? '',
       coverUrl: map['coverUrl'] ?? '',
+      uploaderId: map['uploaderId'] ?? '',
     );
   }
 
@@ -53,6 +56,7 @@ class Book {
       'url': url,
       'solutionUrl': solutionUrl,
       'coverUrl': coverUrl,
+      'uploaderId': uploaderId,
     };
   }
 

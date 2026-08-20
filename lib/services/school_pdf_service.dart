@@ -6,8 +6,6 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
-import 'package:arabic_reshaper/arabic_reshaper.dart';
-import 'package:bidi/bidi.dart' as bidi;
 import '../services/results_service.dart';
 import '../models/result_pdf_file.dart';
 
@@ -34,15 +32,9 @@ class SchoolPdfService {
   static final _separatorBlue = PdfColor(30, 80, 110); // الفاصل الأزرق
   static final _textGray = PdfColor(80, 80, 80);
 
-  /// Helper to shape Arabic text and apply Bidi logical-to-visual
+  /// Helper for Arabic string (now just returns text since Syncfusion handles RTL natively)
   static String _ar(String text) {
-    if (text.isEmpty) return text;
-    try {
-      final reshaped = ArabicReshaper.instance.reshape(text);
-      return String.fromCharCodes(bidi.logicalToVisual(reshaped));
-    } catch (_) {
-      return text; // fallback
-    }
+    return text;
   }
 
   static Future<Directory> _getResultsDir() async {
@@ -198,12 +190,12 @@ class SchoolPdfService {
     // ── تنسيق RTL الأساسي ──────────────────────────────────
     final rtlRight = PdfStringFormat(
       alignment: PdfTextAlignment.right,
-      textDirection: PdfTextDirection.leftToRight,
+      textDirection: PdfTextDirection.rightToLeft,
       lineAlignment: PdfVerticalAlignment.middle,
     );
     final rtlCenter = PdfStringFormat(
       alignment: PdfTextAlignment.center,
-      textDirection: PdfTextDirection.leftToRight,
+      textDirection: PdfTextDirection.rightToLeft,
       lineAlignment: PdfVerticalAlignment.middle,
     );
     final ltrRight = PdfStringFormat(
@@ -490,12 +482,10 @@ class SchoolPdfService {
           );
         }
 
-        // الاسم (عمود 2) يحتاج RTL مع Arabic Shaping
-        // باقي الأعمدة بالوسط
         final fmt = j == 2 // عمود الاسم
             ? PdfStringFormat(
                 alignment: PdfTextAlignment.right,
-                textDirection: PdfTextDirection.leftToRight,
+                textDirection: PdfTextDirection.rightToLeft,
                 lineAlignment: PdfVerticalAlignment.middle,
               )
             : rtlCenter;
@@ -533,7 +523,7 @@ class SchoolPdfService {
       bounds: Rect.fromLTWH(0, h - 18, w, 16),
       format: PdfStringFormat(
         alignment: PdfTextAlignment.center,
-        textDirection: PdfTextDirection.leftToRight,
+        textDirection: PdfTextDirection.rightToLeft,
       ),
     );
   }

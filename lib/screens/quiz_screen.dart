@@ -1,9 +1,16 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:screenshot/screenshot.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:syncfusion_flutter_pdf/pdf.dart';
+import 'package:open_filex/open_filex.dart';
 import '../theme/app_theme.dart';
 import '../providers/quiz_provider.dart';
+import '../providers/auth_provider.dart';
 import 'ai_search_screen.dart';
 
 class QuizScreen extends StatefulWidget {
@@ -850,6 +857,13 @@ class _QuizResultScreenState extends State<_QuizResultScreen>
   late AnimationController _animController;
   late Animation<double> _scaleAnim;
   bool _showReview = false;
+  // كونترولر للشاشة الكاملة (PDF)
+  final ScreenshotController _screenshotController = ScreenshotController();
+  // كونترولر مخصص لكرت النتيجة فقط (مشاركة الصورة)
+  final ScreenshotController _cardController = ScreenshotController();
+  bool _isSaving = false;
+  String _studentName = 'الطالب';
+  String? _studentPhotoUrl;
 
   @override
   void initState() {
@@ -863,6 +877,14 @@ class _QuizResultScreenState extends State<_QuizResultScreen>
       curve: Curves.elasticOut,
     );
     _animController.forward();
+    // جلب بيانات الطالب
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      setState(() {
+        _studentName = auth.user?.displayName ?? 'الطالب';
+        _studentPhotoUrl = auth.user?.photoURL;
+      });
+    });
   }
 
   @override
@@ -893,14 +915,32 @@ class _QuizResultScreenState extends State<_QuizResultScreen>
       backgroundColor: isDark
           ? AppTheme.backgroundDark
           : AppTheme.backgroundLight,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              // ─── الرأس ───────────────────────────────────────
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(32),
+      body: Stack(
+        children: [
+          // كرت المشاركة مخفي خارج الشاشة ليتم تصويره
+          Positioned(
+            left: -9999,
+            child: Material(
+              type: MaterialType.transparency,
+              child: Screenshot(
+                controller: _cardController,
+                child: _buildShareCard(),
+              ),
+            ),
+          ),
+          // المحتوى الرئيسي
+          SafeArea(
+            child: SingleChildScrollView(
+              child: Screenshot(
+                controller: _screenshotController,
+                child: Container(
+                  color: isDark ? AppTheme.backgroundDark : AppTheme.backgroundLight,
+                  child: Column(
+                    children: [
+                      // ─── الرأس ───────────────────────────────────────
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(32),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -1253,101 +1293,136 @@ class _QuizResultScreenState extends State<_QuizResultScreen>
                     ],
 
                     // ─── أزرار ────────────────────────────────────────
-                    Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => Navigator.pop(context),
-                            child: Container(
-                              height: 52,
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? Colors.white.withValues(alpha: 0.08)
-                                    : const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  'الرئيسية',
-                                  style: GoogleFonts.tajawal(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                  ),
+                    if (_isSaving)
+                      const Center(child: CircularProgressIndicator())
+                    else
+                      Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildActionButton(
+                                  isDark: isDark,
+                                  icon: Icons.image_rounded,
+                                  label: 'مشاركة كصورة',
+                                  color: Colors.blue,
+                                  onTap: _shareImage,
                                 ),
                               ),
-                            ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildActionButton(
+                                  isDark: isDark,
+                                  icon: Icons.picture_as_pdf_rounded,
+                                  label: 'حفظ كـ PDF',
+                                  color: Colors.red,
+                                  onTap: _savePdf,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 2,
-                          child: GestureDetector(
-                            onTap: () {
-                              final provider = Provider.of<QuizProvider>(
-                                context,
-                                listen: false,
-                              );
-                              provider.generateNewQuiz();
-                              widget.onRetry();
-                            },
-                            child: Container(
-                              height: 52,
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    AppTheme.primaryColor,
-                                    Color(0xFF0891B2),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppTheme.primaryColor.withValues(
-                                      alpha: 0.35,
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => Navigator.pop(context),
+                                  child: Container(
+                                    height: 52,
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? Colors.white.withValues(alpha: 0.08)
+                                          : const Color(0xFFF1F5F9),
+                                      borderRadius: BorderRadius.circular(16),
                                     ),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Center(
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(
-                                      Icons.refresh_rounded,
-                                      color: Colors.white,
-                                      size: 18,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'اختبار جديد',
-                                      style: GoogleFonts.tajawal(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 15,
-                                        color: Colors.white,
+                                    child: Center(
+                                      child: Text(
+                                        'الرئيسية',
+                                        style: GoogleFonts.tajawal(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                        ),
                                       ),
                                     ),
-                                  ],
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+                              const SizedBox(width: 12),
+                              Expanded(
+                                flex: 2,
+                                child: GestureDetector(
+                                  onTap: () {
+                                    final provider = Provider.of<QuizProvider>(
+                                      context,
+                                      listen: false,
+                                    );
+                                    provider.generateNewQuiz();
+                                    widget.onRetry();
+                                  },
+                                  child: Container(
+                                    height: 52,
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          AppTheme.primaryColor,
+                                          Color(0xFF0891B2),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: AppTheme.primaryColor.withValues(
+                                            alpha: 0.35,
+                                          ),
+                                          blurRadius: 12,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Center(
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(
+                                            Icons.refresh_rounded,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'اختبار جديد',
+                                            style: GoogleFonts.tajawal(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 15,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              ], // يغلق children الخاص بـ Row
+                            ), // يغلق Row
+                          ], // يغلق children الخاص بـ Column
+                        ), // يغلق Column
+                      const SizedBox(height: 12),
+                    ], // يغلق Column داخل Padding
+                  ), // يغلق Column
+                ), // يغلق Padding
+              ], // يغلق children الخاص بالـ Column الرئيسي
+            ), // يغلق الـ Column الرئيسي
+          ), // يغلق Container
+        ), // يغلق Screenshot
+      ), // يغلق SingleChildScrollView
+    ), // يغلق SafeArea
+  ], // يغلق children الخاص بالـ Stack
+), // يغلق Stack
+); // يغلق Scaffold
+}
 
   Widget _buildStatCard({
     required bool isDark,
@@ -1389,6 +1464,346 @@ class _QuizResultScreenState extends State<_QuizResultScreen>
         ],
       ),
     );
+  }
+
+  Widget _buildActionButton({
+    required bool isDark,
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 52,
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.surfaceDark : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.5)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: GoogleFonts.tajawal(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// يبني كرت النتيجة الجذاب المنفصل (يُستخدم للمشاركة فقط)
+  Widget _buildShareCard() {
+    final resultColor = _getResultColor();
+    final emoji = widget.percentage >= 90 ? '🏆'
+        : widget.percentage >= 80 ? '🌟'
+        : widget.percentage >= 60 ? '💪'
+        : '📚';
+
+    return Container(
+      width: 380,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [const Color(0xFF0A1628), const Color(0xFF0F2A4A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: Stack(
+        children: [
+          // دوائر زخرفية خلفية
+          Positioned(
+            right: -40,
+            top: -40,
+            child: Container(
+              width: 160,
+              height: 160,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: resultColor.withValues(alpha: 0.15),
+              ),
+            ),
+          ),
+          Positioned(
+            left: -30,
+            bottom: -30,
+            child: Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppTheme.primaryColor.withValues(alpha: 0.15),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // شعار التطبيق
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'MERAJ3I',
+                      style: GoogleFonts.outfit(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: resultColor.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: resultColor.withValues(alpha: 0.5)),
+                      ),
+                      child: Text(
+                        'نتيجة الاختبار',
+                        style: GoogleFonts.tajawal(
+                          fontSize: 11,
+                          color: resultColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                // صورة الطالب + اسمه
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Colors.white.withValues(alpha: 0.1),
+                      backgroundImage: _studentPhotoUrl != null
+                          ? NetworkImage(_studentPhotoUrl!)
+                          : null,
+                      child: _studentPhotoUrl == null
+                          ? Text(
+                              _studentName.isNotEmpty ? _studentName[0].toUpperCase() : 'ط',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _studentName,
+                            style: GoogleFonts.tajawal(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            '${widget.total} سؤال • ${widget.timeStr}',
+                            style: GoogleFonts.tajawal(
+                              fontSize: 12,
+                              color: Colors.white60,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 28),
+                // النتيجة الكبيرة
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  decoration: BoxDecoration(
+                    color: resultColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: resultColor.withValues(alpha: 0.3)),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        emoji,
+                        style: const TextStyle(fontSize: 40),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${widget.percentage}%',
+                        style: GoogleFonts.outfit(
+                          fontSize: 64,
+                          fontWeight: FontWeight.w900,
+                          color: resultColor,
+                          height: 1,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _getResultMessage().replaceAll(RegExp(r'[\u{1F300}-\u{1FFFF}]', unicode: true), '').trim(),
+                        style: GoogleFonts.tajawal(
+                          fontSize: 16,
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // إحصائيات صح/خطأ
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildShareStat(
+                        '${widget.correctAnswers}',
+                        'صحيحة',
+                        const Color(0xFF10B981),
+                        Icons.check_circle_rounded,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildShareStat(
+                        '${widget.wrongAnswers}',
+                        'خاطئة',
+                        const Color(0xFFEF4444),
+                        Icons.cancel_rounded,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildShareStat(
+                        widget.timeStr,
+                        'الوقت',
+                        const Color(0xFF8B5CF6),
+                        Icons.timer_rounded,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                // Footer
+                Text(
+                  'meraj3i.com • تطبيق المراجعة الذكي',
+                  style: GoogleFonts.tajawal(
+                    fontSize: 11,
+                    color: Colors.white30,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShareStat(String value, String label, Color color, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: GoogleFonts.outfit(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: color,
+            ),
+          ),
+          Text(
+            label,
+            style: GoogleFonts.tajawal(fontSize: 10, color: Colors.white54),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _shareImage() async {
+    setState(() => _isSaving = true);
+    try {
+      // التقاط كرت النتيجة الجذاب فقط
+      final imageBytes = await _cardController.capture(pixelRatio: 3.0);
+      if (imageBytes != null) {
+        final directory = await getApplicationDocumentsDirectory();
+        final path = '${directory.path}/meraj3i_result_${DateTime.now().millisecondsSinceEpoch}.png';
+        final file = File(path);
+        await file.writeAsBytes(imageBytes, flush: true);
+        // ignore: deprecated_member_use
+        await Share.shareXFiles(
+          [XFile(path)],
+          text: 'حصلت على ${widget.percentage}% في اختبار MERAJ3I! ${
+            widget.percentage >= 90 ? '🏆' : widget.percentage >= 80 ? '🌟' : '💪'
+          } حمّل التطبيق الآن!',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('حدث خطأ أثناء المشاركة: $e')),
+        );
+      }
+    }
+    setState(() => _isSaving = false);
+  }
+
+  Future<void> _savePdf() async {
+    setState(() => _isSaving = true);
+    try {
+      final imageBytes = await _screenshotController.capture();
+      if (imageBytes != null) {
+        final PdfDocument document = PdfDocument();
+        final PdfPage page = document.pages.add();
+        final PdfBitmap bitmap = PdfBitmap(imageBytes);
+        
+        page.graphics.drawImage(
+          bitmap,
+          Rect.fromLTWH(0, 0, page.getClientSize().width, page.getClientSize().height),
+        );
+        
+        final List<int> bytes = await document.save();
+        document.dispose();
+        
+        final directory = await getApplicationDocumentsDirectory();
+        final path = '${directory.path}/meraj3i_result_${DateTime.now().millisecondsSinceEpoch}.pdf';
+        final file = File(path);
+        await file.writeAsBytes(bytes, flush: true);
+        
+        OpenFilex.open(path);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('حدث خطأ أثناء حفظ الـ PDF: $e')),
+        );
+      }
+    }
+    setState(() => _isSaving = false);
   }
 }
 

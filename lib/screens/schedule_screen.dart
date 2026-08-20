@@ -7,7 +7,8 @@ import '../theme/app_theme.dart';
 
 
 class ScheduleScreen extends StatefulWidget {
-  const ScheduleScreen({super.key});
+  final bool embedded;
+  const ScheduleScreen({super.key, this.embedded = false});
 
   @override
   State<ScheduleScreen> createState() => _ScheduleScreenState();
@@ -50,7 +51,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> with SingleTickerProvid
 
     return Scaffold(
       backgroundColor: isDark ? AppTheme.backgroundDark : AppTheme.backgroundLight,
-      appBar: AppBar(
+      appBar: widget.embedded ? null : AppBar(
         title: Text('الجدول الدراسي', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold)),
         centerTitle: true,
         elevation: 0,
