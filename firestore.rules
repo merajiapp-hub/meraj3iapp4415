@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    // يتحقق من Custom Claims (إذا نُشرت Functions) أو من مجموعة admins في Firestore
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.admin == true ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+    
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // ─── مجموعة admins ────────────────────────────────────────────────────────
+    // يمكن للمديرين فقط القراءة، ولا أحد يكتب إلا من Firebase Console مباشرة
+    match /admins/{adminId} {
+      allow read: if request.auth != null && request.auth.uid == adminId;
+      allow write: if false; // الكتابة فقط من Firebase Console أو Admin SDK
+    }
+
+    match /users/{userId} {
+      // Users can read their own data, admins can read all
+      allow read: if isOwner(userId) || isAdmin();
+      
+      // Only admins can delete users or change sensitive fields
+      allow delete: if isAdmin();
+      
+      // Users can update their non-sensitive fields
+      allow update: if (isOwner(userId) && !request.resource.data.keys().hasAny(['admin', 'isSuspended', 'mustChangePassword', 'points'])) || isAdmin();
+      
+      allow create: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /audit_logs/{logId} {
+      // Strictly admin only
+      allow read, write: if isAdmin();
+    }
+
+    match /admin_settings/{settingId} {
+      allow read: if true; // Might need this for remote config fallback
+      allow write: if isAdmin();
+    }
+    
+    // Default fallback (can adjust based on existing app rules)
+    match /{document=**} {
+      allow read, write: if request.auth != null; // Restrict based on actual app logic later
+    }
+  }
+}

@@ -46,6 +46,8 @@ import 'student/progress_screen.dart';
 import 'student/reading_list_screen.dart';
 import 'student/reading_history_screen.dart';
 import '../widgets/banner_ad_widget.dart';
+import 'admin/admin_guard.dart';
+import 'admin/admin_dashboard_screen.dart';
 
 
 class HomePage extends StatefulWidget {
@@ -1280,6 +1282,19 @@ class _HomePageState extends State<HomePage>
                     MaterialPageRoute(builder: (_) => const TermsOfUseScreen()),
                   );
                 }),
+                if (auth.isAdmin) ...[
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    child: Divider(height: 1),
+                  ),
+                  _buildDrawerItem(Icons.admin_panel_settings_rounded, 'لوحة الإدارة', () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AdminGuard(child: AdminDashboardScreen())),
+                    );
+                  }),
+                ],
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                   child: Divider(height: 1),

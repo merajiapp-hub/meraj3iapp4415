@@ -15,6 +15,8 @@ class AuthProvider extends ChangeNotifier {
   Map<String, dynamic>? _userData;
   bool _isGuest = false;
   bool _initialized = false;
+  bool _isAdmin = false;
+  bool _mustChangePassword = false;
 
   AuthProvider() {
     // قراءة الحالة المحلية الأولية بشكل متزامن دون انتظار
@@ -22,12 +24,17 @@ class AuthProvider extends ChangeNotifier {
     _isGuest = false; // سيُحدَّث من SharedPreferences لاحقاً
 
     // الاستماع لتغييرات Auth — بدون عمليات ثقيلة فيه
-    _auth.authStateChanges().listen((user) {
+    _auth.authStateChanges().listen((user) async {
       _user = user;
       if (user != null) {
         _isGuest = false;
+        // التحقق من صلاحيات الإدارة: أولاً من Firestore ثم Custom Claims كاحتياطي
+        await _checkAdminStatus(user);
         // تحميل بيانات المستخدم في الخلفية بدون تعليق الـ listener
         _loadUserDataBackground();
+      } else {
+        _isAdmin = false;
+        _mustChangePassword = false;
       }
       _initialized = true;
       notifyListeners();
@@ -42,10 +49,49 @@ class AuthProvider extends ChangeNotifier {
     _loadGuestStateBackground();
   }
 
+  // ─── التحقق من صلاحية Admin (Firestore + Custom Claims) ──────────────────
+  // يتحقق من مجموعة admins في Firestore أولاً (لا تحتاج Cloud Functions)
+  // ثم يحاول Custom Claims كاحتياطي (إذا نُشرت Functions لاحقاً)
+
+  Future<void> _checkAdminStatus(User user) async {
+    try {
+      // 1. فحص Firestore admins collection
+      final adminDoc = await _firestore
+          .collection('admins')
+          .doc(user.uid)
+          .get()
+          .timeout(const Duration(seconds: 5));
+
+      if (adminDoc.exists && adminDoc.data()?['isAdmin'] == true) {
+        _isAdmin = true;
+        debugPrint('[Auth] Admin confirmed via Firestore for ${user.email}');
+        return;
+      }
+
+      // 2. احتياطي: Custom Claims (تعمل إذا نُشرت Functions لاحقاً)
+      try {
+        final idTokenResult = await user.getIdTokenResult(true)
+            .timeout(const Duration(seconds: 5));
+        if (idTokenResult.claims?['admin'] == true) {
+          _isAdmin = true;
+          debugPrint('[Auth] Admin confirmed via Custom Claims for ${user.email}');
+          return;
+        }
+      } catch (_) {}
+
+      _isAdmin = false;
+    } catch (e) {
+      debugPrint('[Auth] Error checking admin status: $e');
+      _isAdmin = false;
+    }
+  }
+
   User? get user => _user;
   bool get isAuthenticated => _user != null;
   bool get isGuest => _isGuest;
   bool get initialized => _initialized;
+  bool get isAdmin => _isAdmin;
+  bool get mustChangePassword => _mustChangePassword;
   Map<String, dynamic>? get userData => _userData;
 
   // ─── getInitialAuthState مع Timeout آمن ──────────────────────────────────
@@ -104,6 +150,7 @@ class AuthProvider extends ChangeNotifier {
             .timeout(const Duration(seconds: 10));
         if (doc.exists && doc.data() != null) {
           _userData = doc.data();
+          _mustChangePassword = _userData?['mustChangePassword'] == true;
           notifyListeners();
         }
       } catch (e) {
@@ -267,6 +314,8 @@ class AuthProvider extends ChangeNotifier {
     } catch (_) {}
     _isGuest = false;
     _userData = null;
+    _isAdmin = false;
+    _mustChangePassword = false;
     notifyListeners();
 
     // تنظيف في الخلفية
