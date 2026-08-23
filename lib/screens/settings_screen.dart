@@ -11,6 +11,7 @@ import '../data/notification_service.dart';
 import 'privacy_policy_screen.dart';
 import 'terms_of_use_screen.dart';
 import '../theme/app_theme.dart';
+import '../providers/auth_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -39,6 +40,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _checkBiometrics();
     _loadPreferences();
     _loadVersionInfo();
+  }
+
+  Future<void> _showDeleteAccountDialog() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (auth.isGuest || !auth.isAuthenticated) return;
+
+    final controller = TextEditingController();
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: Colors.red),
+              const SizedBox(width: 8),
+              Text('حذف الحساب', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, color: Colors.red)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'هل أنت متأكد من رغبتك في حذف الحساب؟ سيتم تعطيل الحساب لمدة 30 يوماً قبل الحذف النهائي.',
+                style: GoogleFonts.tajawal(),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'لتأكيد الحذف، اكتب MERAJ3I:',
+                style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: controller,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  hintText: 'MERAJ3I',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('إلغاء', style: GoogleFonts.tajawal(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (controller.text.trim() == 'MERAJ3I') {
+                  Navigator.pop(ctx, true);
+                } else {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text('الكلمة غير مطابقة', style: GoogleFonts.tajawal())),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text('تأكيد الحذف', style: GoogleFonts.tajawal(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) {
+      final error = await auth.deleteAccount();
+      if (error == null) {
+        _showSnack('تم طلب حذف الحساب بنجاح. سيتم تسجيل خروجك.');
+        // _authProvider calls signOut, which updates the state. 
+        // We might need to navigate to login screen if the app root doesn't handle it.
+      } else {
+        _showSnack(error, isError: true);
+      }
+    }
   }
 
   Future<void> _loadVersionInfo() async {
@@ -226,69 +305,91 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _buildCard(
                           isDark: isDark,
                           bgColor: bgCard,
-                          child: _canCheckBiometrics
-                              ? SwitchListTile(
-                                  title: Text(
-                                    'الدخول بالبصمة',
-                                    style: GoogleFonts.tajawal(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    'استخدام البصمة لفتح التطبيق',
-                                    style: GoogleFonts.tajawal(
-                                      fontSize: 12,
-                                      color: Colors.grey[500],
-                                    ),
-                                  ),
-                                  secondary: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.primaryColor.withValues(
-                                        alpha: 0.12,
+                          child: Column(
+                            children: [
+                              _canCheckBiometrics
+                                  ? SwitchListTile(
+                                      title: Text(
+                                        'الدخول بالبصمة',
+                                        style: GoogleFonts.tajawal(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                        ),
                                       ),
-                                      borderRadius: BorderRadius.circular(10),
+                                      subtitle: Text(
+                                        'استخدام البصمة لفتح التطبيق',
+                                        style: GoogleFonts.tajawal(
+                                          fontSize: 12,
+                                          color: Colors.grey[500],
+                                        ),
+                                      ),
+                                      secondary: Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.primaryColor.withValues(
+                                            alpha: 0.12,
+                                          ),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: const Icon(
+                                          Icons.fingerprint_rounded,
+                                          color: AppTheme.primaryColor,
+                                          size: 22,
+                                        ),
+                                      ),
+                                      value: _biometricsEnabled,
+                                      onChanged: _toggleBiometrics,
+                                      activeThumbColor: AppTheme.primaryColor,
+                                    )
+                                  : ListTile(
+                                      leading: Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: const Icon(
+                                          Icons.fingerprint_rounded,
+                                          color: Colors.grey,
+                                          size: 22,
+                                        ),
+                                      ),
+                                      title: Text(
+                                        'البصمة غير مدعومة',
+                                        style: GoogleFonts.tajawal(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        'جهازك لا يدعم المصادقة البيومترية',
+                                        style: GoogleFonts.tajawal(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
                                     ),
-                                    child: const Icon(
-                                      Icons.fingerprint_rounded,
-                                      color: AppTheme.primaryColor,
-                                      size: 22,
-                                    ),
+                              Divider(
+                                height: 1,
+                                color: isDark ? Colors.white12 : Colors.grey[200],
+                              ),
+                              ListTile(
+                                leading: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
-                                  value: _biometricsEnabled,
-                                  onChanged: _toggleBiometrics,
-                                  activeThumbColor: AppTheme.primaryColor,
-                                )
-                              : ListTile(
-                                  leading: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: const Icon(
-                                      Icons.fingerprint_rounded,
-                                      color: Colors.grey,
-                                      size: 22,
-                                    ),
-                                  ),
-                                  title: Text(
-                                    'البصمة غير مدعومة',
-                                    style: GoogleFonts.tajawal(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    'جهازك لا يدعم المصادقة البيومترية',
-                                    style: GoogleFonts.tajawal(
-                                      fontSize: 12,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
+                                  child: const Icon(Icons.delete_forever_rounded, color: Colors.red, size: 22),
                                 ),
+                                title: Text('حذف الحساب', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.red)),
+                                subtitle: Text('تعطيل وحذف الحساب نهائياً', style: GoogleFonts.tajawal(fontSize: 12, color: Colors.red[300])),
+                                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.red),
+                                onTap: _showDeleteAccountDialog,
+                              ),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 20),
 
@@ -422,7 +523,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           child: Column(
                             children: [
                               Text(
-                                '© 2025 MERAJ3I. جميع الحقوق محفوظة.',
+                                '© 2026 MERAJ3I. جميع الحقوق محفوظة.',
                                 style: GoogleFonts.tajawal(
                                   fontSize: 12,
                                   color: Colors.grey[500],

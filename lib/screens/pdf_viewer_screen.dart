@@ -128,6 +128,8 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
       if (widget.book != null && mounted) {
         final reading = Provider.of<ReadingProvider>(context, listen: false);
         reading.addReadingTime(widget.book!, 60);
+        final stats = Provider.of<StatisticsProvider>(context, listen: false);
+        stats.incrementUserStat('readingSeconds', value: 60);
       }
     });
 

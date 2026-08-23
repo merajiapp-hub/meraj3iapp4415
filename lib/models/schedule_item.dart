@@ -13,6 +13,7 @@ class ScheduleItem {
   final String? room;
   final bool notify;
   final int notifyMinutesBefore;
+  final bool isCompleted;
 
   ScheduleItem({
     required this.id,
@@ -26,6 +27,7 @@ class ScheduleItem {
     this.room,
     this.notify = true,
     this.notifyMinutesBefore = 10,
+    this.isCompleted = false,
   });
 
   ScheduleItem copyWith({
@@ -39,6 +41,7 @@ class ScheduleItem {
     String? room,
     bool? notify,
     int? notifyMinutesBefore,
+    bool? isCompleted,
   }) {
     return ScheduleItem(
       id: id,
@@ -52,6 +55,7 @@ class ScheduleItem {
       room: room ?? this.room,
       notify: notify ?? this.notify,
       notifyMinutesBefore: notifyMinutesBefore ?? this.notifyMinutesBefore,
+      isCompleted: isCompleted ?? this.isCompleted,
     );
   }
 
@@ -70,6 +74,7 @@ class ScheduleItem {
       'room': room,
       'notify': notify,
       'notifyMinutesBefore': notifyMinutesBefore,
+      'isCompleted': isCompleted,
     };
   }
 
@@ -86,6 +91,7 @@ class ScheduleItem {
       room: map['room'],
       notify: map['notify'] ?? true,
       notifyMinutesBefore: map['notifyMinutesBefore'] ?? 10,
+      isCompleted: map['isCompleted'] ?? false,
     );
   }
 

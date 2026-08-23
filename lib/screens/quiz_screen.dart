@@ -11,6 +11,7 @@ import 'package:open_filex/open_filex.dart';
 import '../theme/app_theme.dart';
 import '../providers/quiz_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/statistics_provider.dart';
 import 'ai_search_screen.dart';
 
 class QuizScreen extends StatefulWidget {
@@ -172,6 +173,15 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
     final seconds = elapsed.inSeconds % 60;
     final total = provider.dailyQuestions.length;
     final pct = (_correctAnswers / total * 100).round();
+
+    if (mounted) {
+      final stats = Provider.of<StatisticsProvider>(context, listen: false);
+      stats.incrementUserStat('completedTests', value: 1);
+      if (_correctAnswers > 0) {
+        stats.incrementUserStat('correctAnswers', value: _correctAnswers);
+        stats.incrementUserStat('points', value: _correctAnswers * 10);
+      }
+    }
 
     Navigator.pushReplacement(
       context,

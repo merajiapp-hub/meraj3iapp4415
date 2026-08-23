@@ -7,6 +7,7 @@ import '../widgets/app_notification.dart';
 import 'terms_of_use_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'home_page.dart';
+import '../widgets/app_dropdown.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -214,47 +215,33 @@ class _SignupScreenState extends State<SignupScreen>
           const SizedBox(height: 16),
 
           // Gender Selector
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedGender,
-                dropdownColor: const Color(0xFF1E293B),
-                isExpanded: true,
-                icon: Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  color: Colors.white.withValues(alpha: 0.6),
-                ),
-                style: GoogleFonts.tajawal(color: Colors.white, fontSize: 15),
-                items: ['ذكر', 'أنثى'].map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Row(
-                      children: [
-                        Icon(
-                          value == 'ذكر'
-                              ? Icons.male_rounded
-                              : Icons.female_rounded,
-                          color: Colors.white.withValues(alpha: 0.6),
-                          size: 20,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(value),
-                      ],
-                    ),
-                  );
-                }).toList(),
-                onChanged: (newValue) {
-                  if (newValue != null) {
-                    setState(() => _selectedGender = newValue);
-                  }
-                },
-              ),
+          Theme(
+            data: ThemeData.dark(),
+            child: AppDropdown<String>(
+              label: '',
+              value: _selectedGender,
+              icon: Icons.person_outline_rounded,
+              items: ['ذكر', 'أنثى'].map((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Row(
+                    children: [
+                      Icon(
+                        value == 'ذكر' ? Icons.male_rounded : Icons.female_rounded,
+                        color: Colors.white.withValues(alpha: 0.6),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(value),
+                    ],
+                  ),
+                );
+              }).toList(),
+              onChanged: (String? newValue) {
+                if (newValue != null) {
+                  setState(() => _selectedGender = newValue);
+                }
+              },
             ),
           ),
 

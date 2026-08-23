@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 
 import '../theme/app_theme.dart';
+import '../widgets/app_dropdown.dart';
 import '../widgets/app_notification.dart';
 import '../providers/statistics_provider.dart';
 
@@ -159,26 +160,14 @@ class _AddBookScreenState extends State<AddBookScreen> {
     required List<String> items,
     required void Function(String?) onChanged,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return DropdownButtonFormField<String>(
-      initialValue: value,
-      icon: const Icon(Icons.arrow_drop_down_circle, color: AppTheme.primaryColor),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: GoogleFonts.cairo(color: Colors.grey),
-        filled: true,
-        fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey[50],
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
-      ),
-      style: GoogleFonts.cairo(color: isDark ? Colors.white : Colors.black87, fontSize: 16),
-      dropdownColor: isDark ? AppTheme.surfaceDark : Colors.white,
+    return AppDropdown<String>(
+      label: label,
+      value: value,
+      icon: Icons.arrow_drop_down_circle,
       items: items.map((item) {
         return DropdownMenuItem(
           value: item,
-          child: Text(item),
+          child: Text(item, overflow: TextOverflow.ellipsis),
         );
       }).toList(),
       onChanged: onChanged,

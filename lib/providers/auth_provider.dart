@@ -430,6 +430,24 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<String?> deleteAccount() async {
+    try {
+      if (_user != null) {
+        // Soft delete logic for 30-day disable
+        await _firestore.collection('users').doc(_user!.uid).update({
+          'disabled': true,
+          'deletedAt': FieldValue.serverTimestamp(),
+        }).timeout(const Duration(seconds: 10));
+        
+        await signOut();
+        return null;
+      }
+      return 'المستخدم غير مسجل الدخول';
+    } catch (e) {
+      return 'حدث خطأ أثناء تعطيل الحساب: $e';
+    }
+  }
+
   Future<void> signOutGoogle() async {
     try {
       await _googleSignIn.signOut();

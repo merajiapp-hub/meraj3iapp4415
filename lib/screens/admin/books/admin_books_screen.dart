@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../services/drive_url_service.dart';
 
 class AdminBooksScreen extends StatefulWidget {
   const AdminBooksScreen({super.key});
@@ -195,13 +197,48 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
                                 ],
                               ),
                             ),
-                            // Delete button
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline,
-                                  color: Colors.red),
-                              onPressed: () =>
-                                  _deleteBook(doc.id, title),
-                              tooltip: 'حذف الكتاب',
+                            // Action Buttons
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Link Status Badge
+                                Builder(builder: (context) {
+                                  final url = d['url'] as String? ?? '';
+                                  final status = DriveUrlService.getUrlStatus(url);
+                                  final isGood = status == DriveUrlService.statusValid;
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: (isGood ? Colors.green : Colors.orange).withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      isGood ? '✓ رابط صالح' : '⚠ تحتاج مراجعة',
+                                      style: GoogleFonts.tajawal(
+                                        fontSize: 9,
+                                        color: isGood ? Colors.green : Colors.orange,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  );
+                                }),
+                                // Fix Link Button
+                                IconButton(
+                                  icon: const Icon(Icons.link_rounded, color: Colors.blue, size: 20),
+                                  onPressed: () => _showEditLinkDialog(doc.id, d['title'] ?? '', d['url'] ?? ''),
+                                  tooltip: 'تعديل الرابط',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                                // Delete button
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                  onPressed: () => _deleteBook(doc.id, title),
+                                  tooltip: 'حذف الكتاب',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -212,6 +249,82 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
               },
             ),
     );
+  }
+
+  Future<void> _showEditLinkDialog(String docId, String title, String currentUrl) async {
+    final controller = TextEditingController(text: currentUrl);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'تعديل رابط الكتاب',
+          style: GoogleFonts.tajawal(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: GoogleFonts.tajawal(color: Colors.grey, fontSize: 13),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+              decoration: InputDecoration(
+                labelText: 'الرابط الجديد',
+                labelStyle: const TextStyle(color: Colors.grey),
+                filled: true,
+                fillColor: const Color(0xFF2C2C2C),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('إلغاء', style: GoogleFonts.tajawal(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: Text('حفظ', style: GoogleFonts.tajawal(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty && result != currentUrl) {
+      final fileId = DriveUrlService.extractFileId(result);
+      await FirebaseFirestore.instance.collection('books').doc(docId).update({
+        'url': result,
+        'originalDriveUrl': currentUrl, // احتفظ بالرابط القديم
+        'extractedFileId': fileId,
+        'linkStatus': DriveUrlService.statusValid,
+        'linkUpdatedAt': FieldValue.serverTimestamp(),
+      });
+      // Log the change in audit
+      await FirebaseFirestore.instance.collection('audit_logs').add({
+        'action': 'edit_book_link',
+        'bookId': docId,
+        'bookTitle': title,
+        'oldUrl': currentUrl,
+        'newUrl': result,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('✅ تم تحديث الرابط بنجاح'),
+          backgroundColor: Colors.green,
+        ));
+      }
+    }
   }
 
   Widget _bookPlaceholder() {

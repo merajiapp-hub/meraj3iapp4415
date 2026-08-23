@@ -40,7 +40,7 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
     // ════════════════════════════════════════════════════════════════════
     final apiKey = AppSecrets.geminiApiKey;
     _model = genai.GenerativeModel(
-      model: 'gemini-1.5-pro',
+      model: 'gemini-1.5-flash',
       apiKey: apiKey,
       generationConfig: genai.GenerationConfig(
         temperature: 0.7,
@@ -49,12 +49,11 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
         maxOutputTokens: 2048,
       ),
       systemInstruction: genai.Content.system(
-        'أنت MERAJ3I AI، المساعد التعليمي والعبقري للطلاب في موريتانيا والوطن العربي. '
-        'دورك الأساسي هو تقديم شروحات دراسية ذكية واحترافية. يمكنك الإجابة على أي سؤال بذكاء فائق. '
-        'نظّم إجاباتك بنقاط واضحة ومنسقة واحترافية. '
+        'أنت MERAJ3I AI، المساعد الذكي والعبقري للطلاب في موريتانيا والوطن العربي. '
+        'دورك الأساسي هو مساعدة المستخدم والإجابة على **أي سؤال** يُطرح عليك في كافة المجالات (دراسة، برمجة، ثقافة عامة، ترفيه، وغيرها) بذكاء فائق. '
+        'لا ترفض أي سؤال مفيد. نظّم إجاباتك بنقاط واضحة ومنسقة واحترافية. '
         'مهم جداً: أجب بنصوص عادية، ولا تستخدم إطلاقاً رموز التنسيق مثل النجمة (*) أو الشباك (#). '
-        'تجنب تماماً العبارات الطفولية أو المبالغ فيها مثل "يا بطل المستقبل". '
-        'كن دقيقاً ومباشراً ومنظماً.',
+        'تجنب العبارات الطفولية، كن دقيقاً، مباشراً، ومنظماً.',
       ),
     );
 
@@ -202,7 +201,7 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
         } else if (errStr.contains('404') || errStr.contains('not_found')) {
           errorMsg = 'النموذج غير متاح حالياً. جاري الإصلاح.';
         } else {
-          errorMsg = 'حدث خطأ. سؤالك محفوظ في الحقل. حاول الإرسال مجدداً.';
+          errorMsg = 'حدث خطأ: ${e.toString().split('\n').first}';
         }
 
         AppNotification.show(context, errorMsg, isError: true);

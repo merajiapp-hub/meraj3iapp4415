@@ -79,7 +79,7 @@ class DedicationScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 24),
                         Text(
-                          'مطور التطبيق\nمحمد محمود عبد الرحمن',
+                          'مطورو التطبيق',
                           style: GoogleFonts.tajawal(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -87,28 +87,14 @@ class DedicationScreen extends StatelessWidget {
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 16),
-                        Container(
-                          width: 80,
-                          height: 1,
-                          color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                        ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
                         Text(
-                          'إهداء خاص',
-                          style: GoogleFonts.tajawal(
-                            fontSize: 13,
-                            color: Colors.grey[500],
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'عبد اللهِ سيدي محمد',
+                          'محمد محمود عبد الرحمن\nعبد الله سيدي محمد',
                           style: GoogleFonts.amiri(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                             color: isDark ? Colors.white70 : const Color(0xFF334155),
+                            height: 1.6,
                           ),
                           textAlign: TextAlign.center,
                         ),

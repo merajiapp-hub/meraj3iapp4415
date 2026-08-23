@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../models/schedule_item.dart';
 import '../data/notification_service.dart';
+import '../providers/statistics_provider.dart';
 
 class ScheduleProvider extends ChangeNotifier {
   static const _prefsKey = 'schedule_items_v3';
@@ -122,4 +125,36 @@ class ScheduleProvider extends ChangeNotifier {
     await _saveToPrefs();
     await _cancelNotification(item);
   }
+
+  Future<void> toggleItemCompletion(ScheduleItem item, BuildContext context) async {
+    final dayItems = _items[item.weekday];
+    if (dayItems == null) return;
+    
+    final index = dayItems.indexWhere((i) => i.id == item.id);
+    if (index != -1) {
+      final oldItem = dayItems[index];
+      final newItem = oldItem.copyWith(isCompleted: !oldItem.isCompleted);
+      dayItems[index] = newItem;
+      
+      notifyListeners();
+      await _saveToPrefs();
+      
+      // Update statistics
+      if (context.mounted) {
+        final stats = Provider.of<StatisticsProvider>(context, listen: false);
+        if (newItem.isCompleted) {
+          stats.incrementUserStat('completedTasks', value: 1);
+          
+          // Play sound if completed
+          try {
+            final player = AudioPlayer();
+            await player.play(AssetSource('sounds/success.mp3'));
+          } catch (_) {}
+        } else {
+          stats.decrementUserStat('completedTasks', value: 1);
+        }
+      }
+    }
+  }
 }
+

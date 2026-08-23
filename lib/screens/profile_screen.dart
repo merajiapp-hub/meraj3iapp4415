@@ -855,7 +855,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         const SizedBox(height: 12),
         _buildActionButton(
           label: 'تسجيل الخروج',
-          icon: Icons.logout_rounded,
+          icon: Image.asset('assets/images/logo.png', width: 20, height: 20, color: Colors.redAccent),
           color: Colors.redAccent,
           isDark: isDark,
           onTap: _showLogoutConfirmDialog,
@@ -876,11 +876,12 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Widget _buildActionButton({
     required String label,
-    required IconData icon,
+    required dynamic icon, // IconData or Widget
     required Color color,
     required bool isDark,
     required VoidCallback onTap,
   }) {
+    final iconWidget = icon is IconData ? Icon(icon, color: color, size: 20) : (icon as Widget);
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -910,7 +911,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: color, size: 20),
+              child: Center(child: iconWidget),
             ),
             const SizedBox(width: 16),
             Expanded(

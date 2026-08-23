@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/schedule_provider.dart';
 import '../models/schedule_item.dart';
+import '../widgets/app_dropdown.dart';
 
 
 class TaskManagerScreen extends StatefulWidget {
@@ -89,24 +90,16 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
                       style: GoogleFonts.tajawal(),
                     ),
                     const SizedBox(height: 16),
-                    Text('اليوم', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(12)),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<int>(
-                          value: selectedDay,
-                          isExpanded: true,
-                          items: List.generate(7, (index) {
-                            int day = index + 1; // 1 to 7
-                            return DropdownMenuItem(value: day, child: Text(_getDayName(day), style: GoogleFonts.tajawal()));
-                          }),
-                          onChanged: (val) {
-                            if (val != null) setModalState(() => selectedDay = val);
-                          },
-                        ),
-                      ),
+                    AppDropdown<int>(
+                      label: 'اليوم',
+                      value: selectedDay,
+                      items: List.generate(7, (index) {
+                        int day = index + 1; // 1 to 7
+                        return DropdownMenuItem(value: day, child: Text(_getDayName(day), overflow: TextOverflow.ellipsis));
+                      }),
+                      onChanged: (val) {
+                        if (val != null) setModalState(() => selectedDay = val);
+                      },
                     ),
                     const SizedBox(height: 16),
                     Row(
@@ -256,21 +249,6 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
                 decoration: const BoxDecoration(color: Color(0xFFEAB308), shape: BoxShape.circle),
               ),
             ),
-          if (isActive && index == 3) // Only show dark tooltip for calendar
-            Positioned(
-              bottom: -36,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF334155),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  _tabTitles[index],
-                  style: GoogleFonts.tajawal(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -376,18 +354,42 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
               final item = todayItems[i];
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: item.isCompleted ? Colors.grey.shade50 : Colors.white, 
+                  borderRadius: BorderRadius.circular(16), 
+                  border: Border.all(color: item.isCompleted ? Colors.green.shade200 : Colors.grey.shade200)
+                ),
                 child: Row(
                   children: [
-                    Container(width: 4, height: 40, color: item.color),
-                    const SizedBox(width: 12),
+                    Container(width: 4, height: 40, color: item.isCompleted ? Colors.green : item.color),
+                    const SizedBox(width: 8),
+                    Checkbox(
+                      value: item.isCompleted,
+                      activeColor: Colors.green,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                      onChanged: (val) {
+                        provider.toggleItemCompletion(item, context);
+                      },
+                    ),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(item.title, style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, fontSize: 16)),
-                          if (item.description.isNotEmpty) Text(item.description, style: GoogleFonts.tajawal(color: Colors.grey, fontSize: 12)),
+                          Text(
+                            item.title, 
+                            style: GoogleFonts.tajawal(
+                              fontWeight: FontWeight.bold, 
+                              fontSize: 16,
+                              decoration: item.isCompleted ? TextDecoration.lineThrough : null,
+                              color: item.isCompleted ? Colors.grey : Colors.black87,
+                            )
+                          ),
+                          if (item.description.isNotEmpty) 
+                            Text(
+                              item.description, 
+                              style: GoogleFonts.tajawal(color: Colors.grey, fontSize: 12)
+                            ),
                         ],
                       ),
                     ),
@@ -431,7 +433,11 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
   }
 
   Widget _buildScheduleTab(ScheduleProvider provider) {
+    final List<int> daysOrder = [7, 1, 2, 3, 4, 5, 6]; 
+    final List<String> daysNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         GestureDetector(
           onTap: () => _showAddSessionModal(context),
@@ -455,38 +461,115 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
         ),
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
-          child: Column(
-            children: [
-              Container(
-                decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade300))),
-                child: Row(
-                  children: [
-                    Expanded(child: Center(child: Padding(padding: const EdgeInsets.all(12), child: Text('الثلاثاء', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, color: const Color(0xFF0284C7)))))),
-                    Expanded(child: Center(child: Padding(padding: const EdgeInsets.all(12), child: Text('الإثنين', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, color: const Color(0xFF0284C7)))))),
-                    Expanded(child: Center(child: Padding(padding: const EdgeInsets.all(12), child: Text('الأحد', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, color: const Color(0xFF0284C7)))))),
-                    Container(width: 1, height: 40, color: const Color(0xFFD97706)),
-                    Expanded(child: Center(child: Padding(padding: const EdgeInsets.all(12), child: Text('الوقت', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, color: const Color(0xFF0284C7)))))),
-                  ],
-                ),
-              ),
-              for (int h = 5; h <= 12; h++)
-                Container(
-                  decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade100))),
-                  child: Row(
-                    children: [
-                      Expanded(child: Container()),
-                      Expanded(child: Container()),
-                      Expanded(child: Container(decoration: BoxDecoration(border: Border(right: BorderSide(color: Colors.grey.shade100))))),
-                      Container(width: 1, height: 50, color: const Color(0xFFD97706)),
-                      Expanded(child: Center(child: Padding(padding: const EdgeInsets.all(12), child: Text('${h.toString().padLeft(2, '0')}:00', style: GoogleFonts.tajawal(color: const Color(0xFF475569), fontWeight: FontWeight.bold))))),
-                    ],
+          decoration: BoxDecoration(
+            color: Colors.white, 
+            borderRadius: BorderRadius.circular(16), 
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade300))),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 80,
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(12), 
+                              child: Text('الوقت', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, color: const Color(0xFF0284C7)))
+                            )
+                          )
+                        ),
+                        Container(width: 1, height: 40, color: const Color(0xFFD97706)),
+                        for (String day in daysNames)
+                          SizedBox(
+                            width: 120,
+                            child: Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(12), 
+                                child: Text(day, style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, color: const Color(0xFF0284C7)))
+                              )
+                            )
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-            ],
+                  for (int h = 5; h <= 23; h++)
+                    Container(
+                      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade100))),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 80,
+                            child: Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(12), 
+                                child: Text('${h.toString().padLeft(2, '0')}:00', style: GoogleFonts.tajawal(color: const Color(0xFF475569), fontWeight: FontWeight.bold))
+                              )
+                            )
+                          ),
+                          Container(width: 1, height: 60, color: const Color(0xFFD97706)),
+                          for (int dayNum in daysOrder)
+                            SizedBox(
+                              width: 120,
+                              height: 60,
+                              child: Container(
+                                decoration: BoxDecoration(border: Border(left: BorderSide(color: Colors.grey.shade100))),
+                                child: _buildCellContent(provider, dayNum, h),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCellContent(ScheduleProvider provider, int dayNum, int hour) {
+    final items = provider.getItemsForDay(dayNum).where((item) => item.startTime.hour == hour).toList();
+    if (items.isEmpty) return const SizedBox();
+
+    final item = items.first;
+    return Container(
+      margin: const EdgeInsets.all(2),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: item.color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: item.color.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            item.title,
+            style: GoogleFonts.tajawal(fontSize: 10, fontWeight: FontWeight.bold, color: item.color),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          if (item.description.isNotEmpty)
+            Text(
+              item.description,
+              style: GoogleFonts.tajawal(fontSize: 9, color: Colors.grey.shade700),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+        ],
+      ),
     );
   }
 
@@ -557,7 +640,7 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
                   if (_currentIndex == 3) _buildScheduleTab(scheduleProvider),
                   
                   const SizedBox(height: 40),
-                  Text('جميع الحقوق محفوظة مراجعي 2025 ©', style: GoogleFonts.tajawal(color: Colors.grey, fontSize: 12)),
+                  Text('جميع الحقوق محفوظة مراجعي 2026 ©', style: GoogleFonts.tajawal(color: Colors.grey, fontSize: 12)),
                 ],
               ),
             ),

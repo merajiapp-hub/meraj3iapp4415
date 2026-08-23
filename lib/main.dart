@@ -193,7 +193,16 @@ void main() async {
             return previous!;
           },
         ),
-        ChangeNotifierProvider(create: (_) => StatisticsProvider()),
+        ChangeNotifierProxyProvider<AuthProvider, StatisticsProvider>(
+          create: (_) => StatisticsProvider(),
+          update: (_, auth, previous) {
+            // When auth changes, if user is logged in, fetch stats
+            if (auth.user != null) {
+              previous?.fetchUserStats();
+            }
+            return previous!;
+          },
+        ),
         ChangeNotifierProvider(create: (_) => ScheduleProvider()),
         ChangeNotifierProvider(create: (_) => StudentProvider()),
         ChangeNotifierProvider(create: (_) => NotesProvider()),

@@ -21,7 +21,7 @@ import 'added_books_screen.dart';
 import 'add_book_screen.dart';
 import 'profile_screen.dart';
 import 'reviews_screen.dart';
-import 'review_statistics_screen.dart';
+
 import 'student_competition_screen.dart';
 import 'notes_screen.dart';
 
@@ -451,7 +451,7 @@ class _HomePageState extends State<HomePage>
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '© 2025 MERAJ3I. جميع الحقوق محفوظة.',
+                                '© 2026 MERAJ3I. جميع الحقوق محفوظة.',
                                 textAlign: TextAlign.center,
                                 style: GoogleFonts.tajawal(
                                   fontSize: 10,
@@ -696,7 +696,7 @@ class _HomePageState extends State<HomePage>
       child: Container(
         decoration: BoxDecoration(
           color: isDark ? AppTheme.surfaceDark : Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(32),
           boxShadow: [
             BoxShadow(
               color: (service.gradient as LinearGradient).colors.first
@@ -726,7 +726,7 @@ class _HomePageState extends State<HomePage>
                 decoration: BoxDecoration(
                   gradient: service.gradient,
                   borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(18),
+                    top: Radius.circular(32),
                   ),
                 ),
               ),
@@ -819,7 +819,7 @@ class _HomePageState extends State<HomePage>
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: isDark ? AppTheme.surfaceDark : Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(32),
           border: Border.all(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.07)
@@ -899,7 +899,7 @@ class _HomePageState extends State<HomePage>
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
             color: AppTheme.primaryColor.withValues(alpha: 0.25),
@@ -1189,13 +1189,7 @@ class _HomePageState extends State<HomePage>
                     MaterialPageRoute(builder: (_) => const ReviewsScreen()),
                   );
                 }),
-                _buildDrawerItem(Icons.analytics_rounded, 'إحصائيات التقييمات', () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ReviewStatisticsScreen()),
-                  );
-                }),
+
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                   child: Divider(height: 1),
@@ -1299,7 +1293,10 @@ class _HomePageState extends State<HomePage>
                   padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                   child: Divider(height: 1),
                 ),
-                _buildDrawerItem(Icons.logout_rounded, 'تسجيل الخروج', () {
+                _buildDrawerItem(
+                  Image.asset('assets/images/logo.png', width: 22, height: 22, color: Colors.red),
+                  'تسجيل الخروج',
+                  () {
                   final isDark = Theme.of(context).brightness == Brightness.dark;
                   showDialog(
                     context: context,
@@ -1391,11 +1388,15 @@ class _HomePageState extends State<HomePage>
   //  عنصر Drawer
   // ══════════════════════════════════════════════════════
   Widget _buildDrawerItem(
-    IconData icon,
+    dynamic iconOrWidget, // IconData or Widget
     String title,
     VoidCallback onTap, {
     Color? color,
   }) {
+    final leadingWidget = iconOrWidget is IconData
+        ? Icon(iconOrWidget, color: color ?? AppTheme.primaryColor, size: 20)
+        : (iconOrWidget as Widget);
+
     return ListTile(
       leading: Container(
         padding: const EdgeInsets.all(8),
@@ -1403,7 +1404,7 @@ class _HomePageState extends State<HomePage>
           color: (color ?? AppTheme.primaryColor).withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon, color: color ?? AppTheme.primaryColor, size: 20),
+        child: leadingWidget,
       ),
       title: Text(
         title,

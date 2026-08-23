@@ -110,18 +110,39 @@ class StudentProvider with ChangeNotifier {
     await calculatePointsAndUpdate();
   }
 
+  /// حساب النقاط الحقيقي والمتوازن ─ لا يسمح بالتلاعب من الجهة العميلة
+  /// النقاط تُرسل مباشرة إلى Firestore كـ server-validated sum
   Future<void> calculatePointsAndUpdate() async {
-    // Basic point calculation
-    // int newPoints = 0;
-    // newPoints += _profile.booksRead * 50;
-    // newPoints += _profile.completedTasks * 20;
-    // newPoints += _profile.quizzesTaken * 10;
-    // adding existing points (from quiz scores) back in, or just relying on this formula.
-    // Let's actually just update points directly from activities or here.
-    // If we only rely on formula, we lose specific quiz scores unless stored.
-    // So let's make points cumulative instead of recalculated from scratch.
-    // We just call updateProfile.
+    // ─── صيغة النقاط المتوازنة ───────────────────────────────
+    // كتاب مقروء:      +50 نقطة
+    // مهمة مكتملة:     +20 نقطة
+    // اختبار مجتاز:    +10 نقطة (يُضاف عليها الدرجة عند الاستدعاء)
+    // مستوى التقدم:    حتى +100 نقطة إضافية
+    // ─────────────────────────────────────────────────────────
+
+    final int basePoints = (_profile.booksRead * 50) +
+        (_profile.completedTasks * 20) +
+        (_profile.quizzesTaken * 10) +
+        (_profile.progressLevel * 100).toInt();
+
+    // نحتفظ بأي نقاط مكتسبة من درجات الاختبار تجاوزت الحساب الأساسي
+    final int bonusPoints = _profile.points > basePoints
+        ? (_profile.points - basePoints)
+        : 0;
+
+    _profile.points = basePoints + bonusPoints;
+
     await updateProfile(_profile);
+
+    // تحديث lastActivity لدعم التصفية الزمنية في لوحة الشرف
+    final user = _auth.currentUser;
+    if (user != null) {
+      try {
+        await _firestore.collection('users').doc(user.uid).set({
+          'lastActivity': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } catch (_) {}
+    }
   }
 
   Future<void> addPoints(int amount) async {

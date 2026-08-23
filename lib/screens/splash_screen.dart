@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import 'home_page.dart';
 import 'login_screen.dart';
+import 'onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -127,7 +128,17 @@ class _SplashScreenState extends State<SplashScreen>
 
       if (mounted) _navigateTo(const HomePage());
     } else {
-      _navigateTo(const LoginScreen());
+      bool hasSeenOnboarding = false;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        hasSeenOnboarding = prefs.getBool('has_seen_onboarding') ?? false;
+      } catch (_) {}
+
+      if (!hasSeenOnboarding && mounted) {
+        _navigateTo(const OnboardingScreen());
+      } else if (mounted) {
+        _navigateTo(const LoginScreen());
+      }
     }
   }
 

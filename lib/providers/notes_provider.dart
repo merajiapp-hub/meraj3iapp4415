@@ -7,12 +7,16 @@ class Note {
   final String title;
   final String content;
   final DateTime createdAt;
+  final DateTime updatedAt;
+  final bool isPinned;
 
   Note({
     required this.id,
     required this.title,
     required this.content,
     required this.createdAt,
+    required this.updatedAt,
+    this.isPinned = false,
   });
 
   factory Note.fromMap(String id, Map<String, dynamic> map) {
@@ -21,6 +25,8 @@ class Note {
       title: map['title'] ?? '',
       content: map['content'] ?? '',
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (map['updatedAt'] as Timestamp?)?.toDate() ?? (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      isPinned: map['isPinned'] ?? false,
     );
   }
 
@@ -29,6 +35,8 @@ class Note {
       'title': title,
       'content': content,
       'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+      'isPinned': isPinned,
     };
   }
 }
@@ -39,12 +47,34 @@ class NotesProvider with ChangeNotifier {
 
   List<Note> _notes = [];
   bool _isLoading = false;
+  String _searchQuery = '';
 
-  List<Note> get notes => _notes;
+  List<Note> get notes {
+    var filtered = _notes;
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((n) => 
+        n.title.toLowerCase().contains(_searchQuery.toLowerCase()) || 
+        n.content.toLowerCase().contains(_searchQuery.toLowerCase())
+      ).toList();
+    }
+    // Sort: Pinned first, then by updatedAt descending
+    filtered.sort((a, b) {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      return b.updatedAt.compareTo(a.updatedAt);
+    });
+    return filtered;
+  }
+  
   bool get isLoading => _isLoading;
 
   NotesProvider() {
     fetchNotes();
+  }
+
+  void setSearchQuery(String query) {
+    _searchQuery = query;
+    notifyListeners();
   }
 
   Future<void> fetchNotes() async {
@@ -59,7 +89,6 @@ class NotesProvider with ChangeNotifier {
           .collection('users')
           .doc(user.uid)
           .collection('notes')
-          .orderBy('createdAt', descending: true)
           .get();
 
       _notes = snapshot.docs.map((doc) => Note.fromMap(doc.id, doc.data())).toList();
@@ -75,10 +104,13 @@ class NotesProvider with ChangeNotifier {
     final user = _auth.currentUser;
     if (user == null) return;
 
+    final now = DateTime.now();
     final newNoteData = {
       'title': title,
       'content': content,
       'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+      'isPinned': false,
     };
 
     try {
@@ -94,7 +126,9 @@ class NotesProvider with ChangeNotifier {
           id: docRef.id,
           title: title,
           content: content,
-          createdAt: DateTime.now(),
+          createdAt: now,
+          updatedAt: now,
+          isPinned: false,
         ),
       );
       notifyListeners();
@@ -107,6 +141,7 @@ class NotesProvider with ChangeNotifier {
     final user = _auth.currentUser;
     if (user == null) return;
 
+    final now = DateTime.now();
     try {
       await _firestore
           .collection('users')
@@ -116,6 +151,7 @@ class NotesProvider with ChangeNotifier {
           .update({
         'title': title,
         'content': content,
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
       final index = _notes.indexWhere((n) => n.id == id);
@@ -125,11 +161,44 @@ class NotesProvider with ChangeNotifier {
           title: title,
           content: content,
           createdAt: _notes[index].createdAt,
+          updatedAt: now,
+          isPinned: _notes[index].isPinned,
         );
         notifyListeners();
       }
     } catch (e) {
       debugPrint('Error updating note: $e');
+    }
+  }
+
+  Future<void> togglePin(String id) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final index = _notes.indexWhere((n) => n.id == id);
+    if (index == -1) return;
+
+    final newPinnedStatus = !_notes[index].isPinned;
+
+    try {
+      await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('notes')
+          .doc(id)
+          .update({'isPinned': newPinnedStatus});
+
+      _notes[index] = Note(
+        id: id,
+        title: _notes[index].title,
+        content: _notes[index].content,
+        createdAt: _notes[index].createdAt,
+        updatedAt: _notes[index].updatedAt,
+        isPinned: newPinnedStatus,
+      );
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error toggling pin: $e');
     }
   }
 

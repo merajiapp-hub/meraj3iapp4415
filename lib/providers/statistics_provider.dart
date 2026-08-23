@@ -62,8 +62,49 @@ class StatisticsProvider extends ChangeNotifier {
     totalBooks = staticBooksCount;
   }
 
+  // ─── جلب الإحصائيات الحقيقية من Firebase ──────────────
+  Future<void> fetchUserStats() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    try {
+      final doc = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('data')
+          .doc('stats')
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data()!;
+        userReadBooks = data['readBooks'] ?? 0;
+        totalReadingSeconds = data['readingSeconds'] ?? 0;
+        userCompletedTasks = data['completedTasks'] ?? 0;
+        userCorrectAnswers = data['correctAnswers'] ?? 0;
+        userWrongAnswers = data['wrongAnswers'] ?? 0;
+        userFavoriteBooks = data['favoriteBooks'] ?? 0;
+        userDownloadedBooks = data['downloadedBooks'] ?? 0;
+        userStreakDays = data['streakDays'] ?? 0;
+        userCompletedBooks = data['completedBooks'] ?? 0;
+        
+        // حساب متوسط الدرجات
+        final total = userCorrectAnswers + userWrongAnswers;
+        if (total > 0) {
+          userAvgScore = (userCorrectAnswers / total) * 100;
+        } else {
+          userAvgScore = 0.0;
+        }
+        
+        userTestsTaken = total > 0 ? 1 : 0; // Simple logic for now
+        notifyListeners();
+        saveLocalStats();
+      }
+    } catch (e) {
+      debugPrint('Error fetching user stats: $e');
+    }
+  }
+
   /// يُستدعى من الصفحات التي تحتاج إحصائيات محدثة
-  /// يجب تمرير البيانات من الـ Providers الأخرى مباشرة
+  /// يجب تمرير البيانات من الـ Providers الأخرى مباشرة (طريقة احتياطية)
   void refreshFromProviders({
     required int readBooks,
     required int completedBooks,
@@ -196,7 +237,32 @@ class StatisticsProvider extends ChangeNotifier {
     }
   }
 
+  void _updateLocalUserStat(String field, int value) {
+    switch (field) {
+      case 'readBooks': userReadBooks += value; break;
+      case 'completedBooks': userCompletedBooks += value; break;
+      case 'readingSeconds': totalReadingSeconds += value; break;
+      case 'completedTasks': userCompletedTasks += value; break;
+      case 'correctAnswers': userCorrectAnswers += value; break;
+      case 'wrongAnswers': userWrongAnswers += value; break;
+      case 'favoriteBooks': userFavoriteBooks += value; break;
+      case 'downloadedBooks': userDownloadedBooks += value; break;
+      case 'streakDays': userStreakDays += value; break;
+    }
+    
+    final total = userCorrectAnswers + userWrongAnswers;
+    if (total > 0) {
+      userAvgScore = (userCorrectAnswers / total) * 100;
+    } else {
+      userAvgScore = 0.0;
+    }
+    
+    notifyListeners();
+  }
+
   Future<void> incrementUserStat(String field, {int value = 1}) async {
+    _updateLocalUserStat(field, value); // تحديث فوري للواجهة
+    
     final user = _auth.currentUser;
     if (user == null) return;
     try {
@@ -215,6 +281,8 @@ class StatisticsProvider extends ChangeNotifier {
   }
 
   Future<void> decrementUserStat(String field, {int value = 1}) async {
+    _updateLocalUserStat(field, -value); // تحديث فوري للواجهة
+    
     final user = _auth.currentUser;
     if (user == null) return;
     try {

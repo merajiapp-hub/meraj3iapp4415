@@ -9,27 +9,47 @@ import 'logs/admin_audit_logs_screen.dart';
 import 'admin_guard.dart';
 // ignore_for_file: unused_import
 
+import 'package:google_fonts/google_fonts.dart';
+
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // إجبار الثيم الداكن للوحة التحكم
     return AdminGuard(
       child: Theme(
         data: ThemeData.dark().copyWith(
-          primaryColor: Colors.tealAccent,
-          scaffoldBackgroundColor: const Color(0xFF121212),
+          primaryColor: Colors.purpleAccent,
+          scaffoldBackgroundColor: const Color(0xFF0F172A), // Modern dark blue/slate
           appBarTheme: const AppBarTheme(
-            backgroundColor: Color(0xFF1F1F1F),
+            backgroundColor: Colors.transparent,
             elevation: 0,
             centerTitle: true,
           ),
-          cardColor: const Color(0xFF1E1E1E),
+          cardColor: const Color(0xFF1E293B),
         ),
         child: Scaffold(
+          extendBodyBehindAppBar: true,
           appBar: AppBar(
-            title: const Text('MERAJ3I Admin', style: TextStyle(fontWeight: FontWeight.bold)),
+            flexibleSpace: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFF0F172A).withValues(alpha: 0.9),
+                    const Color(0xFF0F172A).withValues(alpha: 0.0),
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+            ),
+            title: Text(
+              'لوحة تحكم MERAJ3I',
+              style: GoogleFonts.outfit(
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1,
+              ),
+            ),
           ),
           body: const _DashboardBody(),
         ),
@@ -44,54 +64,62 @@ class _DashboardBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.only(top: 100, left: 16, right: 16, bottom: 24),
       children: [
-        const Text(
+        Text(
           'نظرة عامة',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+          style: GoogleFonts.tajawal(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
         const SizedBox(height: 16),
         const _StatisticsGrid(),
-        const SizedBox(height: 24),
-        const Text(
+        const SizedBox(height: 32),
+        Text(
           'الإدارة السريعة',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+          style: GoogleFonts.tajawal(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
         const SizedBox(height: 16),
         _ActionTile(
-          icon: Icons.people,
+          icon: Icons.people_alt_rounded,
           title: 'إدارة المستخدمين',
-          color: Colors.blueAccent,
+          color: const Color(0xFF3B82F6), // Blue
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminUsersListScreen())),
         ),
         _ActionTile(
-          icon: Icons.book,
+          icon: Icons.my_library_books_rounded,
           title: 'إدارة الكتب والمحتوى',
-          color: Colors.orangeAccent,
+          color: const Color(0xFFF59E0B), // Amber
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminBooksScreen())),
         ),
         _ActionTile(
-          icon: Icons.notifications,
+          icon: Icons.notifications_active_rounded,
           title: 'مركز الإشعارات',
-          color: Colors.purpleAccent,
+          color: const Color(0xFF8B5CF6), // Purple
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminNotificationsScreen())),
         ),
         _ActionTile(
-          icon: Icons.settings,
-          title: 'إعدادات النظام والـ Remote Config',
-          color: Colors.grey,
+          icon: Icons.settings_suggest_rounded,
+          title: 'إعدادات النظام (Remote Config)',
+          color: const Color(0xFF64748B), // Slate
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminSettingsScreen())),
         ),
         _ActionTile(
-          icon: Icons.health_and_safety,
+          icon: Icons.health_and_safety_rounded,
           title: 'مراقبة النظام والأخطاء',
-          color: Colors.redAccent,
+          color: const Color(0xFFEF4444), // Red
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminHealthScreen())),
         ),
         _ActionTile(
-          icon: Icons.list_alt,
-          title: 'سجل نشاط الإدارة (Audit Logs)',
-          color: Colors.green,
+          icon: Icons.list_alt_rounded,
+          title: 'سجل نشاط الإدارة',
+          color: const Color(0xFF10B981), // Emerald
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminAuditLogsScreen())),
         ),
       ],
@@ -115,49 +143,95 @@ class _StatisticsGrid extends StatelessWidget {
       mainAxisSpacing: 16,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.3,
+      childAspectRatio: 1.1,
       children: [
-        _buildStatCard('المستخدمين', _getCount('users'), Icons.people, Colors.blue),
-        _buildStatCard('الكتب المتاحة', _getCount('books'), Icons.library_books, Colors.orange),
-        _buildStatCard('عمليات البحث', _getCount('search_logs'), Icons.search, Colors.teal),
-        _buildStatCard('السجلات الإدارية', _getCount('audit_logs'), Icons.security, Colors.red),
+        _buildStatCard('المستخدمين', _getCount('users'), Icons.group_rounded, const Color(0xFF3B82F6)),
+        _buildStatCard('الكتب المتاحة', _getCount('books'), Icons.menu_book_rounded, const Color(0xFFF59E0B)),
+        _buildStatCard('عمليات البحث', _getCount('search_logs'), Icons.travel_explore_rounded, const Color(0xFF14B8A6)),
+        _buildStatCard('سجلات الإدارة', _getCount('audit_logs'), Icons.admin_panel_settings_rounded, const Color(0xFFEF4444)),
       ],
     );
   }
 
   Widget _buildStatCard(String title, Future<int> countFuture, IconData icon, Color color) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 30, color: color),
-            const SizedBox(height: 8),
-            Text(title, style: const TextStyle(fontSize: 14, color: Colors.grey)),
-            const SizedBox(height: 4),
-            FutureBuilder<int>(
-              future: countFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const SizedBox(
-                    width: 20, height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  );
-                }
-                if (snapshot.hasError) {
-                  return const Text('خطأ', style: TextStyle(color: Colors.red));
-                }
-                return Text(
-                  '${snapshot.data}',
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
-                );
-              },
-            ),
-          ],
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.1),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+        border: Border.all(
+          color: color.withValues(alpha: 0.2),
+          width: 1.5,
         ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -20,
+            bottom: -20,
+            child: Icon(
+              icon,
+              size: 100,
+              color: color.withValues(alpha: 0.05),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, size: 28, color: color),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    FutureBuilder<int>(
+                      future: countFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          );
+                        }
+                        return Text(
+                          '${snapshot.data ?? 0}',
+                          style: GoogleFonts.outfit(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        );
+                      },
+                    ),
+                    Text(
+                      title,
+                      style: GoogleFonts.tajawal(
+                        fontSize: 13,
+                        color: Colors.grey[400],
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -178,17 +252,76 @@ class _ActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: color.withValues(alpha: 0.2),
-          child: Icon(icon, color: color),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.03),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-        onTap: onTap,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        color.withValues(alpha: 0.2),
+                        color.withValues(alpha: 0.05),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: color.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Icon(icon, color: color, size: 24),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: GoogleFonts.tajawal(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 14,
+                    color: Colors.white54,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
