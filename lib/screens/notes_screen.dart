@@ -4,7 +4,10 @@ import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../providers/notes_provider.dart';
 import 'package:intl/intl.dart' as intl;
+import 'package:flutter_quill/flutter_quill.dart' as quill;
+import 'dart:convert';
 import 'note_editor_screen.dart';
+import 'trash_screen.dart';
 
 class NotesScreen extends StatefulWidget {
   const NotesScreen({super.key});
@@ -55,7 +58,7 @@ class _NotesScreenState extends State<NotesScreen> {
             ),
           ),
           content: Text(
-            'هل أنت متأكد من أنك تريد حذف هذه الملاحظة؟',
+            'سيتم نقل هذه الملاحظة إلى سلة المحذوفات.',
             style: GoogleFonts.tajawal(
               color: isDark ? Colors.white70 : Colors.black87,
             ),
@@ -73,7 +76,7 @@ class _NotesScreenState extends State<NotesScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                Provider.of<NotesProvider>(context, listen: false).deleteNote(noteId);
+                Provider.of<NotesProvider>(context, listen: false).moveToTrash(noteId);
                 Navigator.pop(context);
               },
               style: ElevatedButton.styleFrom(
@@ -114,6 +117,15 @@ class _NotesScreenState extends State<NotesScreen> {
         backgroundColor: AppTheme.primaryColor,
         elevation: 0,
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.white),
+            tooltip: 'سلة المحذوفات',
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const TrashScreen()));
+            },
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openEditor(),
@@ -241,7 +253,7 @@ class _NotesScreenState extends State<NotesScreen> {
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    note.content,
+                                    _getPreviewText(note.content),
                                     style: GoogleFonts.tajawal(
                                       fontSize: 15,
                                       color: isDark ? Colors.white70 : Colors.black87,
@@ -272,5 +284,17 @@ class _NotesScreenState extends State<NotesScreen> {
         ],
       ),
     );
+  }
+
+  String _getPreviewText(String content) {
+    if (content.isEmpty) return 'بدون محتوى';
+    try {
+      final decoded = jsonDecode(content);
+      if (decoded is List) {
+        final doc = quill.Document.fromJson(decoded);
+        return doc.toPlainText().trim();
+      }
+    } catch (_) {}
+    return content;
   }
 }

@@ -2,7 +2,7 @@ name: meraj3i
 description: "MERAJ3I - منصة تعليمية شاملة للطلاب"
 publish_to: "none"
 
-version: 6.3.0+13
+version: 6.4.0+14
 
 environment:
   sdk: ^3.11.0
@@ -61,6 +61,8 @@ dependencies:
   cached_network_image: ^3.4.1
   arabic_reshaper: ^0.0.1
   bidi: ^2.0.13
+  flutter_quill: ^11.5.1
+  signature: ^6.4.0
 
 dev_dependencies:
   flutter_test:

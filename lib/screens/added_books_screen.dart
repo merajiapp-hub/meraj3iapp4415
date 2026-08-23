@@ -426,9 +426,9 @@ class _AddedBooksScreenState extends State<AddedBooksScreen> {
       child: SizedBox(
         width: 70,
         height: 95,
-        child: book.coverUrl.isNotEmpty
+        child: book.thumbnailUrl != null
             ? CachedNetworkImage(
-                imageUrl: book.coverUrl,
+                imageUrl: book.thumbnailUrl!,
                 fit: BoxFit.cover,
                 placeholder: (context, url) => Container(
                   color: AppTheme.primaryColor.withValues(alpha: 0.1),

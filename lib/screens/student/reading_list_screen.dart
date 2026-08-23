@@ -127,11 +127,11 @@ class _ReadingListScreenState extends State<ReadingListScreen> with SingleTicker
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (book.coverUrl.isNotEmpty)
+              if (book.thumbnailUrl != null)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(6),
                   child: CachedNetworkImage(
-                    imageUrl: book.coverUrl,
+                    imageUrl: book.thumbnailUrl!,
                     width: 50,
                     height: 70,
                     fit: BoxFit.cover,
@@ -139,7 +139,11 @@ class _ReadingListScreenState extends State<ReadingListScreen> with SingleTicker
                       width: 50, height: 70, 
                       child: Center(child: CircularProgressIndicator())
                     ),
-                    errorWidget: (context, url, error) => const Icon(Icons.error),
+                    errorWidget: (context, url, error) => Container(
+                      width: 50, height: 70,
+                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                      child: const Icon(Icons.menu_book_rounded, color: Colors.grey),
+                    ),
                   ),
                 )
               else

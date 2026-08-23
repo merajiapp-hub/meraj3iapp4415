@@ -9,6 +9,10 @@ class Note {
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isPinned;
+  final bool isDeleted;
+  final DateTime? deletedAt;
+  final DateTime? reminderTime;
+  final int? color;
 
   Note({
     required this.id,
@@ -17,6 +21,10 @@ class Note {
     required this.createdAt,
     required this.updatedAt,
     this.isPinned = false,
+    this.isDeleted = false,
+    this.deletedAt,
+    this.reminderTime,
+    this.color,
   });
 
   factory Note.fromMap(String id, Map<String, dynamic> map) {
@@ -27,6 +35,10 @@ class Note {
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate() ?? (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       isPinned: map['isPinned'] ?? false,
+      isDeleted: map['isDeleted'] ?? false,
+      deletedAt: (map['deletedAt'] as Timestamp?)?.toDate(),
+      reminderTime: (map['reminderTime'] as Timestamp?)?.toDate(),
+      color: map['color'],
     );
   }
 
@@ -37,6 +49,10 @@ class Note {
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
       'isPinned': isPinned,
+      'isDeleted': isDeleted,
+      'deletedAt': deletedAt != null ? Timestamp.fromDate(deletedAt!) : null,
+      'reminderTime': reminderTime != null ? Timestamp.fromDate(reminderTime!) : null,
+      'color': color,
     };
   }
 }
@@ -50,7 +66,7 @@ class NotesProvider with ChangeNotifier {
   String _searchQuery = '';
 
   List<Note> get notes {
-    var filtered = _notes;
+    var filtered = _notes.where((n) => !n.isDeleted).toList();
     if (_searchQuery.isNotEmpty) {
       filtered = filtered.where((n) => 
         n.title.toLowerCase().contains(_searchQuery.toLowerCase()) || 
@@ -62,6 +78,16 @@ class NotesProvider with ChangeNotifier {
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
       return b.updatedAt.compareTo(a.updatedAt);
+    });
+    return filtered;
+  }
+  
+  List<Note> get trashedNotes {
+    var filtered = _notes.where((n) => n.isDeleted).toList();
+    filtered.sort((a, b) {
+      final aDate = a.deletedAt ?? a.updatedAt;
+      final bDate = b.deletedAt ?? b.updatedAt;
+      return bDate.compareTo(aDate);
     });
     return filtered;
   }
@@ -100,7 +126,7 @@ class NotesProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addNote(String title, String content) async {
+  Future<void> addNote(String title, String content, {int? color, DateTime? reminderTime}) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
@@ -111,6 +137,9 @@ class NotesProvider with ChangeNotifier {
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
       'isPinned': false,
+      'isDeleted': false,
+      'color': color,
+      'reminderTime': reminderTime != null ? Timestamp.fromDate(reminderTime) : null,
     };
 
     try {
@@ -129,6 +158,9 @@ class NotesProvider with ChangeNotifier {
           createdAt: now,
           updatedAt: now,
           isPinned: false,
+          isDeleted: false,
+          color: color,
+          reminderTime: reminderTime,
         ),
       );
       notifyListeners();
@@ -137,7 +169,7 @@ class NotesProvider with ChangeNotifier {
     }
   }
 
-  Future<void> updateNote(String id, String title, String content) async {
+  Future<void> updateNote(String id, String title, String content, {int? color, DateTime? reminderTime}) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
@@ -152,6 +184,8 @@ class NotesProvider with ChangeNotifier {
         'title': title,
         'content': content,
         'updatedAt': FieldValue.serverTimestamp(),
+        'color': color,
+        'reminderTime': reminderTime != null ? Timestamp.fromDate(reminderTime) : null,
       });
 
       final index = _notes.indexWhere((n) => n.id == id);
@@ -163,6 +197,10 @@ class NotesProvider with ChangeNotifier {
           createdAt: _notes[index].createdAt,
           updatedAt: now,
           isPinned: _notes[index].isPinned,
+          isDeleted: _notes[index].isDeleted,
+          deletedAt: _notes[index].deletedAt,
+          color: color,
+          reminderTime: reminderTime,
         );
         notifyListeners();
       }
@@ -202,6 +240,83 @@ class NotesProvider with ChangeNotifier {
     }
   }
 
+  Future<void> moveToTrash(String id) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final index = _notes.indexWhere((n) => n.id == id);
+    if (index == -1) return;
+
+    final now = DateTime.now();
+
+    try {
+      await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('notes')
+          .doc(id)
+          .update({
+        'isDeleted': true,
+        'deletedAt': FieldValue.serverTimestamp(),
+      });
+
+      _notes[index] = Note(
+        id: id,
+        title: _notes[index].title,
+        content: _notes[index].content,
+        createdAt: _notes[index].createdAt,
+        updatedAt: _notes[index].updatedAt,
+        isPinned: _notes[index].isPinned,
+        isDeleted: true,
+        deletedAt: now,
+        color: _notes[index].color,
+        reminderTime: _notes[index].reminderTime,
+      );
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error moving note to trash: $e');
+    }
+  }
+
+  Future<void> restoreFromTrash(String id) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final index = _notes.indexWhere((n) => n.id == id);
+    if (index == -1) return;
+
+    final now = DateTime.now();
+
+    try {
+      await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('notes')
+          .doc(id)
+          .update({
+        'isDeleted': false,
+        'deletedAt': FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      _notes[index] = Note(
+        id: id,
+        title: _notes[index].title,
+        content: _notes[index].content,
+        createdAt: _notes[index].createdAt,
+        updatedAt: now,
+        isPinned: _notes[index].isPinned,
+        isDeleted: false,
+        deletedAt: null,
+        color: _notes[index].color,
+        reminderTime: _notes[index].reminderTime,
+      );
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error restoring note from trash: $e');
+    }
+  }
+
   Future<void> deleteNote(String id) async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -217,7 +332,7 @@ class NotesProvider with ChangeNotifier {
       _notes.removeWhere((n) => n.id == id);
       notifyListeners();
     } catch (e) {
-      debugPrint('Error deleting note: $e');
+      debugPrint('Error permanently deleting note: $e');
     }
   }
 }

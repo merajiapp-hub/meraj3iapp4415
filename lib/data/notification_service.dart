@@ -24,6 +24,10 @@ class NotificationService {
   static const _tasksChannelName = 'مراجعي — المهام';
   static const _tasksChannelDesc = 'تنبيهات المهام الدراسية';
 
+  static const _notesChannelId = 'meraj3i_notes';
+  static const _notesChannelName = 'مراجعي — الملاحظات';
+  static const _notesChannelDesc = 'تذكيرات الملاحظات';
+
   Future<void> init() async {
     tz.initializeTimeZones();
 
@@ -88,8 +92,18 @@ class NotificationService {
       enableVibration: true,
     );
 
+    const notesChannel = AndroidNotificationChannel(
+      _notesChannelId,
+      _notesChannelName,
+      description: _notesChannelDesc,
+      importance: Importance.max,
+      playSound: true,
+      enableVibration: true,
+    );
+
     await androidPlugin.createNotificationChannel(channel);
     await androidPlugin.createNotificationChannel(tasksChannel);
+    await androidPlugin.createNotificationChannel(notesChannel);
   }
 
   // معالج الإشعار عند الضغط

@@ -41,62 +41,71 @@ class AppDropdown<T> extends StatelessWidget {
           ),
           const SizedBox(height: 8),
         ],
-        DropdownButtonFormField<T>(
-          initialValue: value,
-          isExpanded: isExpanded,
-          menuMaxHeight: menuMaxHeight,
-          hint: hint != null
-              ? Text(
-                  hint!,
-                  style: GoogleFonts.tajawal(
-                    color: Colors.grey,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                )
-              : null,
-          icon: Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: isDark ? Colors.white54 : Colors.black54,
+        // استخدام ButtonTheme مع alignedDropdown لضمان أن القائمة تتطابق تماماً مع عرض الحقل
+        Theme(
+          key: ValueKey(value), // إعادة بناء القائمة عند تغيير القيمة
+          data: Theme.of(context).copyWith(
+            buttonTheme: Theme.of(context).buttonTheme.copyWith(
+              alignedDropdown: true, 
+            ),
           ),
-          decoration: InputDecoration(
-            prefixIcon: icon != null
-                ? Icon(
-                    icon,
-                    color: isDark ? Colors.white54 : Colors.black54,
-                    size: 20,
+          child: DropdownButtonFormField<T>(
+            initialValue: value, // نستخدم initialValue (غير مُهمل)
+            isExpanded: isExpanded,
+            menuMaxHeight: menuMaxHeight,
+            hint: hint != null
+                ? Text(
+                    hint!,
+                    style: GoogleFonts.tajawal(
+                      color: Colors.grey,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   )
                 : null,
-            filled: true,
-            fillColor: isDark ? const Color(0xFF2A2A2A) : Colors.grey[50],
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
+            icon: Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: isDark ? Colors.white54 : Colors.black54,
             ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(
-                color: isDark ? Colors.white12 : Colors.grey[300]!,
-                width: 1,
+            decoration: InputDecoration(
+              prefixIcon: icon != null
+                  ? Icon(
+                      icon,
+                      color: isDark ? Colors.white54 : Colors.black54,
+                      size: 20,
+                    )
+                  : null,
+              filled: true,
+              fillColor: isDark ? const Color(0xFF2A2A2A) : Colors.grey[50],
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.white12 : Colors.grey[300]!,
+                  width: 1,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: Theme.of(context).primaryColor,
+                  width: 2,
+                ),
               ),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(
-                color: Theme.of(context).primaryColor,
-                width: 2,
-              ),
+            dropdownColor: isDark ? const Color(0xFF333333) : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            style: GoogleFonts.tajawal(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white : Colors.black87,
             ),
+            onChanged: onChanged,
+            items: items,
           ),
-          dropdownColor: isDark ? const Color(0xFF333333) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          style: GoogleFonts.tajawal(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
-          onChanged: onChanged,
-          items: items,
         ),
       ],
     );

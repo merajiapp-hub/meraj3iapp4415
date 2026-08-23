@@ -900,20 +900,28 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                             : () async {
                                 setModalState(() => isSubmitting = true);
                                 try {
-                                  await _firestore.collection('reviews').add({
+                                  final newDocRef = await _firestore.collection('reviews').add({
                                     'userId': auth.user!.uid,
                                     'userName': auth.user!.displayName ?? 'مستخدم',
                                     'userPhotoUrl': auth.user!.photoURL,
                                     'rating': currentRating,
                                     'text': textCtrl.text.trim(),
-                                    'createdAt': FieldValue.serverTimestamp(),
+                                    'createdAt': Timestamp.now(), // استخدمنا التوقيت المحلي لكي يظهر فوراً
                                     'helpfulVotes': [],
                                   });
+                                  
+                                  // جلب المستند الجديد لإضافته محلياً
+                                  final newDocSnap = await newDocRef.get();
+
                                   if (context.mounted) {
                                     Navigator.pop(context);
                                     AppNotification.show(context, 'شكراً لتقييمك!');
+                                    
+                                    // تحديث الواجهة فوراً
+                                    setState(() {
+                                      _reviews.insert(0, newDocSnap);
+                                    });
                                     _fetchStats();
-                                    _fetchReviews(refresh: true);
                                   }
                                 } catch (e) {
                                   if (context.mounted) AppNotification.show(context, 'حدث خطأ، حاول مرة أخرى', isError: true);
