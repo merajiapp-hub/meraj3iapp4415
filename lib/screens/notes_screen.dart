@@ -8,6 +8,7 @@ import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'dart:convert';
 import 'note_editor_screen.dart';
 import 'trash_screen.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 class NotesScreen extends StatefulWidget {
   const NotesScreen({super.key});
@@ -167,13 +168,13 @@ class _NotesScreenState extends State<NotesScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              Icons.note_alt_outlined,
+                              Icons.lightbulb_outline,
                               size: 80,
                               color: isDark ? Colors.white24 : Colors.black26,
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'لا توجد ملاحظات',
+                              'الملاحظات التي تضيفها تظهر هنا',
                               style: GoogleFonts.tajawal(
                                 fontSize: 18,
                                 color: isDark ? Colors.white54 : Colors.black54,
@@ -182,35 +183,32 @@ class _NotesScreenState extends State<NotesScreen> {
                           ],
                         ),
                       )
-                    : ListView.builder(
+                    : MasonryGridView.count(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         itemCount: provider.notes.length,
                         itemBuilder: (context, index) {
                           final note = provider.notes[index];
                           return GestureDetector(
                             onTap: () => _openEditor(note: note),
+                            onLongPress: () => _confirmDelete(context, note.id),
                             child: Container(
-                              margin: const EdgeInsets.only(bottom: 16),
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: isDark ? AppTheme.surfaceDark : Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
+                                color: note.color != null 
+                                    ? Color(note.color!) 
+                                    : (isDark ? AppTheme.surfaceDark : Colors.white),
+                                borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                  color: note.isPinned 
-                                    ? AppTheme.primaryColor.withValues(alpha: 0.5) 
-                                    : (isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05)),
-                                  width: note.isPinned ? 1.5 : 1.0,
+                                  color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.1),
+                                  width: 1,
                                 ),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min, // To fit masonry size
                                 children: [
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -220,34 +218,21 @@ class _NotesScreenState extends State<NotesScreen> {
                                         child: Text(
                                           note.title.isNotEmpty ? note.title : 'بدون عنوان',
                                           style: GoogleFonts.tajawal(
-                                            fontSize: 18,
+                                            fontSize: 16,
                                             fontWeight: FontWeight.bold,
-                                            color: AppTheme.primaryColor,
+                                            color: isDark || note.color != null ? Colors.white : AppTheme.primaryColor,
                                           ),
-                                          maxLines: 1,
+                                          maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          IconButton(
-                                            icon: Icon(
-                                              note.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-                                              color: note.isPinned ? AppTheme.primaryColor : Colors.grey,
-                                              size: 20,
-                                            ),
-                                            constraints: const BoxConstraints(),
-                                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                                            onPressed: () => provider.togglePin(note.id),
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                                            constraints: const BoxConstraints(),
-                                            padding: EdgeInsets.zero,
-                                            onPressed: () => _confirmDelete(context, note.id),
-                                          ),
-                                        ],
+                                      GestureDetector(
+                                        onTap: () => provider.togglePin(note.id),
+                                        child: Icon(
+                                          note.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                                          color: note.isPinned ? (isDark || note.color != null ? Colors.white : AppTheme.primaryColor) : Colors.grey,
+                                          size: 20,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -255,24 +240,20 @@ class _NotesScreenState extends State<NotesScreen> {
                                   Text(
                                     _getPreviewText(note.content),
                                     style: GoogleFonts.tajawal(
-                                      fontSize: 15,
-                                      color: isDark ? Colors.white70 : Colors.black87,
+                                      fontSize: 14,
+                                      color: isDark || note.color != null ? Colors.white70 : Colors.black87,
+                                      height: 1.5,
                                     ),
-                                    maxLines: 3,
+                                    maxLines: 6,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        intl.DateFormat('yyyy/MM/dd HH:mm').format(note.updatedAt),
-                                        style: GoogleFonts.tajawal(
-                                          fontSize: 12,
-                                          color: isDark ? Colors.white38 : Colors.black38,
-                                        ),
-                                      ),
-                                    ],
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    intl.DateFormat('MMM d').format(note.updatedAt),
+                                    style: GoogleFonts.tajawal(
+                                      fontSize: 11,
+                                      color: isDark || note.color != null ? Colors.white54 : Colors.black54,
+                                    ),
                                   ),
                                 ],
                               ),

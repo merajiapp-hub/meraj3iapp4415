@@ -29,11 +29,15 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   String? _createdNoteId;
   final FocusNode _focusNode = FocusNode();
   final ScrollController _editorScrollController = ScrollController();
+  Color? _selectedColor;
 
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.note?.title ?? '');
+    if (widget.note?.color != null) {
+      _selectedColor = Color(widget.note!.color!);
+    }
 
     // Load content: if JSON delta, parse it; else treat as plain text.
     quill.Document doc;
@@ -91,7 +95,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final existingId = widget.note?.id ?? _createdNoteId;
 
     if (existingId != null) {
-      await provider.updateNote(existingId, title.isEmpty ? 'بدون عنوان' : title, content);
+      await provider.updateNote(existingId, title.isEmpty ? 'بدون عنوان' : title, content, color: _selectedColor?.toARGB32());
     }
 
     if (mounted) {
@@ -117,9 +121,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final existingId = widget.note?.id ?? _createdNoteId;
 
     if (existingId == null) {
-      provider.addNote(title.isEmpty ? 'بدون عنوان' : title, content);
+      provider.addNote(title.isEmpty ? 'بدون عنوان' : title, content, color: _selectedColor?.toARGB32());
     } else {
-      provider.updateNote(existingId, title.isEmpty ? 'بدون عنوان' : title, content);
+      provider.updateNote(existingId, title.isEmpty ? 'بدون عنوان' : title, content, color: _selectedColor?.toARGB32());
     }
     Navigator.pop(context);
   }
@@ -175,6 +179,76 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     }
   }
 
+  void _openColorPicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark ? AppTheme.surfaceDark : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('لون الملاحظة', style: GoogleFonts.tajawal(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _buildColorCircle(null, 'افتراضي'),
+                _buildColorCircle(const Color(0xFFF28B82), 'أحمر'),
+                _buildColorCircle(const Color(0xFFFBBC04), 'برتقالي'),
+                _buildColorCircle(const Color(0xFFFFF475), 'أصفر'),
+                _buildColorCircle(const Color(0xFFCCFF90), 'أخضر'),
+                _buildColorCircle(const Color(0xFFA7FFEB), 'أزرق فاتح'),
+                _buildColorCircle(const Color(0xFFCBF0F8), 'أزرق'),
+                _buildColorCircle(const Color(0xFFAECBFA), 'أزرق داكن'),
+                _buildColorCircle(const Color(0xFFD7AEFB), 'بنفسجي'),
+                _buildColorCircle(const Color(0xFFFDCFE8), 'وردي'),
+                _buildColorCircle(const Color(0xFFE6C9A8), 'بني'),
+                _buildColorCircle(const Color(0xFFE8EAED), 'رمادي'),
+              ],
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildColorCircle(Color? color, String tooltip) {
+    final isSelected = _selectedColor == color;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedColor = color;
+          _isChanged = true;
+        });
+        Navigator.pop(context);
+        _scheduleAutoSave();
+      },
+      child: Tooltip(
+        message: tooltip,
+        child: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: color ?? (Theme.of(context).brightness == Brightness.dark ? AppTheme.backgroundDark : AppTheme.backgroundLight),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: isSelected ? AppTheme.primaryColor : Colors.grey.withValues(alpha: 0.3),
+              width: isSelected ? 3 : 1,
+            ),
+          ),
+          child: isSelected ? Icon(Icons.check, color: (color == null || color.computeLuminance() > 0.5) ? Colors.black : Colors.white, size: 20) : null,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -186,7 +260,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         _saveNote();
       },
       child: Scaffold(
-        backgroundColor: isDark ? AppTheme.backgroundDark : AppTheme.backgroundLight,
+        backgroundColor: _selectedColor ?? (isDark ? AppTheme.backgroundDark : AppTheme.backgroundLight),
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -283,33 +357,32 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    quill.QuillSimpleToolbar(
-                      controller: _quillController,
-                      config: quill.QuillSimpleToolbarConfig(
-                        showFontFamily: false,
-                        showFontSize: true,
-                        showSubscript: false,
-                        showSuperscript: false,
-                        showInlineCode: false,
-                        showColorButton: true,
-                        showBackgroundColorButton: true,
-                        showClearFormat: true,
-                        showAlignmentButtons: true,
-                        showLeftAlignment: true,
-                        showCenterAlignment: true,
-                        showRightAlignment: true,
-                        showJustifyAlignment: true,
-                        showHeaderStyle: true,
-                        showListNumbers: true,
-                        showListBullets: true,
-                        showListCheck: true,
-                        showCodeBlock: false,
-                        showQuote: true,
-                        showIndent: true,
-                        showLink: true,
-                        showUndo: true,
-                        showRedo: true,
-                        showDirection: true,
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: quill.QuillSimpleToolbar(
+                        controller: _quillController,
+                        config: const quill.QuillSimpleToolbarConfig(
+                          showFontFamily: false,
+                          showFontSize: true,
+                          showSubscript: false,
+                          showSuperscript: false,
+                          showInlineCode: false,
+                          showColorButton: true,
+                          showBackgroundColorButton: true,
+                          showClearFormat: true,
+                          showAlignmentButtons: true,
+                          showHeaderStyle: true,
+                          showListNumbers: true,
+                          showListBullets: true,
+                          showListCheck: true,
+                          showCodeBlock: false,
+                          showQuote: true,
+                          showIndent: true,
+                          showLink: true,
+                          showUndo: true,
+                          showRedo: true,
+                          showDirection: true,
+                        ),
                       ),
                     ),
                     // Extra tools row: image, camera, drawing
@@ -331,6 +404,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                             icon: Icons.draw_rounded,
                             label: 'رسم',
                             onTap: _openDrawingSheet,
+                          ),
+                          _ExtraBtn(
+                            icon: Icons.palette_outlined,
+                            label: 'لون',
+                            onTap: _openColorPicker,
                           ),
                         ],
                       ),

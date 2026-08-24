@@ -92,7 +92,13 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
         final data = d.data();
         final rating = (data['rating'] as num?)?.toDouble() ?? 5.0;
         final text = data['text'] as String? ?? '';
-        final createdAt = (data['createdAt'] as Timestamp?)?.toDate() ?? now;
+        
+        DateTime createdAt = now;
+        if (data['createdAt'] is Timestamp) {
+          createdAt = (data['createdAt'] as Timestamp).toDate();
+        } else if (data['createdAt'] is String) {
+          createdAt = DateTime.tryParse(data['createdAt']) ?? now;
+        }
         
         sum += rating;
         if (text.trim().isNotEmpty) withComment++;
@@ -613,7 +619,14 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     final text = review['text'] as String? ?? '';
     final name = review['userName'] as String? ?? 'مستخدم';
     final photoUrl = review['userPhotoUrl'] as String?;
-    final date = review['createdAt'] != null ? (review['createdAt'] as Timestamp).toDate() : null;
+    
+    DateTime? date;
+    if (review['createdAt'] is Timestamp) {
+      date = (review['createdAt'] as Timestamp).toDate();
+    } else if (review['createdAt'] is String) {
+      date = DateTime.tryParse(review['createdAt']);
+    }
+    
     final dateStr = date != null ? intl.DateFormat('d MMM yyyy', 'ar').format(date) : '';
     
     final helpfulVotes = List<dynamic>.from(review['helpfulVotes'] ?? []);

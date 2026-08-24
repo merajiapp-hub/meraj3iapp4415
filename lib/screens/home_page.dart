@@ -48,6 +48,8 @@ import 'student/reading_history_screen.dart';
 import '../widgets/banner_ad_widget.dart';
 import 'admin/admin_guard.dart';
 import 'admin/admin_dashboard_screen.dart';
+import '../calculator/screens/scientific_calculator_screen.dart';
+import 'direct_chat_screen.dart';
 
 
 class HomePage extends StatefulWidget {
@@ -583,6 +585,34 @@ class _HomePageState extends State<HomePage>
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const AiSearchScreen()),
+        ),
+      ),
+      _ServiceItem(
+        title: 'الحاسبة العلمية',
+        icon: Icons.calculate_rounded,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        badge: 'جديد',
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ScientificCalculatorScreen()),
+        ),
+      ),
+      _ServiceItem(
+        title: 'المراسلة',
+        icon: Icons.chat_rounded,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF10B981), Color(0xFF059669)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        badge: 'جديد',
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const DirectChatScreen()),
         ),
       ),
       _ServiceItem(

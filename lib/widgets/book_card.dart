@@ -9,7 +9,6 @@ import '../providers/favorites_provider.dart';
 import '../providers/downloads_provider.dart';
 import '../providers/reading_provider.dart';
 import '../screens/pdf_viewer_screen.dart';
-import '../services/drive_url_service.dart';
 import 'app_notification.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -214,15 +213,7 @@ class _BookCardState extends State<BookCard> {
                   builder: (context, constraints) {
                     final isNarrow = constraints.maxWidth < 250;
 
-                    String? finalCoverUrl;
-                    if (widget.book.coverUrl.isNotEmpty) {
-                      if (DriveUrlService.isDriveUrl(widget.book.coverUrl)) {
-                         final fileId = DriveUrlService.extractFileId(widget.book.coverUrl);
-                         finalCoverUrl = DriveUrlService.getThumbnailUrl(fileId);
-                      } else {
-                         finalCoverUrl = widget.book.coverUrl;
-                      }
-                    }
+                    String? finalCoverUrl = widget.book.thumbnailUrl;
 
                     final iconWidget = Container(
                       width: isNarrow ? 40 : 48,
