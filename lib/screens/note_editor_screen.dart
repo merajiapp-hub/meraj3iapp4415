@@ -27,6 +27,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   bool _isSaving = false;
   // Track if we created a new note during an auto-save (so we have an id)
   String? _createdNoteId;
+  final FocusNode _focusNode = FocusNode();
+  final ScrollController _editorScrollController = ScrollController();
 
   @override
   void initState() {
@@ -127,6 +129,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     _autoSaveTimer?.cancel();
     _titleController.dispose();
     _quillController.dispose();
+    _focusNode.dispose();
+    _editorScrollController.dispose();
     super.dispose();
   }
 
@@ -238,25 +242,31 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
               // ── Quill Editor ──
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: quill.QuillEditor(
-                    controller: _quillController,
-                    focusNode: FocusNode(),
-                    scrollController: ScrollController(),
-                    config: quill.QuillEditorConfig(
-                      placeholder: 'ابدأ الكتابة هنا...',
-                      customStyles: quill.DefaultStyles(
-                        paragraph: quill.DefaultTextBlockStyle(
-                          GoogleFonts.tajawal(
-                            fontSize: 17,
-                            height: 1.7,
-                            color: isDark ? Colors.white70 : Colors.black87,
+                child: GestureDetector(
+                  onTap: () => _focusNode.requestFocus(),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: quill.QuillEditor(
+                      controller: _quillController,
+                      focusNode: _focusNode,
+                      scrollController: _editorScrollController,
+                      config: quill.QuillEditorConfig(
+                        scrollable: true,
+                        expands: true,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        placeholder: 'ابدأ الكتابة هنا...',
+                        customStyles: quill.DefaultStyles(
+                          paragraph: quill.DefaultTextBlockStyle(
+                            GoogleFonts.tajawal(
+                              fontSize: 17,
+                              height: 1.7,
+                              color: isDark ? Colors.white70 : Colors.black87,
+                            ),
+                            const quill.HorizontalSpacing(0, 0),
+                            const quill.VerticalSpacing(0, 0),
+                            const quill.VerticalSpacing(0, 0),
+                            null,
                           ),
-                          const quill.HorizontalSpacing(0, 0),
-                          const quill.VerticalSpacing(0, 0),
-                          const quill.VerticalSpacing(0, 0),
-                          null,
                         ),
                       ),
                     ),

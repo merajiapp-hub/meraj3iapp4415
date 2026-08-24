@@ -1,8 +1,7 @@
 name: meraj3i
 description: "MERAJ3I - منصة تعليمية شاملة للطلاب"
 publish_to: "none"
-
-version: 6.4.0+14
+version: 6.5.0+15
 
 environment:
   sdk: ^3.11.0

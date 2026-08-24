@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../data/books_data.dart';
 import '../models/book.dart';
 import 'pdf_viewer_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class SweddScreen extends StatelessWidget {
   const SweddScreen({super.key});
@@ -185,18 +186,33 @@ class SweddScreen extends StatelessWidget {
                                       vertical: 6,
                                     ),
                                     leading: Container(
-                                      padding: const EdgeInsets.all(8),
+                                      width: 40,
+                                      height: 40,
+                                      padding: book.thumbnailUrl != null ? EdgeInsets.zero : const EdgeInsets.all(8),
                                       decoration: BoxDecoration(
                                         color: const Color(
                                           0xFFEC4899,
                                         ).withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
-                                      child: const Icon(
-                                        Icons.health_and_safety,
-                                        color: Color(0xFFEC4899),
-                                        size: 18,
-                                      ),
+                                      child: book.thumbnailUrl != null
+                                          ? ClipRRect(
+                                              borderRadius: BorderRadius.circular(8),
+                                              child: CachedNetworkImage(
+                                                imageUrl: book.thumbnailUrl!,
+                                                fit: BoxFit.cover,
+                                                errorWidget: (context, url, error) => const Icon(
+                                                  Icons.health_and_safety,
+                                                  color: Color(0xFFEC4899),
+                                                  size: 18,
+                                                ),
+                                              ),
+                                            )
+                                          : const Icon(
+                                              Icons.health_and_safety,
+                                              color: Color(0xFFEC4899),
+                                              size: 18,
+                                            ),
                                     ),
                                     title: Text(
                                       book.title,

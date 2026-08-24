@@ -7,6 +7,7 @@ import '../providers/favorites_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/geometric_sliver_app_bar.dart';
 import 'pdf_viewer_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class FavoritesScreen extends StatelessWidget {
   const FavoritesScreen({super.key});
@@ -175,11 +176,24 @@ class _FavoriteBookCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.auto_stories_rounded,
-                      color: Colors.white,
-                      size: 26,
-                    ),
+                    child: book.thumbnailUrl != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: CachedNetworkImage(
+                              imageUrl: book.thumbnailUrl!,
+                              fit: BoxFit.cover,
+                              errorWidget: (context, url, error) => const Icon(
+                                Icons.auto_stories_rounded,
+                                color: Colors.white,
+                                size: 26,
+                              ),
+                            ),
+                          )
+                        : const Icon(
+                            Icons.auto_stories_rounded,
+                            color: Colors.white,
+                            size: 26,
+                          ),
                   ),
                   title: Text(
                     book.title,

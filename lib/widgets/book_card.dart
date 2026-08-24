@@ -9,7 +9,9 @@ import '../providers/favorites_provider.dart';
 import '../providers/downloads_provider.dart';
 import '../providers/reading_provider.dart';
 import '../screens/pdf_viewer_screen.dart';
+import '../services/drive_url_service.dart';
 import 'app_notification.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class BookCard extends StatefulWidget {
   final Book book;
@@ -212,11 +214,22 @@ class _BookCardState extends State<BookCard> {
                   builder: (context, constraints) {
                     final isNarrow = constraints.maxWidth < 250;
 
+                    String? finalCoverUrl;
+                    if (widget.book.coverUrl.isNotEmpty) {
+                      if (DriveUrlService.isDriveUrl(widget.book.coverUrl)) {
+                         final fileId = DriveUrlService.extractFileId(widget.book.coverUrl);
+                         finalCoverUrl = DriveUrlService.getThumbnailUrl(fileId);
+                      } else {
+                         finalCoverUrl = widget.book.coverUrl;
+                      }
+                    }
+
                     final iconWidget = Container(
                       width: isNarrow ? 40 : 48,
                       height: isNarrow ? 40 : 48,
                       decoration: BoxDecoration(
-                        gradient: widget.gradient,
+                        gradient: finalCoverUrl == null ? widget.gradient : null,
+                        color: finalCoverUrl != null ? (widget.isDark ? Colors.grey[800] : Colors.grey[200]) : null,
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
@@ -226,7 +239,23 @@ class _BookCardState extends State<BookCard> {
                           ),
                         ],
                       ),
-                      child: Icon(_subjectIcon, color: Colors.white, size: isNarrow ? 20 : 22),
+                      child: finalCoverUrl != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: CachedNetworkImage(
+                                imageUrl: finalCoverUrl,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                  decoration: BoxDecoration(gradient: widget.gradient),
+                                  child: Icon(_subjectIcon, color: Colors.white70, size: isNarrow ? 20 : 22),
+                                ),
+                                errorWidget: (context, url, error) => Container(
+                                  decoration: BoxDecoration(gradient: widget.gradient),
+                                  child: Icon(_subjectIcon, color: Colors.white, size: isNarrow ? 20 : 22),
+                                ),
+                              ),
+                            )
+                          : Icon(_subjectIcon, color: Colors.white, size: isNarrow ? 20 : 22),
                     );
 
                     final textContent = Column(

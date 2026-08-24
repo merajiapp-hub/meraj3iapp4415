@@ -314,7 +314,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
   }
 
   Widget _buildSummaryHeader(bool isDark) {
-    if (_stats == null || _stats!['total'] == 0) return const SizedBox.shrink();
+    if (_stats == null) return const SizedBox.shrink();
     final avg = _stats!['avg'] as double;
     final total = _stats!['total'] as int;
     final dist = _stats!['dist'] as Map<int, int>;
@@ -399,7 +399,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
   }
 
   Widget _buildStatsGrid(bool isDark) {
-    if (_stats == null || _stats!['total'] == 0) return const SizedBox.shrink();
+    if (_stats == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: GridView.count(
@@ -577,10 +577,10 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
               scrollDirection: Axis.horizontal,
               children: [
                 _sortChip(ReviewSort.newest, 'الأحدث', isDark),
-                _sortChip(ReviewSort.highestRating, 'الأعلى تقييماً', isDark),
-                _sortChip(ReviewSort.lowestRating, 'الأقل تقييماً', isDark),
+                _sortChip(ReviewSort.highestRating, 'الأعلى', isDark),
+                _sortChip(ReviewSort.lowestRating, 'الأقل', isDark),
                 _sortChip(ReviewSort.withComment, 'بتعليق', isDark),
-                _sortChip(ReviewSort.withoutComment, 'بدون تعليق', isDark),
+                _sortChip(ReviewSort.withoutComment, 'بدون', isDark),
               ],
             ),
           ),

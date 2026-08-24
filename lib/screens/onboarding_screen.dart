@@ -117,18 +117,41 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(40),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.white.withValues(alpha: 0.1),
+                            // الصفحة الأولى: شعار MERAJ3I، باقي الصفحات: أيقونات
+                            if (index == 0)
+                              Container(
+                                padding: const EdgeInsets.all(30),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withValues(alpha: 0.12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.white.withValues(alpha: 0.08),
+                                      blurRadius: 40,
+                                      spreadRadius: 10,
+                                    ),
+                                  ],
+                                ),
+                                child: Image.asset(
+                                  'assets/images/logo.png',
+                                  width: 110,
+                                  height: 110,
+                                  fit: BoxFit.contain,
+                                ),
+                              )
+                            else
+                              Container(
+                                padding: const EdgeInsets.all(40),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withValues(alpha: 0.1),
+                                ),
+                                child: Icon(
+                                  _getIcon(_onboardingData[index]['icon']!),
+                                  size: 100,
+                                  color: Colors.white,
+                                ),
                               ),
-                              child: Icon(
-                                _getIcon(_onboardingData[index]['icon']!),
-                                size: 100,
-                                color: Colors.white,
-                              ),
-                            ),
                             const SizedBox(height: 60),
                             Text(
                               _onboardingData[index]['title']!,

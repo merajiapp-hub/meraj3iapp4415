@@ -164,7 +164,12 @@ class _HomePageState extends State<HomePage>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.exit_to_app_rounded, color: Colors.white70, size: 20),
+                Image.asset(
+                  'assets/images/logo.png',
+                  width: 26,
+                  height: 26,
+                  fit: BoxFit.contain,
+                ),
                 const SizedBox(width: 12),
                 Text(
                   'اضغط مرة أخرى للخروج من التطبيق',

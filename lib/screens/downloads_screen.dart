@@ -8,6 +8,7 @@ import 'package:shimmer/shimmer.dart';
 import '../providers/downloads_provider.dart';
 import '../models/result_pdf_file.dart';
 import '../theme/app_theme.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'pdf_viewer_screen.dart';
 
 class DownloadsScreen extends StatefulWidget {
@@ -261,7 +262,24 @@ class _DownloadedBookCard extends StatelessWidget {
                     color: Colors.red.shade50,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.picture_as_pdf_rounded, color: Colors.red.shade400, size: 28),
+                  child: db.thumbnailUrl != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: CachedNetworkImage(
+                            imageUrl: db.thumbnailUrl!,
+                            fit: BoxFit.cover,
+                            errorWidget: (context, url, error) => Icon(
+                              Icons.picture_as_pdf_rounded,
+                              color: Colors.red.shade400,
+                              size: 28,
+                            ),
+                          ),
+                        )
+                      : Icon(
+                          Icons.picture_as_pdf_rounded,
+                          color: Colors.red.shade400,
+                          size: 28,
+                        ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(

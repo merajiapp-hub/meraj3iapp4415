@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../providers/statistics_provider.dart';
+import '../providers/task_provider.dart';
+import '../providers/reading_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/curved_header.dart';
 
@@ -46,6 +48,8 @@ class _StatisticsScreenState extends State<StatisticsScreen>
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final stats = Provider.of<StatisticsProvider>(context);
+    final taskProvider = Provider.of<TaskProvider>(context);
+    final readingProvider = Provider.of<ReadingProvider>(context);
 
     // تحديث البيانات العامة إذا لزم الأمر
     final favCount = stats.userFavoriteBooks;
@@ -85,7 +89,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
                     const SizedBox(height: 24),
 
                     // ─── مؤشرات النشاط ──────────────────────────────────────────
-                    _buildActivityChart(isDark),
+                    _buildActivityChart(isDark, taskProvider),
                     const SizedBox(height: 24),
 
                     // ─── الرسم البياني الدائري ───────────────────────────────────
@@ -97,7 +101,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
                     const SizedBox(height: 16),
 
                     // ─── الرسم البياني الخطي ─────────────────────────────────────
-                    _buildLineChart(isDark),
+                    _buildLineChart(isDark, taskProvider, readingProvider),
                     const SizedBox(height: 40),
                   ],
                 ),
@@ -223,8 +227,37 @@ class _StatisticsScreenState extends State<StatisticsScreen>
   }
 
   // ─── الرسم البياني العمودي ──────────────────────────────────────────────────
-  Widget _buildActivityChart(bool isDark) {
+  Widget _buildActivityChart(bool isDark, TaskProvider taskProvider) {
     final isWeekly = _selectedPeriodIndex == 0;
+    
+    // حساب النشاط بناءً على المهام
+    List<double> activityData = List.filled(7, 0);
+    final now = DateTime.now();
+    
+    if (isWeekly) {
+      for (var task in taskProvider.tasks) {
+        if (now.difference(task.startTime).inDays < 7) {
+          int index = task.startTime.weekday % 7; // 0=Sunday
+          activityData[index]++;
+        }
+      }
+    } else {
+      activityData = List.filled(4, 0); // 4 weeks
+      for (var task in taskProvider.tasks) {
+        if (now.difference(task.startTime).inDays < 30) {
+          int weekIndex = (now.difference(task.startTime).inDays / 7).floor();
+          if (weekIndex >= 0 && weekIndex < 4) {
+             activityData[3 - weekIndex]++; // 3 is latest
+          }
+        }
+      }
+    }
+
+    double maxY = 10;
+    for (var val in activityData) {
+      if (val > maxY) maxY = val + 5;
+    }
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -260,7 +293,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
             child: BarChart(
               BarChartData(
                 alignment: BarChartAlignment.spaceAround,
-                maxY: 10,
+                maxY: maxY,
                 barTouchData: BarTouchData(
                   touchTooltipData: BarTouchTooltipData(
                     getTooltipColor: (_) =>
@@ -283,10 +316,13 @@ class _StatisticsScreenState extends State<StatisticsScreen>
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
                         final days = ['أح', 'إث', 'ثل', 'أر', 'خم', 'جم', 'سب'];
+                        final weeks = ['الأول', 'الثاني', 'الثالث', 'الرابع'];
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(
-                            days[value.toInt() % 7],
+                            isWeekly 
+                              ? days[value.toInt() % 7]
+                              : (value.toInt() < weeks.length ? weeks[value.toInt()] : ''),
                             style: GoogleFonts.tajawal(
                               fontSize: 11,
                               color: Colors.grey[500],
@@ -319,18 +355,18 @@ class _StatisticsScreenState extends State<StatisticsScreen>
                 ),
                 borderData: FlBorderData(show: false),
                 barGroups: isWeekly ? [
-                  _buildBarGroup(0, 3),
-                  _buildBarGroup(1, 7),
-                  _buildBarGroup(2, 5),
-                  _buildBarGroup(3, 9),
-                  _buildBarGroup(4, 4),
-                  _buildBarGroup(5, 8),
-                  _buildBarGroup(6, 6),
+                  _buildBarGroup(0, activityData[0]),
+                  _buildBarGroup(1, activityData[1]),
+                  _buildBarGroup(2, activityData[2]),
+                  _buildBarGroup(3, activityData[3]),
+                  _buildBarGroup(4, activityData[4]),
+                  _buildBarGroup(5, activityData[5]),
+                  _buildBarGroup(6, activityData[6]),
                 ] : [
-                  _buildBarGroup(0, 15),
-                  _buildBarGroup(1, 20),
-                  _buildBarGroup(2, 10),
-                  _buildBarGroup(3, 25),
+                  _buildBarGroup(0, activityData[0]),
+                  _buildBarGroup(1, activityData[1]),
+                  _buildBarGroup(2, activityData[2]),
+                  _buildBarGroup(3, activityData[3]),
                 ],
               ),
             ),
@@ -533,33 +569,46 @@ class _StatisticsScreenState extends State<StatisticsScreen>
   }
 
   // ─── الرسم البياني الخطي ───────────────────────────────────────────────────
-  Widget _buildLineChart(bool isDark) {
-    final List<FlSpot> spots = _selectedPeriodIndex == 0
-        ? [
-            const FlSpot(0, 2),
-            const FlSpot(1, 5),
-            const FlSpot(2, 3),
-            const FlSpot(3, 7),
-            const FlSpot(4, 4),
-            const FlSpot(5, 9),
-            const FlSpot(6, 6),
-          ]
-        : _selectedPeriodIndex == 1
-        ? [
-            const FlSpot(0, 4),
-            const FlSpot(1, 8),
-            const FlSpot(2, 6),
-            const FlSpot(3, 10),
-            const FlSpot(4, 7),
-          ]
-        : [
-            const FlSpot(0, 20),
-            const FlSpot(1, 35),
-            const FlSpot(2, 28),
-            const FlSpot(3, 45),
-            const FlSpot(4, 38),
-            const FlSpot(5, 50),
-          ];
+  Widget _buildLineChart(bool isDark, TaskProvider taskProvider, ReadingProvider readingProvider) {
+    List<FlSpot> spots = [];
+    final now = DateTime.now();
+
+    if (_selectedPeriodIndex == 0) {
+      // أسبوعي
+      List<double> counts = List.filled(7, 0);
+      for (var s in readingProvider.sessions) {
+         if (now.difference(s.lastReadAt).inDays < 7) {
+            counts[s.lastReadAt.weekday % 7]++;
+         }
+      }
+      for (int i = 0; i < 7; i++) {
+        spots.add(FlSpot(i.toDouble(), counts[i]));
+      }
+    } else if (_selectedPeriodIndex == 1) {
+      // شهري
+      List<double> counts = List.filled(4, 0);
+      for (var s in readingProvider.sessions) {
+         if (now.difference(s.lastReadAt).inDays < 30) {
+            int w = (now.difference(s.lastReadAt).inDays / 7).floor();
+            if (w < 4) counts[3 - w]++;
+         }
+      }
+      for (int i = 0; i < 4; i++) {
+        spots.add(FlSpot(i.toDouble(), counts[i]));
+      }
+    } else {
+      // سنوي
+      List<double> counts = List.filled(6, 0);
+      for (var s in readingProvider.sessions) {
+         if (now.difference(s.lastReadAt).inDays < 365) {
+            int m = (now.difference(s.lastReadAt).inDays / 60).floor(); // roughly 2 months
+            if (m < 6) counts[5 - m]++;
+         }
+      }
+      for (int i = 0; i < 6; i++) {
+        spots.add(FlSpot(i.toDouble(), counts[i]));
+      }
+    }
 
     return Container(
       padding: const EdgeInsets.all(20),

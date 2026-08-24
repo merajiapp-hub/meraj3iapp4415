@@ -148,18 +148,28 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
       Query query = _firestore
           .collection('users')
           .orderBy('points', descending: true)
-          .limit(100);
-
-      if (since != null) {
-        query = query.where('lastActivity',
-            isGreaterThanOrEqualTo: Timestamp.fromDate(since));
-      }
+          .limit(300); // Fetch more to allow in-memory filtering
 
       final snap = await query.get();
-      final entries = snap.docs
-          .map((d) => _LeaderboardEntry.fromDoc(d))
-          .where((e) => e.points > 0 || e.booksRead > 0)
-          .toList();
+      
+      List<_LeaderboardEntry> entries = [];
+      for (var d in snap.docs) {
+         final data = d.data() as Map<String, dynamic>? ?? {};
+         
+         if (since != null) {
+            final lastAct = data['lastActivity'] as Timestamp?;
+            if (lastAct == null || lastAct.toDate().isBefore(since)) {
+               continue; // Skip if not active in period
+            }
+         }
+         
+         final entry = _LeaderboardEntry.fromDoc(d);
+         if (entry.points > 0 || entry.booksRead > 0) {
+            entries.add(entry);
+         }
+      }
+      
+      entries = entries.take(100).toList();
 
       // حساب ترتيب المستخدم الحالي
       int myRank = 0;
@@ -200,8 +210,9 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMsg = 'تعذر تحميل الترتيب. تحقق من اتصالك بالإنترنت.';
+        _errorMsg = 'تعذر تحميل الترتيب حالياً.';
       });
+      debugPrint('Leaderboard error: $e');
     }
   }
 

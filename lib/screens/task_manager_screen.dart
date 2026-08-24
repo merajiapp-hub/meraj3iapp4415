@@ -306,21 +306,74 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
       }
     }
 
+    final List<int> daysOrder = [7, 1, 2, 3, 4, 5, 6];
+    final List<String> daysNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          _tabTitles[1],
-          style: GoogleFonts.tajawal(color: const Color(0xFF0284C7), fontSize: 22, fontWeight: FontWeight.bold),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text(
+            _tabTitles[1],
+            style: GoogleFonts.tajawal(color: const Color(0xFF0284C7), fontSize: 22, fontWeight: FontWeight.bold),
+          ),
         ),
         const SizedBox(height: 16),
         if (!hasItems)
-          Text('الجدول فارغ.', style: GoogleFonts.tajawal(color: Colors.grey, fontSize: 16))
+          Center(
+            child: Column(
+              children: [
+                const SizedBox(height: 40),
+                Icon(Icons.calendar_today_outlined, size: 60, color: Colors.grey.shade300),
+                const SizedBox(height: 12),
+                Text('لا توجد مراجعات مجدولة', style: GoogleFonts.tajawal(color: Colors.grey, fontSize: 16)),
+                const SizedBox(height: 6),
+                Text('أضف حصصك من تبويب "الجدول العام"', style: GoogleFonts.tajawal(color: Colors.grey.shade500, fontSize: 13)),
+              ],
+            ),
+          )
         else
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Text('هناك مراجعات مجدولة.', style: GoogleFonts.tajawal(color: Colors.grey, fontSize: 14)),
-          ),
-        const SizedBox(height: 32),
+          for (int idx = 0; idx < daysOrder.length; idx++) ...[
+            if (provider.getItemsForDay(daysOrder[idx]).isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.only(left: 24, right: 24, top: 12, bottom: 6),
+                child: Text(
+                  daysNames[idx],
+                  style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, fontSize: 15, color: const Color(0xFF0284C7)),
+                ),
+              ),
+              ...provider.getItemsForDay(daysOrder[idx]).map((item) => Container(
+                margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: item.color.withValues(alpha: 0.3)),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6, offset: const Offset(0, 2))],
+                ),
+                child: Row(
+                  children: [
+                    Container(width: 4, height: 40, decoration: BoxDecoration(color: item.color, borderRadius: BorderRadius.circular(4))),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(item.title, style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, fontSize: 14)),
+                          if (item.description.isNotEmpty)
+                            Text(item.description, style: GoogleFonts.tajawal(color: Colors.grey, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    Text('${item.startTime.format(context)} - ${item.endTime.format(context)}',
+                        style: GoogleFonts.tajawal(color: Colors.grey, fontSize: 11)),
+                  ],
+                ),
+              )),
+            ],
+          ],
+        const SizedBox(height: 24),
         _buildAdviceCard(),
       ],
     );
@@ -329,21 +382,65 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
   Widget _buildTodayTasksTab(ScheduleProvider provider) {
     int today = DateTime.now().weekday;
     final todayItems = provider.getItemsForDay(today);
+    int completedCount = todayItems.where((t) => t.isCompleted).length;
+    int totalCount = todayItems.length;
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          _tabTitles[2],
-          style: GoogleFonts.tajawal(color: const Color(0xFF0284C7), fontSize: 24, fontWeight: FontWeight.bold),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'مهام اليوم – ${_getDayName(today)}',
+                style: GoogleFonts.tajawal(color: const Color(0xFF0284C7), fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              if (totalCount > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0284C7).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$completedCount/$totalCount',
+                    style: GoogleFonts.outfit(color: const Color(0xFF0284C7), fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                ),
+            ],
+          ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          'اليوم هو: ${_getDayName(today)} (تأكد من إضافة مهام لهذا اليوم)',
-          style: GoogleFonts.tajawal(color: Colors.grey.shade600, fontSize: 14),
-        ),
-        const SizedBox(height: 32),
+        if (totalCount > 0) ...[
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: completedCount / totalCount,
+                minHeight: 6,
+                backgroundColor: Colors.grey.shade200,
+                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 16),
         if (todayItems.isEmpty)
-          Text('لا توجد مراجعات مجدولة لهذا اليوم.', style: GoogleFonts.tajawal(color: Colors.grey, fontSize: 16))
+          Center(
+            child: Column(
+              children: [
+                const SizedBox(height: 40),
+                Icon(Icons.task_alt, size: 60, color: Colors.grey.shade300),
+                const SizedBox(height: 12),
+                Text('لا توجد مهام لهذا اليوم', style: GoogleFonts.tajawal(color: Colors.grey, fontSize: 16)),
+                const SizedBox(height: 6),
+                Text('أضف حصصك الدراسية من تبويب "الجدول العام"', style: GoogleFonts.tajawal(color: Colors.grey.shade500, fontSize: 13)),
+              ],
+            ),
+          )
         else
           ListView.builder(
             shrinkWrap: true,
@@ -352,58 +449,64 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
             itemCount: todayItems.length,
             itemBuilder: (ctx, i) {
               final item = todayItems[i];
-              return Container(
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
                 margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: item.isCompleted ? Colors.grey.shade50 : Colors.white, 
-                  borderRadius: BorderRadius.circular(16), 
-                  border: Border.all(color: item.isCompleted ? Colors.green.shade200 : Colors.grey.shade200)
+                  color: item.isCompleted ? Colors.green.shade50 : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: item.isCompleted ? Colors.green.shade200 : item.color.withValues(alpha: 0.3)),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 3))],
                 ),
                 child: Row(
                   children: [
-                    Container(width: 4, height: 40, color: item.isCompleted ? Colors.green : item.color),
-                    const SizedBox(width: 8),
+                    Container(width: 4, height: 46, decoration: BoxDecoration(color: item.isCompleted ? Colors.green : item.color, borderRadius: BorderRadius.circular(4))),
+                    const SizedBox(width: 10),
                     Checkbox(
                       value: item.isCompleted,
                       activeColor: Colors.green,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                      onChanged: (val) {
-                        provider.toggleItemCompletion(item, context);
-                      },
+                      onChanged: (val) => provider.toggleItemCompletion(item, context),
                     ),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            item.title, 
+                            item.title,
                             style: GoogleFonts.tajawal(
-                              fontWeight: FontWeight.bold, 
-                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
                               decoration: item.isCompleted ? TextDecoration.lineThrough : null,
                               color: item.isCompleted ? Colors.grey : Colors.black87,
-                            )
-                          ),
-                          if (item.description.isNotEmpty) 
-                            Text(
-                              item.description, 
-                              style: GoogleFonts.tajawal(color: Colors.grey, fontSize: 12)
                             ),
+                          ),
+                          if (item.description.isNotEmpty)
+                            Text(item.description, style: GoogleFonts.tajawal(color: Colors.grey, fontSize: 12)),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(Icons.access_time_rounded, size: 12, color: Colors.grey.shade400),
+                              const SizedBox(width: 4),
+                              Text('${item.startTime.format(context)} - ${item.endTime.format(context)}',
+                                  style: GoogleFonts.tajawal(color: Colors.grey.shade500, fontSize: 11)),
+                            ],
+                          ),
                         ],
                       ),
                     ),
-                    Text('${item.startTime.format(context)} - ${item.endTime.format(context)}', style: GoogleFonts.tajawal(color: Colors.grey, fontSize: 12)),
                   ],
                 ),
               );
             },
           ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 24),
         _buildAdviceCard(),
       ],
     );
   }
+
 
   Widget _buildAdviceCard() {
     return Container(

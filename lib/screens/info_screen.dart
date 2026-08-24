@@ -7,7 +7,7 @@ import 'faq_screen.dart';
 class InfoScreen extends StatelessWidget {
   const InfoScreen({super.key});
 
-  final String _appVersion = 'الإصدار 5.2.0';
+  final String _appVersion = 'الإصدار 6.5.0';
 
   @override
   Widget build(BuildContext context) {
@@ -62,16 +62,15 @@ class InfoScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
-                _buildSectionTitle('✨ ما الجديد في الإصدار 5.2.0'),
+                _buildSectionTitle('✨ ما الجديد في الإصدار 6.5.0'),
                 _buildListCard(
                   isDark: isDark,
                   items: [
-                    'إصلاح جذري لمحرك الذكاء الاصطناعي (Gemini 1.5 Flash) وتصفير أخطاء الاتصال',
-                    'حل نهائي لمشكلة تنزيل وحفظ ملفات الـ PDF مع إضافة شاشة معاينة احترافية',
-                    'تطوير نظام الإحصائيات ليعتمد كلياً على الأرقام الحقيقية والمفضلة',
-                    'إعادة تصميم بطاقات نتائج الطلاب لتصبح أكثر احترافية وجمالاً',
-                    'تحسين شاشة التنزيلات لفصل الكتب عن النتائج المحفوظة',
-                    'تحسين نظام الإشعارات والتوافق مع التحديثات الجديدة (Flutter Local Notifications)',
+                    'توحيد عرض أغلفة الكتب في جميع القوائم والصفحات (التنزيلات، المفضلة، الامتحانات، وSWEDD)',
+                    'تحسين مزامنة المهام وجدول المراجعة الدراسي',
+                    'إضافة شعار التطبيق الحقيقي في رسالة تسجيل الخروج بدلاً من الأيقونات السابقة',
+                    'حل مشكلة الكيبورد وشريط الأدوات في صفحة الملاحظات',
+                    'تحسين أداء عرض المتصدرين والتقييمات وإزالة مشاكل الشاشة الفارغة',
                   ],
                   iconColor: const Color(0xFF8B5CF6),
                 ),

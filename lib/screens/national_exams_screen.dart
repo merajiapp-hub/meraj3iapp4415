@@ -5,6 +5,7 @@ import '../data/books_data.dart';
 import '../models/book.dart';
 import '../widgets/geometric_sliver_app_bar.dart';
 import 'pdf_viewer_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class NationalExamsScreen extends StatelessWidget {
   const NationalExamsScreen({super.key});
@@ -448,13 +449,30 @@ class _ExamTile extends StatelessWidget {
           Container(
             width: 34,
             height: 34,
+            padding: exam.thumbnailUrl != null ? EdgeInsets.zero : const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: isDark ? 0.15 : 0.10),
-              borderRadius: BorderRadius.circular(9),
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(Icons.description_rounded, color: color, size: 17),
-          ),
-          const SizedBox(width: 10),
+            child: exam.thumbnailUrl != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: CachedNetworkImage(
+                      imageUrl: exam.thumbnailUrl!,
+                      fit: BoxFit.cover,
+                      errorWidget: (context, url, error) => Icon(
+                        Icons.description_rounded,
+                        color: color,
+                        size: 16,
+                      ),
+                    ),
+                  )
+                : Icon(
+                    Icons.description_rounded,
+                    color: color,
+                    size: 16,
+                  ),
+          ),const SizedBox(width: 10),
 
           // اسم الامتحان
           Expanded(

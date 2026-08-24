@@ -16,6 +16,7 @@ class DownloadedBook {
   final String localPath;
   final double fileSizeMb;
   final DateTime downloadDate;
+  final String? thumbnailUrl;
 
   DownloadedBook({
     required this.uniqueKey,
@@ -28,6 +29,7 @@ class DownloadedBook {
     required this.localPath,
     required this.fileSizeMb,
     required this.downloadDate,
+    this.thumbnailUrl,
   });
 
   Map<String, dynamic> toMap() => {
@@ -41,6 +43,7 @@ class DownloadedBook {
     'localPath': localPath,
     'fileSizeMb': fileSizeMb,
     'downloadDate': downloadDate.toIso8601String(),
+    'thumbnailUrl': thumbnailUrl,
   };
 
   factory DownloadedBook.fromMap(Map<String, dynamic> map) => DownloadedBook(
@@ -55,6 +58,7 @@ class DownloadedBook {
     fileSizeMb: (map['fileSizeMb'] as num?)?.toDouble() ?? 0.0,
     downloadDate:
         DateTime.tryParse(map['downloadDate'] ?? '') ?? DateTime.now(),
+    thumbnailUrl: map['thumbnailUrl'],
   );
 
   factory DownloadedBook.fromBook(
@@ -72,6 +76,7 @@ class DownloadedBook {
     localPath: localPath,
     fileSizeMb: fileSizeMb,
     downloadDate: DateTime.now(),
+    thumbnailUrl: book.thumbnailUrl,
   );
 }
 
