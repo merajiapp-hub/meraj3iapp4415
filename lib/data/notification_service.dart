@@ -157,15 +157,15 @@ class NotificationService {
         priority: Priority.high,
         enableVibration: true,
         playSound: true,
+        icon: '@mipmap/ic_launcher',
         // عرض النص الكامل بدون اقتطاع
         styleInformation: BigTextStyleInformation(
           body,
           contentTitle: title,
-          summaryText: 'MERAJ3I',
+          summaryText: 'مراجعي',
         ),
-        // إضافة أيقونة ملونة
+        // لون العلامة التجارية
         color: const Color(0xFF14B8A6),
-        // الإشعار لا يُلغى تلقائياً عند الضغط
         autoCancel: false,
       ),
       iOS: const DarwinNotificationDetails(
@@ -202,6 +202,8 @@ class NotificationService {
           _tasksChannelId,
           _tasksChannelName,
           channelDescription: _tasksChannelDesc,
+          icon: '@mipmap/ic_launcher',
+          color: Color(0xFF14B8A6),
           importance: Importance.max,
           priority: Priority.high,
           autoCancel: false,
@@ -277,6 +279,8 @@ class NotificationService {
         'meraj3i_schedule',
         'الجدول الدراسي',
         channelDescription: 'تنبيهات مواعيد الحصص الأسبوعية',
+        icon: '@mipmap/ic_launcher',
+        color: Color(0xFF14B8A6),
         importance: Importance.max,
         priority: Priority.high,
         enableVibration: true,

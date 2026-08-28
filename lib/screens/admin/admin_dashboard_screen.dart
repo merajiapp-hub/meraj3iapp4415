@@ -6,6 +6,7 @@ import 'books/admin_books_screen.dart';
 import 'settings/admin_settings_screen.dart';
 import 'monitoring/admin_health_screen.dart';
 import 'logs/admin_audit_logs_screen.dart';
+import 'admin_chat_dashboard_screen.dart';
 import 'admin_guard.dart';
 // ignore_for_file: unused_import
 
@@ -115,6 +116,12 @@ class _DashboardBody extends StatelessWidget {
           title: 'مراقبة النظام والأخطاء',
           color: const Color(0xFFEF4444), // Red
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminHealthScreen())),
+        ),
+        _ActionTile(
+          icon: Icons.chat_rounded,
+          title: 'صندوق الرسائل والدعم',
+          color: const Color(0xFF0D9488), // Teal
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminChatDashboardScreen())),
         ),
         _ActionTile(
           icon: Icons.list_alt_rounded,

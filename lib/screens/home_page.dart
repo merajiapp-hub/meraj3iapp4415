@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'dart:math';
 
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -48,7 +47,7 @@ import 'student/reading_history_screen.dart';
 import '../widgets/banner_ad_widget.dart';
 import 'admin/admin_guard.dart';
 import 'admin/admin_dashboard_screen.dart';
-import '../calculator/screens/scientific_calculator_screen.dart';
+import '../features/smart_calculator/ui/screens/smart_calculator_screen.dart';
 import 'direct_chat_screen.dart';
 
 
@@ -67,25 +66,17 @@ class _HomePageState extends State<HomePage>
   // نظام Toast الخروج
   bool _exitToastShown = false;
 
-  final List<String> _wisdomQuotes = [
-    "من جد وجد، ومن زرع حصد.",
-    "العلم يبني بيوتاً لا عماد لها.",
-    "الوقت كالسيف إن لم تقطعه قطعك.",
-    "لا تؤجل عمل اليوم إلى الغد.",
-    "رحلة الألف ميل تبدأ بخطوة.",
-    "النجاح هو نتيجة الإصرار والعمل الدؤوب.",
-    "اقرأ لتعلم، وتعلم لتعمل، واعمل لتنجح.",
-  ];
 
-  late String _currentWisdom;
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
+  
+  final PageController _pageController = PageController(viewportFraction: 0.88, initialPage: 3000);
+  int _carouselIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _currentWisdom = _wisdomQuotes[Random().nextInt(_wisdomQuotes.length)];
 
     _animController = AnimationController(
       vsync: this,
@@ -102,6 +93,7 @@ class _HomePageState extends State<HomePage>
   @override
   void dispose() {
     _animController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -140,7 +132,6 @@ class _HomePageState extends State<HomePage>
       return;
     }
     _exitToastShown = true;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final overlay = Overlay.of(context);
     final entry = OverlayEntry(
@@ -151,13 +142,22 @@ class _HomePageState extends State<HomePage>
         child: Material(
           color: Colors.transparent,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFF333333),
+              // تدرج لوني بدل اللون الثابت لمظهر أكثر احترافية
+              gradient: const LinearGradient(
+                colors: [Color(0xFF1B2A2A), Color(0xFF0D3030)],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
               borderRadius: BorderRadius.circular(50),
+              border: Border.all(
+                color: const Color(0xFF14B8A6).withValues(alpha: 0.4),
+                width: 1,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
+                  color: Colors.black.withValues(alpha: 0.35),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
                 )
@@ -166,11 +166,19 @@ class _HomePageState extends State<HomePage>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Image.asset(
-                  'assets/images/logo.png',
-                  width: 26,
-                  height: 26,
-                  fit: BoxFit.contain,
+                // الشعار داخل دائرة بيضاء لتميّزه عن الخلفية الداكنة
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  padding: const EdgeInsets.all(3),
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    fit: BoxFit.contain,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Text(
@@ -428,8 +436,8 @@ class _HomePageState extends State<HomePage>
                         _buildSearchBar(isDark),
                         const SizedBox(height: 20),
 
-                        // ── حكمة اليوم ──
-                        _buildWisdomBox(isDark),
+                        // ── كرت الصفحة الرئيسية (Carousel) ──
+                        _buildTopCarousel(isDark),
                         const SizedBox(height: 24),
 
                         // ── عنوان القسم الرئيسي ──
@@ -590,6 +598,7 @@ class _HomePageState extends State<HomePage>
       _ServiceItem(
         title: 'الحاسبة العلمية',
         icon: Icons.calculate_rounded,
+        imagePath: 'assets/Calculator/Calculator.png',
         gradient: const LinearGradient(
           colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
           begin: Alignment.topLeft,
@@ -598,7 +607,7 @@ class _HomePageState extends State<HomePage>
         badge: 'جديد',
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const ScientificCalculatorScreen()),
+          MaterialPageRoute(builder: (_) => const SmartCalculatorScreen()),
         ),
       ),
       _ServiceItem(
@@ -791,7 +800,17 @@ class _HomePageState extends State<HomePage>
                         ),
                       ],
                     ),
-                    child: Icon(service.icon, color: Colors.white, size: 18),
+                    child: service.imagePath != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(7),
+                            child: Image.asset(
+                              service.imagePath!,
+                              width: 20,
+                              height: 20,
+                              fit: BoxFit.contain,
+                            ),
+                          )
+                        : Icon(service.icon, color: Colors.white, size: 18),
                   ),
 
                   // النص
@@ -916,83 +935,231 @@ class _HomePageState extends State<HomePage>
   }
 
   // ══════════════════════════════════════════════════════
-  //  صندوق الحكمة
+  //  كرت الصفحة الرئيسية (Carousel)
   // ══════════════════════════════════════════════════════
-  Widget _buildWisdomBox(bool isDark) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: isDark
-            ? const LinearGradient(
-                colors: [Color(0xFF0B3D2E), Color(0xFF0B6B58)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
-            : const LinearGradient(
-                colors: [Color(0xFF083D2F), Color(0xFF0B6B58)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+  Widget _buildTopCarousel(bool isDark) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 180,
+          child: PageView.builder(
+            controller: _pageController,
+            onPageChanged: (index) {
+              setState(() {
+                _carouselIndex = index % 3;
+              });
+            },
+            itemBuilder: (context, index) {
+              final itemIndex = index % 3;
+              return _buildCarouselCard(itemIndex, isDark);
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Dots Indicator
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(3, (index) {
+            final isActive = index == _carouselIndex;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: isActive ? 20 : 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: isActive ? const Color(0xFFF97316) : Colors.grey.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(4),
               ),
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryColor.withValues(alpha: 0.25),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // أيقونة المصباح
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.15),
-                width: 1,
-              ),
-            ),
-            child: const Icon(
-              Icons.lightbulb_rounded,
-              color: Color(0xFFFCD34D),
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'حكمة اليوم',
-                  style: GoogleFonts.tajawal(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white.withValues(alpha: 0.65),
-                    fontSize: 11,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  _currentWisdom,
-                  style: GoogleFonts.tajawal(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    height: 1.45,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+            );
+          }),
+        ),
+      ],
     );
   }
+
+  Widget _buildCarouselCard(int index, bool isDark) {
+    // الألوان المستوحاة من الوصف
+    final List<Color> bgColors = [
+      const Color(0xFF1E3A8A), // أزرق غامق للكرت الرئيسي
+      const Color(0xFFF97316), // برتقالي
+      const Color(0xFF10B981), // أخضر
+    ];
+
+    if (index == 0) {
+      // الكرت الرئيسي المطلوب
+      return _AnimatedCard(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SmartCalculatorScreen()),
+          );
+        },
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: bgColors[0],
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: bgColors[0].withValues(alpha: 0.3),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              // نصوص الترحيب على اليمين (حسب اتجاه العربية)
+              Positioned(
+                right: 0,
+                top: 0,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Consumer<AuthProvider>(
+                      builder: (context, auth, _) {
+                        final name = widget.isGuest
+                            ? 'الزائر'
+                            : (auth.user?.displayName?.split(' ').first ?? 'الطالب');
+                        return Text(
+                          'مرحبا، $name!',
+                          style: GoogleFonts.tajawal(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'استعد للدراسة',
+                      style: GoogleFonts.tajawal(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // الصورة على اليسار
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 30,
+                child: GestureDetector(
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => Dialog(
+                        backgroundColor: Colors.transparent,
+                        insetPadding: const EdgeInsets.all(10),
+                        child: GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: InteractiveViewer(
+                            panEnabled: true,
+                            minScale: 0.5,
+                            maxScale: 4,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(24),
+                              child: Image.asset(
+                                'assets/IM/IM1.jpg',
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                  child: Hero(
+                    tag: 'home_card_image',
+                    child: Image.asset(
+                      'assets/IM/IM1.jpg', // الصورة المطلوبة
+                      width: 100,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        // في حال عدم وجود الصورة بعد، عرض عنصر نائب
+                        return Container(
+                          width: 100,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.school_rounded, color: Colors.white54, size: 40),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+
+              // شريط التقدم في الأسفل
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Row(
+                  children: [
+                    Text(
+                      '1/10',
+                      style: GoogleFonts.tajawal(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: LinearProgressIndicator(
+                          value: 0.1,
+                          minHeight: 8,
+                          backgroundColor: Colors.white.withValues(alpha: 0.2),
+                          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFF97316)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else {
+      // الكروت الجانبية (برتقالي وأخضر)
+      return _AnimatedCard(
+        onTap: () {},
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: bgColors[index],
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: bgColors[index].withValues(alpha: 0.3),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Icon(
+              index == 1 ? Icons.emoji_events_rounded : Icons.menu_book_rounded,
+              size: 60,
+              color: Colors.white.withValues(alpha: 0.5),
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
 
   // ══════════════════════════════════════════════════════
   //  عنوان القسم
@@ -1464,6 +1631,7 @@ class _ServiceItem {
   final IconData icon;
   final Gradient gradient;
   final String? badge;
+  final String? imagePath;
   final VoidCallback onTap;
 
   const _ServiceItem({
@@ -1471,6 +1639,7 @@ class _ServiceItem {
     required this.icon,
     required this.gradient,
     required this.badge,
+    this.imagePath,
     required this.onTap,
   });
 }

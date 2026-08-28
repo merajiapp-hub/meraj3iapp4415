@@ -1,0 +1,32 @@
+# ─── Git Attributes — توحيد نهايات الأسطر ────────────────────────────────────
+# جميع الملفات النصية تُحوَّل تلقائياً عند الإرسال/الاستقبال
+* text=auto
+
+# ملفات Dart و YAML و JSON — LF دائماً
+*.dart    text eol=lf
+*.yaml    text eol=lf
+*.yml     text eol=lf
+*.json    text eol=lf
+*.md      text eol=lf
+*.xml     text eol=lf
+*.gradle  text eol=lf
+*.kt      text eol=lf
+*.java    text eol=lf
+*.py      text eol=lf
+*.sh      text eol=lf
+*.lock    text eol=lf
+
+# ملفات ثنائية — بدون تحويل
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.ico     binary
+*.ttf     binary
+*.otf     binary
+*.woff    binary
+*.woff2   binary
+*.pdf     binary
+*.zip     binary
+*.aab     binary
+*.apk     binary

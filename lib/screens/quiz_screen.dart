@@ -10,6 +10,7 @@ import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:open_filex/open_filex.dart';
 import '../theme/app_theme.dart';
 import '../providers/quiz_provider.dart';
+import '../data/quiz_models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/statistics_provider.dart';
 import 'ai_search_screen.dart';
@@ -1367,7 +1368,14 @@ class _QuizResultScreenState extends State<_QuizResultScreen>
                                       listen: false,
                                     );
                                     provider.generateNewQuiz();
-                                    widget.onRetry();
+                                    // إصلاح: استخدام pushAndRemoveUntil لضمان صحة الـ context
+                                    Navigator.pushAndRemoveUntil(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const QuizScreen(),
+                                      ),
+                                      (route) => route.isFirst,
+                                    );
                                   },
                                   child: Container(
                                     height: 52,

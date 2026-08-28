@@ -231,37 +231,43 @@ class _LoginScreenState extends State<LoginScreen>
       body: Container(
         decoration: const BoxDecoration(gradient: AppTheme.deepBlueGradient),
         child: SafeArea(
-          child: FadeTransition(
-            opacity: _fadeAnim,
-            child: SlideTransition(
-              position: _slideAnim,
-              child: CustomScrollView(
-                slivers: [
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 20,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return FadeTransition(
+                opacity: _fadeAnim,
+                child: SlideTransition(
+                  position: _slideAnim,
+                  child: SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const SizedBox(height: 40),
-                          _buildHeader(),
-                          const SizedBox(height: 40),
-                          _buildGlassCard(),
-                          const Spacer(),
-                          const SizedBox(height: 20),
-                          _buildGuestButton(),
-                          const SizedBox(height: 20),
-                        ],
+                      child: IntrinsicHeight(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 20,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const SizedBox(height: 20),
+                              _buildHeader(),
+                              const SizedBox(height: 24),
+                              _buildGlassCard(),
+                              const Spacer(),
+                              const SizedBox(height: 16),
+                              _buildGuestButton(),
+                              const SizedBox(height: 10),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -271,29 +277,28 @@ class _LoginScreenState extends State<LoginScreen>
   Widget _buildHeader() {
     return Column(
       children: [
-        // شعار التطبيق الحقيقي — بدون حواف أو كروت
         Image.asset(
           'assets/images/logo.png',
-          width: 150,
-          height: 150,
+          width: 100, // تصغير الحجم
+          height: 100, // تصغير الحجم
           color: Colors.white,
           colorBlendMode: BlendMode.srcIn,
           filterQuality: FilterQuality.high,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         Text(
           'أهلاً بك مجدداً',
           style: GoogleFonts.tajawal(
-            fontSize: 28,
+            fontSize: 24, // تصغير الحجم
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         Text(
           'قم بتسجيل الدخول للمتابعة',
           style: GoogleFonts.tajawal(
-            fontSize: 15,
+            fontSize: 14, // تصغير الحجم
             color: Colors.white.withValues(alpha: 0.65),
           ),
         ),
@@ -303,10 +308,10 @@ class _LoginScreenState extends State<LoginScreen>
 
   Widget _buildGlassCard() {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20), // تصغير الـ padding
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(24), // تصغير نصف القطر
         border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
         boxShadow: [
           BoxShadow(
@@ -320,22 +325,22 @@ class _LoginScreenState extends State<LoginScreen>
         children: [
           // Tabs
           Container(
-            height: 46,
+            height: 40, // تصغير الارتفاع
             decoration: BoxDecoration(
               color: Colors.black.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(25),
+              borderRadius: BorderRadius.circular(20),
             ),
             child: TabBar(
               controller: _tabController,
               indicator: BoxDecoration(
-                borderRadius: BorderRadius.circular(25),
+                borderRadius: BorderRadius.circular(20),
                 color: AppTheme.primaryColor,
               ),
               labelColor: Colors.white,
               unselectedLabelColor: Colors.white.withValues(alpha: 0.6),
               labelStyle: GoogleFonts.tajawal(
                 fontWeight: FontWeight.bold,
-                fontSize: 14,
+                fontSize: 13, // تصغير الخط
               ),
               tabs: const [
                 Tab(text: 'البريد الإلكتروني'),
@@ -343,11 +348,11 @@ class _LoginScreenState extends State<LoginScreen>
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
           // Input Fields based on Tab
           SizedBox(
-            height: 70,
+            height: 55, // تصغير الارتفاع ليتوافق مع الحقل
             child: TabBarView(
               controller: _tabController,
               physics: const NeverScrollableScrollPhysics(),
@@ -368,7 +373,7 @@ class _LoginScreenState extends State<LoginScreen>
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _buildTextField(
             controller: _passwordController,
             icon: Icons.lock_outline_rounded,
@@ -376,7 +381,7 @@ class _LoginScreenState extends State<LoginScreen>
             isPassword: true,
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           // Remember me & Forgot Password
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -384,8 +389,8 @@ class _LoginScreenState extends State<LoginScreen>
               Row(
                 children: [
                   SizedBox(
-                    width: 24,
-                    height: 24,
+                    width: 20, // تصغير المربع
+                    height: 20,
                     child: Checkbox(
                       value: _rememberMe,
                       onChanged: (val) => setState(() => _rememberMe = val!),
@@ -395,7 +400,7 @@ class _LoginScreenState extends State<LoginScreen>
                             : Colors.white.withValues(alpha: 0.2),
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                       side: BorderSide.none,
                     ),
@@ -405,7 +410,7 @@ class _LoginScreenState extends State<LoginScreen>
                     'تذكرني',
                     style: GoogleFonts.tajawal(
                       color: Colors.white.withValues(alpha: 0.9),
-                      fontSize: 13,
+                      fontSize: 12, // تصغير الخط
                     ),
                   ),
                 ],
@@ -422,33 +427,33 @@ class _LoginScreenState extends State<LoginScreen>
                   'نسيت كلمة المرور؟',
                   style: GoogleFonts.tajawal(
                     fontWeight: FontWeight.bold,
-                    fontSize: 13,
+                    fontSize: 12, // تصغير الخط
                   ),
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 30),
+          const SizedBox(height: 24), // تقليل المسافة
 
           // Login Button
           SizedBox(
             width: double.infinity,
-            height: 56,
+            height: 50, // تصغير الزر
             child: ElevatedButton(
               onPressed: _isLoading ? null : _login,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 elevation: 0,
               ),
               child: _isLoading
                   ? const SizedBox(
-                      width: 24,
-                      height: 24,
+                      width: 20,
+                      height: 20,
                       child: CircularProgressIndicator(
                         color: Colors.white,
                         strokeWidth: 2,
@@ -457,7 +462,7 @@ class _LoginScreenState extends State<LoginScreen>
                   : Text(
                       'تسجيل الدخول',
                       style: GoogleFonts.tajawal(
-                        fontSize: 18,
+                        fontSize: 16, // تصغير الخط
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -465,7 +470,7 @@ class _LoginScreenState extends State<LoginScreen>
           ),
 
           // Biometrics
-          const SizedBox(height: 20),
+          const SizedBox(height: 16), // تقليل المسافة
           if (_canCheckBiometrics) ...[
             GestureDetector(
               onTap: _loginWithBiometrics,
@@ -474,7 +479,7 @@ class _LoginScreenState extends State<LoginScreen>
                 children: [
                   Icon(
                     Icons.fingerprint_rounded,
-                    size: 28,
+                    size: 24, // تصغير الأيقونة
                     color: Colors.white.withValues(alpha: 0.8),
                   ),
                   const SizedBox(width: 8),
@@ -482,13 +487,13 @@ class _LoginScreenState extends State<LoginScreen>
                     'تسجيل الدخول بالبصمة',
                     style: GoogleFonts.tajawal(
                       color: Colors.white.withValues(alpha: 0.8),
-                      fontSize: 14,
+                      fontSize: 13, // تصغير الخط
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12), // تقليل المسافة
           ],
 
           // ─── Google Sign-In ───────────────────────────────────────────
@@ -503,6 +508,7 @@ class _LoginScreenState extends State<LoginScreen>
                   'أو',
                   style: GoogleFonts.tajawal(
                     color: Colors.white.withValues(alpha: 0.5),
+                    fontSize: 12,
                   ),
                 ),
               ),
@@ -511,24 +517,24 @@ class _LoginScreenState extends State<LoginScreen>
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12), // تقليل المسافة
           SizedBox(
             width: double.infinity,
-            height: 52,
+            height: 48, // تصغير الزر
             child: OutlinedButton.icon(
               onPressed: _isLoading ? null : _loginWithGoogle,
               icon: Padding(
                 padding: const EdgeInsets.only(left: 4),
                 child: Image.asset(
                   'assets/images/logo.png',
-                  width: 22,
-                  height: 22,
+                  width: 20, // تصغير الشعار
+                  height: 20, // تصغير الشعار
                   color: Colors.white,
                   colorBlendMode: BlendMode.srcIn,
                   errorBuilder: (context, error, stackTrace) => const Icon(
                     Icons.g_mobiledata_rounded,
                     color: Colors.white,
-                    size: 26,
+                    size: 24,
                   ),
                 ),
               ),
@@ -537,18 +543,18 @@ class _LoginScreenState extends State<LoginScreen>
                 style: GoogleFonts.tajawal(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 15,
+                  fontSize: 14, // تصغير الخط
                 ),
               ),
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16), // تقليل المسافة
 
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -557,6 +563,7 @@ class _LoginScreenState extends State<LoginScreen>
                 'ليس لديك حساب؟',
                 style: GoogleFonts.tajawal(
                   color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 13, // تصغير
                 ),
               ),
               TextButton(
@@ -571,6 +578,7 @@ class _LoginScreenState extends State<LoginScreen>
                   style: GoogleFonts.tajawal(
                     color: AppTheme.primaryColor,
                     fontWeight: FontWeight.bold,
+                    fontSize: 13, // تصغير
                   ),
                 ),
               ),
@@ -591,23 +599,24 @@ class _LoginScreenState extends State<LoginScreen>
     return Container(
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14), // تصغير الزوايا
         border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: TextField(
         controller: controller,
         obscureText: isPassword && !_isPasswordVisible,
         keyboardType: keyboardType,
-        style: GoogleFonts.tajawal(color: Colors.white, fontSize: 15),
+        style: GoogleFonts.tajawal(color: Colors.white, fontSize: 14), // تصغير الخط
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: GoogleFonts.tajawal(
             color: Colors.white.withValues(alpha: 0.4),
+            fontSize: 13,
           ),
           prefixIcon: Icon(
             icon,
             color: Colors.white.withValues(alpha: 0.6),
-            size: 20,
+            size: 18, // تصغير الأيقونة
           ),
           filled: true,
           fillColor: Colors.transparent,
@@ -618,7 +627,7 @@ class _LoginScreenState extends State<LoginScreen>
                         ? Icons.visibility_off_rounded
                         : Icons.visibility_rounded,
                     color: Colors.white.withValues(alpha: 0.6),
-                    size: 20,
+                    size: 18, // تصغير
                   ),
                   onPressed: () =>
                       setState(() => _isPasswordVisible = !_isPasswordVisible),
@@ -627,7 +636,7 @@ class _LoginScreenState extends State<LoginScreen>
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
-            vertical: 18,
+            vertical: 14, // تقليل المساحة الرأسية
           ),
         ),
       ),
@@ -643,7 +652,7 @@ class _LoginScreenState extends State<LoginScreen>
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(20),
           ),
           backgroundColor: const Color(0xFF1E293B),
           title: Row(
@@ -657,16 +666,20 @@ class _LoginScreenState extends State<LoginScreen>
                 child: const Icon(
                   Icons.lock_reset_rounded,
                   color: AppTheme.primaryColor,
-                  size: 22,
+                  size: 20,
                 ),
               ),
               const SizedBox(width: 12),
-              Text(
-                'استعادة كلمة المرور',
-                style: GoogleFonts.tajawal(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  fontSize: 16,
+              Expanded( // Ensure text doesn't overflow
+                child: Text(
+                  'استعادة كلمة المرور',
+                  style: GoogleFonts.tajawal(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: 15,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -679,15 +692,15 @@ class _LoginScreenState extends State<LoginScreen>
                 'أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة تعيين كلمة المرور.',
                 style: GoogleFonts.tajawal(
                   color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.6,
+                  fontSize: 12, // تصغير
+                  height: 1.5,
                 ),
               ),
               const SizedBox(height: 16),
               Container(
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: Colors.white.withValues(alpha: 0.12),
                   ),
@@ -695,21 +708,21 @@ class _LoginScreenState extends State<LoginScreen>
                 child: TextField(
                   controller: resetEmailController,
                   keyboardType: TextInputType.emailAddress,
-                  style: GoogleFonts.tajawal(color: Colors.white, fontSize: 14),
+                  style: GoogleFonts.tajawal(color: Colors.white, fontSize: 13),
                   decoration: InputDecoration(
                     hintText: 'البريد الإلكتروني',
                     hintStyle: GoogleFonts.tajawal(color: Colors.white38),
                     prefixIcon: Icon(
                       Icons.email_outlined,
                       color: Colors.white38,
-                      size: 20,
+                      size: 18,
                     ),
                     border: InputBorder.none,
                     filled: true,
                     fillColor: Colors.transparent,
                     contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
+                      horizontal: 14,
+                      vertical: 12,
                     ),
                   ),
                 ),
@@ -724,6 +737,7 @@ class _LoginScreenState extends State<LoginScreen>
                 style: GoogleFonts.tajawal(
                   color: Colors.white54,
                   fontWeight: FontWeight.bold,
+                  fontSize: 13,
                 ),
               ),
             ),
@@ -756,17 +770,17 @@ class _LoginScreenState extends State<LoginScreen>
                 backgroundColor: AppTheme.primaryColor,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
+                  horizontal: 16,
+                  vertical: 8,
                 ),
               ),
               child: isSending
                   ? const SizedBox(
-                      width: 18,
-                      height: 18,
+                      width: 16,
+                      height: 16,
                       child: CircularProgressIndicator(
                         color: Colors.white,
                         strokeWidth: 2,
@@ -774,7 +788,10 @@ class _LoginScreenState extends State<LoginScreen>
                     )
                   : Text(
                       'إرسال',
-                      style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
+                      style: GoogleFonts.tajawal(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                     ),
             ),
           ],
@@ -788,20 +805,18 @@ class _LoginScreenState extends State<LoginScreen>
       onPressed: _isLoading ? null : _loginAsGuest,
       icon: Icon(
         Icons.person_outline_rounded,
+        size: 20, // تصغير
         color: Colors.white.withValues(alpha: 0.7),
       ),
       label: Text(
         'المتابعة كزائر',
         style: GoogleFonts.tajawal(
           color: Colors.white.withValues(alpha: 0.9),
-          fontSize: 16,
+          fontSize: 14, // تصغير
           fontWeight: FontWeight.w600,
           decoration: TextDecoration.underline,
           decorationColor: Colors.white.withValues(alpha: 0.5),
         ),
-      ),
-      style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 12),
       ),
     );
   }

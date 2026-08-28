@@ -262,18 +262,6 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
 
     return Scaffold(
       backgroundColor: bg,
-      appBar: AppBar(
-        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        title: Text(
-          'آراء المستخدمين',
-          style: GoogleFonts.tajawal(
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : AppTheme.primaryColor,
-          ),
-        ),
-      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddReviewModal(context, isDark),
         backgroundColor: AppTheme.primaryColor,
@@ -288,12 +276,71 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
           : CustomScrollView(
               controller: _scrollController,
               slivers: [
+                SliverAppBar(
+                  expandedHeight: 140,
+                  pinned: true,
+                  elevation: 0,
+                  backgroundColor: AppTheme.primaryColor,
+                  flexibleSpace: FlexibleSpaceBar(
+                    titlePadding: const EdgeInsets.only(right: 20, left: 20, bottom: 16),
+                    title: Text(
+                      'التقييمات والآراء',
+                      style: GoogleFonts.tajawal(
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        fontSize: 22,
+                      ),
+                    ),
+                    background: Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF8B5CF6), Color(0xFF3B82F6)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: Stack(
+                        children: [
+                          Positioned(
+                            right: -20,
+                            bottom: -20,
+                            child: Container(
+                              width: 120,
+                              height: 120,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white.withValues(alpha: 0.1),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            left: 30,
+                            top: -20,
+                            child: Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white.withValues(alpha: 0.08),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
                 SliverToBoxAdapter(child: _buildSummaryHeader(isDark)),
                 SliverToBoxAdapter(child: _buildStatsGrid(isDark)),
                 SliverToBoxAdapter(child: _buildTrendChart(isDark)),
                 SliverToBoxAdapter(child: _buildControls(isDark)),
                 if (_reviews.isEmpty && !_isLoading)
-                  SliverFillRemaining(child: _buildEmpty(isDark, _stats?['total'] == 0))
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: MediaQuery.of(context).size.height * 0.5,
+                      child: _buildEmpty(isDark, _stats?['total'] == 0),
+                    ),
+                  )
                 else
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -658,7 +705,13 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E293B) : Colors.white,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05), blurRadius: 16, offset: const Offset(0, 6))],
+          boxShadow: [
+            BoxShadow(
+              color: isDark ? Colors.black.withValues(alpha: 0.3) : const Color(0xFF8B5CF6).withValues(alpha: 0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            )
+          ],
           border: Border(
             right: BorderSide(color: rating >= 4 ? AppTheme.primaryColor : (rating >= 3 ? Colors.amber : Colors.redAccent), width: 5),
             top: BorderSide(color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.grey[100]!),
@@ -678,7 +731,9 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                     width: 48, height: 48,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: LinearGradient(colors: [AppTheme.primaryColor.withValues(alpha: 0.8), AppTheme.primaryColor]),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF8B5CF6), Color(0xFF3B82F6)],
+                      ),
                     ),
                     child: photoUrl != null
                         ? ClipOval(child: Image.network(photoUrl, fit: BoxFit.cover, errorBuilder: (ctx, err, stack) => _buildInitialAvatar(name)))

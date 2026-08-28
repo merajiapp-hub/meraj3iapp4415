@@ -17,6 +17,27 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   final ScrollController _scroll = ScrollController();
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   bool _sending = false;
+  String _uid = '';
+  String _userName = 'مستخدم';
+  String _chatId = '';
+
+  @override
+  void initState() {
+    super.initState();
+    // defer until first frame so context/provider is ready
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      setState(() {
+        _uid = auth.user?.uid ?? '';
+        _userName = auth.user?.displayName ?? auth.user?.email ?? 'مستخدم';
+        _chatId = 'chat_$_uid';
+      });
+      if (_uid.isNotEmpty) {
+        _db.collection('chats').doc(_chatId).set({'userUnread': 0}, SetOptions(merge: true));
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -25,43 +46,45 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     super.dispose();
   }
 
-  String _chatId(String uid) => 'chat_$uid';
-
-  Future<void> _sendMessage(String uid, String userName) async {
+  Future<void> _sendMessage() async {
+    if (_uid.isEmpty) return;
     final text = _ctrl.text.trim();
     if (text.isEmpty) return;
     setState(() => _sending = true);
     _ctrl.clear();
     try {
-      final chatId = _chatId(uid);
-      await _db.collection('chats').doc(chatId).collection('messages').add({
+      await _db.collection('chats').doc(_chatId).collection('messages').add({
         'text': text,
-        'senderId': uid,
-        'senderName': userName,
+        'senderId': _uid,
+        'senderName': _userName,
         'isAdmin': false,
         'createdAt': FieldValue.serverTimestamp(),
         'isRead': false,
       });
       // Update chat metadata
-      await _db.collection('chats').doc(chatId).set({
-        'userId': uid,
-        'userName': userName,
+      await _db.collection('chats').doc(_chatId).set({
+        'userId': _uid,
+        'userName': _userName,
         'lastMessage': text,
         'lastMessageAt': FieldValue.serverTimestamp(),
         'userUnread': 0,
         'adminUnread': FieldValue.increment(1),
       }, SetOptions(merge: true));
-
-      // Scroll to bottom
-      Future.delayed(const Duration(milliseconds: 200), () {
-        if (_scroll.hasClients) {
-          _scroll.animateTo(
-            _scroll.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        }
-      });
+      // Scroll to bottom after messages update
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (_scroll.hasClients) {
+        _scroll.animateTo(
+          _scroll.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل الإرسال: $e', style: GoogleFonts.tajawal()), backgroundColor: Colors.red),
+        );
+      }
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -69,27 +92,24 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = Provider.of<AuthProvider>(context, listen: false);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final uid = auth.user?.uid ?? '';
-    final userName = auth.user?.displayName ?? 'مستخدم';
 
-    if (uid.isEmpty || auth.isGuest) {
-      return Scaffold(
-        appBar: AppBar(title: Text('الدعم الفني', style: GoogleFonts.tajawal())),
-        body: Center(
-          child: Text(
-            'يجب تسجيل الدخول للوصول إلى الدعم الفني',
-            style: GoogleFonts.tajawal(),
+    // Show login required if not authenticated
+    if (_uid.isEmpty) {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      if (auth.isGuest || auth.user == null) {
+        return Scaffold(
+          appBar: AppBar(title: Text('الدعم الفني', style: GoogleFonts.tajawal())),
+          body: Center(
+            child: Text(
+              'يجب تسجيل الدخول للوصول إلى الدعم الفني',
+              style: GoogleFonts.tajawal(),
+            ),
           ),
-        ),
-      );
+        );
+      }
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-
-    final chatId = _chatId(uid);
-
-    // Mark user messages as read when entering
-    _db.collection('chats').doc(chatId).set({'userUnread': 0}, SetOptions(merge: true));
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
@@ -156,10 +176,10 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
             child: StreamBuilder<QuerySnapshot>(
               stream: _db
                   .collection('chats')
-                  .doc(chatId)
+                  .doc(_chatId)
                   .collection('messages')
-                  .orderBy('createdAt')
-                  .snapshots(),
+                  .orderBy('createdAt', descending: false)
+                  .snapshots(includeMetadataChanges: false),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -194,7 +214,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
             ),
           ),
           // Input
-          _buildInputBar(uid, userName, isDark),
+          _buildInputBar(isDark),
         ],
       ),
     );
@@ -280,7 +300,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     );
   }
 
-  Widget _buildInputBar(String uid, String userName, bool isDark) {
+  Widget _buildInputBar(bool isDark) {
     return Container(
       padding: EdgeInsets.only(
         left: 12,
@@ -318,12 +338,12 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               ),
               style: GoogleFonts.tajawal(fontSize: 14),
-              onSubmitted: (_) => _sendMessage(uid, userName),
+              onSubmitted: (_) => _sendMessage(),
             ),
           ),
           const SizedBox(width: 8),
           GestureDetector(
-            onTap: _sending ? null : () => _sendMessage(uid, userName),
+            onTap: _sending ? null : () => _sendMessage(),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               width: 46,

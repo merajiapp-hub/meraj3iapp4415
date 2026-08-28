@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/quiz_provider.dart';
+import '../data/quiz_models.dart';
 import '../theme/app_theme.dart';
 import 'quiz_screen.dart';
 

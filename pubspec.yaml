@@ -1,7 +1,7 @@
 name: meraj3i
 description: "MERAJ3I - منصة تعليمية شاملة للطلاب"
 publish_to: "none"
-version: 6.6.0+16
+version: 6.8.0+18
 
 environment:
   sdk: ^3.11.0
@@ -64,6 +64,10 @@ dependencies:
   signature: ^6.4.0
   math_expressions: ^3.2.0
   flutter_staggered_grid_view: ^0.7.0
+  equations: ^6.0.0
+  ml_linalg: ^13.12.8
+  complex: ^0.8.0
+  decimal: ^3.2.6
 
 dev_dependencies:
   flutter_test:
@@ -78,6 +82,7 @@ flutter:
     - assets/fonts/
     - assets/pay/
     - assets/Calculator/
+    - assets/IM/
     - shorebird.yaml
   fonts:
     - family: Tajawal

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import 'login_screen.dart';
+import 'signup_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -11,259 +12,311 @@ class OnboardingScreen extends StatefulWidget {
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends State<OnboardingScreen>
+    with TickerProviderStateMixin {
   final PageController _pageController = PageController();
-  int _currentPage = 0;
+  int _currentIndex = 0;
 
-  final List<Map<String, String>> _onboardingData = [
-    {
-      'title': 'مرحباً بك في MERAJ3I',
-      'description': 'منصتك الشاملة للمراجعة الذكية وتحقيق التفوق الدراسي.',
-      'icon': 'school',
-    },
-    {
-      'title': 'مكتبة رقمية متكاملة',
-      'description': 'الآلاف من الكتب، الملخصات، والحوليات متاحة بين يديك في أي وقت.',
-      'icon': 'library_books',
-    },
-    {
-      'title': 'جدول دراسي ذكي',
-      'description': 'نظم وقتك، تتبع مهامك، وحقق أهدافك الدراسية بفعالية.',
-      'icon': 'calendar_month',
-    },
-    {
-      'title': 'إحصائيات وتقييمات',
-      'description': 'تابع تقدمك من خلال إحصائيات دقيقة واختبارات تفاعلية.',
-      'icon': 'insights',
-    },
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnim;
+
+  // بيانات الشرائح
+  final List<_OnboardingSlide> _slides = [
+    _OnboardingSlide(
+      title: 'مراجعي',
+      subtitle: 'رفيقك للنجاح الدراسي',
+      imagePath: 'assets/IM/IM1.jpg',
+      fallbackIcon: Icons.school_rounded,
+      description: 'تطبيق تعليمي متكامل يجمع كل ما تحتاجه للدراسة والتفوق في مكان واحد.',
+    ),
+    _OnboardingSlide(
+      title: 'ملاحظاتك الذكية',
+      subtitle: 'نظّم أفكارك بشكل مثالي',
+      imagePath: 'assets/IM/IM1.jpg',
+      fallbackIcon: Icons.note_alt_rounded,
+      description: 'دفتر ملاحظات ذكي مع محرر نصوص غني، رسم يدوي، ومزامنة سحابية فورية.',
+    ),
+    _OnboardingSlide(
+      title: 'استعد للامتحانات',
+      subtitle: 'اختبر نفسك وتفوق',
+      imagePath: 'assets/IM/IM1.jpg',
+      fallbackIcon: Icons.quiz_rounded,
+      description: 'مسابقات، اختبارات وطنية، وإحصائيات مفصّلة لمتابعة تقدمك الدراسي.',
+    ),
   ];
 
-  Future<void> _completeOnboarding() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('has_seen_onboarding', true);
-    
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
-    }
+  @override
+  void initState() {
+    super.initState();
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _fadeAnim = CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
+    _fadeController.forward();
   }
 
-  IconData _getIcon(String name) {
-    switch (name) {
-      case 'school':
-        return Icons.school_rounded;
-      case 'library_books':
-        return Icons.my_library_books_rounded;
-      case 'calendar_month':
-        return Icons.calendar_month_rounded;
-      case 'insights':
-        return Icons.insights_rounded;
-      default:
-        return Icons.star_rounded;
-    }
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _fadeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _markOnboardingSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('has_seen_onboarding', true);
+  }
+
+  void _goToSignup() async {
+    await _markOnboardingSeen();
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => const SignupScreen(),
+        transitionsBuilder: (context, anim, secondaryAnimation, child) =>
+            FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
+  }
+
+  void _goToLogin() async {
+    await _markOnboardingSeen();
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
+        transitionsBuilder: (context, anim, secondaryAnimation, child) =>
+            FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final isSmall = size.height < 700;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
-      body: Stack(
-        children: [
-          // Background Gradient
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF0F172A), Color(0xFF1E3A5F), Color(0xFF0D9488)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                stops: [0.0, 0.5, 1.0],
+      backgroundColor: Colors.white,
+      body: FadeTransition(
+        opacity: _fadeAnim,
+        child: SafeArea(
+          child: Column(
+            children: [
+              // ── PageView للشرائح ──
+              Expanded(
+                child: PageView.builder(
+                  controller: _pageController,
+                  onPageChanged: (index) {
+                    setState(() => _currentIndex = index);
+                  },
+                  itemCount: _slides.length,
+                  itemBuilder: (context, index) {
+                    return _buildSlide(_slides[index], isSmall);
+                  },
+                ),
               ),
-            ),
-          ),
-          SafeArea(
-            child: Column(
-              children: [
-                // Skip Button
-                Align(
-                  alignment: Alignment.topRight,
-                  child: TextButton(
-                    onPressed: _completeOnboarding,
-                    child: Text(
-                      'تخطي',
-                      style: GoogleFonts.tajawal(
-                        color: Colors.white70,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+
+              // ── Dots Indicator ──
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(_slides.length, (index) {
+                    final isActive = index == _currentIndex;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: isActive ? 28 : 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? AppTheme.primaryColor
+                            : Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+
+              // ── الأزرار ──
+              Padding(
+                padding: EdgeInsets.fromLTRB(32, 0, 32, isSmall ? 16 : 28),
+                child: Column(
+                  children: [
+                    // زر ابدأ الآن
+                    SizedBox(
+                      width: double.infinity,
+                      height: isSmall ? 48 : 54,
+                      child: ElevatedButton(
+                        onPressed: _goToSignup,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                          elevation: 3,
+                          shadowColor: AppTheme.primaryColor.withValues(alpha: 0.4),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Text(
+                          'ابدأ الآن',
+                          style: GoogleFonts.tajawal(
+                            fontSize: isSmall ? 16 : 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    SizedBox(height: isSmall ? 10 : 14),
+
+                    // زر تسجيل الدخول
+                    SizedBox(
+                      width: double.infinity,
+                      height: isSmall ? 48 : 54,
+                      child: OutlinedButton(
+                        onPressed: _goToLogin,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primaryColor,
+                          side: BorderSide(
+                            color: AppTheme.primaryColor.withValues(alpha: 0.6),
+                            width: 1.5,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Text(
+                          'تسجيل الدخول',
+                          style: GoogleFonts.tajawal(
+                            fontSize: isSmall ? 16 : 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                
-                // PageView
-                Expanded(
-                  child: PageView.builder(
-                    controller: _pageController,
-                    onPageChanged: (index) {
-                      setState(() {
-                        _currentPage = index;
-                      });
-                    },
-                    itemCount: _onboardingData.length,
-                    itemBuilder: (context, index) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 40),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSlide(_OnboardingSlide slide, bool isSmall) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 28),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(height: isSmall ? 12 : 24),
+
+          // ── الاسم الكبير ──
+          Text(
+            slide.title,
+            style: GoogleFonts.cairo(
+              fontSize: isSmall ? 36 : 44,
+              fontWeight: FontWeight.w900,
+              color: AppTheme.primaryColor,
+              height: 1.1,
+            ),
+            textAlign: TextAlign.center,
+          ),
+
+          const SizedBox(height: 6),
+
+          // ── العنوان الفرعي ──
+          Text(
+            slide.subtitle,
+            style: GoogleFonts.tajawal(
+              fontSize: isSmall ? 17 : 20,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF333333),
+            ),
+            textAlign: TextAlign.center,
+          ),
+
+          SizedBox(height: isSmall ? 20 : 32),
+
+          // ── الصورة التوضيحية ──
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: Image.asset(
+                    slide.imagePath,
+                    fit: BoxFit.contain,
+                    width: constraints.maxWidth,
+                    height: constraints.maxHeight,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: constraints.maxWidth,
+                        height: constraints.maxHeight,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.07),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            // الصفحة الأولى: شعار MERAJ3I، باقي الصفحات: أيقونات
-                            if (index == 0)
-                              Container(
-                                padding: const EdgeInsets.all(30),
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.white.withValues(alpha: 0.12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.white.withValues(alpha: 0.08),
-                                      blurRadius: 40,
-                                      spreadRadius: 10,
-                                    ),
-                                  ],
-                                ),
-                                child: Image.asset(
-                                  'assets/images/logo.png',
-                                  width: 110,
-                                  height: 110,
-                                  fit: BoxFit.contain,
-                                ),
-                              )
-                            else
-                              Container(
-                                padding: const EdgeInsets.all(40),
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.white.withValues(alpha: 0.1),
-                                ),
-                                child: Icon(
-                                  _getIcon(_onboardingData[index]['icon']!),
-                                  size: 100,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            const SizedBox(height: 60),
-                            Text(
-                              _onboardingData[index]['title']!,
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.tajawal(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Text(
-                              _onboardingData[index]['description']!,
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.tajawal(
-                                fontSize: 16,
-                                color: Colors.white70,
-                                height: 1.5,
-                              ),
+                            Icon(
+                              slide.fallbackIcon,
+                              size: isSmall ? 100 : 130,
+                              color: AppTheme.primaryColor.withValues(alpha: 0.35),
                             ),
                           ],
                         ),
                       );
                     },
                   ),
-                ),
-
-                // Bottom Controls
-                Padding(
-                  padding: const EdgeInsets.all(40.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Dots Indicator
-                      Row(
-                        children: List.generate(
-                          _onboardingData.length,
-                          (index) => AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            margin: const EdgeInsets.only(right: 8),
-                            height: 10,
-                            width: _currentPage == index ? 24 : 10,
-                            decoration: BoxDecoration(
-                              color: _currentPage == index
-                                  ? Colors.white
-                                  : Colors.white38,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
-                      ),
-                      
-                      // Next/Start Button
-                      GestureDetector(
-                        onTap: () {
-                          if (_currentPage == _onboardingData.length - 1) {
-                            _completeOnboarding();
-                          } else {
-                            _pageController.nextPage(
-                              duration: const Duration(milliseconds: 500),
-                              curve: Curves.ease,
-                            );
-                          }
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(30),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.2),
-                                blurRadius: 10,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _currentPage == _onboardingData.length - 1
-                                    ? 'ابدأ الآن'
-                                    : 'التالي',
-                                style: GoogleFonts.tajawal(
-                                  color: AppTheme.primaryColor,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              if (_currentPage < _onboardingData.length - 1) ...[
-                                const SizedBox(width: 8),
-                                const Icon(
-                                  Icons.arrow_forward_rounded,
-                                  color: AppTheme.primaryColor,
-                                  size: 20,
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                );
+              },
             ),
           ),
+
+          SizedBox(height: isSmall ? 12 : 20),
+
+          // ── الوصف ──
+          Text(
+            slide.description,
+            style: GoogleFonts.tajawal(
+              fontSize: isSmall ? 13 : 15,
+              color: Colors.grey.shade600,
+              height: 1.6,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+
+          SizedBox(height: isSmall ? 12 : 20),
         ],
       ),
     );
   }
+}
+
+class _OnboardingSlide {
+  final String title;
+  final String subtitle;
+  final String imagePath;
+  final IconData fallbackIcon;
+  final String description;
+
+  const _OnboardingSlide({
+    required this.title,
+    required this.subtitle,
+    required this.imagePath,
+    required this.fallbackIcon,
+    required this.description,
+  });
 }
