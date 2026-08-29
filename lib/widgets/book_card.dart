@@ -1,4 +1,5 @@
 import 'dart:io';
+import '../providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -60,6 +61,12 @@ class _BookCardState extends State<BookCard> {
   }
 
   Future<void> _downloadBook() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (auth.isGuest || auth.user == null) {
+      AppNotification.show(context, 'يرجى تسجيل الدخول أولاً لتتمكن من تنزيل الكتب.', isError: true);
+      return;
+    }
+
     if (widget.book.url.isEmpty ||
         widget.book.url.contains('/drive/folders/')) {
       AppNotification.show(context, 'الرابط غير متوفر', isError: true);

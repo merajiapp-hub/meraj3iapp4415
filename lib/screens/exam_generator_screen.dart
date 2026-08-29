@@ -431,24 +431,34 @@ class _ExamGeneratorScreenState extends State<ExamGeneratorScreen> {
 
   Widget _buildStartButton(BuildContext context) {
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor)),
+        );
+        
         final provider = Provider.of<QuizProvider>(context, listen: false);
-        provider.generateNewQuiz(
+        await provider.generateNewQuiz(
           count: _questionCount.toInt(),
           category: _selectedCategory,
           difficulty: _selectedDifficulty,
         );
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => QuizScreen(
-              examMode: _examMode,
-              timerSeconds: _examMode 
-                  ? (_timerSeconds * _questionCount.toInt())
-                  : _timerSeconds,
+        
+        if (context.mounted) {
+          Navigator.pop(context); // إغلاق نافذة التحميل
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => QuizScreen(
+                examMode: _examMode,
+                timerSeconds: _examMode 
+                    ? (_timerSeconds * _questionCount.toInt())
+                    : _timerSeconds,
+              ),
             ),
-          ),
-        );
+          );
+        }
       },
       child: Container(
         height: 58,

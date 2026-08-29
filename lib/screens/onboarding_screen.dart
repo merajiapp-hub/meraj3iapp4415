@@ -25,21 +25,21 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _OnboardingSlide(
       title: 'مراجعي',
       subtitle: 'رفيقك للنجاح الدراسي',
-      imagePath: 'assets/IM/IM1.jpg',
+      imagePath: 'assets/images/logo.png',
       fallbackIcon: Icons.school_rounded,
       description: 'تطبيق تعليمي متكامل يجمع كل ما تحتاجه للدراسة والتفوق في مكان واحد.',
     ),
     _OnboardingSlide(
       title: 'ملاحظاتك الذكية',
       subtitle: 'نظّم أفكارك بشكل مثالي',
-      imagePath: 'assets/IM/IM1.jpg',
+      imagePath: '',
       fallbackIcon: Icons.note_alt_rounded,
       description: 'دفتر ملاحظات ذكي مع محرر نصوص غني، رسم يدوي، ومزامنة سحابية فورية.',
     ),
     _OnboardingSlide(
       title: 'استعد للامتحانات',
       subtitle: 'اختبر نفسك وتفوق',
-      imagePath: 'assets/IM/IM1.jpg',
+      imagePath: '',
       fallbackIcon: Icons.quiz_rounded,
       description: 'مسابقات، اختبارات وطنية، وإحصائيات مفصّلة لمتابعة تقدمك الدراسي.',
     ),
@@ -262,18 +262,22 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         width: constraints.maxWidth,
                         height: constraints.maxHeight,
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.07),
-                          borderRadius: BorderRadius.circular(24),
+                          gradient: LinearGradient(
+                            colors: [
+                              AppTheme.primaryColor.withValues(alpha: 0.1),
+                              AppTheme.primaryColor.withValues(alpha: 0.02),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          shape: BoxShape.circle,
                         ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              slide.fallbackIcon,
-                              size: isSmall ? 100 : 130,
-                              color: AppTheme.primaryColor.withValues(alpha: 0.35),
-                            ),
-                          ],
+                        child: Center(
+                          child: Icon(
+                            slide.fallbackIcon,
+                            size: isSmall ? 100 : 130,
+                            color: AppTheme.primaryColor.withValues(alpha: 0.8),
+                          ),
                         ),
                       );
                     },

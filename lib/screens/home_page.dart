@@ -9,12 +9,12 @@ import '../providers/favorites_provider.dart';
 import '../providers/downloads_provider.dart';
 import '../providers/task_provider.dart';
 import '../providers/reading_provider.dart';
+import '../providers/theme_provider.dart';
 import '../widgets/app_notification.dart';
 
 import '../theme/app_theme.dart';
 import 'search_screen.dart';
-import 'favorites_screen.dart';
-import 'task_manager_screen.dart';
+
 import 'settings_screen.dart';
 import 'added_books_screen.dart';
 import 'add_book_screen.dart';
@@ -50,7 +50,6 @@ import 'admin/admin_dashboard_screen.dart';
 import '../features/smart_calculator/ui/screens/smart_calculator_screen.dart';
 import 'direct_chat_screen.dart';
 
-
 class HomePage extends StatefulWidget {
   final bool isGuest;
   const HomePage({super.key, this.isGuest = false});
@@ -61,17 +60,19 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage>
     with SingleTickerProviderStateMixin {
-  int _selectedIndex = 0;
+
 
   // نظام Toast الخروج
   bool _exitToastShown = false;
 
-
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
-  
-  final PageController _pageController = PageController(viewportFraction: 0.88, initialPage: 3000);
+
+  final PageController _pageController = PageController(
+    viewportFraction: 0.88,
+    initialPage: 3000,
+  );
   int _carouselIndex = 0;
 
   @override
@@ -95,34 +96,6 @@ class _HomePageState extends State<HomePage>
     _animController.dispose();
     _pageController.dispose();
     super.dispose();
-  }
-
-  void _onItemTapped(int index) {
-    if (index == _selectedIndex) return;
-
-    switch (index) {
-      case 0:
-        setState(() => _selectedIndex = 0);
-        break;
-      case 1:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const FavoritesScreen()),
-        );
-        break;
-      case 2:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const TaskManagerScreen()),
-        );
-        break;
-      case 3:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ProfileScreen()),
-        );
-        break;
-    }
   }
 
   /// إظهار Toast أنيق عند الضغط على زر الرجوع (مرتان للخروج)
@@ -160,7 +133,7 @@ class _HomePageState extends State<HomePage>
                   color: Colors.black.withValues(alpha: 0.35),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
-                )
+                ),
               ],
             ),
             child: Row(
@@ -217,267 +190,239 @@ class _HomePageState extends State<HomePage>
       child: Scaffold(
         drawer: _buildDrawer(),
         floatingActionButton: _buildFloatingActionButton(),
-        body: Stack(
+        body: Column(
           children: [
-            NotificationListener<ScrollNotification>(
-              onNotification: (ScrollNotification notification) {
-                // تم إيقاف إخفاء الشريط السفلي بناءً على طلب المستخدم
-                return false;
-              },
-              child: CustomScrollView(
-          slivers: [
             // ══════════════════════════════════════════
-            //  Header — SliverAppBar محسّن
+            //  Header Fixed Section (AppBar + Carousel)
             // ══════════════════════════════════════════
-            SliverAppBar(
-              expandedHeight: 160,
-              pinned: true,
-              elevation: 0,
-              flexibleSpace: FlexibleSpaceBar(
-                titlePadding: const EdgeInsets.only(
-                  left: 20,
-                  right: 48,
-                  bottom: 16,
+            Container(
+              decoration: const BoxDecoration(
+                gradient: AppTheme.brandGradient,
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(40),
+                  bottomRight: Radius.circular(40),
                 ),
-                title: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'MERAJ3I',
-                      style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.5,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-                background: Container(
-                  decoration: const BoxDecoration(
-                    gradient: AppTheme.brandGradient,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 10,
+                    offset: Offset(0, 5),
                   ),
-                  child: Stack(
-                    children: [
-                      // دوائر زخرفية
-                      Positioned(
-                        right: -40,
-                        top: -40,
-                        child: Container(
-                          width: 180,
-                          height: 180,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withValues(alpha: 0.06),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: -60,
-                        bottom: -50,
-                        child: Container(
-                          width: 200,
-                          height: 200,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withValues(alpha: 0.04),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        right: 100,
-                        top: 20,
-                        child: Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withValues(alpha: 0.05),
-                          ),
-                        ),
-                      ),
-                      // نص ترحيبي في الـ Header الكامل
-                      Positioned(
-                        bottom: 52,
-                        right: 20,
-                        left: 60,
-                        child: Consumer<AuthProvider>(
-                          builder: (context, auth, _) {
-                            final name = widget.isGuest
-                                ? 'الزائر'
-                                : (auth.user?.displayName ?? 'الطالب');
-                            return Text(
-                              'أهلاً، $name 👋',
-                              style: GoogleFonts.tajawal(
-                                color: Colors.white.withValues(alpha: 0.9),
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                ],
               ),
-              actions: [
-                // زر الإشعارات
-                Consumer<NotificationsProvider>(
-                  builder: (context, notifProvider, _) => Stack(
-                    children: [
-                      IconButton(
-                        icon: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.notifications_rounded,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const NotificationsScreen(),
-                          ),
-                        ),
-                      ),
-                      if (notifProvider.unreadCount > 0)
-                        Positioned(
-                          right: 8,
-                          top: 8,
-                          child: Container(
-                            width: 16,
-                            height: 16,
-                            decoration: BoxDecoration(
-                              color: Colors.redAccent,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.white,
-                                width: 1.5,
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                notifProvider.unreadCount > 9
-                                    ? '9+'
-                                    : '${notifProvider.unreadCount}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: IconButton(
-                    icon: Container(
-                      padding: const EdgeInsets.all(2),
+              padding: EdgeInsets.only(
+                top: MediaQuery.of(context).padding.top + 10,
+                bottom: 20,
+              ),
+              child: Stack(
+                children: [
+                  // دوائر زخرفية
+                  Positioned(
+                    right: -40,
+                    top: -40,
+                    child: Container(
+                      width: 180,
+                      height: 180,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.35),
-                          width: 2,
-                        ),
+                        color: Colors.white.withValues(alpha: 0.06),
                       ),
-                      child: CircleAvatar(
-                        radius: 16,
-                        backgroundColor: Colors.white.withValues(alpha: 0.15),
-                        backgroundImage: Provider.of<AuthProvider>(
-                          context,
-                        ).profileImageProvider,
-                        child:
-                            Provider.of<AuthProvider>(
-                                  context,
-                                ).profileImageProvider ==
-                                null
-                            ? const Icon(
-                                Icons.person,
-                                size: 18,
-                                color: Colors.white,
-                              )
-                            : null,
-                      ),
-                    ),
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ProfileScreen()),
                     ),
                   ),
-                ),
-              ],
+                  Positioned(
+                    left: -60,
+                    bottom: -50,
+                    child: Container(
+                      width: 200,
+                      height: 200,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.04),
+                      ),
+                    ),
+                  ),
+                  Column(
+                    children: [
+                      // AppBar Row (Icons only)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // Drawer button
+                            IconButton(
+                              icon: const Icon(
+                                Icons.menu_rounded,
+                                color: Colors.white,
+                                size: 28,
+                              ),
+                              onPressed: () =>
+                                  Scaffold.of(context).openDrawer(),
+                            ),
+                            // Actions
+                            Row(
+                              children: [
+                                // زر تبديل الوضع الليلي/العادي
+                                Consumer<ThemeProvider>(
+                                  builder: (context, themeProvider, _) =>
+                                      IconButton(
+                                        icon: Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.15,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                          child: Icon(
+                                            themeProvider.isDarkMode
+                                                ? Icons.wb_sunny_rounded
+                                                : Icons.nights_stay_rounded,
+                                            color: Colors.white,
+                                            size: 20,
+                                          ),
+                                        ),
+                                        onPressed: () =>
+                                            themeProvider.toggleTheme(
+                                              !themeProvider.isDarkMode,
+                                            ),
+                                      ),
+                                ),
+                                const SizedBox(width: 4),
+                                // زر الإشعارات
+                                Consumer<NotificationsProvider>(
+                                  builder: (context, notifProvider, _) => Stack(
+                                    children: [
+                                      IconButton(
+                                        icon: Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.15,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            Icons.notifications_rounded,
+                                            color: Colors.white,
+                                            size: 20,
+                                          ),
+                                        ),
+                                        onPressed: () => Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const NotificationsScreen(),
+                                          ),
+                                        ),
+                                      ),
+                                      if (notifProvider.unreadCount > 0)
+                                        Positioned(
+                                          right: 8,
+                                          top: 8,
+                                          child: Container(
+                                            width: 16,
+                                            height: 16,
+                                            decoration: BoxDecoration(
+                                              color: Colors.redAccent,
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: Colors.white,
+                                                width: 1.5,
+                                              ),
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                notifProvider.unreadCount > 9
+                                                    ? '9+'
+                                                    : '${notifProvider.unreadCount}',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 8,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Carousel in the fixed header
+                      _buildTopCarousel(isDark),
+                    ],
+                  ),
+                ],
+              ),
             ),
 
             // ══════════════════════════════════════════
-            //  Body Content
+            //  Body Content (Scrollable)
             // ══════════════════════════════════════════
-            SliverToBoxAdapter(
-              child: FadeTransition(
-                opacity: _fadeAnim,
-                child: SlideTransition(
-                  position: _slideAnim,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // ── شريط البحث ──
-                        _buildSearchBar(isDark),
-                        const SizedBox(height: 20),
+            Expanded(
+              child: SingleChildScrollView(
+                child: FadeTransition(
+                  opacity: _fadeAnim,
+                  child: SlideTransition(
+                    position: _slideAnim,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // ── شريط البحث ──
+                          _buildSearchBar(isDark),
+                          const SizedBox(height: 24),
 
-                        // ── كرت الصفحة الرئيسية (Carousel) ──
-                        _buildTopCarousel(isDark),
-                        const SizedBox(height: 24),
+                          // ── عنوان القسم الرئيسي ──
+                          _buildSectionHeader('الخدمات الرئيسية', isDark),
+                          const SizedBox(height: 14),
 
-                        // ── عنوان القسم الرئيسي ──
-                        _buildSectionHeader('الخدمات الرئيسية', isDark),
-                        const SizedBox(height: 14),
+                          // ── Grid الأزرار الرئيسية ──
+                          _buildMainServicesGrid(size, isDark),
 
-                        // ── Grid الأزرار الرئيسية الست ──
-                        _buildMainServicesGrid(size, isDark),
+                          const SizedBox(height: 28),
+                          const BannerAdWidget(),
+                          const SizedBox(height: 28),
 
-                        const SizedBox(height: 28),
-                        const BannerAdWidget(),
-                        const SizedBox(height: 28),
-
-                        // ── Footer ──
-                        Center(
-                          child: Column(
-                            children: [
-                              Text(
-                                'Développé par Mohamed Mahmoud Abderrahmane',
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.tajawal(
-                                  fontSize: 10,
-                                  color: Colors.grey[500],
-                                  letterSpacing: 0.3,
+                          // ── Footer ──
+                          Center(
+                            child: Column(
+                              children: [
+                                Text(
+                                  'Développé par Mohamed Mahmoud Abderrahmane',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.tajawal(
+                                    fontSize: 10,
+                                    color: Colors.grey[500],
+                                    letterSpacing: 0.3,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '© 2026 MERAJ3I. جميع الحقوق محفوظة.',
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.tajawal(
-                                  fontSize: 10,
-                                  color: Colors.grey[500],
+                                const SizedBox(height: 4),
+                                Text(
+                                  '© 2026 MERAJ3I. جميع الحقوق محفوظة.',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.tajawal(
+                                    fontSize: 10,
+                                    color: Colors.grey[500],
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 120), // مساحة للشريط السفلي العائم لكي لا يغطي المحتوى
-                      ],
+                          const SizedBox(height: 120),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -486,27 +431,17 @@ class _HomePageState extends State<HomePage>
           ],
         ),
       ),
-      // شريط التنقل السفلي الثابت
-      Positioned(
-        bottom: 0,
-        left: 0,
-        right: 0,
-        child: _buildBottomNav(isDark),
-      ),
-    ],
-  ),
-  ),
-);
-}
-
-
+    );
+  }
 
   // ══════════════════════════════════════════════════════
   //  زر إضافة كتاب (FAB)
   // ══════════════════════════════════════════════════════
   Widget _buildFloatingActionButton() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 90), // مرفوع قليلاً لكي لا يصطدم بالشريط السفلي
+      margin: const EdgeInsets.only(
+        bottom: 90,
+      ), // مرفوع قليلاً لكي لا يصطدم بالشريط السفلي
       decoration: BoxDecoration(
         gradient: AppTheme.brandGradient,
         shape: BoxShape.circle,
@@ -718,9 +653,9 @@ class _HomePageState extends State<HomePage>
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 1.05,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: 1.25, // Increased from 1.05 to make them shorter
       ),
       itemCount: services.length,
       itemBuilder: (context, index) {
@@ -935,23 +870,110 @@ class _HomePageState extends State<HomePage>
   }
 
   // ══════════════════════════════════════════════════════
+  //  كرت المستخدم
+  // ══════════════════════════════════════════════════════
+  Widget _buildUserCard(bool isDark) {
+    final auth = context.read<AuthProvider>();
+    final name = widget.isGuest ? 'زائر' : (auth.user?.displayName ?? 'مستخدم');
+    return GestureDetector(
+      onTap: widget.isGuest
+          ? null
+          : () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+            ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 35,
+              backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.15),
+              backgroundImage: auth.profileImageProvider,
+              child: auth.profileImageProvider == null
+                  ? const Icon(
+                      Icons.person_rounded,
+                      color: AppTheme.primaryColor,
+                      size: 35,
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'مرحباً بك،',
+                    style: GoogleFonts.tajawal(
+                      fontSize: 14,
+                      color: isDark ? Colors.white54 : Colors.black54,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      name,
+                      style: GoogleFonts.tajawal(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (!widget.isGuest)
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 20,
+                color: isDark ? Colors.white38 : Colors.black26,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════
   //  كرت الصفحة الرئيسية (Carousel)
   // ══════════════════════════════════════════════════════
   Widget _buildTopCarousel(bool isDark) {
+    final List<Widget> carouselItems = [
+      _buildUserCard(isDark),
+      _buildCarouselImageCard('assets/IM/IM1.jpg'),
+      _buildCarouselImageCard('assets/IM/IM2.jpg'),
+    ];
+
     return Column(
       children: [
         SizedBox(
-          height: 180,
+          height: 160,
           child: PageView.builder(
             controller: _pageController,
             onPageChanged: (index) {
               setState(() {
-                _carouselIndex = index % 3;
+                _carouselIndex = index % carouselItems.length;
               });
             },
             itemBuilder: (context, index) {
-              final itemIndex = index % 3;
-              return _buildCarouselCard(itemIndex, isDark);
+              final itemIndex = index % carouselItems.length;
+              return carouselItems[itemIndex];
             },
           ),
         ),
@@ -959,7 +981,7 @@ class _HomePageState extends State<HomePage>
         // Dots Indicator
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(3, (index) {
+          children: List.generate(carouselItems.length, (index) {
             final isActive = index == _carouselIndex;
             return AnimatedContainer(
               duration: const Duration(milliseconds: 300),
@@ -967,7 +989,9 @@ class _HomePageState extends State<HomePage>
               width: isActive ? 20 : 8,
               height: 8,
               decoration: BoxDecoration(
-                color: isActive ? const Color(0xFFF97316) : Colors.grey.withValues(alpha: 0.3),
+                color: isActive
+                    ? Colors.white
+                    : Colors.white.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(4),
               ),
             );
@@ -977,189 +1001,64 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  Widget _buildCarouselCard(int index, bool isDark) {
-    // الألوان المستوحاة من الوصف
-    final List<Color> bgColors = [
-      const Color(0xFF1E3A8A), // أزرق غامق للكرت الرئيسي
-      const Color(0xFFF97316), // برتقالي
-      const Color(0xFF10B981), // أخضر
-    ];
-
-    if (index == 0) {
-      // الكرت الرئيسي المطلوب
-      return _AnimatedCard(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const SmartCalculatorScreen()),
-          );
-        },
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: bgColors[0],
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: bgColors[0].withValues(alpha: 0.3),
-                blurRadius: 15,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              // نصوص الترحيب على اليمين (حسب اتجاه العربية)
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Consumer<AuthProvider>(
-                      builder: (context, auth, _) {
-                        final name = widget.isGuest
-                            ? 'الزائر'
-                            : (auth.user?.displayName?.split(' ').first ?? 'الطالب');
-                        return Text(
-                          'مرحبا، $name!',
-                          style: GoogleFonts.tajawal(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'استعد للدراسة',
-                      style: GoogleFonts.tajawal(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+  Widget _buildCarouselImageCard(String imagePath) {
+    return _AnimatedCard(
+      onTap: () {
+        // فتح الصورة بشكل كامل وواضح
+        showDialog(
+          context: context,
+          builder: (context) => Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.all(10),
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: InteractiveViewer(
+                panEnabled: true,
+                minScale: 0.5,
+                maxScale: 4,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: Image.asset(imagePath, fit: BoxFit.contain),
                 ),
               ),
-              
-              // الصورة على اليسار
-              Positioned(
-                left: 0,
-                top: 0,
-                bottom: 30,
-                child: GestureDetector(
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => Dialog(
-                        backgroundColor: Colors.transparent,
-                        insetPadding: const EdgeInsets.all(10),
-                        child: GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: InteractiveViewer(
-                            panEnabled: true,
-                            minScale: 0.5,
-                            maxScale: 4,
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(24),
-                              child: Image.asset(
-                                'assets/IM/IM1.jpg',
-                                fit: BoxFit.contain,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                  child: Hero(
-                    tag: 'home_card_image',
-                    child: Image.asset(
-                      'assets/IM/IM1.jpg', // الصورة المطلوبة
-                      width: 100,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        // في حال عدم وجود الصورة بعد، عرض عنصر نائب
-                        return Container(
-                          width: 100,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.school_rounded, color: Colors.white54, size: 40),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ),
-
-              // شريط التقدم في الأسفل
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: Row(
-                  children: [
-                    Text(
-                      '1/10',
-                      style: GoogleFonts.tajawal(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: LinearProgressIndicator(
-                          value: 0.1,
-                          minHeight: 8,
-                          backgroundColor: Colors.white.withValues(alpha: 0.2),
-                          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFF97316)),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    } else {
-      // الكروت الجانبية (برتقالي وأخضر)
-      return _AnimatedCard(
-        onTap: () {},
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: bgColors[index],
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: bgColors[index].withValues(alpha: 0.3),
-                blurRadius: 15,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Icon(
-              index == 1 ? Icons.emoji_events_rounded : Icons.menu_book_rounded,
-              size: 60,
-              color: Colors.white.withValues(alpha: 0.5),
             ),
           ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
-      );
-    }
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: Image.asset(
+            imagePath,
+            fit: BoxFit.cover, // تغطية مساحة الكرت بشكل جذاب
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: Colors.grey[300],
+                child: const Center(
+                  child: Icon(
+                    Icons.image_not_supported,
+                    size: 50,
+                    color: Colors.grey,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
   }
-
 
   // ══════════════════════════════════════════════════════
   //  عنوان القسم
@@ -1185,102 +1084,6 @@ class _HomePageState extends State<HomePage>
           ),
         ),
       ],
-    );
-  }
-
-  // ══════════════════════════════════════════════════════
-  //  شريط التنقل السفلي — هندسي وعصري
-  // ══════════════════════════════════════════════════════
-  Widget _buildBottomNav(bool isDark) {
-    final items = [
-      _NavItem(icon: Icons.home_rounded, label: 'الرئيسية'),
-      _NavItem(icon: Icons.favorite_rounded, label: 'المفضلة'),
-      _NavItem(icon: Icons.task_alt_rounded, label: 'الخطة'),
-      _NavItem(icon: Icons.person_rounded, label: 'حسابي'),
-    ];
-
-    return SafeArea(
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: BoxDecoration(
-          color: isDark ? AppTheme.surfaceDark.withValues(alpha: 0.95) : Colors.white.withValues(alpha: 0.95),
-          borderRadius: BorderRadius.circular(32),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.primaryColor.withValues(alpha: isDark ? 0.2 : 0.15),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
-          border: Border.all(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.1)
-                : AppTheme.primaryColor.withValues(alpha: 0.1),
-            width: 1.5,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: List.generate(items.length, (index) {
-            final isSelected = _selectedIndex == index;
-            return GestureDetector(
-              onTap: () => _onItemTapped(index),
-              behavior: HitTestBehavior.opaque,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 350),
-                curve: Curves.easeOutCubic,
-                padding: EdgeInsets.symmetric(
-                  vertical: 10,
-                  horizontal: isSelected ? 20 : 16,
-                ),
-                decoration: BoxDecoration(
-                  gradient: isSelected ? AppTheme.brandGradient : null,
-                  color: isSelected ? null : Colors.transparent,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.4),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          )
-                        ]
-                      : [],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      items[index].icon,
-                      size: 24,
-                      color: isSelected
-                          ? Colors.white
-                          : (isDark ? Colors.white54 : Colors.grey[500]),
-                    ),
-                    if (isSelected) ...[
-                      const SizedBox(width: 8),
-                      Text(
-                        items[index].label,
-                        style: GoogleFonts.tajawal(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            );
-          }),
-        ),
-      ),
     );
   }
 
@@ -1338,15 +1141,17 @@ class _HomePageState extends State<HomePage>
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  widget.isGuest ? 'مستخدم زائر' : userName,
-                  style: GoogleFonts.tajawal(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    widget.isGuest ? 'مستخدم زائر' : userName,
+                    style: GoogleFonts.tajawal(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   widget.isGuest
@@ -1366,18 +1171,26 @@ class _HomePageState extends State<HomePage>
             child: ListView(
               padding: const EdgeInsets.only(top: 10),
               children: [
-                _buildDrawerItem(Icons.library_books_rounded, 'الكتب المضافة', () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AddedBooksScreen()),
-                  );
-                }),
+                _buildDrawerItem(
+                  Icons.library_books_rounded,
+                  'الكتب المضافة',
+                  () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AddedBooksScreen(),
+                      ),
+                    );
+                  },
+                ),
                 _buildDrawerItem(Icons.history_edu_rounded, 'سجل القراءة', () {
                   Navigator.pop(context);
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const ReadingHistoryScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const ReadingHistoryScreen(),
+                    ),
                   );
                 }),
                 const Padding(
@@ -1483,99 +1296,135 @@ class _HomePageState extends State<HomePage>
                     padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                     child: Divider(height: 1),
                   ),
-                  _buildDrawerItem(Icons.admin_panel_settings_rounded, 'لوحة الإدارة', () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const AdminGuard(child: AdminDashboardScreen())),
-                    );
-                  }),
+                  _buildDrawerItem(
+                    Icons.admin_panel_settings_rounded,
+                    'لوحة الإدارة',
+                    () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminGuard(child: AdminDashboardScreen()),
+                        ),
+                      );
+                    },
+                  ),
                 ],
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                   child: Divider(height: 1),
                 ),
                 _buildDrawerItem(
-                  Image.asset('assets/images/logo.png', width: 22, height: 22, color: Colors.red),
+                  Image.asset(
+                    'assets/images/logo.png',
+                    width: 22,
+                    height: 22,
+                    color: Colors.red,
+                  ),
                   'تسجيل الخروج',
                   () {
-                  final isDark = Theme.of(context).brightness == Brightness.dark;
-                  showDialog(
-                    context: context,
-                    builder: (context) {
-                      return AlertDialog(
-                        backgroundColor: isDark ? AppTheme.surfaceDark : Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        title: Column(
-                          children: [
-                            Image.asset('assets/images/logo.png', height: 60),
-                            const SizedBox(height: 12),
-                            Text(
-                              'تسجيل الخروج',
-                              style: GoogleFonts.tajawal(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.redAccent,
+                    final isDark =
+                        Theme.of(context).brightness == Brightness.dark;
+                    showDialog(
+                      context: context,
+                      builder: (context) {
+                        return AlertDialog(
+                          backgroundColor: isDark
+                              ? AppTheme.surfaceDark
+                              : Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          title: Column(
+                            children: [
+                              Image.asset('assets/images/logo.png', height: 60),
+                              const SizedBox(height: 12),
+                              Text(
+                                'تسجيل الخروج',
+                                style: GoogleFonts.tajawal(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.redAccent,
+                                ),
+                              ),
+                            ],
+                          ),
+                          content: Text(
+                            'هل أنت متأكد من أنك تريد تسجيل الخروج من حسابك؟',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.tajawal(
+                              color: isDark ? Colors.white70 : Colors.black87,
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: Text(
+                                'إلغاء',
+                                style: GoogleFonts.tajawal(
+                                  color: Colors.grey,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            ElevatedButton(
+                              onPressed: () async {
+                                Navigator.pop(context);
+                                final authProvider = Provider.of<AuthProvider>(
+                                  context,
+                                  listen: false,
+                                );
+                                await authProvider.signOut();
+                                try {
+                                  await authProvider.signOutGoogle();
+                                } catch (_) {}
+                                if (context.mounted) {
+                                  Provider.of<FavoritesProvider>(
+                                    context,
+                                    listen: false,
+                                  ).clearAll();
+                                  Provider.of<DownloadsProvider>(
+                                    context,
+                                    listen: false,
+                                  ).clearAll();
+                                  Provider.of<TaskProvider>(
+                                    context,
+                                    listen: false,
+                                  ).clearAll();
+                                  Provider.of<ReadingProvider>(
+                                    context,
+                                    listen: false,
+                                  ).clearAll();
+                                  AppNotification.showLogout(context);
+                                  Navigator.of(context).pushAndRemoveUntil(
+                                    MaterialPageRoute(
+                                      builder: (_) => const LoginScreen(),
+                                    ),
+                                    (route) => false,
+                                  );
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.redAccent,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Text(
+                                'تسجيل الخروج',
+                                style: GoogleFonts.tajawal(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ],
-                        ),
-                        content: Text(
-                          'هل أنت متأكد من أنك تريد تسجيل الخروج من حسابك؟',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.tajawal(
-                            color: isDark ? Colors.white70 : Colors.black87,
-                          ),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: Text(
-                              'إلغاء',
-                              style: GoogleFonts.tajawal(
-                                color: Colors.grey,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          ElevatedButton(
-                            onPressed: () async {
-                              Navigator.pop(context);
-                              final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                              await authProvider.signOut();
-                              try {
-                                await authProvider.signOutGoogle();
-                              } catch (_) {}
-                              if (context.mounted) {
-                                Provider.of<FavoritesProvider>(context, listen: false).clearAll();
-                                Provider.of<DownloadsProvider>(context, listen: false).clearAll();
-                                Provider.of<TaskProvider>(context, listen: false).clearAll();
-                                Provider.of<ReadingProvider>(context, listen: false).clearAll();
-                                AppNotification.showLogout(context);
-                                Navigator.of(context).pushAndRemoveUntil(
-                                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                                  (route) => false,
-                                );
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.redAccent,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: Text(
-                              'تسجيل الخروج',
-                              style: GoogleFonts.tajawal(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                }, color: Colors.redAccent),
+                        );
+                      },
+                    );
+                  },
+                  color: Colors.redAccent,
+                ),
                 const SizedBox(height: 20),
               ],
             ),
@@ -1584,7 +1433,6 @@ class _HomePageState extends State<HomePage>
       ),
     );
   }
-
 
   // ══════════════════════════════════════════════════════
   //  عنصر Drawer
@@ -1647,11 +1495,6 @@ class _ServiceItem {
 // ══════════════════════════════════════════════════════
 //  Model لعناصر الشريط السفلي
 // ══════════════════════════════════════════════════════
-class _NavItem {
-  final IconData icon;
-  final String label;
-  const _NavItem({required this.icon, required this.label});
-}
 
 // ══════════════════════════════════════════════════════
 //  AnimatedCard — تأثير الضغط

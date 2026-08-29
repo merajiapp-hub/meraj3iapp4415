@@ -1,4 +1,4 @@
-// services/results_service.dart
+﻿// services/results_service.dart
 // نظام ذكي لجلب وتخزين نتائج المسابقات مع Cache بالملفات (أداء أعلى)
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -591,8 +591,12 @@ class ResultsService {
 
   static Future<String?> _downloadCsv(String url) async {
     try {
+      // منع كاش المتصفح أو الخادم (Google Drive/etc) عبر إضافة timestamp
+      final uri = Uri.parse(url);
+      final finalUrl = uri.hasQuery ? '$url&t=${DateTime.now().millisecondsSinceEpoch}' : '$url?t=${DateTime.now().millisecondsSinceEpoch}';
+
       final response = await http
-          .get(Uri.parse(url), headers: {
+          .get(Uri.parse(finalUrl), headers: {
             'Accept': 'text/csv,text/plain,*/*',
             'Cache-Control': 'no-cache',
           })
@@ -1005,3 +1009,5 @@ class ResultsService {
     }
   }
 }
+
+

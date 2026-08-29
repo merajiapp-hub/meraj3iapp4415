@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:ml_linalg/matrix.dart';
+import '../../../../theme/app_theme.dart';
 import '../../engines/matrix_engine.dart';
 
 class MatrixEditorScreen extends StatefulWidget {
@@ -9,142 +11,235 @@ class MatrixEditorScreen extends StatefulWidget {
   State<MatrixEditorScreen> createState() => _MatrixEditorScreenState();
 }
 
-class _MatrixEditorScreenState extends State<MatrixEditorScreen> {
-  int _rows = 2;
-  int _cols = 2;
-  late List<List<TextEditingController>> _controllers;
+class _MatrixEditorScreenState extends State<MatrixEditorScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabs;
+  int _rowsA = 2, _colsA = 2;
+  int _rowsB = 2;
+  late List<List<TextEditingController>> _ctrlA;
+  late List<List<TextEditingController>> _ctrlB;
   String _result = '';
 
   @override
   void initState() {
     super.initState();
-    _initControllers();
+    _tabs = TabController(length: 2, vsync: this);
+    _initCtrlA();
+    _initCtrlB();
   }
 
-  void _initControllers() {
-    _controllers = List.generate(
-      _rows,
-      (i) => List.generate(_cols, (j) => TextEditingController(text: '0')),
+  @override
+  void dispose() {
+    _tabs.dispose();
+    for (var row in _ctrlA) { for (var c in row) { c.dispose(); } }
+    for (var row in _ctrlB) { for (var c in row) { c.dispose(); } }
+    super.dispose();
+  }
+
+  void _initCtrlA() {
+    _ctrlA = List.generate(_rowsA, (i) => List.generate(_colsA, (j) => TextEditingController(text: '0')));
+  }
+  void _initCtrlB() {
+    _ctrlB = List.generate(_rowsB, (i) => List.generate(_rowsB, (j) => TextEditingController(text: '0')));
+  }
+
+  Matrix _buildMatrix(List<List<TextEditingController>> ctrl, int r, int c) {
+    return Matrix.fromList(
+      List.generate(r, (i) => List.generate(c, (j) => double.tryParse(ctrl[i][j].text) ?? 0.0)),
     );
   }
 
-  Matrix _buildMatrix() {
-    List<List<double>> source = [];
-    for (int i = 0; i < _rows; i++) {
-      List<double> row = [];
-      for (int j = 0; j < _cols; j++) {
-        row.add(double.tryParse(_controllers[i][j].text) ?? 0);
+  void _op(String op) {
+    try {
+      final A = _buildMatrix(_ctrlA, _rowsA, _colsA);
+      String res = '';
+      switch (op) {
+        case 'det':
+          res = 'det(A) = ${MatrixEngine.determinant(A).toStringAsFixed(4)}';
+          break;
+        case 'inv':
+          final inv = MatrixEngine.inverse(A);
+          res = 'A⁻¹ =\n${_matrixToString(inv)}';
+          break;
+        case 'trans':
+          res = 'Aᵀ =\n${_matrixToString(A.transpose())}';
+          break;
+        case 'rank':
+          res = 'رتبة A = ${MatrixEngine.rank(A)}';
+          break;
+        case 'add':
+          final B = _buildMatrix(_ctrlB, _rowsB, _rowsB);
+          if (_rowsA != _rowsB || _colsA != _rowsB) { setState(() => _result = 'الأبعاد غير متوافقة'); return; }
+          res = 'A + B =\n${_matrixToString((A + B))}';
+          break;
+        case 'sub':
+          final B = _buildMatrix(_ctrlB, _rowsB, _rowsB);
+          if (_rowsA != _rowsB || _colsA != _rowsB) { setState(() => _result = 'الأبعاد غير متوافقة'); return; }
+          res = 'A - B =\n${_matrixToString((A - B))}';
+          break;
+        case 'mul':
+          final B = _buildMatrix(_ctrlB, _rowsB, _rowsB);
+          if (_colsA != _rowsB) { setState(() => _result = 'يجب أن يكون عدد أعمدة A = عدد صفوف B'); return; }
+          res = 'A × B =\n${_matrixToString((A * B))}';
+          break;
       }
-      source.add(row);
-    }
-    return Matrix.fromList(source);
-  }
-
-  void _calculateDeterminant() {
-    try {
-      Matrix a = _buildMatrix();
-      double det = MatrixEngine.determinant(a);
-      setState(() {
-        _result = 'المحدد = $det';
-      });
+      setState(() => _result = res);
     } catch (e) {
-       setState(() {
-        _result = 'خطأ: ${e.toString()}';
-      });
+      setState(() => _result = 'خطأ: ${e.toString()}');
     }
   }
 
-  void _calculateInverse() {
-    try {
-      Matrix a = _buildMatrix();
-      Matrix inv = MatrixEngine.inverse(a);
-      setState(() {
-        _result = 'المعكوس:\n$inv';
-      });
-    } catch (e) {
-       setState(() {
-        _result = 'خطأ: ${e.toString()}';
-      });
-    }
+  String _matrixToString(Matrix m) {
+    return m.rows.map((r) => '[ ${r.map((v) => v.toStringAsFixed(3)).join('  ')} ]').join('\n');
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('محرر المصفوفات', style: TextStyle(fontFamily: 'Tajawal')),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('الصفوف: '),
-                DropdownButton<int>(
-                  value: _rows,
-                  items: [2, 3, 4].map((e) => DropdownMenuItem(value: e, child: Text('$e'))).toList(),
-                  onChanged: (v) {
-                    if (v != null) setState(() { _rows = v; _initControllers(); _result = '';});
-                  },
-                ),
-                const SizedBox(width: 24),
-                const Text('الأعمدة: '),
-                DropdownButton<int>(
-                  value: _cols,
-                  items: [2, 3, 4].map((e) => DropdownMenuItem(value: e, child: Text('$e'))).toList(),
-                  onChanged: (v) {
-                    if (v != null) setState(() { _cols = v; _initControllers(); _result = '';});
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Expanded(
-              child: GridView.builder(
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: _cols,
-                  childAspectRatio: 2,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                ),
-                itemCount: _rows * _cols,
-                itemBuilder: (context, index) {
-                  int r = index ~/ _cols;
-                  int c = index % _cols;
-                  return TextField(
-                    controller: _controllers[r][c],
-                    keyboardType: TextInputType.number,
-                    textAlign: TextAlign.center,
-                    decoration: const InputDecoration(border: OutlineInputBorder()),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ElevatedButton(onPressed: _calculateDeterminant, child: const Text('المحدد')),
-                ElevatedButton(onPressed: _calculateInverse, child: const Text('المعكوس')),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(16),
-              width: double.infinity,
-              color: Colors.blue.withValues(alpha: 0.1),
-              child: Text(
-                _result,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Column(
+      children: [
+        TabBar(
+          controller: _tabs,
+          labelColor: AppTheme.primaryColor,
+          unselectedLabelColor: isDark ? Colors.white54 : Colors.black54,
+          indicatorColor: AppTheme.primaryColor,
+          tabs: const [Tab(text: 'المصفوفة A'), Tab(text: 'المصفوفة B')],
         ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabs,
+            children: [
+              _buildMatrixEditor(_ctrlA, _rowsA, _colsA,
+                  onRowChange: (v) => setState(() { _rowsA = v!; _initCtrlA(); _result = ''; }),
+                  onColChange: (v) => setState(() { _colsA = v!; _initCtrlA(); _result = ''; })),
+              _buildMatrixEditor(_ctrlB, _rowsB, _rowsB,
+                  onRowChange: (v) => setState(() { _rowsB = v!; _initCtrlB(); _result = ''; }),
+                  onColChange: null),
+            ],
+          ),
+        ),
+        _buildButtons(),
+        if (_result.isNotEmpty) _buildResult(isDark),
+      ],
+    );
+  }
+
+  Widget _buildMatrixEditor(
+    List<List<TextEditingController>> ctrls, int rows, int cols, {
+    required Function(int?)? onRowChange,
+    required Function(int?)? onColChange,
+  }) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('الصفوف:', style: GoogleFonts.tajawal()),
+              const SizedBox(width: 8),
+              DropdownButton<int>(
+                value: rows,
+                items: [2, 3, 4].map((e) => DropdownMenuItem(value: e, child: Text('$e'))).toList(),
+                onChanged: onRowChange,
+              ),
+              if (onColChange != null) ...[
+                const SizedBox(width: 24),
+                Text('الأعمدة:', style: GoogleFonts.tajawal()),
+                const SizedBox(width: 8),
+                DropdownButton<int>(
+                  value: cols,
+                  items: [2, 3, 4].map((e) => DropdownMenuItem(value: e, child: Text('$e'))).toList(),
+                  onChanged: onColChange,
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 16),
+          for (int r = 0; r < rows; r++) ...[
+            Row(
+              children: [
+                const Text('[', style: TextStyle(fontSize: 28, color: Colors.grey)),
+                ...List.generate(cols, (c) => Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: TextField(
+                      controller: ctrls[r][c],
+                      keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true),
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ),
+                )),
+                const Text(']', style: TextStyle(fontSize: 28, color: Colors.grey)),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildButtons() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        alignment: WrapAlignment.center,
+        children: [
+          _btn('det(A)', () => _op('det'), Colors.blue),
+          _btn('A⁻¹', () => _op('inv'), Colors.orange),
+          _btn('Aᵀ', () => _op('trans'), Colors.teal),
+          _btn('رتبة A', () => _op('rank'), Colors.purple),
+          _btn('A + B', () => _op('add'), Colors.green),
+          _btn('A - B', () => _op('sub'), Colors.red),
+          _btn('A × B', () => _op('mul'), Colors.indigo),
+        ],
+      ),
+    );
+  }
+
+  Widget _btn(String label, VoidCallback fn, Color color) {
+    return ElevatedButton(
+      onPressed: fn,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color.withValues(alpha: 0.15),
+        foregroundColor: color,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 0,
+      ),
+      child: Text(label, style: GoogleFonts.tajawal(fontWeight: FontWeight.bold)),
+    );
+  }
+
+  Widget _buildResult(bool isDark) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
+      ),
+      child: Text(
+        _result,
+        style: GoogleFonts.tajawal(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: isDark ? Colors.white : Colors.black87,
+        ),
+        textAlign: TextAlign.center,
       ),
     );
   }
 }
+
+

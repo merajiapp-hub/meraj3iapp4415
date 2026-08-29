@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../services/admin_activity_service.dart';
 
 class AdminSettingsScreen extends StatefulWidget {
   const AdminSettingsScreen({super.key});
@@ -87,6 +88,14 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
           .collection('admin_settings')
           .doc('feature_flags')
           .set(data, SetOptions(merge: true));
+
+      // تسجيل النشاط في سجل الإدارة
+      await AdminActivityService.log(
+        type: AdminActivityType.settingChanged,
+        title: 'تحديث إعدادات النظام',
+        description: 'تم تحديث ميزات النظام (Feature Flags) ووضع الصيانة.',
+        metadata: data,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(

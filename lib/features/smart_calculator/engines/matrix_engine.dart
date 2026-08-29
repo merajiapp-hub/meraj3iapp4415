@@ -1,4 +1,4 @@
-import 'package:ml_linalg/matrix.dart';
+﻿import 'package:ml_linalg/matrix.dart';
 
 class MatrixEngine {
   /// Adds two matrices
@@ -88,4 +88,31 @@ class MatrixEngine {
       throw Exception('هذه المصفوفة ليس لها معكوس (المحدد = 0).');
     }
   }
+
+  /// Calculates the rank of a matrix using row reduction
+  static int rank(Matrix m) {
+    int rows = m.rowCount;
+    int cols = m.columnCount;
+    List<List<double>> mat = List.generate(rows, (i) => List.generate(cols, (j) => m[i][j].toDouble()));
+    int r = 0;
+    for (int c = 0; c < cols && r < rows; c++) {
+      int pivot = -1;
+      for (int i = r; i < rows; i++) {
+        if (mat[i][c].abs() > 1e-9) { pivot = i; break; }
+      }
+      if (pivot == -1) continue;
+      final tmp = mat[pivot]; mat[pivot] = mat[r]; mat[r] = tmp;
+      final scale = mat[r][c];
+      for (int j = 0; j < cols; j++) { mat[r][j] /= scale; }
+      for (int i = 0; i < rows; i++) {
+        if (i != r) {
+          final factor = mat[i][c];
+          for (int j = 0; j < cols; j++) { mat[i][j] -= factor * mat[r][j]; }
+        }
+      }
+      r++;
+    }
+    return r;
+  }
 }
+

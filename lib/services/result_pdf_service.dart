@@ -1,4 +1,4 @@
-// services/result_pdf_service.dart
+﻿// services/result_pdf_service.dart
 // إنشاء ملف PDF احترافي لنتيجة الطالب — v5.1.0
 import 'dart:io';
 import 'package:flutter/services.dart';
@@ -151,10 +151,7 @@ class ResultPdfService {
     final scoreFont = PdfTrueTypeFont(boldBytes, 28);
 
     // تنسيق RTL للعربية
-    final rtlFormat = PdfStringFormat(
-      alignment: PdfTextAlignment.right,
-      textDirection: PdfTextDirection.rightToLeft,
-    );
+    
     final centerRtlFormat = PdfStringFormat(
       alignment: PdfTextAlignment.center,
       textDirection: PdfTextDirection.rightToLeft,
@@ -255,8 +252,8 @@ class ResultPdfService {
       student.name.isNotEmpty ? student.name : 'مترشح',
       boldFont,
       brush: PdfSolidBrush(darkColor),
-      bounds: Rect.fromLTWH(20, y + 14, pageWidth - 160, 22),
-      format: rtlFormat,
+      bounds: Rect.fromLTWH(20, y + 6, pageWidth - 160, 38),
+      format: PdfStringFormat(alignment: PdfTextAlignment.right, textDirection: PdfTextDirection.rightToLeft, wordWrap: PdfWordWrapType.word),
     );
 
     // رقم التسجيل
@@ -265,7 +262,7 @@ class ResultPdfService {
       smallFont,
       brush: PdfSolidBrush(PdfColor(100, 116, 139)),
       bounds: Rect.fromLTWH(20, y + 40, pageWidth - 160, 18),
-      format: rtlFormat,
+      format: PdfStringFormat(alignment: PdfTextAlignment.right, textDirection: PdfTextDirection.rightToLeft, wordWrap: PdfWordWrapType.word),
     );
 
     // شارة الحالة
@@ -321,7 +318,7 @@ class ResultPdfService {
       boldFont,
       brush: PdfSolidBrush(primaryColor),
       bounds: Rect.fromLTWH(0, y, pageWidth, 20),
-      format: rtlFormat,
+      format: PdfStringFormat(alignment: PdfTextAlignment.right, textDirection: PdfTextDirection.rightToLeft, wordWrap: PdfWordWrapType.word),
     );
     y += 24;
 
@@ -396,7 +393,7 @@ class ResultPdfService {
         boldFont,
         brush: PdfSolidBrush(primaryColor),
         bounds: Rect.fromLTWH(0, y, pageWidth, 20),
-        format: rtlFormat,
+        format: PdfStringFormat(alignment: PdfTextAlignment.right, textDirection: PdfTextDirection.rightToLeft, wordWrap: PdfWordWrapType.word),
       );
       y += 24;
 
@@ -487,3 +484,5 @@ class ResultPdfService {
     return safe.length > 30 ? safe.substring(0, 30) : safe;
   }
 }
+
+

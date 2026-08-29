@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../services/drive_url_service.dart';
+import '../../../services/admin_activity_service.dart';
 
 class AdminBooksScreen extends StatefulWidget {
   const AdminBooksScreen({super.key});
@@ -47,6 +48,14 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
     setState(() => _isLoading = true);
     try {
       await FirebaseFirestore.instance.collection('books').doc(docId).delete();
+      
+      // تسجيل النشاط
+      await AdminActivityService.log(
+        type: AdminActivityType.bookDeleted,
+        title: 'حذف كتاب',
+        description: 'تم حذف الكتاب: "$title"',
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('✅ تم حذف الكتاب'),
@@ -310,14 +319,16 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
         'linkUpdatedAt': FieldValue.serverTimestamp(),
       });
       // Log the change in audit
-      await FirebaseFirestore.instance.collection('audit_logs').add({
-        'action': 'edit_book_link',
-        'bookId': docId,
-        'bookTitle': title,
-        'oldUrl': currentUrl,
-        'newUrl': result,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
+      await AdminActivityService.log(
+        type: AdminActivityType.bookUpdated,
+        title: 'تعديل رابط كتاب',
+        description: 'تم تحديث رابط الكتاب: "$title"',
+        metadata: {
+          'bookId': docId,
+          'oldUrl': currentUrl,
+          'newUrl': result,
+        },
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('✅ تم تحديث الرابط بنجاح'),

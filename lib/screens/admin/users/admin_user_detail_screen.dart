@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
+import '../../../services/admin_activity_service.dart';
 
 class AdminUserDetailScreen extends StatefulWidget {
   final String uid;
@@ -31,22 +31,62 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
     if (doc.exists && mounted) setState(() => _data = doc.data()!);
   }
 
-  Future<void> _callFunction(String name, Map<String, dynamic> params,
-      String successMsg) async {
+  Future<void> _updateFirestoreUser(
+    Map<String, dynamic> data,
+    String successMsg, {
+    AdminActivityType activityType = AdminActivityType.userUpdated,
+    String? activityTitle,
+    String? activityDesc,
+  }) async {
     setState(() => _isLoading = true);
+    final name = _data['name'] ?? 'مستخدم';
     try {
-      await FirebaseFunctions.instance.httpsCallable(name).call(params);
+      await FirebaseFirestore.instance.collection('users').doc(widget.uid).update(data);
       await _refresh();
+      // تسجيل النشاط
+      await AdminActivityService.log(
+        type: activityType,
+        title: activityTitle ?? successMsg,
+        description: activityDesc ?? 'العملية: $successMsg — المستخدم: $name (${_data['email'] ?? widget.uid})',
+        targetUserId: widget.uid,
+        targetUserName: name,
+        metadata: data,
+      );
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(
-                content: Text(successMsg),
-                backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(successMsg), backgroundColor: Colors.green));
       }
-    } on FirebaseFunctionsException catch (e) {
+    } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('خطأ: ${e.message}'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _deleteFirestoreUser(String successMsg) async {
+    setState(() => _isLoading = true);
+    final name = _data['name'] ?? 'مستخدم';
+    try {
+      await AdminActivityService.log(
+        type: AdminActivityType.userDeleted,
+        title: 'حذف حساب مستخدم: $name',
+        description: 'تم حذف الحساب نهائياً — البريد: ${_data['email'] ?? widget.uid}',
+        targetUserId: widget.uid,
+        targetUserName: name,
+      );
+      await FirebaseFirestore.instance.collection('users').doc(widget.uid).delete();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(successMsg), backgroundColor: Colors.green));
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -182,10 +222,13 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                       onTap: () => _confirmAction(
                         'تعليق الحساب',
                         'هل أنت متأكد من تعليق حساب $name؟',
-                        () => _callFunction(
-                            'suspendUser',
-                            {'uid': widget.uid},
-                            'تم تعليق الحساب بنجاح'),
+                        () => _updateFirestoreUser(
+                            {'isSuspended': true},
+                            'تم تعليق الحساب بنجاح',
+                            activityType: AdminActivityType.userSuspended,
+                            activityTitle: 'تعليق حساب: $name',
+                            activityDesc: 'تم تعليق حساب المستخدم $name ($email)',
+                        ),
                       ),
                     )
                   else
@@ -196,10 +239,13 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                       onTap: () => _confirmAction(
                         'إعادة التفعيل',
                         'هل تريد إعادة تفعيل حساب $name؟',
-                        () => _callFunction(
-                            'reactivateUser',
-                            {'uid': widget.uid},
-                            'تم تفعيل الحساب بنجاح'),
+                        () => _updateFirestoreUser(
+                            {'isSuspended': false},
+                            'تم تفعيل الحساب بنجاح',
+                            activityType: AdminActivityType.userReactivated,
+                            activityTitle: 'إعادة تفعيل حساب: $name',
+                            activityDesc: 'تم إعادة تفعيل حساب المستخدم $name ($email)',
+                        ),
                       ),
                     ),
                   const SizedBox(height: 8),
@@ -210,10 +256,13 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                     onTap: () => _confirmAction(
                       'إجبار تغيير كلمة المرور',
                       'سيُطلب من $name تغيير كلمة مروره عند تسجيل الدخول التالي.',
-                      () => _callFunction(
-                          'requirePasswordChange',
-                          {'uid': widget.uid},
-                          'تم تفعيل إجبار تغيير كلمة المرور'),
+                      () => _updateFirestoreUser(
+                          {'mustChangePassword': true},
+                          'تم تفعيل إجبار تغيير كلمة المرور',
+                          activityType: AdminActivityType.passwordForced,
+                          activityTitle: 'إجبار تغيير كلمة المرور: $name',
+                          activityDesc: 'سيُطلب من $name تغيير كلمة المرور عند الدخول التالي.',
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -224,12 +273,7 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                     onTap: () => _confirmAction(
                       '⚠️ حذف الحساب',
                       'هذا الإجراء غير قابل للتراجع.\nهل أنت متأكد تماماً من حذف حساب $name؟',
-                      () => _callFunction(
-                          'deleteUserAdmin',
-                          {'uid': widget.uid},
-                          'تم حذف الحساب').then((_) {
-                        if (context.mounted) Navigator.pop(context);
-                      }),
+                      () => _deleteFirestoreUser('تم حذف الحساب بنجاح'),
                     ),
                   ),
                 ],
@@ -319,3 +363,5 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
     );
   }
 }
+
+

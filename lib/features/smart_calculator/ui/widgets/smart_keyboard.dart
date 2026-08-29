@@ -1,80 +1,188 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../smart_calculator_provider.dart';
-import '../theme/smart_calculator_theme.dart';
+import '../../../../theme/app_theme.dart';
 
-class SmartKeyboard extends StatelessWidget {
+class SmartKeyboard extends StatefulWidget {
   const SmartKeyboard({super.key});
+
+  @override
+  State<SmartKeyboard> createState() => _SmartKeyboardState();
+}
+
+class _SmartKeyboardState extends State<SmartKeyboard> {
+  bool _isAdvanced = false;
+
+  void _onPressed(String key, SmartCalculatorProvider provider) {
+    provider.onKeyPressed(key);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<SmartCalculatorProvider>(
       builder: (context, provider, child) {
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final theme = SmartCalculatorTheme.getTheme(provider.themeStyle);
-            return Container(
-              color: theme.backgroundColor,
-              child: Column(
-                children: [
-                  _buildRow(context, provider, theme, ['AC', 'DEL', '%', '÷'], isTop: true),
-                  _buildRow(context, provider, theme, ['7', '8', '9', '×']),
-                  _buildRow(context, provider, theme, ['4', '5', '6', '-']),
-                  _buildRow(context, provider, theme, ['1', '2', '3', '+']),
-                  _buildRow(context, provider, theme, ['0', '.', 'Ans', '=']),
-                ],
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final bgColor = isDark ? AppTheme.surfaceDark : Colors.white;
+
+        return Container(
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 20,
+                offset: const Offset(0, -5),
               ),
-            );
-          }
+            ],
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              // Toggle Advanced Mode
+              GestureDetector(
+                onTap: () => setState(() => _isAdvanced = !_isAdvanced),
+                child: Container(
+                  width: 50,
+                  height: 5,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white24 : Colors.black12,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              
+              if (_isAdvanced) ...[
+                // Advanced Scientific Buttons
+                Expanded(
+                  flex: 2,
+                  child: GridView.count(
+                    crossAxisCount: 5,
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 1.5,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      _buildBtn('sin(', 'sin', isDark, provider, color: Colors.blueAccent),
+                      _buildBtn('cos(', 'cos', isDark, provider, color: Colors.blueAccent),
+                      _buildBtn('tan(', 'tan', isDark, provider, color: Colors.blueAccent),
+                      _buildBtn('asin(', 'sin⁻¹', isDark, provider, color: Colors.blueAccent),
+                      _buildBtn('acos(', 'cos⁻¹', isDark, provider, color: Colors.blueAccent),
+                      
+                      _buildBtn('ln(', 'ln', isDark, provider, color: Colors.orangeAccent),
+                      _buildBtn('log(', 'log', isDark, provider, color: Colors.orangeAccent),
+                      _buildBtn('e', 'e', isDark, provider, color: Colors.purpleAccent),
+                      _buildBtn('π', 'π', isDark, provider, color: Colors.purpleAccent),
+                      _buildBtn('atan(', 'tan⁻¹', isDark, provider, color: Colors.blueAccent),
+                      
+                      _buildBtn('√(', '√', isDark, provider, color: Colors.teal),
+                      _buildBtn('x^', 'xʸ', isDark, provider, color: Colors.teal),
+                      _buildBtn('x^2', 'x²', isDark, provider, color: Colors.teal),
+                      _buildBtn('!', 'x!', isDark, provider, color: Colors.teal),
+                      _buildBtn('abs(', '|x|', isDark, provider, color: Colors.teal),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              
+              // Basic Keypad
+              Expanded(
+                flex: _isAdvanced ? 3 : 5,
+                child: Column(
+                  children: [
+                    Expanded(child: _buildRow(['AC', 'DEL', '(', ')'], isDark, provider)),
+                    const SizedBox(height: 8),
+                    Expanded(child: _buildRow(['7', '8', '9', '÷'], isDark, provider)),
+                    const SizedBox(height: 8),
+                    Expanded(child: _buildRow(['4', '5', '6', '×'], isDark, provider)),
+                    const SizedBox(height: 8),
+                    Expanded(child: _buildRow(['1', '2', '3', '-'], isDark, provider)),
+                    const SizedBox(height: 8),
+                    Expanded(child: _buildRow(['0', '.', '=', '+'], isDark, provider)),
+                  ],
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
   }
 
-  Widget _buildRow(BuildContext context, SmartCalculatorProvider provider, SmartCalculatorTheme theme, List<String> buttons, {bool isTop = false}) {
-    return Expanded(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: buttons.map((btn) => _buildButton(context, provider, theme, btn, isTop)).toList(),
-      ),
+  Widget _buildRow(List<String> keys, bool isDark, SmartCalculatorProvider provider) {
+    return Row(
+      children: keys.map((key) {
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: _buildBtn(
+              key, 
+              key, 
+              isDark, 
+              provider,
+              isLarge: true,
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
-  Widget _buildButton(BuildContext context, SmartCalculatorProvider provider, SmartCalculatorTheme theme, String label, bool isTop) {
-    bool isOperator = ['÷', '×', '-', '+', '='].contains(label);
+  Widget _buildBtn(
+    String value, 
+    String label, 
+    bool isDark, 
+    SmartCalculatorProvider provider, {
+    Color? color,
+    bool isLarge = false,
+  }) {
+    // Styling logic based on the key
+    Color btnColor = isDark ? Colors.white10 : Colors.grey.shade100;
+    Color txtColor = isDark ? Colors.white : Colors.black87;
     
-    Color bgColor = isOperator ? theme.operatorColor : (isTop ? theme.functionColor : theme.numberColor);
-    Color txtColor = isOperator ? Colors.white : theme.textColor;
-    
-    if (label == 'AC') {
-      bgColor = theme.actionColor;
+    if (color != null) {
+      txtColor = color;
+      btnColor = color.withValues(alpha: 0.1);
+    } else if (['÷', '×', '-', '+', '='].contains(label)) {
+      btnColor = AppTheme.primaryColor;
       txtColor = Colors.white;
+    } else if (['AC', 'DEL'].contains(label)) {
+      btnColor = Colors.redAccent.withValues(alpha: 0.1);
+      txtColor = Colors.redAccent;
     }
 
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.all(4.0),
-        child: InkWell(
-          onTap: () => provider.onKeyPressed(label),
-          borderRadius: BorderRadius.circular(16),
-          child: Ink(
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Center(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: txtColor,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _onPressed(value, provider),
+            borderRadius: BorderRadius.circular(isLarge ? 20 : 12),
+            child: Ink(
+              decoration: BoxDecoration(
+                color: btnColor,
+                borderRadius: BorderRadius.circular(isLarge ? 20 : 12),
+              ),
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    style: GoogleFonts.tajawal(
+                      fontSize: isLarge ? 24 : 18,
+                      fontWeight: FontWeight.bold,
+                      color: txtColor,
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      }
     );
   }
 }

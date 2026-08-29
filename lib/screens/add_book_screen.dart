@@ -8,6 +8,7 @@ import '../theme/app_theme.dart';
 import '../widgets/app_dropdown.dart';
 import '../widgets/app_notification.dart';
 import '../providers/statistics_provider.dart';
+import '../services/admin_activity_service.dart';
 
 class AddBookScreen extends StatefulWidget {
   const AddBookScreen({super.key});
@@ -92,6 +93,15 @@ class _AddBookScreenState extends State<AddBookScreen> {
       };
 
       await FirebaseFirestore.instance.collection('uploaded_books').add(bookData);
+
+      // إشعار الإدارة
+      await AdminActivityService.log(
+        type: AdminActivityType.bookAdded,
+        title: 'إضافة كتاب جديد',
+        description: 'قام المستخدم (${user.email ?? "بدون بريد"}) بإضافة كتاب: ${_titleController.text.trim()}',
+        targetUserId: user.uid,
+        metadata: {'title': _titleController.text.trim(), 'subject': _subjectController.text.trim()},
+      );
 
       if (mounted) {
         final stats = Provider.of<StatisticsProvider>(context, listen: false);

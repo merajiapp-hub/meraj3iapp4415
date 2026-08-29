@@ -203,6 +203,19 @@ class _GraphingScreenState extends State<GraphingScreen> {
   }
 
   Widget _buildChart(Color textCol, Color accent) {
+    // Split points at NaN boundaries (for asymptotes)
+    List<List<FlSpot>> segments = [];
+    List<FlSpot> current = [];
+    for (final p in _points) {
+      if (p.y.isNaN) {
+        if (current.isNotEmpty) segments.add(current);
+        current = [];
+      } else {
+        current.add(FlSpot(p.x, p.y));
+      }
+    }
+    if (current.isNotEmpty) segments.add(current);
+
     return LineChart(
       LineChartData(
         minX: _minX,
@@ -213,19 +226,23 @@ class _GraphingScreenState extends State<GraphingScreen> {
         gridData: FlGridData(
           show: true,
           drawVerticalLine: true,
-          getDrawingHorizontalLine: (_) => FlLine(color: textCol.withValues(alpha: 0.1), strokeWidth: 1),
-          getDrawingVerticalLine: (_) => FlLine(color: textCol.withValues(alpha: 0.1), strokeWidth: 1),
+          getDrawingHorizontalLine: (_) =>
+              FlLine(color: textCol.withValues(alpha: 0.12), strokeWidth: 1),
+          getDrawingVerticalLine: (_) =>
+              FlLine(color: textCol.withValues(alpha: 0.12), strokeWidth: 1),
         ),
         titlesData: FlTitlesData(
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 40,
+              reservedSize: 44,
               getTitlesWidget: (v, _) => Text(
-                v.toInt().toString(),
-                style: TextStyle(color: textCol.withValues(alpha: 0.5), fontSize: 10),
+                v.toStringAsFixed(v.abs() < 10 ? 1 : 0),
+                style: TextStyle(color: textCol.withValues(alpha: 0.6), fontSize: 10),
               ),
             ),
           ),
@@ -234,8 +251,8 @@ class _GraphingScreenState extends State<GraphingScreen> {
               showTitles: true,
               reservedSize: 28,
               getTitlesWidget: (v, _) => Text(
-                v.toInt().toString(),
-                style: TextStyle(color: textCol.withValues(alpha: 0.5), fontSize: 10),
+                v.toStringAsFixed(v.abs() < 10 ? 1 : 0),
+                style: TextStyle(color: textCol.withValues(alpha: 0.6), fontSize: 10),
               ),
             ),
           ),
@@ -244,20 +261,18 @@ class _GraphingScreenState extends State<GraphingScreen> {
           show: true,
           border: Border.all(color: textCol.withValues(alpha: 0.2)),
         ),
-        lineBarsData: [
-          LineChartBarData(
-            spots: _points.map((p) => FlSpot(p.x, p.y)).toList(),
-            isCurved: true,
-            color: accent,
-            barWidth: 3,
-            isStrokeCapRound: true,
-            dotData: const FlDotData(show: false),
-            belowBarData: BarAreaData(
-              show: true,
-              color: accent.withValues(alpha: 0.15),
-            ),
+        lineBarsData: segments.map((seg) => LineChartBarData(
+          spots: seg,
+          isCurved: true,
+          color: accent,
+          barWidth: 2.5,
+          isStrokeCapRound: true,
+          dotData: const FlDotData(show: false),
+          belowBarData: BarAreaData(
+            show: true,
+            color: accent.withValues(alpha: 0.1),
           ),
-        ],
+        )).toList(),
       ),
     );
   }

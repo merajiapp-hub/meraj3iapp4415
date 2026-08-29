@@ -58,59 +58,80 @@ class QuizProvider extends ChangeNotifier {
     var connectivityResults = await (Connectivity().checkConnectivity());
     bool hasInternet = !connectivityResults.contains(ConnectivityResult.none) || connectivityResults.length > 1 || (connectivityResults.isNotEmpty && connectivityResults.first != ConnectivityResult.none);
 
-    List<QuizQuestion> available = [];
-
+    // 1. Fetch from Firebase
+    List<QuizQuestion> combined = [];
     if (hasInternet) {
       try {
-        // Fetch from Firebase
         Query query = FirebaseFirestore.instance.collection('quizzes');
-        if (category != null) {
-          query = query.where('category', isEqualTo: category);
-        }
-        if (difficulty != null) {
-          query = query.where('difficulty', isEqualTo: difficulty.name);
-        }
+        if (category != null) query = query.where('category', isEqualTo: category);
+        if (difficulty != null) query = query.where('difficulty', isEqualTo: difficulty.name);
 
         final snapshot = await query.limit(50).get();
-        final firebaseQuestions = snapshot.docs.map((doc) {
-          return QuizQuestion.fromMap(doc.data() as Map<String, dynamic>, doc.id);
-        }).toList();
-
-        if (firebaseQuestions.isNotEmpty) {
-          available = firebaseQuestions.where((q) => !_usedQuestionIds.contains(q.id)).toList();
-          
-          if (available.length < count) {
-            // Reset used IDs if we run out
-            _usedQuestionIds.removeWhere((id) => firebaseQuestions.any((q) => q.id == id));
-            available = List<QuizQuestion>.from(firebaseQuestions);
-          }
-        }
+        combined.addAll(snapshot.docs.map((doc) => QuizQuestion.fromMap(doc.data() as Map<String, dynamic>, doc.id)));
       } catch (e) {
         debugPrint('Error fetching quizzes from Firebase: $e');
       }
     }
 
-    // 2. Fallback to local QuizBank if Firebase failed or no internet
-    if (available.isEmpty) {
-      var all = QuizBank.allQuestions;
-
-      if (category != null) {
-        all = all.where((q) => q.category == category).toList();
+    // 2. Fetch from local QuizBank to increase the pool
+    var allLocal = QuizBank.allQuestions;
+    if (category != null) {
+      allLocal = allLocal.where((q) => q.category == category).toList();
+    }
+    if (difficulty != null) {
+      allLocal = allLocal.where((q) => q.difficulty.name == difficulty.name).toList();
+    }
+    
+    // Combine avoiding duplicates
+    final Set<String> seenIds = {};
+    List<QuizQuestion> finalAvailable = [];
+    for (var q in combined) {
+      if (!seenIds.contains(q.id)) {
+        finalAvailable.add(q);
+        seenIds.add(q.id);
       }
-      if (difficulty != null) {
-        all = all.where((q) => q.difficulty.name == difficulty.name).toList();
-      }
-
-      available = all.where((q) => !_usedQuestionIds.contains(q.id)).toList();
-
-      if (available.length < count) {
-        _usedQuestionIds.removeWhere((id) => all.any((q) => q.id == id));
-        available = List<QuizQuestion>.from(all);
+    }
+    for (var q in allLocal) {
+      if (!seenIds.contains(q.id)) {
+        finalAvailable.add(q);
+        seenIds.add(q.id);
       }
     }
 
-    available.shuffle(Random());
-    _currentQuiz = available.take(count).map<QuizQuestion>(_shuffleOptions).toList();
+    // Filter out previously used questions if possible
+    var unusedAvailable = finalAvailable.where((q) => !_usedQuestionIds.contains(q.id)).toList();
+    if (unusedAvailable.length < count) {
+      // If we don't have enough unused, we have to reuse questions. Reset history.
+      _usedQuestionIds.clear();
+      unusedAvailable = List<QuizQuestion>.from(finalAvailable);
+    }
+
+    // If we STILL don't have enough to meet the count (because the category is very specific and has few questions),
+    // we duplicate them so the user gets the number of questions they asked for.
+    if (unusedAvailable.isNotEmpty && unusedAvailable.length < count) {
+      List<QuizQuestion> duplicated = [];
+      while(duplicated.length < count) {
+        for(var q in unusedAvailable) {
+          if (duplicated.length >= count) break;
+          // Assign a unique ID for the duplicated instance so UI keys don't conflict
+          final newId = '${q.id}_dup_${duplicated.length}';
+          duplicated.add(QuizQuestion(
+            id: newId,
+            question: q.question,
+            options: q.options,
+            correctIndex: q.correctIndex,
+            category: q.category,
+            explanation: q.explanation,
+            difficulty: q.difficulty,
+          ));
+        }
+      }
+      unusedAvailable = duplicated;
+    }
+
+    // Shuffle and pick the requested count
+    unusedAvailable.shuffle(Random());
+    _currentQuiz = unusedAvailable.take(count).map<QuizQuestion>(_shuffleOptions).toList();
     _answeredQuestions.clear();
 
     for (final q in _currentQuiz) {

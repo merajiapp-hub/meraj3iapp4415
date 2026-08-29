@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import '../services/admin_activity_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -150,8 +151,15 @@ class AuthProvider extends ChangeNotifier {
             .timeout(const Duration(seconds: 10));
         if (doc.exists && doc.data() != null) {
           _userData = doc.data();
+          if (_userData?['isSuspended'] == true) {
+            signOut();
+            return;
+          }
           _mustChangePassword = _userData?['mustChangePassword'] == true;
           notifyListeners();
+        } else {
+          signOut();
+          return;
         }
       } catch (e) {
         debugPrint('[Auth] _loadUserDataBackground error: $e');
@@ -267,6 +275,17 @@ class AuthProvider extends ChangeNotifier {
         'profileImageUrl': null,
         'uid': cred.user!.uid,
       }).timeout(const Duration(seconds: 10));
+
+      // إشعار الإدارة بتسجيل مستخدم جديد
+      await AdminActivityService.log(
+        type: AdminActivityType.userRegistered,
+        title: 'تسجيل مستخدم جديد',
+        description: 'سجل مستخدم جديد باسم: $name ($email)',
+        targetUserId: cred.user!.uid,
+        targetUserName: name,
+        metadata: {'email': email, 'phone': phone},
+      );
+
       return null;
     } on FirebaseAuthException catch (e) {
       switch (e.code) {

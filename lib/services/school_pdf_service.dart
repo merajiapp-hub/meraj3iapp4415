@@ -383,8 +383,8 @@ class SchoolPdfService {
   }) {
     final w = firstPage.getClientSize().width;
     
-    // ── عرض الأعمدة المطابق للصورة (5 أعمدة RTL) ──────────
-    // الترتيب من اليمين: الرقم | رقم الجلوس | الاسم | المجموع/المعدل | النتيجة
+    // ── عرض الأعمدة (5 أعمدة RTL) ──────────────────────────
+    // الترتيب من اليمين: الرقم | رقم الجلوس | الاسم | المجموع | النتيجة
     const colWidths = <double>[35.0, 65.0, 0, 100.0, 55.0]; // 0 = يُحسب تلقائياً
     final nameColWidth = w - colWidths[0] - colWidths[1] - colWidths[3] - colWidths[4];
 
@@ -397,13 +397,21 @@ class SchoolPdfService {
     ];
     final widths = <double>[colWidths[0], colWidths[1], nameColWidth, colWidths[3], colWidths[4]];
 
-    const rowH = 22.0;
-    const headerH = 28.0; // رأس أعلى قليلاً للنص الطويل
+    const baseRowH = 24.0;
+    const headerH = 28.0;
 
     PdfPage currentPage = firstPage;
     double y = startY;
     int pageNum = 1;
-    final totalPages = _estimatePageCount(students.length, firstPage.getClientSize().height, startY, headerH, rowH);
+    final totalPages = _estimatePageCount(students.length, firstPage.getClientSize().height, startY, headerH, baseRowH);
+
+    // تقدير ارتفاع الصف بناءً على طول الاسم لمنع تقطع الأسماء الطويلة
+    double nameRowHeight(String name) {
+      // ~7.5pt لكل حرف عند خط حجم 11
+      final charsPerLine = (nameColWidth / 7.5).floor().clamp(10, 60);
+      final lines = (name.length / charsPerLine).ceil().clamp(1, 3);
+      return (baseRowH * lines).toDouble();
+    }
 
     // رسم رأس الجدول
     void drawHeader(PdfPage pg, double cy) {
@@ -411,12 +419,9 @@ class SchoolPdfService {
         brush: PdfSolidBrush(_darkGreen),
         bounds: Rect.fromLTWH(0, cy, w, headerH),
       );
-
-      // رسم الأعمدة من اليمين لليسار (RTL)
       double cx = w;
       for (int i = 0; i < headers.length; i++) {
         cx -= widths[i];
-        // فاصل بين الأعمدة
         if (i < headers.length - 1) {
           pg.graphics.drawLine(
             PdfPen(_white, width: 0.5),
@@ -437,11 +442,11 @@ class SchoolPdfService {
     drawHeader(currentPage, y);
     y += headerH;
 
-    // رسم الصفوف
     for (int i = 0; i < students.length; i++) {
       final s = students[i];
+      final rowH = nameRowHeight(s.name);
 
-      // التحقق من الحاجة لصفحة جديدة
+      // صفحة جديدة عند الحاجة
       if (y + rowH > currentPage.getClientSize().height - 24) {
         // رقم الصفحة في نهاية الصفحة الحالية
         _drawPageNumber(currentPage, pageFont, pageNum, totalPages);
@@ -528,5 +533,6 @@ class SchoolPdfService {
     );
   }
 }
+
 
 
