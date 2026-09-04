@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../services/admin_activity_service.dart';
+import '../../../theme/app_theme.dart';
 
 class AdminSettingsScreen extends StatefulWidget {
   const AdminSettingsScreen({super.key});
@@ -206,11 +207,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             margin: const EdgeInsets.only(bottom: 10),
             child: SwitchListTile(
-              activeThumbColor: Colors.tealAccent,
+              activeThumbColor: AppTheme.lightGreen,
               secondary: Icon(
                 info?['icon'] as IconData? ?? Icons.toggle_on,
-                color:
-                    entry.value ? Colors.tealAccent : Colors.grey,
+                color: entry.value ? AppTheme.lightGreen : Colors.grey,
               ),
               title: Text(
                 info?['label'] as String? ?? entry.key,
@@ -220,7 +220,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
               subtitle: Text(
                 entry.value ? '🟢 مفعّل' : '🔴 معطّل',
                 style: TextStyle(
-                    color: entry.value ? Colors.green : Colors.red,
+                    color: entry.value ? AppTheme.lightGreen : Colors.red,
                     fontSize: 12),
               ),
               value: entry.value,
@@ -234,11 +234,11 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
           width: double.infinity,
           child: ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.tealAccent,
-              foregroundColor: Colors.black,
+              backgroundColor: AppTheme.primaryColor,
+              foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(16)),
             ),
             icon: _isSaving
                 ? const SizedBox(

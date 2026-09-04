@@ -544,10 +544,10 @@ class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
                 icon: const Icon(Icons.folder_open_rounded, size: 20),
                 label: Text('فتح الملف', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green.shade600,
+                  backgroundColor: AppTheme.primaryColor,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(0, 48),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
               ),
             ),
@@ -565,8 +565,8 @@ class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
                 icon: const Icon(Icons.share_rounded, size: 18),
                 label: Text('مشاركة', style: GoogleFonts.tajawal()),
                 style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: Colors.green.shade600),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  side: const BorderSide(color: AppTheme.primaryColor),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   minimumSize: const Size(0, 48),
                 ),
               ),

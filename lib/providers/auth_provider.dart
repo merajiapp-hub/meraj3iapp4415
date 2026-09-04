@@ -186,9 +186,19 @@ class AuthProvider extends ChangeNotifier {
   // ─── تسجيل الدخول بالبريد ────────────────────────────────────────────────
   Future<String?> signIn(String email, String password) async {
     try {
-      await _auth
+      final cred = await _auth
           .signInWithEmailAndPassword(email: email, password: password)
           .timeout(const Duration(seconds: 15));
+          
+      if (cred.user != null) {
+        await AdminActivityService.log(
+          type: AdminActivityType.userLoggedIn,
+          title: 'تسجيل دخول مستخدم',
+          description: 'قام المستخدم ${cred.user!.email} بتسجيل الدخول',
+          targetUserId: cred.user!.uid,
+          metadata: {'email': cred.user!.email, 'provider': 'email'},
+        );
+      }
       return null;
     } on FirebaseAuthException catch (e) {
       switch (e.code) {
@@ -328,9 +338,21 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
+    final currentUser = _user;
     try {
       await _auth.signOut().timeout(const Duration(seconds: 10));
     } catch (_) {}
+    
+    if (currentUser != null) {
+      AdminActivityService.log(
+        type: AdminActivityType.userLoggedOut,
+        title: 'تسجيل خروج مستخدم',
+        description: 'قام المستخدم ${currentUser.email} بتسجيل الخروج',
+        targetUserId: currentUser.uid,
+        metadata: {'email': currentUser.email},
+      ).catchError((_) {});
+    }
+    
     _isGuest = false;
     _userData = null;
     _isAdmin = false;
@@ -434,6 +456,24 @@ class AuthProvider extends ChangeNotifier {
               'uid': user.uid,
               'provider': 'google',
             });
+            // تسجيل نشاط مستخدم جديد
+            await AdminActivityService.log(
+              type: AdminActivityType.userRegistered,
+              title: 'تسجيل مستخدم جديد',
+              description: 'سجل مستخدم جديد باسم: ${user.displayName} (Google)',
+              targetUserId: user.uid,
+              targetUserName: user.displayName,
+              metadata: {'email': user.email, 'provider': 'google'},
+            );
+          } else {
+            // تسجيل دخول
+            await AdminActivityService.log(
+              type: AdminActivityType.userLoggedIn,
+              title: 'تسجيل دخول مستخدم',
+              description: 'قام المستخدم ${user.email} بتسجيل الدخول (Google)',
+              targetUserId: user.uid,
+              metadata: {'email': user.email, 'provider': 'google'},
+            );
           }
         } catch (_) {}
       });

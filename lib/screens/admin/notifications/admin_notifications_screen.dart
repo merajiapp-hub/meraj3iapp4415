@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart' as intl;
 import '../../../services/admin_activity_service.dart';
@@ -170,42 +169,70 @@ class _ActivityLogTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // شريط الفلاتر
-        _buildFilterBar(context),
-        // أزرار الإجراءات الجماعية
-        _buildActionBar(context),
-        // قائمة الإشعارات
-        Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: AdminActivityService.logsStream(
-              category: filterCategory == 'all' ? null : filterCategory,
-              unreadOnly: unreadOnly ? true : null,
-            ),
-            builder: (context, snap) {
-              if (snap.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator(color: _accent));
-              }
-              if (snap.hasError) {
-                return Center(
-                  child: Text('خطأ: ${snap.error}',
-                      style: GoogleFonts.tajawal(color: Colors.red)),
+    return Container(
+      color: const Color(0xFF0F172A),
+      child: Column(
+        children: [
+          // شريط الفلاتر
+          _buildFilterBar(context),
+          // أزرار الإجراءات الجماعية
+          _buildActionBar(context),
+          // قائمة الإشعارات
+          Expanded(
+            child: StreamBuilder<List<QueryDocumentSnapshot>>(
+              stream: AdminActivityService.logsStream(
+                category: filterCategory == 'all' ? null : filterCategory,
+                unreadOnly: unreadOnly ? true : null,
+              ),
+              builder: (context, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: _accent),
+                  );
+                }
+                if (snap.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.error_outline_rounded,
+                              color: Colors.redAccent, size: 56),
+                          const SizedBox(height: 16),
+                          Text(
+                            'تعذّر تحميل سجل النشاط',
+                            style: GoogleFonts.tajawal(
+                                fontSize: 16,
+                                color: Colors.white70,
+                                fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${snap.error}',
+                            style: GoogleFonts.tajawal(
+                                fontSize: 12, color: Colors.white38),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                final docs = snap.data ?? [];
+                if (docs.isEmpty) {
+                  return _buildEmpty();
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 90),
+                  itemCount: docs.length,
+                  itemBuilder: (context, i) => _buildCard(context, docs[i]),
                 );
-              }
-              final docs = snap.data?.docs ?? [];
-              if (docs.isEmpty) {
-                return _buildEmpty();
-              }
-              return ListView.builder(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 90),
-                itemCount: docs.length,
-                itemBuilder: (context, i) => _buildCard(context, docs[i]),
-              );
-            },
+              },
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -654,20 +681,22 @@ class _SendNotificationTabState extends State<_SendNotificationTab> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSending = true);
     try {
-      final params = <String, dynamic>{
+      final notifData = {
         'title': _titleCtrl.text.trim(),
         'body': _bodyCtrl.text.trim(),
-        'dataPayload': {'type': _notifType},
+        'type': _notifType,
+        'createdAt': FieldValue.serverTimestamp(),
+        'isRead': false,
+        'targetType': _sendType,
       };
+
       if (_sendType == 'uid') {
-        params['uid'] = _uidCtrl.text.trim();
+        notifData['targetUid'] = _uidCtrl.text.trim();
       } else {
-        params['topic'] = _selectedTopic;
+        notifData['targetTopic'] = _selectedTopic;
       }
 
-      await FirebaseFunctions.instance
-          .httpsCallable('sendAdminNotification')
-          .call(params);
+      await FirebaseFirestore.instance.collection('app_notifications').add(notifData);
 
       // تسجيل النشاط في سجل الإدارة
       await AdminActivityService.log(
@@ -687,7 +716,7 @@ class _SendNotificationTabState extends State<_SendNotificationTab> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ تم إرسال الإشعار وتسجيل النشاط بنجاح',
+            content: Text('✅ تم حفظ الإشعار وتسجيل النشاط بنجاح',
                 style: TextStyle(fontFamily: 'Tajawal')),
             backgroundColor: Colors.green,
           ),
@@ -696,11 +725,11 @@ class _SendNotificationTabState extends State<_SendNotificationTab> {
         _bodyCtrl.clear();
         _uidCtrl.clear();
       }
-    } on FirebaseFunctionsException catch (e) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('خطأ في الإرسال: ${e.message}',
+            content: Text('خطأ في الإرسال: تحقق من اتصالك بالإنترنت ($e)',
                 style: const TextStyle(fontFamily: 'Tajawal')),
             backgroundColor: Colors.red,
           ),
@@ -713,7 +742,9 @@ class _SendNotificationTabState extends State<_SendNotificationTab> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
+    return Container(
+      color: const Color(0xFF0F172A),
+      child: SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Form(
         key: _formKey,
@@ -864,6 +895,7 @@ class _SendNotificationTabState extends State<_SendNotificationTab> {
             const SizedBox(height: 80),
           ],
         ),
+      ),
       ),
     );
   }

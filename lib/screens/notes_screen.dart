@@ -5,6 +5,7 @@ import 'package:intl/intl.dart' as intl;
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../providers/notes_provider.dart';
 import '../providers/auth_provider.dart';
+import '../theme/app_theme.dart';
 import 'note_editor_screen.dart';
 
 class NotesScreen extends StatefulWidget {
@@ -111,7 +112,7 @@ class _NotesScreenState extends State<NotesScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(),
-        backgroundColor: const Color(0xFF6366F1),
+        backgroundColor: AppTheme.primaryColor,
         icon: const Icon(Icons.add_rounded, color: Colors.white),
         label: Text('ملاحظة جديدة', style: GoogleFonts.tajawal(color: Colors.white, fontWeight: FontWeight.bold)),
       ),

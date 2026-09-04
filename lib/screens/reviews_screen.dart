@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../theme/app_theme.dart';
 
 class ReviewsScreen extends StatefulWidget {
   const ReviewsScreen({super.key});
@@ -135,7 +136,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                         await _submitReview();
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6366F1),
+                        backgroundColor: AppTheme.primaryColor,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
                       child: _isSubmitting
@@ -203,7 +204,13 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
               final userName = data['userName'] as String? ?? 'مستخدم';
               DateTime? date;
               if (data['createdAt'] != null) {
-                date = (data['createdAt'] as Timestamp).toDate();
+                if (data['createdAt'] is Timestamp) {
+                  date = (data['createdAt'] as Timestamp).toDate();
+                } else if (data['createdAt'] is String) {
+                  date = DateTime.tryParse(data['createdAt']);
+                } else if (data['createdAt'] is int) {
+                  date = DateTime.fromMillisecondsSinceEpoch(data['createdAt']);
+                }
               }
 
               return Container(
@@ -263,7 +270,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddReviewSheet,
-        backgroundColor: const Color(0xFF6366F1),
+        backgroundColor: AppTheme.primaryColor,
         icon: const Icon(Icons.rate_review_rounded, color: Colors.white),
         label: Text('أضف تقييم', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, color: Colors.white)),
       ),

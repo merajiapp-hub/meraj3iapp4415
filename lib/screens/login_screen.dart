@@ -6,7 +6,7 @@ import 'package:local_auth/local_auth.dart';
 import '../theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/app_notification.dart';
-import 'home_page.dart';
+import 'main_screen.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -139,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen>
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const HomePage()),
+        MaterialPageRoute(builder: (_) => const MainScreen()),
       );
     } else {
       AppNotification.show(context, error, isError: true);
@@ -189,7 +189,7 @@ class _LoginScreenState extends State<LoginScreen>
       if (error == null) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const HomePage()),
+          MaterialPageRoute(builder: (_) => const MainScreen()),
         );
       } else {
         AppNotification.show(context, error, isError: true);
@@ -205,7 +205,7 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() => _isLoading = false);
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const HomePage(isGuest: true)),
+      MaterialPageRoute(builder: (_) => const MainScreen(isGuest: true)),
     );
   }
 
@@ -218,7 +218,7 @@ class _LoginScreenState extends State<LoginScreen>
     if (error == null) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const HomePage()),
+        MaterialPageRoute(builder: (_) => const MainScreen()),
       );
     } else {
       AppNotification.show(context, error, isError: true);
@@ -442,14 +442,6 @@ class _LoginScreenState extends State<LoginScreen>
             height: 50, // تصغير الزر
             child: ElevatedButton(
               onPressed: _isLoading ? null : _login,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                elevation: 0,
-              ),
               child: _isLoading
                   ? const SizedBox(
                       width: 20,
@@ -544,12 +536,6 @@ class _LoginScreenState extends State<LoginScreen>
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                   fontSize: 14, // تصغير الخط
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
             ),
@@ -766,17 +752,6 @@ class _LoginScreenState extends State<LoginScreen>
                         AppNotification.show(context, error, isError: true);
                       }
                     },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-              ),
               child: isSending
                   ? const SizedBox(
                       width: 16,

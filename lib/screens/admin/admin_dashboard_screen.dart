@@ -51,6 +51,18 @@ class AdminDashboardScreen extends StatelessWidget {
                 letterSpacing: 1,
               ),
             ),
+            actions: [
+              Builder(
+                builder: (context) => IconButton(
+                  tooltip: 'مركز الإشعارات',
+                  icon: const Icon(Icons.notifications_active_rounded, color: Color(0xFF8B5CF6)),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AdminNotificationsScreen()),
+                  ),
+                ),
+              ),
+            ],
           ),
           body: const _DashboardBody(),
         ),
@@ -153,9 +165,9 @@ class _StatisticsGrid extends StatelessWidget {
       childAspectRatio: 1.1,
       children: [
         _buildStatCard('المستخدمين', _getCount('users'), Icons.group_rounded, const Color(0xFF3B82F6)),
-        _buildStatCard('الكتب المتاحة', _getCount('books'), Icons.menu_book_rounded, const Color(0xFFF59E0B)),
+        _buildStatCard('الكتب المتاحة', _getCount('uploaded_books'), Icons.menu_book_rounded, const Color(0xFFF59E0B)),
         _buildStatCard('عمليات البحث', _getCount('search_logs'), Icons.travel_explore_rounded, const Color(0xFF14B8A6)),
-        _buildStatCard('سجلات الإدارة', _getCount('audit_logs'), Icons.admin_panel_settings_rounded, const Color(0xFFEF4444)),
+        _buildStatCard('سجلات الإدارة', _getCount('admin_activity_logs'), Icons.admin_panel_settings_rounded, const Color(0xFFEF4444)),
       ],
     );
   }

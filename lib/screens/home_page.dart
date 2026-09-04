@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'dart:async';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/notifications_provider.dart';
@@ -10,6 +11,7 @@ import '../providers/downloads_provider.dart';
 import '../providers/task_provider.dart';
 import '../providers/reading_provider.dart';
 import '../providers/theme_provider.dart';
+import '../providers/app_config_provider.dart';
 import '../widgets/app_notification.dart';
 
 import '../theme/app_theme.dart';
@@ -17,38 +19,27 @@ import 'search_screen.dart';
 
 import 'settings_screen.dart';
 import 'added_books_screen.dart';
-import 'add_book_screen.dart';
 import 'profile_screen.dart';
 import 'reviews_screen.dart';
-
-import 'student_competition_screen.dart';
-import 'notes_screen.dart';
 
 import 'info_screen.dart';
 import 'login_screen.dart';
 import 'stages_screen.dart';
-import 'results/results_home_screen.dart';
-import 'swedd_screen.dart';
-import 'ai_search_screen.dart';
-import 'exam_generator_screen.dart';
-import 'downloads_screen.dart';
 import 'contact_screen.dart';
 import 'faq_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'terms_of_use_screen.dart';
 import 'national_exams_screen.dart';
 import 'notifications_screen.dart';
-import 'statistics_screen.dart';
 import 'donations_screen.dart';
 import 'dedication_screen.dart';
-import 'student/progress_screen.dart';
-import 'student/reading_list_screen.dart';
 import 'student/reading_history_screen.dart';
 import '../widgets/banner_ad_widget.dart';
 import 'admin/admin_guard.dart';
 import 'admin/admin_dashboard_screen.dart';
 import '../features/smart_calculator/ui/screens/smart_calculator_screen.dart';
-import 'direct_chat_screen.dart';
+import 'services_screen.dart';
+import 'add_book_screen.dart';
 
 class HomePage extends StatefulWidget {
   final bool isGuest;
@@ -74,6 +65,7 @@ class _HomePageState extends State<HomePage>
     initialPage: 3000,
   );
   int _carouselIndex = 0;
+  Timer? _carouselTimer;
 
   @override
   void initState() {
@@ -89,10 +81,20 @@ class _HomePageState extends State<HomePage>
           CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
         );
     _animController.forward();
+    
+    _carouselTimer = Timer.periodic(const Duration(seconds: 3), (Timer timer) {
+      if (_pageController.hasClients) {
+        _pageController.nextPage(
+          duration: const Duration(milliseconds: 600),
+          curve: Curves.easeInOutCubic,
+        );
+      }
+    });
   }
 
   @override
   void dispose() {
+    _carouselTimer?.cancel();
     _animController.dispose();
     _pageController.dispose();
     super.dispose();
@@ -455,6 +457,20 @@ class _HomePageState extends State<HomePage>
       ),
       child: FloatingActionButton(
         onPressed: () {
+          final isEnabled = context.read<AppConfigProvider>().isFeatureEnabled('books_upload_enabled');
+          if (!isEnabled) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'خدمة رفع الكتب قيد الصيانة حالياً',
+                  style: GoogleFonts.tajawal(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+                backgroundColor: Colors.orange,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+            return;
+          }
           Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const AddBookScreen()),
@@ -483,34 +499,6 @@ class _HomePageState extends State<HomePage>
         ),
       ),
       _ServiceItem(
-        title: 'التنافس بين الطلاب',
-        icon: Icons.emoji_events_rounded,
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFB75E), Color(0xFFED8F03)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        badge: 'جديد',
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const StudentCompetitionScreen()),
-        ),
-      ),
-      _ServiceItem(
-        title: 'نتائج المسابقات',
-        icon: Icons.leaderboard_rounded,
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFF6B35), Color(0xFFE53935)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        badge: null,
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ResultsHomeScreen()),
-        ),
-      ),
-      _ServiceItem(
         title: 'الامتحانات الوطنية',
         icon: Icons.menu_book_rounded,
         gradient: AppTheme.goldGradient,
@@ -518,16 +506,6 @@ class _HomePageState extends State<HomePage>
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const NationalExamsScreen()),
-        ),
-      ),
-      _ServiceItem(
-        title: 'MERAJ3I AI',
-        icon: Icons.auto_awesome_rounded,
-        gradient: AppTheme.purpleGradient,
-        badge: 'AI',
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AiSearchScreen()),
         ),
       ),
       _ServiceItem(
@@ -540,110 +518,39 @@ class _HomePageState extends State<HomePage>
           end: Alignment.bottomRight,
         ),
         badge: 'جديد',
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const SmartCalculatorScreen()),
-        ),
+        onTap: () {
+          final isEnabled = context.read<AppConfigProvider>().isFeatureEnabled('ai_enabled');
+          if (!isEnabled) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'هذه الخدمة قيد الصيانة حالياً',
+                  style: GoogleFonts.tajawal(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+                backgroundColor: Colors.orange,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+            return;
+          }
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SmartCalculatorScreen()),
+          );
+        },
       ),
       _ServiceItem(
-        title: 'المراسلة',
-        icon: Icons.chat_rounded,
+        title: 'المزيد من الخدمات',
+        icon: Icons.grid_view_rounded,
         gradient: const LinearGradient(
-          colors: [Color(0xFF10B981), Color(0xFF059669)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        badge: 'جديد',
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const DirectChatScreen()),
-        ),
-      ),
-      _ServiceItem(
-        title: 'التنزيلات',
-        icon: Icons.download_for_offline_rounded,
-        gradient: AppTheme.greenGradient,
-        badge: null,
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const DownloadsScreen()),
-        ),
-      ),
-      _ServiceItem(
-        title: 'ملاحظاتي',
-        icon: Icons.notes_rounded,
-        gradient: AppTheme.purpleGradient,
-        badge: null,
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const NotesScreen()),
-        ),
-      ),
-      _ServiceItem(
-        title: 'SWEDD',
-        icon: Icons.health_and_safety_rounded,
-        gradient: AppTheme.pinkGradient,
-        badge: null,
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const SweddScreen()),
-        ),
-      ),
-      // منقولة من الشريط الجانبي
-      _ServiceItem(
-        title: 'الاختبارات',
-        icon: Icons.quiz_rounded,
-        gradient: const LinearGradient(
-          colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+          colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         badge: null,
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const ExamGeneratorScreen()),
-        ),
-      ),
-      _ServiceItem(
-        title: 'الإحصائيات',
-        icon: Icons.bar_chart_rounded,
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0EA5E9), Color(0xFF0284C7)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        badge: null,
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const StatisticsScreen()),
-        ),
-      ),
-      _ServiceItem(
-        title: 'قائمة القراءة',
-        icon: Icons.menu_book_rounded,
-        gradient: const LinearGradient(
-          colors: [Color(0xFF14B8A6), Color(0xFF0D9488)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        badge: null,
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ReadingListScreen()),
-        ),
-      ),
-      _ServiceItem(
-        title: 'تطور المستوى',
-        icon: Icons.trending_up_rounded,
-        gradient: const LinearGradient(
-          colors: [Color(0xFF10B981), Color(0xFF059669)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        badge: null,
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ProgressScreen()),
+          MaterialPageRoute(builder: (_) => const ServicesScreen()),
         ),
       ),
     ];
@@ -652,10 +559,10 @@ class _HomePageState extends State<HomePage>
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 1.25, // Increased from 1.05 to make them shorter
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.3,
       ),
       itemCount: services.length,
       itemBuilder: (context, index) {

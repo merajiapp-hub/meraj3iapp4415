@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/results_service.dart';
+import '../../theme/app_theme.dart';
 import 'results_list_screen.dart';
 
 class ConcoursResultsScreen extends StatelessWidget {
@@ -18,11 +19,7 @@ class ConcoursResultsScreen extends StatelessWidget {
       title: title,
       csvUrl: csvUrl,
       examType: ExamType.concours,
-      gradient: const LinearGradient(
-        colors: [Color(0xFF6366F1), Color(0xFF4338CA)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
+      gradient: AppTheme.primaryGradient,
       emoji: '🏆',
       passScore: 85,
       maxScore: 200,

@@ -26,8 +26,8 @@ class NoteFolder {
       color: map['color'],
       parentId: map['parentId'],
       order: map['order'] ?? 0,
-      createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      updatedAt: (map['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      createdAt: _parseDate(map['createdAt']) ?? DateTime.now(),
+      updatedAt: _parseDate(map['updatedAt']) ?? DateTime.now(),
     );
   }
 
@@ -134,7 +134,7 @@ class NoteAttachment {
       url: map['url'] ?? '',
       name: map['name'] ?? '',
       size: map['size'] ?? 0,
-      createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      createdAt: _parseDate(map['createdAt']) ?? DateTime.now(),
     );
   }
 
@@ -203,17 +203,17 @@ class Note {
       id: id,
       title: map['title'] ?? '',
       content: map['content'] ?? '',
-      createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      updatedAt: (map['updatedAt'] as Timestamp?)?.toDate() ?? (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      createdAt: _parseDate(map['createdAt']) ?? DateTime.now(),
+      updatedAt: _parseDate(map['updatedAt']) ?? _parseDate(map['createdAt']) ?? DateTime.now(),
       isPinned: map['isPinned'] ?? false,
       isFavorite: map['isFavorite'] ?? false,
       isArchived: map['isArchived'] ?? false,
       isDeleted: map['isDeleted'] ?? false,
-      deletedAt: (map['deletedAt'] as Timestamp?)?.toDate(),
+      deletedAt: _parseDate(map['deletedAt']),
       folderId: map['folderId'],
       tags: List<String>.from(map['tags'] ?? []),
       color: map['color'],
-      reminderTime: (map['reminderTime'] as Timestamp?)?.toDate(),
+      reminderTime: _parseDate(map['reminderTime']),
       wordCount: map['wordCount'] ?? 0,
       pageCount: map['pageCount'] ?? 1,
       pageSettings: map['pageSettings'] != null ? NotePageSettings.fromMap(map['pageSettings']) : null,
@@ -251,4 +251,12 @@ class Note {
       'drawings': drawings,
     };
   }
+}
+
+DateTime? _parseDate(dynamic val) {
+  if (val == null) return null;
+  if (val is Timestamp) return val.toDate();
+  if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
+  if (val is String) return DateTime.tryParse(val);
+  return null;
 }

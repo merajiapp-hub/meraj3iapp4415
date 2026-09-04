@@ -156,15 +156,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       height: isSmall ? 48 : 54,
                       child: ElevatedButton(
                         onPressed: _goToSignup,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryColor,
-                          foregroundColor: Colors.white,
-                          elevation: 3,
-                          shadowColor: AppTheme.primaryColor.withValues(alpha: 0.4),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
                         child: Text(
                           'ابدأ الآن',
                           style: GoogleFonts.tajawal(
@@ -182,16 +173,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       height: isSmall ? 48 : 54,
                       child: OutlinedButton(
                         onPressed: _goToLogin,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.primaryColor,
-                          side: BorderSide(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.6),
-                            width: 1.5,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
                         child: Text(
                           'تسجيل الدخول',
                           style: GoogleFonts.tajawal(

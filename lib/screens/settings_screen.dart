@@ -293,9 +293,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 size: 22,
                               ),
                             ),
-                            value: themeProvider.themeMode == ThemeMode.system 
-                                ? MediaQuery.of(context).platformBrightness == Brightness.dark 
-                                : themeProvider.isDarkMode,
+                            value: themeProvider.isDarkMode,
                             onChanged: (val) => themeProvider.toggleTheme(val),
                             activeThumbColor: AppTheme.primaryColor,
                           ),

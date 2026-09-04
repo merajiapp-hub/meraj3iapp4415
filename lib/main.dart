@@ -22,7 +22,10 @@ import 'providers/statistics_provider.dart';
 import 'providers/schedule_provider.dart';
 import 'providers/student_provider.dart';
 import 'providers/notes_provider.dart';
+import 'providers/app_config_provider.dart';
+import 'features/smart_calculator/smart_calculator_provider.dart';
 import 'screens/splash_screen.dart';
+import 'screens/maintenance_screen.dart';
 import 'data/notification_service.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:receive_intent/receive_intent.dart';
@@ -206,6 +209,8 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ScheduleProvider()),
         ChangeNotifierProvider(create: (_) => StudentProvider()),
         ChangeNotifierProvider(create: (_) => NotesProvider()),
+        ChangeNotifierProvider(create: (_) => AppConfigProvider()),
+        ChangeNotifierProvider(create: (_) => SmartCalculatorProvider()),
       ],
       child: const Meraj3iApp(),
     ),
@@ -277,7 +282,16 @@ class Meraj3iApp extends StatelessWidget {
       locale: const Locale('ar', ''),
       // دعم كامل للغة العربية RTL
       builder: (context, child) {
-        return Directionality(textDirection: TextDirection.rtl, child: child!);
+        return Consumer2<AppConfigProvider, AuthProvider>(
+          builder: (context, appConfig, auth, _) {
+            final isMaintenance = appConfig.maintenanceMode;
+            final isAdmin = auth.isAdmin;
+            return Directionality(
+              textDirection: TextDirection.rtl,
+              child: isMaintenance && !isAdmin ? const MaintenanceScreen() : child!,
+            );
+          },
+        );
       },
       home: const SplashScreen(),
     );

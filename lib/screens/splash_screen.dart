@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
 import '../theme/app_theme.dart';
 import '../providers/auth_provider.dart';
-import 'home_page.dart';
+import 'main_screen.dart';
 import 'login_screen.dart';
 import 'onboarding_screen.dart';
 
@@ -90,7 +90,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     // تحقق من وضع الضيف أولاً
     if (authProvider.isGuest) {
-      _navigateTo(const HomePage(isGuest: true));
+      _navigateTo(const MainScreen(isGuest: true));
       return;
     }
 
@@ -126,7 +126,7 @@ class _SplashScreenState extends State<SplashScreen>
         }
       }
 
-      if (mounted) _navigateTo(const HomePage());
+      if (mounted) _navigateTo(const MainScreen());
     } else {
       bool hasSeenOnboarding = false;
       try {

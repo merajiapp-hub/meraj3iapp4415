@@ -7,7 +7,7 @@ import 'faq_screen.dart';
 class InfoScreen extends StatelessWidget {
   const InfoScreen({super.key});
 
-  final String _appVersion = 'الإصدار 6.5.0';
+  final String _appVersion = 'الإصدار 6.9.1';
 
   @override
   Widget build(BuildContext context) {
@@ -62,15 +62,14 @@ class InfoScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
-                _buildSectionTitle('✨ ما الجديد في الإصدار 6.5.0'),
+                _buildSectionTitle('✨ ما الجديد في الإصدار 6.9.1'),
                 _buildListCard(
                   isDark: isDark,
                   items: [
-                    'توحيد عرض أغلفة الكتب في جميع القوائم والصفحات (التنزيلات، المفضلة، الامتحانات، وSWEDD)',
+                    'دعم مزامنة الإعدادات اللحظية ووضع الصيانة',
+                    'تحسينات على الواجهات ودعم أفضل للوضع الداكن',
+                    'إصلاح الأخطاء وتحديث التوافقية لضمان استقرار التطبيق',
                     'تحسين مزامنة المهام وجدول المراجعة الدراسي',
-                    'إضافة شعار التطبيق الحقيقي في رسالة تسجيل الخروج بدلاً من الأيقونات السابقة',
-                    'حل مشكلة الكيبورد وشريط الأدوات في صفحة الملاحظات',
-                    'تحسين أداء عرض المتصدرين والتقييمات وإزالة مشاكل الشاشة الفارغة',
                   ],
                   iconColor: const Color(0xFF8B5CF6),
                 ),

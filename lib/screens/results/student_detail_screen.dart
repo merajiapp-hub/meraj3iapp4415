@@ -486,11 +486,11 @@ ${_rankNational != null ? '🏆 الترتيب الوطني: $_rankNational' : '
               shouldLoop: false,
               numberOfParticles: 30,
               gravity: 0.3,
-              colors: const [
+              colors: [
                 Color(0xFF16A34A),
                 Color(0xFF0D9488),
                 Color(0xFFF59E0B),
-                Color(0xFF6366F1),
+                AppTheme.primaryColor,
                 Color(0xFFEC4899),
               ],
             ),

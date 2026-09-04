@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import '../../../../theme/app_theme.dart';
 import '../../managers/gemini_math_assistant.dart';
 
 class EquationSolverScreen extends StatefulWidget {
@@ -171,11 +172,12 @@ class _EquationSolverScreenState extends State<EquationSolverScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF0F4FF);
-    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final textCol = isDark ? Colors.white : Colors.black87;
-    const accent = Color(0xFF6366F1);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final bg = theme.scaffoldBackgroundColor;
+    final surface = theme.cardColor;
+    final textCol = theme.colorScheme.onSurface;
+    final accent = theme.colorScheme.primary;
 
     return Scaffold(
       backgroundColor: bg,
@@ -254,10 +256,10 @@ class _EquationSolverScreenState extends State<EquationSolverScreen>
 
                 // Solution steps
                 if (_isLoading)
-                  const Padding(
-                    padding: EdgeInsets.all(40),
+                  Padding(
+                    padding: const EdgeInsets.all(40),
                     child:
-                        SpinKitThreeBounce(color: Color(0xFF6366F1), size: 28),
+                        SpinKitThreeBounce(color: AppTheme.primaryColor, size: 28),
                   )
                 else if (_steps.isNotEmpty) ...[
                   ..._steps.asMap().entries.map((entry) {
@@ -298,8 +300,8 @@ class _EquationSolverScreenState extends State<EquationSolverScreen>
         borderColor = Colors.blue.withValues(alpha: 0.4);
         iconBg = Colors.blue.withValues(alpha: 0.1);
       case StepType.step:
-        borderColor = const Color(0xFF6366F1).withValues(alpha: 0.3);
-        iconBg = const Color(0xFF6366F1).withValues(alpha: 0.08);
+        borderColor = AppTheme.primaryColor.withValues(alpha: 0.3);
+        iconBg = AppTheme.primaryColor.withValues(alpha: 0.08);
       case StepType.result:
         borderColor = const Color(0xFF10B981).withValues(alpha: 0.7);
         iconBg = const Color(0xFF10B981).withValues(alpha: 0.1);

@@ -16,6 +16,7 @@ import '../models/book.dart';
 import '../providers/downloads_provider.dart';
 import '../providers/reading_provider.dart';
 import '../providers/statistics_provider.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/banner_ad_widget.dart';
 import '../data/ad_manager.dart';
 import 'package:share_plus/share_plus.dart';
@@ -189,6 +190,11 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   }
 
   void _shareBook() {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (auth.isGuest) {
+      AppNotification.show(context, 'يرجى تسجيل الدخول لمشاركة الكتب', isError: true);
+      return;
+    }
     final url = widget.pdfUrl.isNotEmpty ? widget.pdfUrl : (_localPath ?? '');
     if (url.isEmpty) {
       AppNotification.show(context, 'لا يوجد رابط للمشاركة', isError: true);
@@ -252,6 +258,11 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   }
 
   void _jumpToPage(int page) {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (auth.isGuest && page > 10) {
+      AppNotification.show(context, 'حساب الزائر مخصص لتصفح أول 10 صفحات فقط. يرجى إنشاء حساب للمتابعة.', isError: true);
+      return;
+    }
     if (page >= 1 && page <= _totalPages) {
       _pdfViewerController.jumpToPage(page);
       Navigator.pop(context);
@@ -270,6 +281,11 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   }
 
   Future<void> _launchUrl(String url) async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (auth.isGuest) {
+      AppNotification.show(context, 'يرجى تسجيل الدخول لفتح الروابط الخارجية', isError: true);
+      return;
+    }
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -317,6 +333,11 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   }
 
   Future<void> _downloadPdf() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (auth.isGuest) {
+      AppNotification.show(context, 'يرجى تسجيل الدخول لتحميل الكتب', isError: true);
+      return;
+    }
     if (widget.pdfUrl.contains('/drive/folders/')) {
       _launchUrl(widget.pdfUrl);
       return;
@@ -1033,6 +1054,12 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
         canShowScrollHead: false,
         initialPageNumber: _currentPage,
         onPageChanged: (details) {
+          final auth = Provider.of<AuthProvider>(context, listen: false);
+          if (auth.isGuest && details.newPageNumber > 10) {
+            _pdfViewerController.jumpToPage(10);
+            AppNotification.show(context, 'حساب الزائر مخصص لتصفح أول 10 صفحات فقط. يرجى إنشاء حساب للمتابعة.', isError: true);
+            return;
+          }
           setState(() => _currentPage = details.newPageNumber);
           _saveCurrentPage(details.newPageNumber);
         },
@@ -1071,6 +1098,12 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
         canShowScrollHead: false,
         initialPageNumber: _currentPage,
         onPageChanged: (details) {
+          final auth = Provider.of<AuthProvider>(context, listen: false);
+          if (auth.isGuest && details.newPageNumber > 10) {
+            _pdfViewerController.jumpToPage(10);
+            AppNotification.show(context, 'حساب الزائر مخصص لتصفح أول 10 صفحات فقط. يرجى إنشاء حساب للمتابعة.', isError: true);
+            return;
+          }
           setState(() => _currentPage = details.newPageNumber);
           _saveCurrentPage(details.newPageNumber);
         },

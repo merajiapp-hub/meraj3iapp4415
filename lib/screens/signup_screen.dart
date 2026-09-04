@@ -6,7 +6,7 @@ import '../providers/auth_provider.dart';
 import '../widgets/app_notification.dart';
 import 'terms_of_use_screen.dart';
 import 'privacy_policy_screen.dart';
-import 'home_page.dart';
+import 'main_screen.dart';
 import '../widgets/app_dropdown.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -102,7 +102,7 @@ class _SignupScreenState extends State<SignupScreen>
         AppNotification.show(context, 'تم إنشاء الحساب بنجاح!');
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const HomePage()),
+          MaterialPageRoute(builder: (_) => const MainScreen()),
         );
       } else {
         AppNotification.show(context, error, isError: true);
@@ -360,14 +360,6 @@ class _SignupScreenState extends State<SignupScreen>
             height: 50,
             child: ElevatedButton(
               onPressed: _isLoading ? null : _signup,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                elevation: 0,
-              ),
               child: _isLoading
                   ? const SizedBox(
                       width: 20,
