@@ -14,6 +14,10 @@ class QuizProvider extends ChangeNotifier {
   final Map<String, bool> _answeredQuestions = {};
   final List<String> _usedQuestionIds = [];
 
+  int _lastCount = 15;
+  String? _lastCategory;
+  QuestionDifficulty? _lastDifficulty;
+
   int get xp => _xp;
   int get streak => _streak;
   List<QuizQuestion> get dailyQuestions => _currentQuiz;
@@ -49,11 +53,23 @@ class QuizProvider extends ChangeNotifier {
     await prefs.setStringList('used_question_ids', _usedQuestionIds);
   }
 
+  Future<void> regenerateQuiz() async {
+    await generateNewQuiz(
+      count: _lastCount,
+      category: _lastCategory,
+      difficulty: _lastDifficulty,
+    );
+  }
+
   Future<void> generateNewQuiz({
     int count = 15,
     String? category,
     QuestionDifficulty? difficulty,
   }) async {
+    _lastCount = count;
+    _lastCategory = category;
+    _lastDifficulty = difficulty;
+
     // 1. Check internet connectivity
     var connectivityResults = await (Connectivity().checkConnectivity());
     bool hasInternet = !connectivityResults.contains(ConnectivityResult.none) || connectivityResults.length > 1 || (connectivityResults.isNotEmpty && connectivityResults.first != ConnectivityResult.none);
@@ -106,25 +122,28 @@ class QuizProvider extends ChangeNotifier {
       unusedAvailable = List<QuizQuestion>.from(finalAvailable);
     }
 
-    // If we STILL don't have enough to meet the count (because the category is very specific and has few questions),
-    // we duplicate them so the user gets the number of questions they asked for.
+    // If we STILL don't have enough to meet the count, duplicate existing ones with unique IDs
     if (unusedAvailable.isNotEmpty && unusedAvailable.length < count) {
       List<QuizQuestion> duplicated = [];
-      while(duplicated.length < count) {
-        for(var q in unusedAvailable) {
-          if (duplicated.length >= count) break;
-          // Assign a unique ID for the duplicated instance so UI keys don't conflict
-          final newId = '${q.id}_dup_${duplicated.length}';
-          duplicated.add(QuizQuestion(
-            id: newId,
-            question: q.question,
-            options: q.options,
-            correctIndex: q.correctIndex,
-            category: q.category,
-            explanation: q.explanation,
-            difficulty: q.difficulty,
-          ));
-        }
+      // أولاً نضيف الأسئلة الموجودة
+      duplicated.addAll(unusedAvailable);
+      
+      // ثم نبدأ بالنسخ العشوائي لبقية العدد المطلوب
+      int duplicateIndex = 0;
+      final random = Random();
+      while (duplicated.length < count) {
+        final q = unusedAvailable[random.nextInt(unusedAvailable.length)];
+        final newId = '${q.id}_dup_$duplicateIndex';
+        duplicated.add(QuizQuestion(
+          id: newId,
+          question: q.question,
+          options: q.options,
+          correctIndex: q.correctIndex,
+          category: q.category,
+          explanation: q.explanation,
+          difficulty: q.difficulty,
+        ));
+        duplicateIndex++;
       }
       unusedAvailable = duplicated;
     }

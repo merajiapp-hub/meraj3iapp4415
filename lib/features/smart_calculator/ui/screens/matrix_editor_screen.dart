@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ml_linalg/matrix.dart';
 import '../../../../theme/app_theme.dart';
@@ -109,10 +109,10 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen> with SingleTick
           child: TabBarView(
             controller: _tabs,
             children: [
-              _buildMatrixEditor(_ctrlA, _rowsA, _colsA,
+              _buildMatrixEditor(context, _ctrlA, _rowsA, _colsA,
                   onRowChange: (v) => setState(() { _rowsA = v!; _initCtrlA(); _result = ''; }),
                   onColChange: (v) => setState(() { _colsA = v!; _initCtrlA(); _result = ''; })),
-              _buildMatrixEditor(_ctrlB, _rowsB, _rowsB,
+              _buildMatrixEditor(context, _ctrlB, _rowsB, _rowsB,
                   onRowChange: (v) => setState(() { _rowsB = v!; _initCtrlB(); _result = ''; }),
                   onColChange: null),
             ],
@@ -125,10 +125,12 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen> with SingleTick
   }
 
   Widget _buildMatrixEditor(
+    BuildContext context,
     List<List<TextEditingController>> ctrls, int rows, int cols, {
     required Function(int?)? onRowChange,
     required Function(int?)? onColChange,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -138,19 +140,45 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen> with SingleTick
             children: [
               Text('الصفوف:', style: GoogleFonts.tajawal()),
               const SizedBox(width: 8),
-              DropdownButton<int>(
-                value: rows,
-                items: [2, 3, 4].map((e) => DropdownMenuItem(value: e, child: Text('$e'))).toList(),
-                onChanged: onRowChange,
+              Container(
+                height: 40,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF2A2A2A) : Colors.grey[50],
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: isDark ? Colors.white12 : Colors.grey[300]!),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<int>(
+                    value: rows,
+                    isDense: true,
+                    alignment: Alignment.center,
+                    items: [2, 3, 4].map((e) => DropdownMenuItem(value: e, child: Text('$e', style: GoogleFonts.tajawal()))).toList(),
+                    onChanged: onRowChange,
+                  ),
+                ),
               ),
               if (onColChange != null) ...[
                 const SizedBox(width: 24),
                 Text('الأعمدة:', style: GoogleFonts.tajawal()),
                 const SizedBox(width: 8),
-                DropdownButton<int>(
-                  value: cols,
-                  items: [2, 3, 4].map((e) => DropdownMenuItem(value: e, child: Text('$e'))).toList(),
-                  onChanged: onColChange,
+                Container(
+                  height: 40,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF2A2A2A) : Colors.grey[50],
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: isDark ? Colors.white12 : Colors.grey[300]!),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<int>(
+                      value: cols,
+                      isDense: true,
+                      alignment: Alignment.center,
+                      items: [2, 3, 4].map((e) => DropdownMenuItem(value: e, child: Text('$e', style: GoogleFonts.tajawal()))).toList(),
+                      onChanged: onColChange,
+                    ),
+                  ),
                 ),
               ],
             ],

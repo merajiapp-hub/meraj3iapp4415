@@ -194,9 +194,16 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
           percentage: pct,
           timeStr: '$minutes\u062f $seconds\u062b',
           answerHistory: _answerHistory,
-          onRetry: () {
-            Navigator.pushReplacement(
-              context,
+          onRetry: () async {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (_) => const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor)),
+            );
+            final navigator = Navigator.of(context);
+            await provider.regenerateQuiz();
+            navigator.pop(); // إغلاق نافذة التحميل
+            navigator.pushReplacement(
               MaterialPageRoute(
                 builder: (_) => QuizScreen(
                   examMode: widget.examMode,
