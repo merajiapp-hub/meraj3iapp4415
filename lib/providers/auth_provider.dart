@@ -191,6 +191,12 @@ class AuthProvider extends ChangeNotifier {
           .timeout(const Duration(seconds: 15));
           
       if (cred.user != null) {
+        try {
+          await _firestore.collection('users').doc(cred.user!.uid).set({
+            'lastActivity': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        } catch (_) {}
+
         await AdminActivityService.log(
           type: AdminActivityType.userLoggedIn,
           title: 'تسجيل دخول مستخدم',
@@ -282,8 +288,12 @@ class AuthProvider extends ChangeNotifier {
         'phone': phone,
         'gender': gender,
         'createdAt': FieldValue.serverTimestamp(),
+        'lastActivity': FieldValue.serverTimestamp(),
         'profileImageUrl': null,
         'uid': cred.user!.uid,
+        'provider': 'email',
+        'isAdmin': false,
+        'isSuspended': false,
       }).timeout(const Duration(seconds: 10));
 
       // إشعار الإدارة بتسجيل مستخدم جديد
@@ -452,9 +462,12 @@ class AuthProvider extends ChangeNotifier {
               'phone': '',
               'gender': 'غير محدد',
               'createdAt': FieldValue.serverTimestamp(),
+              'lastActivity': FieldValue.serverTimestamp(),
               'profileImageUrl': user.photoURL,
               'uid': user.uid,
               'provider': 'google',
+              'isAdmin': false,
+              'isSuspended': false,
             });
             // تسجيل نشاط مستخدم جديد
             await AdminActivityService.log(
@@ -466,6 +479,12 @@ class AuthProvider extends ChangeNotifier {
               metadata: {'email': user.email, 'provider': 'google'},
             );
           } else {
+            // تحديث آخر نشاط
+            await _firestore.collection('users').doc(user.uid).set({
+              'lastActivity': FieldValue.serverTimestamp(),
+              'profileImageUrl': user.photoURL, // تحديث الصورة في حال تغيرها
+            }, SetOptions(merge: true));
+
             // تسجيل دخول
             await AdminActivityService.log(
               type: AdminActivityType.userLoggedIn,

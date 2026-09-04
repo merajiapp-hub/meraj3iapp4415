@@ -31,7 +31,10 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     final user = Provider.of<AuthProvider>(context, listen: false).user;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('يرجى تسجيل الدخول أولاً', style: TextStyle(fontFamily: 'Tajawal'))),
+        SnackBar(
+          content: Text('يرجى تسجيل الدخول أولاً', style: GoogleFonts.tajawal()),
+          backgroundColor: Colors.redAccent,
+        ),
       );
       return;
     }
@@ -39,7 +42,8 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      await _firestore.collection('reviews').add({
+      // By using user.uid as the document ID, we enforce one review per user.
+      await _firestore.collection('reviews').doc(user.uid).set({
         'rating': _currentRating,
         'text': _reviewController.text.trim(),
         'userId': user.uid,
@@ -52,8 +56,8 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم إرسال تقييمك بنجاح. شكراً لك!', style: TextStyle(fontFamily: 'Tajawal')),
+          SnackBar(
+            content: Text('تم إرسال تقييمك بنجاح. شكراً لك!', style: GoogleFonts.tajawal()),
             backgroundColor: Colors.green,
           ),
         );
@@ -62,8 +66,8 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('حدث خطأ أثناء إرسال التقييم.', style: TextStyle(fontFamily: 'Tajawal')),
+          SnackBar(
+            content: Text('حدث خطأ أثناء إرسال التقييم.', style: GoogleFonts.tajawal()),
             backgroundColor: Colors.red,
           ),
         );
@@ -74,6 +78,37 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
   }
 
   void _showAddReviewSheet() {
+    final user = Provider.of<AuthProvider>(context, listen: false).user;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('يرجى تسجيل الدخول لتقييم التطبيق', style: GoogleFonts.tajawal()),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    // Attempt to load existing review
+    _firestore.collection('reviews').doc(user.uid).get().then((doc) {
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        _currentRating = (data['rating'] as num?)?.toDouble() ?? 5.0;
+        _reviewController.text = data['text'] as String? ?? '';
+      } else {
+        _currentRating = 5.0;
+        _reviewController.clear();
+      }
+      
+      _openSheet();
+    }).catchError((_) {
+      _currentRating = 5.0;
+      _reviewController.clear();
+      _openSheet();
+    });
+  }
+
+  void _openSheet() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -89,59 +124,84 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
               ),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2))),
                   const SizedBox(height: 16),
-                  Text('أضف تقييمك', style: GoogleFonts.tajawal(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
-                  const SizedBox(height: 16),
+                  Text('شاركنا رأيك في التطبيق', style: GoogleFonts.tajawal(fontSize: 22, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+                  const SizedBox(height: 8),
+                  Text('رأيك يهمنا ويساعدنا على تطوير منصة تليق بك', style: GoogleFonts.tajawal(fontSize: 14, color: Colors.grey), textAlign: TextAlign.center),
+                  const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(5, (index) {
-                      return IconButton(
-                        icon: Icon(
-                          index < _currentRating ? Icons.star_rounded : Icons.star_border_rounded,
-                          color: Colors.amber,
-                          size: 40,
-                        ),
-                        onPressed: () {
+                      return GestureDetector(
+                        onTap: () {
                           setSheetState(() => _currentRating = index + 1.0);
                           setState(() => _currentRating = index + 1.0);
                         },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Icon(
+                            index < _currentRating ? Icons.star_rounded : Icons.star_outline_rounded,
+                            color: index < _currentRating ? Colors.amber : Colors.grey.withValues(alpha: 0.4),
+                            size: index < _currentRating ? 46 : 40,
+                          ),
+                        ),
                       );
                     }),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                   TextField(
                     controller: _reviewController,
                     maxLines: 4,
                     decoration: InputDecoration(
-                      hintText: 'اكتب تجربتك هنا...',
+                      hintText: 'اكتب تجربتك أو اقتراحاتك هنا...',
                       hintStyle: GoogleFonts.tajawal(color: isDark ? Colors.white54 : Colors.black54),
                       filled: true,
-                      fillColor: isDark ? Colors.black12 : Colors.grey[100],
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                      fillColor: isDark ? Colors.black12 : const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: const BorderSide(color: AppTheme.primaryColor),
+                      ),
                     ),
                     style: GoogleFonts.tajawal(color: isDark ? Colors.white : Colors.black87),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
-                    height: 50,
+                    height: 54,
                     child: ElevatedButton(
                       onPressed: _isSubmitting ? null : () async {
                         await _submitReview();
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryColor,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        elevation: 0,
                       ),
                       child: _isSubmitting
                           ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : Text('إرسال التقييم', style: GoogleFonts.tajawal(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                          : Text('حفظ التقييم', style: GoogleFonts.tajawal(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -154,12 +214,113 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     );
   }
 
+  Widget _buildStatsHeader(List<QueryDocumentSnapshot> docs, bool isDark) {
+    if (docs.isEmpty) return const SizedBox.shrink();
+
+    double totalRating = 0;
+    List<int> starCounts = [0, 0, 0, 0, 0]; // 1 to 5 stars
+
+    for (var doc in docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final rating = (data['rating'] as num?)?.toDouble() ?? 5.0;
+      totalRating += rating;
+      int r = rating.round().clamp(1, 5);
+      starCounts[r - 1]++;
+    }
+
+    double avg = totalRating / docs.length;
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          if (!isDark) BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 10)),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Average Section
+          Column(
+            children: [
+              Text(
+                avg.toStringAsFixed(1),
+                style: GoogleFonts.outfit(
+                  fontSize: 48,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                  height: 1.0,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(5, (index) => Icon(
+                  index < avg.round() ? Icons.star_rounded : Icons.star_border_rounded,
+                  color: Colors.amber,
+                  size: 16,
+                )),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'من ${docs.length} تقييم',
+                style: GoogleFonts.tajawal(
+                  fontSize: 12,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 24),
+          // Progress Bars Section
+          Expanded(
+            child: Column(
+              children: List.generate(5, (index) {
+                final starNum = 5 - index; // 5, 4, 3, 2, 1
+                final count = starCounts[starNum - 1];
+                final percentage = count / docs.length;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      Text('$starNum', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                      const SizedBox(width: 6),
+                      Icon(Icons.star_rounded, size: 12, color: Colors.amber),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: LinearProgressIndicator(
+                            value: percentage,
+                            minHeight: 6,
+                            backgroundColor: isDark ? Colors.white10 : Colors.grey.shade200,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF0F4FF);
+    final bg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
     final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
     final textCol = isDark ? Colors.white : Colors.black87;
+    final auth = Provider.of<AuthProvider>(context);
+    final isGuest = auth.isGuest;
 
     return Scaffold(
       backgroundColor: bg,
@@ -181,98 +342,120 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
           }
 
           final docs = snapshot.data?.docs ?? [];
-          if (docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.star_outline_rounded, size: 80, color: textCol.withValues(alpha: 0.2)),
-                  const SizedBox(height: 16),
-                  Text('لا توجد تقييمات بعد', style: GoogleFonts.tajawal(fontSize: 18, color: textCol.withValues(alpha: 0.5))),
-                ],
+          
+          return CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: _buildStatsHeader(docs, isDark),
               ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              final data = docs[index].data() as Map<String, dynamic>;
-              final rating = (data['rating'] as num?)?.toDouble() ?? 5.0;
-              final text = data['text'] as String? ?? '';
-              final userName = data['userName'] as String? ?? 'مستخدم';
-              DateTime? date;
-              if (data['createdAt'] != null) {
-                if (data['createdAt'] is Timestamp) {
-                  date = (data['createdAt'] as Timestamp).toDate();
-                } else if (data['createdAt'] is String) {
-                  date = DateTime.tryParse(data['createdAt']);
-                } else if (data['createdAt'] is int) {
-                  date = DateTime.fromMillisecondsSinceEpoch(data['createdAt']);
-                }
-              }
-
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: surface,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    if (!isDark) BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4)),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              if (docs.isEmpty)
+                SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        CircleAvatar(
-                          backgroundColor: Colors.blueAccent.withValues(alpha: 0.2),
-                          child: Text(userName.substring(0, 1).toUpperCase(), style: GoogleFonts.tajawal(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
+                        Icon(Icons.star_outline_rounded, size: 80, color: textCol.withValues(alpha: 0.1)),
+                        const SizedBox(height: 16),
+                        Text('كن أول من يقيّم التطبيق!', style: GoogleFonts.tajawal(fontSize: 18, color: textCol.withValues(alpha: 0.5))),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 90),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final data = docs[index].data() as Map<String, dynamic>;
+                        final rating = (data['rating'] as num?)?.toDouble() ?? 5.0;
+                        final text = data['text'] as String? ?? '';
+                        final userName = data['userName'] as String? ?? 'مستخدم';
+                        DateTime? date;
+                        if (data['createdAt'] != null) {
+                          if (data['createdAt'] is Timestamp) {
+                            date = (data['createdAt'] as Timestamp).toDate();
+                          } else if (data['createdAt'] is String) {
+                            date = DateTime.tryParse(data['createdAt']);
+                          } else if (data['createdAt'] is int) {
+                            date = DateTime.fromMillisecondsSinceEpoch(data['createdAt']);
+                          }
+                        }
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: surface,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.03)),
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(userName, style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, fontSize: 16, color: textCol)),
-                              if (date != null)
-                                Text(intl.DateFormat('d MMM yyyy', 'ar').format(date), style: GoogleFonts.tajawal(fontSize: 12, color: isDark ? Colors.white54 : Colors.black54)),
+                              Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 20,
+                                    backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.15),
+                                    child: Text(
+                                      userName.isNotEmpty ? userName.substring(0, 1).toUpperCase() : 'م',
+                                      style: GoogleFonts.tajawal(color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(userName, style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, fontSize: 16, color: textCol)),
+                                        if (date != null)
+                                          Text(intl.DateFormat('d MMM yyyy', 'ar').format(date), style: GoogleFonts.tajawal(fontSize: 11, color: isDark ? Colors.white54 : Colors.black54)),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.amber.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(rating.toStringAsFixed(1), style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.amber.shade700)),
+                                        const SizedBox(width: 4),
+                                        const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (text.isNotEmpty) ...[
+                                const SizedBox(height: 16),
+                                Text(
+                                  text,
+                                  style: GoogleFonts.tajawal(fontSize: 15, color: textCol.withValues(alpha: 0.85), height: 1.6),
+                                ),
+                              ],
                             ],
                           ),
-                        ),
-                        Row(
-                          children: List.generate(5, (starIdx) {
-                            return Icon(
-                              starIdx < rating ? Icons.star_rounded : Icons.star_border_rounded,
-                              color: Colors.amber,
-                              size: 18,
-                            );
-                          }),
-                        ),
-                      ],
+                        );
+                      },
+                      childCount: docs.length,
                     ),
-                    if (text.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        text,
-                        style: GoogleFonts.tajawal(fontSize: 14, color: textCol, height: 1.5),
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
-              );
-            },
+            ],
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: isGuest ? null : FloatingActionButton.extended(
         onPressed: _showAddReviewSheet,
         backgroundColor: AppTheme.primaryColor,
         icon: const Icon(Icons.rate_review_rounded, color: Colors.white),
-        label: Text('أضف تقييم', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, color: Colors.white)),
+        label: Text('أضف تقييمك', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, color: Colors.white)),
+        elevation: 4,
       ),
     );
   }

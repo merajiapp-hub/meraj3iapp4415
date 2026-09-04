@@ -288,7 +288,22 @@ class Meraj3iApp extends StatelessWidget {
             final isAdmin = auth.isAdmin;
             return Directionality(
               textDirection: TextDirection.rtl,
-              child: isMaintenance && !isAdmin ? const MaintenanceScreen() : child!,
+              child: Stack(
+                children: [
+                  ?child,
+                  if (isMaintenance && !isAdmin)
+                    Positioned.fill(
+                      child: MaterialApp(
+                        debugShowCheckedModeBanner: false,
+                        locale: const Locale('ar', ''),
+                        themeMode: themeProvider.themeMode,
+                        theme: AppTheme.lightTheme,
+                        darkTheme: AppTheme.darkTheme,
+                        home: const MaintenanceScreen(),
+                      ),
+                    ),
+                ],
+              ),
             );
           },
         );

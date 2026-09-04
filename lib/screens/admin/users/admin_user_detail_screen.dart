@@ -201,10 +201,18 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                   _infoCard('معلومات الحساب', [
                     _infoRow(Icons.email, 'البريد', email),
                     _infoRow(Icons.phone, 'الهاتف', phone.isNotEmpty ? phone : 'غير محدد'),
+                    _infoRow(Icons.login, 'طريقة التسجيل', _data['provider'] == 'google' ? 'Google' : 'البريد الإلكتروني'),
                     _infoRow(Icons.fingerprint, 'UID', widget.uid),
                     _infoRow(Icons.calendar_today, 'تاريخ الإنشاء',
                         createdAt != null
                             ? (createdAt as Timestamp)
+                                .toDate()
+                                .toString()
+                                .split('.')[0]
+                            : 'غير محدد'),
+                    _infoRow(Icons.access_time, 'آخر تسجيل دخول',
+                        _data['lastActivity'] != null
+                            ? (_data['lastActivity'] as Timestamp)
                                 .toDate()
                                 .toString()
                                 .split('.')[0]

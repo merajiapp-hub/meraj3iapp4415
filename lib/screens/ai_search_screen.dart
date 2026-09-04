@@ -471,145 +471,136 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
   }
 
   Widget _buildWelcomeLayout() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final suggestions = [
+      ('🧑‍🏫 اشرح لي درس الدوال', Icons.school_rounded),
+      ('🧠 لخص هذا النص', Icons.summarize_rounded),
+      ('❓ أسئلة اختبار', Icons.quiz_rounded),
+      ('📊 ساعدني في الرياضيات', Icons.calculate_rounded),
+    ];
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(32.0),
+      padding: const EdgeInsets.all(24.0),
       child: Column(
         children: [
-          const SizedBox(height: 40),
+          const SizedBox(height: 32),
+          // AI Icon with glow
           Container(
-            padding: const EdgeInsets.all(28),
+            width: 100,
+            height: 100,
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withValues(alpha: 0.1),
+              gradient: AppTheme.primaryGradient,
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.4),
+                  blurRadius: 30,
+                  spreadRadius: 5,
+                ),
+              ],
             ),
             child: const Icon(
               Icons.auto_awesome_rounded,
-              size: 64,
-              color: AppTheme.primaryColor,
+              size: 50,
+              color: Colors.white,
             ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'MERAJ3I AI',
+            style: GoogleFonts.outfit(
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'مساعدك الذكي للدراسة والتعلم',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.tajawal(fontSize: 15, color: Colors.grey),
           ),
           const SizedBox(height: 32),
-          Text(
-            'أنا مراجعي AI',
-            style: GoogleFonts.tajawal(
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'اختر أحد الأدوات الذكية للبدء',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.tajawal(fontSize: 14, color: Colors.grey[600]),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            alignment: WrapAlignment.center,
+            children: suggestions.map((s) {
+              return GestureDetector(
+                onTap: () {
+                  _promptController.text = s.$1.replaceAll(RegExp(r'^\S+ '), '');
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(s.$2, size: 16, color: AppTheme.primaryColor),
+                      const SizedBox(width: 8),
+                      Text(
+                        s.$1,
+                        style: GoogleFonts.tajawal(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
           ),
           const SizedBox(height: 48),
-          _buildExampleCard('🧑‍🏫 وضع المدرس: اشرح لي هذا الدرس خطوة بخطوة مع أمثلة...', Icons.school_rounded),
-          _buildExampleCard('🧠 تلخيص: قم بتلخيص هذا النص إلى 3 نقاط رئيسية...', Icons.summarize_rounded),
-          _buildExampleCard('❓ أسئلة تدريبية: أعطني 3 أسئلة اختيار من متعدد لاختبار فهمي...', Icons.quiz_rounded),
+          Text(
+            'ابدأ بكتابة سؤالك في الأسفل',
+            style: GoogleFonts.tajawal(color: Colors.grey, fontSize: 13),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildExampleCard(String text, IconData icon) {
-    return GestureDetector(
-      onTap: () {
-        _promptController.text = text;
-      },
-      child: Container(
-        width: double.infinity,
-        margin: const EdgeInsets.only(bottom: 14),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? const Color(0xFF1E293B)
-              : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(
-                alpha: Theme.of(context).brightness == Brightness.dark
-                    ? 0.2
-                    : 0.05,
-              ),
-              blurRadius: 15,
-              offset: const Offset(0, 6),
-            ),
-          ],
-          border: Border.all(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.white.withValues(alpha: 0.05)
-                : const Color(0xFFE2E8F0),
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                icon,
-                size: 20,
-                color: AppTheme.primaryColor,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                text,
-                style: GoogleFonts.tajawal(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white
-                      : const Color(0xFF0F172A),
-                ),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withValues(alpha: 0.05),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 12,
-                color: AppTheme.primaryColor,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildMessageBubble(Map<String, String> message) {
     final isUser = message['role'] == 'user';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Align(
-      alignment: isUser ? Alignment.centerLeft : Alignment.centerRight,
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 20),
-        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.85,
+          maxWidth: MediaQuery.of(context).size.width * 0.82,
         ),
         decoration: BoxDecoration(
-          color: isUser
-              ? AppTheme.primaryColor
-              : Theme.of(context).cardTheme.color,
+          gradient: isUser ? AppTheme.primaryGradient : null,
+          color: isUser ? null : (isDark ? const Color(0xFF1E293B) : Colors.white),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(20),
             topRight: const Radius.circular(20),
-            bottomLeft: isUser ? Radius.zero : const Radius.circular(20),
-            bottomRight: isUser ? const Radius.circular(20) : Radius.zero,
+            bottomLeft: isUser ? const Radius.circular(20) : Radius.zero,
+            bottomRight: isUser ? Radius.zero : const Radius.circular(20),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
+              color: isUser
+                  ? AppTheme.primaryColor.withValues(alpha: 0.2)
+                  : Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -617,8 +608,8 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
         ),
         child: Column(
           crossAxisAlignment: isUser
-              ? CrossAxisAlignment.start
-              : CrossAxisAlignment.end,
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
           children: [
             if (message['image'] != null)
               Padding(
@@ -632,14 +623,14 @@ class _AiSearchScreenState extends State<AiSearchScreen> {
                   ),
                 ),
               ),
-            Text(
+            SelectableText(
               message['text'] ?? '',
               style: GoogleFonts.tajawal(
                 color: isUser
                     ? Colors.white
-                    : Theme.of(context).colorScheme.onSurface,
-                fontSize: 14,
-                height: 1.6,
+                    : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                fontSize: 15,
+                height: 1.7,
                 fontWeight: isUser ? FontWeight.w500 : FontWeight.normal,
               ),
             ),

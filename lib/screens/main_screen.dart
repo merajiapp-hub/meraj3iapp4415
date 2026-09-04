@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'home_page.dart';
 import 'notes_screen.dart';
+import 'task_manager_screen.dart';
 import 'downloads_screen.dart';
 import 'settings_screen.dart';
 
@@ -27,6 +28,7 @@ class _MainScreenState extends State<MainScreen> {
     _pages = [
       HomePage(isGuest: widget.isGuest),
       const NotesScreen(),
+      const TaskManagerScreen(),
       const DownloadsScreen(),
       const SettingsScreen(),
     ];
@@ -37,7 +39,7 @@ class _MainScreenState extends State<MainScreen> {
       setState(() => _currentIndex = 0);
       return;
     }
-    
+
     if (_exitToastShown) {
       SystemNavigator.pop();
       return;
@@ -114,6 +116,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) {
@@ -127,6 +130,7 @@ class _MainScreenState extends State<MainScreen> {
         ),
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.1),
@@ -135,48 +139,147 @@ class _MainScreenState extends State<MainScreen> {
               ),
             ],
           ),
-          child: ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
-            ),
-            child: BottomNavigationBar(
-              currentIndex: _currentIndex,
-              onTap: (index) {
-                if (widget.isGuest && (index == 1 || index == 2)) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'يرجى تسجيل الدخول للوصول لهذه الميزة',
-                        style: GoogleFonts.tajawal(),
-                      ),
-                      backgroundColor: Colors.redAccent,
-                    ),
-                  );
-                  return;
-                }
-                setState(() => _currentIndex = index);
-              },
-              items: const [
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.home_rounded),
-                  label: 'الرئيسية',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.notes_rounded),
-                  label: 'الملاحظات',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.download_rounded),
-                  label: 'التنزيلات',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.settings_rounded),
-                  label: 'الإعدادات',
-                ),
-              ],
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _NavItem(
+                    icon: Icons.home_rounded,
+                    label: 'الرئيسية',
+                    index: 0,
+                    currentIndex: _currentIndex,
+                    onTap: () => setState(() => _currentIndex = 0),
+                  ),
+                  _NavItem(
+                    icon: Icons.edit_note_rounded,
+                    label: 'الملاحظات',
+                    index: 1,
+                    currentIndex: _currentIndex,
+                    onTap: () {
+                      if (widget.isGuest) {
+                        _showGuestSnackBar();
+                        return;
+                      }
+                      setState(() => _currentIndex = 1);
+                    },
+                  ),
+                  _NavItem(
+                    icon: Icons.task_alt_rounded,
+                    label: 'المهام',
+                    index: 2,
+                    currentIndex: _currentIndex,
+                    onTap: () {
+                      if (widget.isGuest) {
+                        _showGuestSnackBar();
+                        return;
+                      }
+                      setState(() => _currentIndex = 2);
+                    },
+                  ),
+                  _NavItem(
+                    icon: Icons.download_rounded,
+                    label: 'التنزيلات',
+                    index: 3,
+                    currentIndex: _currentIndex,
+                    onTap: () {
+                      if (widget.isGuest) {
+                        _showGuestSnackBar();
+                        return;
+                      }
+                      setState(() => _currentIndex = 3);
+                    },
+                  ),
+                  _NavItem(
+                    icon: Icons.settings_rounded,
+                    label: 'الإعدادات',
+                    index: 4,
+                    currentIndex: _currentIndex,
+                    onTap: () => setState(() => _currentIndex = 4),
+                  ),
+                ],
+              ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showGuestSnackBar() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'يرجى تسجيل الدخول للوصول لهذه الميزة',
+          style: GoogleFonts.tajawal(),
+        ),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final int index;
+  final int currentIndex;
+  final VoidCallback onTap;
+
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.index,
+    required this.currentIndex,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelected = index == currentIndex;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const primaryColor = Color(0xFF14B8A6);
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? primaryColor.withValues(alpha: 0.12)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                icon,
+                size: isSelected ? 26 : 22,
+                color: isSelected
+                    ? primaryColor
+                    : (isDark ? Colors.white38 : Colors.black38),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: GoogleFonts.tajawal(
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected
+                    ? primaryColor
+                    : (isDark ? Colors.white38 : Colors.black38),
+              ),
+            ),
+          ],
         ),
       ),
     );

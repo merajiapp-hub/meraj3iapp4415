@@ -61,6 +61,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   int _currentPage = 1;
   int _totalPages = 0;
   bool _isLoaded = false;
+  bool _isCheckingLocalFile = true;
 
   // Bookmarks
   List<int> _bookmarks = [];
@@ -98,9 +99,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
     _toolbarAnimController.value = 1.0;
 
     // فحص الملف المحلي فوراً بمجرد فتح الشاشة — تحسين السرعة
-    if (_localPath == null && widget.pdfUrl.isNotEmpty) {
-      Future.microtask(() => _checkLocalFile());
-    }
+    _checkLocalFile();
 
     if (widget.pdfUrl.contains('/drive/folders/')) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -293,6 +292,14 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   }
 
   Future<void> _checkLocalFile() async {
+    if (widget.localPath != null) {
+      setState(() {
+        _localPath = widget.localPath;
+        _isCheckingLocalFile = false;
+      });
+      return;
+    }
+
     if (widget.book != null) {
       final downloads = Provider.of<DownloadsProvider>(context, listen: false);
       final path = downloads.getLocalPath(widget.book!.uniqueKey);
@@ -301,6 +308,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
         if (await file.exists()) {
           setState(() {
             _localPath = file.path;
+            _isCheckingLocalFile = false;
           });
           return;
         } else {
@@ -315,8 +323,14 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
     if (await file.exists()) {
       setState(() {
         _localPath = file.path;
+        _isCheckingLocalFile = false;
       });
+      return;
     }
+
+    setState(() {
+      _isCheckingLocalFile = false;
+    });
   }
 
   String _generateFileName() {
@@ -1044,6 +1058,12 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   }
 
   Widget _buildPdfView() {
+    if (_isCheckingLocalFile) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppTheme.primaryColor),
+      );
+    }
+
     Widget pdfWidget;
 
     if (_localPath != null) {
@@ -1052,6 +1072,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
         controller: _pdfViewerController,
         key: _pdfViewerKey,
         canShowScrollHead: false,
+        pageSpacing: 4,
         initialPageNumber: _currentPage,
         onPageChanged: (details) {
           final auth = Provider.of<AuthProvider>(context, listen: false);
@@ -1096,6 +1117,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
         controller: _pdfViewerController,
         key: _pdfViewerKey,
         canShowScrollHead: false,
+        pageSpacing: 4,
         initialPageNumber: _currentPage,
         onPageChanged: (details) {
           final auth = Provider.of<AuthProvider>(context, listen: false);

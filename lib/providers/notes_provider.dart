@@ -194,6 +194,7 @@ class NotesProvider with ChangeNotifier {
     DateTime? reminderTime,
     String? folderId,
     List<String>? tags,
+    bool? isFavorite,
     NotePageSettings? pageSettings,
   }) async {
     final user = _auth.currentUser;
@@ -214,6 +215,7 @@ class NotesProvider with ChangeNotifier {
         'reminderTime': reminderTime != null ? Timestamp.fromDate(reminderTime) : null,
         'folderId': folderId,
         'tags': tags,
+        'isFavorite': ?isFavorite,
         'pageSettings': pageSettings?.toMap(),
       });
 
@@ -227,7 +229,7 @@ class NotesProvider with ChangeNotifier {
           createdAt: old.createdAt,
           updatedAt: now,
           isPinned: old.isPinned,
-          isFavorite: old.isFavorite,
+          isFavorite: isFavorite ?? old.isFavorite,
           isArchived: old.isArchived,
           isDeleted: old.isDeleted,
           deletedAt: old.deletedAt,

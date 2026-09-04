@@ -70,7 +70,6 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen>
       ),
       centerTitle: true,
       actions: [
-        // عداد غير المقروءة
         StreamBuilder<int>(
           stream: AdminActivityService.unreadCountStream(),
           builder: (context, snap) {
@@ -148,24 +147,23 @@ class _ActivityLogTab extends StatelessWidget {
 
   IconData _typeIcon(String type) {
     switch (type) {
-      case 'userRegistered':        return Icons.person_add_rounded;
-      case 'userSuspended':         return Icons.block_rounded;
-      case 'userReactivated':       return Icons.check_circle_rounded;
-      case 'userDeleted':           return Icons.delete_rounded;
-      case 'userUpdated':           return Icons.edit_rounded;
-      case 'notificationSent':      return Icons.send_rounded;
-      case 'bookAdded':             return Icons.add_box_rounded;
-      case 'bookUpdated':           return Icons.edit_document;
-      case 'bookDeleted':           return Icons.delete_forever_rounded;
-      case 'settingChanged':        return Icons.tune_rounded;
-      case 'featureToggled':        return Icons.toggle_on_rounded;
+      case 'userRegistered':         return Icons.person_add_rounded;
+      case 'userSuspended':          return Icons.block_rounded;
+      case 'userReactivated':        return Icons.check_circle_rounded;
+      case 'userDeleted':            return Icons.delete_rounded;
+      case 'userUpdated':            return Icons.edit_rounded;
+      case 'notificationSent':       return Icons.send_rounded;
+      case 'bookAdded':              return Icons.add_box_rounded;
+      case 'bookUpdated':            return Icons.edit_document;
+      case 'bookDeleted':            return Icons.delete_forever_rounded;
+      case 'settingChanged':         return Icons.tune_rounded;
+      case 'featureToggled':         return Icons.toggle_on_rounded;
       case 'maintenanceModeChanged': return Icons.build_rounded;
-      case 'examAdded':             return Icons.quiz_rounded;
-      case 'examDeleted':           return Icons.delete_sweep_rounded;
-      default:                      return Icons.info_rounded;
+      case 'examAdded':              return Icons.quiz_rounded;
+      case 'examDeleted':            return Icons.delete_sweep_rounded;
+      default:                       return Icons.info_rounded;
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -173,11 +171,8 @@ class _ActivityLogTab extends StatelessWidget {
       color: const Color(0xFF0F172A),
       child: Column(
         children: [
-          // شريط الفلاتر
           _buildFilterBar(context),
-          // أزرار الإجراءات الجماعية
           _buildActionBar(context),
-          // قائمة الإشعارات
           Expanded(
             child: StreamBuilder<List<QueryDocumentSnapshot>>(
               stream: AdminActivityService.logsStream(
@@ -186,9 +181,7 @@ class _ActivityLogTab extends StatelessWidget {
               ),
               builder: (context, snap) {
                 if (snap.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: _accent),
-                  );
+                  return const Center(child: CircularProgressIndicator(color: _accent));
                 }
                 if (snap.hasError) {
                   return Center(
@@ -197,21 +190,16 @@ class _ActivityLogTab extends StatelessWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.error_outline_rounded,
-                              color: Colors.redAccent, size: 56),
+                          const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 56),
                           const SizedBox(height: 16),
                           Text(
                             'تعذّر تحميل سجل النشاط',
-                            style: GoogleFonts.tajawal(
-                                fontSize: 16,
-                                color: Colors.white70,
-                                fontWeight: FontWeight.bold),
+                            style: GoogleFonts.tajawal(fontSize: 16, color: Colors.white70, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             '${snap.error}',
-                            style: GoogleFonts.tajawal(
-                                fontSize: 12, color: Colors.white38),
+                            style: GoogleFonts.tajawal(fontSize: 12, color: Colors.white38),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -220,9 +208,7 @@ class _ActivityLogTab extends StatelessWidget {
                   );
                 }
                 final docs = snap.data ?? [];
-                if (docs.isEmpty) {
-                  return _buildEmpty();
-                }
+                if (docs.isEmpty) return _buildEmpty();
                 return ListView.builder(
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 90),
                   itemCount: docs.length,
@@ -241,8 +227,8 @@ class _ActivityLogTab extends StatelessWidget {
       color: const Color(0xFF0F172A),
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // الفئات
           SizedBox(
             height: 36,
             child: ListView.builder(
@@ -261,16 +247,12 @@ class _ActivityLogTab extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: isSelected ? _accent.withValues(alpha: 0.2) : _surface,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isSelected ? _accent : Colors.white12,
-                        ),
+                        border: Border.all(color: isSelected ? _accent : Colors.white12),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(cat.$3,
-                              size: 14,
-                              color: isSelected ? _accent : Colors.grey),
+                          Icon(cat.$3, size: 14, color: isSelected ? _accent : Colors.grey),
                           const SizedBox(width: 6),
                           Text(
                             cat.$2,
@@ -289,7 +271,6 @@ class _ActivityLogTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          // فلتر غير المقروءة
           GestureDetector(
             onTap: () => onFilterChanged(filterCategory, !unreadOnly),
             child: Container(
@@ -297,15 +278,12 @@ class _ActivityLogTab extends StatelessWidget {
               decoration: BoxDecoration(
                 color: unreadOnly ? Colors.orange.withValues(alpha: 0.15) : _surface,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                    color: unreadOnly ? Colors.orange : Colors.white12),
+                border: Border.all(color: unreadOnly ? Colors.orange : Colors.white12),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.mark_email_unread_rounded,
-                      size: 14,
-                      color: unreadOnly ? Colors.orange : Colors.grey),
+                  Icon(Icons.mark_email_unread_rounded, size: 14, color: unreadOnly ? Colors.orange : Colors.grey),
                   const SizedBox(width: 6),
                   Text(
                     'غير المقروءة فقط',
@@ -412,7 +390,6 @@ class _ActivityLogTab extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // الأيقونة
                 Container(
                   width: 44,
                   height: 44,
@@ -440,7 +417,6 @@ class _ActivityLogTab extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                // المحتوى
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -459,7 +435,6 @@ class _ActivityLogTab extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          // نوع النشاط
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
@@ -468,11 +443,7 @@ class _ActivityLogTab extends StatelessWidget {
                             ),
                             child: Text(
                               _getCategoryLabel(category),
-                              style: GoogleFonts.tajawal(
-                                fontSize: 10,
-                                color: color,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: GoogleFonts.tajawal(fontSize: 10, color: color, fontWeight: FontWeight.bold),
                             ),
                           ),
                         ],
@@ -480,35 +451,27 @@ class _ActivityLogTab extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         d['description'] as String? ?? '',
-                        style: GoogleFonts.tajawal(
-                          fontSize: 12.5,
-                          color: Colors.white60,
-                          height: 1.4,
-                        ),
+                        style: GoogleFonts.tajawal(fontSize: 12.5, color: Colors.white60, height: 1.4),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 6),
                       Row(
                         children: [
-                          Icon(Icons.person_outline_rounded,
-                              size: 12, color: Colors.white38),
+                          Icon(Icons.person_outline_rounded, size: 12, color: Colors.white38),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
                               d['adminName'] as String? ?? '',
-                              style: GoogleFonts.tajawal(
-                                  fontSize: 11, color: Colors.white38),
+                              style: GoogleFonts.tajawal(fontSize: 11, color: Colors.white38),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          Icon(Icons.access_time_rounded,
-                              size: 12, color: Colors.white30),
+                          Icon(Icons.access_time_rounded, size: 12, color: Colors.white30),
                           const SizedBox(width: 4),
                           Text(
                             _formatDate(createdAt),
-                            style: GoogleFonts.tajawal(
-                                fontSize: 10, color: Colors.white30),
+                            style: GoogleFonts.tajawal(fontSize: 10, color: Colors.white30),
                           ),
                         ],
                       ),
@@ -528,32 +491,21 @@ class _ActivityLogTab extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.notifications_off_rounded,
-              size: 80, color: Colors.white.withValues(alpha: 0.08)),
+          Icon(Icons.notifications_off_rounded, size: 80, color: Colors.white.withValues(alpha: 0.08)),
           const SizedBox(height: 16),
-          Text(
-            'لا توجد سجلات نشاط',
-            style: GoogleFonts.tajawal(
-                fontSize: 18, color: Colors.white.withValues(alpha: 0.3)),
-          ),
+          Text('لا توجد سجلات نشاط', style: GoogleFonts.tajawal(fontSize: 18, color: Colors.white.withValues(alpha: 0.3))),
           const SizedBox(height: 8),
-          Text(
-            'ستظهر هنا جميع الأنشطة الإدارية فور حدوثها',
-            style: GoogleFonts.tajawal(
-                fontSize: 13, color: Colors.white.withValues(alpha: 0.2)),
-          ),
+          Text('ستظهر هنا جميع الأنشطة الإدارية فور حدوثها', style: GoogleFonts.tajawal(fontSize: 13, color: Colors.white.withValues(alpha: 0.2))),
         ],
       ),
     );
   }
 
-  void _showDetail(BuildContext context, Map<String, dynamic> d, Color color,
-      IconData icon, Timestamp? createdAt) {
+  void _showDetail(BuildContext context, Map<String, dynamic> d, Color color, IconData icon, Timestamp? createdAt) {
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1E293B),
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -564,9 +516,7 @@ class _ActivityLogTab extends StatelessWidget {
               child: Container(
                 width: 40,
                 height: 4,
-                decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(2)),
+                decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
               ),
             ),
             const SizedBox(height: 20),
@@ -574,10 +524,7 @@ class _ActivityLogTab extends StatelessWidget {
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
+                  decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(14)),
                   child: Icon(icon, color: color, size: 28),
                 ),
                 const SizedBox(width: 16),
@@ -585,14 +532,8 @@ class _ActivityLogTab extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(d['title'] ?? '',
-                          style: GoogleFonts.tajawal(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                              color: Colors.white)),
-                      Text(_getCategoryLabel(d['category'] ?? 'general'),
-                          style: GoogleFonts.tajawal(
-                              fontSize: 13, color: color)),
+                      Text(d['title'] ?? '', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
+                      Text(_getCategoryLabel(d['category'] ?? 'general'), style: GoogleFonts.tajawal(fontSize: 13, color: color)),
                     ],
                   ),
                 ),
@@ -681,7 +622,7 @@ class _SendNotificationTabState extends State<_SendNotificationTab> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSending = true);
     try {
-      final notifData = {
+      final notifData = <String, dynamic>{
         'title': _titleCtrl.text.trim(),
         'body': _bodyCtrl.text.trim(),
         'type': _notifType,
@@ -698,7 +639,6 @@ class _SendNotificationTabState extends State<_SendNotificationTab> {
 
       await FirebaseFirestore.instance.collection('app_notifications').add(notifData);
 
-      // تسجيل النشاط في سجل الإدارة
       await AdminActivityService.log(
         type: AdminActivityType.notificationSent,
         title: 'تم إرسال إشعار: ${_titleCtrl.text.trim()}',
@@ -716,8 +656,7 @@ class _SendNotificationTabState extends State<_SendNotificationTab> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ تم حفظ الإشعار وتسجيل النشاط بنجاح',
-                style: TextStyle(fontFamily: 'Tajawal')),
+            content: Text('✅ تم حفظ الإشعار وتسجيل النشاط بنجاح', style: TextStyle(fontFamily: 'Tajawal')),
             backgroundColor: Colors.green,
           ),
         );
@@ -729,8 +668,7 @@ class _SendNotificationTabState extends State<_SendNotificationTab> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('خطأ في الإرسال: تحقق من اتصالك بالإنترنت ($e)',
-                style: const TextStyle(fontFamily: 'Tajawal')),
+            content: Text('خطأ في الإرسال: تحقق من اتصالك بالإنترنت ($e)', style: const TextStyle(fontFamily: 'Tajawal')),
             backgroundColor: Colors.red,
           ),
         );
@@ -745,157 +683,138 @@ class _SendNotificationTabState extends State<_SendNotificationTab> {
     return Container(
       color: const Color(0xFF0F172A),
       child: SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // نوع الإرسال
-            _sectionTitle('الجمهور المستهدف'),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                _RadioCard(
-                  label: 'إشعار عام',
-                  icon: Icons.groups_rounded,
-                  value: 'all',
-                  groupValue: _sendType,
-                  onChanged: (v) => setState(() => _sendType = v!),
-                ),
-                const SizedBox(width: 10),
-                _RadioCard(
-                  label: 'مستخدم محدد',
-                  icon: Icons.person_pin_rounded,
-                  value: 'uid',
-                  groupValue: _sendType,
-                  onChanged: (v) => setState(() => _sendType = v!),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            if (_sendType == 'all') ...[
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: _topics.map((t) => ChoiceChip(
-                  label: Text(_topicLabels[t]!,
-                      style: GoogleFonts.tajawal(fontSize: 12)),
-                  selected: _selectedTopic == t,
-                  selectedColor: _accent.withValues(alpha: 0.25),
-                  labelStyle: TextStyle(
-                    color: _selectedTopic == t ? _accent : Colors.grey,
-                  ),
-                  backgroundColor: _surface,
-                  onSelected: (_) => setState(() => _selectedTopic = t),
-                  side: BorderSide(
-                    color: _selectedTopic == t ? _accent : Colors.white12,
-                  ),
-                )).toList(),
-              ),
-            ] else ...[
-              TextFormField(
-                controller: _uidCtrl,
-                style: const TextStyle(color: Colors.white),
-                decoration: _inputDecoration('UID المستخدم المحدد', Icons.fingerprint_rounded),
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'أدخل UID صالح' : null,
-              ),
-            ],
-            const SizedBox(height: 20),
-            _sectionTitle('محتوى الإشعار'),
-            const SizedBox(height: 10),
-            TextFormField(
-              controller: _titleCtrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: _inputDecoration('عنوان الإشعار', Icons.title_rounded),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'العنوان مطلوب' : null,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _bodyCtrl,
-              style: const TextStyle(color: Colors.white),
-              maxLines: 3,
-              decoration: _inputDecoration('نص الإشعار', Icons.message_rounded),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'النص مطلوب' : null,
-            ),
-            const SizedBox(height: 16),
-            _sectionTitle('نوع الإشعار'),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: _notifTypes.entries.map((e) => ChoiceChip(
-                avatar: Icon(e.value.$2, size: 14,
-                    color: _notifType == e.key ? _accent : Colors.grey),
-                label: Text(e.value.$1,
-                    style: GoogleFonts.tajawal(fontSize: 12)),
-                selected: _notifType == e.key,
-                selectedColor: _accent.withValues(alpha: 0.25),
-                labelStyle: TextStyle(
-                  color: _notifType == e.key ? _accent : Colors.grey,
-                ),
-                backgroundColor: _surface,
-                onSelected: (_) => setState(() => _notifType = e.key),
-                side: BorderSide(
-                    color: _notifType == e.key ? _accent : Colors.white12),
-              )).toList(),
-            ),
-            const SizedBox(height: 28),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _accent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                  elevation: 0,
-                ),
-                icon: _isSending
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.send_rounded),
-                label: Text(
-                  _isSending ? 'جارٍ الإرسال...' : 'إرسال الإشعار',
-                  style: GoogleFonts.tajawal(
-                      fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                onPressed: _isSending ? null : _send,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: _accent.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _accent.withValues(alpha: 0.2)),
-              ),
-              child: Row(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sectionTitle('الجمهور المستهدف'),
+              const SizedBox(height: 10),
+              Row(
                 children: [
-                  const Icon(Icons.info_outline_rounded, color: Colors.purpleAccent, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'سيتم تسجيل هذا الإشعار تلقائياً في سجل نشاط الإدارة.',
-                      style: GoogleFonts.tajawal(
-                          fontSize: 12, color: Colors.purpleAccent),
-                    ),
+                  _RadioCard(
+                    label: 'إشعار عام',
+                    icon: Icons.groups_rounded,
+                    value: 'all',
+                    groupValue: _sendType,
+                    onChanged: (v) => setState(() => _sendType = v!),
+                  ),
+                  const SizedBox(width: 10),
+                  _RadioCard(
+                    label: 'مستخدم محدد',
+                    icon: Icons.person_pin_rounded,
+                    value: 'uid',
+                    groupValue: _sendType,
+                    onChanged: (v) => setState(() => _sendType = v!),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 80),
-          ],
+              const SizedBox(height: 14),
+              if (_sendType == 'all') ...[
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: _topics.map((t) => ChoiceChip(
+                    label: Text(_topicLabels[t]!, style: GoogleFonts.tajawal(fontSize: 12)),
+                    selected: _selectedTopic == t,
+                    selectedColor: _accent.withValues(alpha: 0.25),
+                    labelStyle: TextStyle(color: _selectedTopic == t ? _accent : Colors.grey),
+                    backgroundColor: _surface,
+                    onSelected: (_) => setState(() => _selectedTopic = t),
+                    side: BorderSide(color: _selectedTopic == t ? _accent : Colors.white12),
+                  )).toList(),
+                ),
+              ] else ...[
+                TextFormField(
+                  controller: _uidCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: _inputDecoration('UID المستخدم المحدد', Icons.fingerprint_rounded),
+                  validator: (v) => v == null || v.trim().isEmpty ? 'أدخل UID صالح' : null,
+                ),
+              ],
+              const SizedBox(height: 20),
+              _sectionTitle('محتوى الإشعار'),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: _titleCtrl,
+                style: const TextStyle(color: Colors.white),
+                decoration: _inputDecoration('عنوان الإشعار', Icons.title_rounded),
+                validator: (v) => v == null || v.trim().isEmpty ? 'العنوان مطلوب' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _bodyCtrl,
+                style: const TextStyle(color: Colors.white),
+                maxLines: 3,
+                decoration: _inputDecoration('نص الإشعار', Icons.message_rounded),
+                validator: (v) => v == null || v.trim().isEmpty ? 'النص مطلوب' : null,
+              ),
+              const SizedBox(height: 16),
+              _sectionTitle('نوع الإشعار'),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: _notifTypes.entries.map((e) => ChoiceChip(
+                  avatar: Icon(e.value.$2, size: 14, color: _notifType == e.key ? _accent : Colors.grey),
+                  label: Text(e.value.$1, style: GoogleFonts.tajawal(fontSize: 12)),
+                  selected: _notifType == e.key,
+                  selectedColor: _accent.withValues(alpha: 0.25),
+                  labelStyle: TextStyle(color: _notifType == e.key ? _accent : Colors.grey),
+                  backgroundColor: _surface,
+                  onSelected: (_) => setState(() => _notifType = e.key),
+                  side: BorderSide(color: _notifType == e.key ? _accent : Colors.white12),
+                )).toList(),
+              ),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _accent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                  ),
+                  icon: _isSending
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Icon(Icons.send_rounded),
+                  label: Text(
+                    _isSending ? 'جارٍ الإرسال...' : 'إرسال الإشعار',
+                    style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  onPressed: _isSending ? null : _send,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _accent.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _accent.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded, color: Colors.purpleAccent, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'سيتم تسجيل هذا الإشعار تلقائياً في سجل نشاط الإدارة.',
+                        style: GoogleFonts.tajawal(fontSize: 12, color: Colors.purpleAccent),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -903,11 +822,7 @@ class _SendNotificationTabState extends State<_SendNotificationTab> {
   Widget _sectionTitle(String title) {
     return Text(
       title,
-      style: GoogleFonts.tajawal(
-        fontSize: 14,
-        fontWeight: FontWeight.bold,
-        color: Colors.white70,
-      ),
+      style: GoogleFonts.tajawal(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70),
     );
   }
 
@@ -918,9 +833,7 @@ class _SendNotificationTabState extends State<_SendNotificationTab> {
       prefixIcon: Icon(icon, color: Colors.grey),
       filled: true,
       fillColor: const Color(0xFF1E293B),
-      border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: _accent)),
@@ -953,10 +866,7 @@ class _ActionButton extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
       icon: Icon(icon, color: color, size: 16),
-      label: Text(
-        label,
-        style: GoogleFonts.tajawal(fontSize: 11, color: color),
-      ),
+      label: Text(label, style: GoogleFonts.tajawal(fontSize: 11, color: color)),
       onPressed: onTap,
     );
   }
@@ -987,29 +897,20 @@ class _RadioCard extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected
-                ? const Color(0xFF8B5CF6).withValues(alpha: 0.15)
-                : const Color(0xFF1E293B),
+            color: isSelected ? const Color(0xFF8B5CF6).withValues(alpha: 0.15) : const Color(0xFF1E293B),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected
-                  ? const Color(0xFF8B5CF6)
-                  : Colors.white12,
-            ),
+            border: Border.all(color: isSelected ? const Color(0xFF8B5CF6) : Colors.white12),
           ),
           child: Column(
             children: [
-              Icon(icon,
-                  color: isSelected ? const Color(0xFF8B5CF6) : Colors.grey,
-                  size: 24),
+              Icon(icon, color: isSelected ? const Color(0xFF8B5CF6) : Colors.grey, size: 24),
               const SizedBox(height: 6),
               Text(
                 label,
                 style: GoogleFonts.tajawal(
                   fontSize: 12,
                   color: isSelected ? const Color(0xFF8B5CF6) : Colors.grey,
-                  fontWeight:
-                      isSelected ? FontWeight.bold : FontWeight.normal,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
             ],
@@ -1039,16 +940,9 @@ class _DetailRow extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: GoogleFonts.tajawal(fontSize: 11, color: Colors.white38),
-              ),
+              Text(label, style: GoogleFonts.tajawal(fontSize: 11, color: Colors.white38)),
               const SizedBox(height: 2),
-              Text(
-                value,
-                style: GoogleFonts.tajawal(
-                    fontSize: 14, color: Colors.white, height: 1.4),
-              ),
+              Text(value, style: GoogleFonts.tajawal(fontSize: 14, color: Colors.white, height: 1.4)),
             ],
           ),
         ],

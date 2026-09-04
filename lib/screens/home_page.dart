@@ -251,15 +251,15 @@ class _HomePageState extends State<HomePage>
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            // Drawer button
-                            IconButton(
-                              icon: const Icon(
-                                Icons.menu_rounded,
-                                color: Colors.white,
-                                size: 28,
+                            Builder(
+                              builder: (ctx) => IconButton(
+                                icon: const Icon(
+                                  Icons.menu_rounded,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
+                                onPressed: () => Scaffold.of(ctx).openDrawer(),
                               ),
-                              onPressed: () =>
-                                  Scaffold.of(context).openDrawer(),
                             ),
                             // Actions
                             Row(
