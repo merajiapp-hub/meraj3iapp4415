@@ -13,7 +13,9 @@ class AdminSettingsScreen extends StatefulWidget {
 class _AdminSettingsScreenState extends State<AdminSettingsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final TextEditingController _maintenanceMessageController = TextEditingController();
   bool _isSaving = false;
+  bool _isSavingMaintenance = false;
 
   // Feature Flags (from Firestore admin_settings)
   Map<String, bool> _featureFlags = {};
@@ -29,6 +31,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
 
   @override
   void dispose() {
+    _maintenanceMessageController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -40,9 +43,14 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
           .collection('admin_settings')
           .doc('feature_flags')
           .get();
-      if (doc.exists) {
-        final data = doc.data()!;
-        setState(() {
+      final maintenanceDoc = await FirebaseFirestore.instance
+          .collection('app_settings')
+          .doc('maintenance')
+          .get();
+
+      setState(() {
+        if (doc.exists) {
+          final data = doc.data()!;
           _featureFlags = {
             'ai_enabled': data['ai_enabled'] == true,
             'competition_enabled': data['competition_enabled'] == true,
@@ -50,21 +58,22 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
             'quizzes_enabled': data['quizzes_enabled'] == true,
             'results_enabled': data['results_enabled'] == true,
           };
-          _maintenanceMode = data['maintenance_mode'] == true;
-        });
-      } else {
-        // Defaults
-        setState(() {
+        } else {
           _featureFlags = {
-            'ai_enabled': true,
-            'competition_enabled': true,
-            'books_upload_enabled': true,
-            'quizzes_enabled': true,
-            'results_enabled': true,
+            'ai_enabled': true, 'competition_enabled': true,
+            'books_upload_enabled': true, 'quizzes_enabled': true, 'results_enabled': true,
           };
+        }
+
+        if (maintenanceDoc.exists && maintenanceDoc.data() != null) {
+          final mData = maintenanceDoc.data()!;
+          _maintenanceMode = mData['isMaintenance'] == true;
+          _maintenanceMessageController.text = mData['message'] ?? 'نعمل الآن على إجراء بعض التحسينات الهامة.\nسيعود التطبيق للعمل بشكل طبيعي قريباً.';
+        } else {
           _maintenanceMode = false;
-        });
-      }
+          _maintenanceMessageController.text = 'نعمل الآن على إجراء بعض التحسينات الهامة.\nسيعود التطبيق للعمل بشكل طبيعي قريباً.';
+        }
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -80,7 +89,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
     try {
       final data = <String, dynamic>{
         ..._featureFlags,
-        'maintenance_mode': _maintenanceMode,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
@@ -94,7 +102,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
       await AdminActivityService.log(
         type: AdminActivityType.settingChanged,
         title: 'تحديث إعدادات النظام',
-        description: 'تم تحديث ميزات النظام (Feature Flags) ووضع الصيانة.',
+        description: 'تم تحديث ميزات النظام (Feature Flags) بنجاح.',
         metadata: data,
       );
 
@@ -113,6 +121,45 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _saveMaintenance() async {
+    setState(() => _isSavingMaintenance = true);
+    try {
+      final data = <String, dynamic>{
+        'isMaintenance': _maintenanceMode,
+        'message': _maintenanceMessageController.text.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      await FirebaseFirestore.instance
+          .collection('app_settings')
+          .doc('maintenance')
+          .set(data, SetOptions(merge: true));
+
+      await AdminActivityService.log(
+        type: AdminActivityType.maintenanceModeChanged,
+        title: _maintenanceMode ? '⚠️ تفعيل وضع الصيانة' : '✅ إيقاف وضع الصيانة',
+        description: _maintenanceMode ? 'تم تفعيل وضع الصيانة للمستخدمين.' : 'تم إعادة التطبيق للعمل الطبيعي.',
+        metadata: data,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('✅ تم تحديث إعدادات الصيانة بنجاح'),
+          backgroundColor: Colors.green,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('خطأ في الحفظ: $e'),
+          backgroundColor: Colors.red,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _isSavingMaintenance = false);
     }
   }
 
@@ -289,12 +336,30 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
                 const SizedBox(height: 8),
                 Text(
                   _maintenanceMode
-                      ? 'المستخدمون الآن يرون شاشة الصيانة ولا يمكنهم استخدام التطبيق.'
+                      ? 'المستخدمون العاديون سيرون شاشة الصيانة. المدراء يستطيعون الدخول دائماً.'
                       : 'التطبيق يعمل بشكل طبيعي لجميع المستخدمين.',
                   style: const TextStyle(color: Colors.grey),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 20),
+                
+                TextField(
+                  controller: _maintenanceMessageController,
+                  maxLines: 3,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'رسالة الصيانة التي تظهر للمستخدمين',
+                    labelStyle: const TextStyle(color: Colors.grey),
+                    fillColor: Colors.black26,
+                    filled: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -321,24 +386,31 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
                         _toggleMaintenance(!_maintenanceMode),
                   ),
                 ),
-                if (_maintenanceMode) ...[
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.orange,
-                        side: const BorderSide(color: Colors.orange),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      onPressed: _isSaving ? null : _saveFlags,
-                      child: const Text('حفظ وتطبيق الآن',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.orange,
+                      side: const BorderSide(color: Colors.orange),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
+                    onPressed: _isSavingMaintenance ? null : _saveMaintenance,
+                    child: _isSavingMaintenance
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.orange,
+                            ),
+                          )
+                        : const Text('حفظ إعدادات الصيانة الآن',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
-                ]
+                ),
               ],
             ),
           ),

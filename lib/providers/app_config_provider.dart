@@ -7,6 +7,8 @@ class AppConfigProvider extends ChangeNotifier {
   SharedPreferences? _prefs;
 
   bool _maintenanceMode = false;
+  String _maintenanceMessage = 'نعمل الآن على إجراء بعض التحسينات الهامة.\nسيعود التطبيق للعمل بشكل طبيعي قريباً.';
+  
   Map<String, bool> _featureFlags = {
     'ai_enabled': true,
     'competition_enabled': true,
@@ -17,6 +19,7 @@ class AppConfigProvider extends ChangeNotifier {
   bool _initialized = false;
 
   bool get maintenanceMode => _maintenanceMode;
+  String get maintenanceMessage => _maintenanceMessage;
   Map<String, bool> get featureFlags => _featureFlags;
   bool get initialized => _initialized;
 
@@ -27,12 +30,17 @@ class AppConfigProvider extends ChangeNotifier {
   Future<void> _init() async {
     _prefs = await SharedPreferences.getInstance();
     _loadFromCache();
-    _listenToConfig();
+    _listenToFeatureFlags();
+    _listenToMaintenanceMode();
   }
 
   void _loadFromCache() {
     if (_prefs == null) return;
-    _maintenanceMode = _prefs!.getBool('maintenance_mode') ?? false;
+    
+    // We intentionally DO NOT cache maintenanceMode as true. 
+    // If the user starts offline, we assume maintenance is OFF to avoid locking them out.
+    // Maintenance mode requires an active connection to be verified as ON.
+    _maintenanceMode = false; 
     
     _featureFlags = {
       'ai_enabled': _prefs!.getBool('ai_enabled') ?? true,
@@ -46,9 +54,8 @@ class AppConfigProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _saveToCache(Map<String, dynamic> data) async {
+  Future<void> _saveFlagsToCache(Map<String, dynamic> data) async {
     if (_prefs == null) return;
-    await _prefs!.setBool('maintenance_mode', data['maintenance_mode'] == true);
     await _prefs!.setBool('ai_enabled', data['ai_enabled'] == true);
     await _prefs!.setBool('competition_enabled', data['competition_enabled'] == true);
     await _prefs!.setBool('books_upload_enabled', data['books_upload_enabled'] == true);
@@ -56,7 +63,7 @@ class AppConfigProvider extends ChangeNotifier {
     await _prefs!.setBool('results_enabled', data['results_enabled'] == true);
   }
 
-  void _listenToConfig() {
+  void _listenToFeatureFlags() {
     _firestore
         .collection('admin_settings')
         .doc('feature_flags')
@@ -64,26 +71,64 @@ class AppConfigProvider extends ChangeNotifier {
         .listen((snapshot) {
       if (snapshot.exists && snapshot.data() != null) {
         final data = snapshot.data()!;
-        _maintenanceMode = data['maintenance_mode'] == true;
-        
         _featureFlags = {
-          'ai_enabled': data['ai_enabled'] == true,
-          'competition_enabled': data['competition_enabled'] == true,
-          'books_upload_enabled': data['books_upload_enabled'] == true,
-          'quizzes_enabled': data['quizzes_enabled'] == true,
-          'results_enabled': data['results_enabled'] == true,
+          'ai_enabled': data['ai_enabled'] ?? true,
+          'competition_enabled': data['competition_enabled'] ?? true,
+          'books_upload_enabled': data['books_upload_enabled'] ?? true,
+          'quizzes_enabled': data['quizzes_enabled'] ?? true,
+          'results_enabled': data['results_enabled'] ?? true,
         };
-        
-        _saveToCache(data);
+        _saveFlagsToCache(data);
       }
       _initialized = true;
       notifyListeners();
     }, onError: (error) {
-      debugPrint('[AppConfig] Error listening to config: $error');
-      // On error, we rely on cached values loaded earlier
+      debugPrint('[AppConfig] Error listening to feature flags: $error');
       _initialized = true;
       notifyListeners();
     });
+  }
+
+  void _listenToMaintenanceMode() {
+    _firestore
+        .collection('app_settings')
+        .doc('maintenance')
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists && snapshot.data() != null) {
+        final data = snapshot.data()!;
+        _maintenanceMode = data['isMaintenance'] == true;
+        _maintenanceMessage = data['message'] ?? 'نعمل الآن على إجراء بعض التحسينات الهامة.\nسيعود التطبيق للعمل بشكل طبيعي قريباً.';
+      } else {
+        // If document doesn't exist, default to false
+        _maintenanceMode = false;
+      }
+      notifyListeners();
+    }, onError: (error) {
+      debugPrint('[AppConfig] Error listening to maintenance mode: $error');
+      // On connection error, default to false to protect against lockouts
+      _maintenanceMode = false;
+      notifyListeners();
+    });
+  }
+
+  /// يمكن استدعاء هذه الدالة للتحقق اليدوي (مثلاً عند الضغط على زر إعادة المحاولة)
+  Future<void> checkMaintenanceStatus() async {
+    try {
+      final doc = await _firestore.collection('app_settings').doc('maintenance').get();
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        _maintenanceMode = data['isMaintenance'] == true;
+        _maintenanceMessage = data['message'] ?? _maintenanceMessage;
+      } else {
+        _maintenanceMode = false;
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[AppConfig] Error checking maintenance status: $e');
+      _maintenanceMode = false;
+      notifyListeners();
+    }
   }
 
   bool isFeatureEnabled(String featureKey) {

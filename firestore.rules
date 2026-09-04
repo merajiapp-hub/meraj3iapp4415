@@ -44,6 +44,11 @@ service cloud.firestore {
       allow read: if true; // Might need this for remote config fallback
       allow write: if isAdmin();
     }
+
+    match /app_settings/{settingId} {
+      allow read: if true; // Any user (even guests) can read maintenance settings
+      allow write: if isAdmin(); // Only admins can update it
+    }
     
     // Default fallback (can adjust based on existing app rules)
     match /{document=**} {
