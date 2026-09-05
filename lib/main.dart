@@ -32,6 +32,8 @@ import 'package:receive_intent/receive_intent.dart';
 import 'data/ad_manager.dart';
 import 'screens/pdf_viewer_screen.dart';
 import 'services/remote_config_service.dart';
+import 'admin/core/security/admin_guard.dart';
+import 'admin/shared/layout/admin_layout.dart';
 
 // معالج الإشعارات في الخلفية الكاملة (يجب أن يكون دالة عامة خارج الكلاس)
 @pragma('vm:entry-point')
@@ -307,6 +309,14 @@ class Meraj3iApp extends StatelessWidget {
             );
           },
         );
+      },
+      onGenerateRoute: (settings) {
+        if (settings.name == '/admin') {
+          return MaterialPageRoute(
+            builder: (_) => const AdminGuard(child: AdminLayout()),
+          );
+        }
+        return null;
       },
       home: const SplashScreen(),
     );

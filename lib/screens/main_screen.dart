@@ -6,7 +6,7 @@ import 'home_page.dart';
 import 'notes_screen.dart';
 import 'task_manager_screen.dart';
 import 'downloads_screen.dart';
-import 'settings_screen.dart';
+import 'favorites_screen.dart';
 
 class MainScreen extends StatefulWidget {
   final bool isGuest;
@@ -30,7 +30,7 @@ class _MainScreenState extends State<MainScreen> {
       const NotesScreen(),
       const TaskManagerScreen(),
       const DownloadsScreen(),
-      const SettingsScreen(),
+      const FavoritesScreen(),
     ];
   }
 
@@ -192,11 +192,17 @@ class _MainScreenState extends State<MainScreen> {
                     },
                   ),
                   _NavItem(
-                    icon: Icons.settings_rounded,
-                    label: 'الإعدادات',
+                    icon: Icons.bookmark_rounded,
+                    label: 'المفضلة',
                     index: 4,
                     currentIndex: _currentIndex,
-                    onTap: () => setState(() => _currentIndex = 4),
+                    onTap: () {
+                      if (widget.isGuest) {
+                        _showGuestSnackBar();
+                        return;
+                      }
+                      setState(() => _currentIndex = 4);
+                    },
                   ),
                 ],
               ),

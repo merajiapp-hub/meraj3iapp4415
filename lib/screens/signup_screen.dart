@@ -7,6 +7,7 @@ import '../widgets/app_notification.dart';
 import 'terms_of_use_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'main_screen.dart';
+import 'login_screen.dart';
 import '../widgets/app_dropdown.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -28,6 +29,18 @@ class _SignupScreenState extends State<SignupScreen>
   bool _acceptTerms = false;
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
+
+  /// الرجوع الآمن: يرجع للصفحة السابقة إن وُجدت، وإلا ينتقل لشاشة الدخول
+  void _safeBack() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    }
+  }
   String _selectedGender = 'ذكر';
 
   late AnimationController _animController;
@@ -96,17 +109,17 @@ class _SignupScreenState extends State<SignupScreen>
       _selectedGender,
     );
 
-    if (mounted) {
-      setState(() => _isLoading = false);
-      if (error == null) {
-        AppNotification.show(context, 'تم إنشاء الحساب بنجاح!');
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const MainScreen()),
-        );
-      } else {
-        AppNotification.show(context, error, isError: true);
-      }
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+    if (error == null) {
+      AppNotification.show(context, 'تم إنشاء الحساب بنجاح!');
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+        (route) => false,
+      );
+    } else {
+      AppNotification.show(context, error, isError: true);
     }
   }
 
@@ -134,7 +147,7 @@ class _SignupScreenState extends State<SignupScreen>
                             color: Colors.white,
                             size: 20,
                           ),
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: _safeBack,
                         ),
                         const SizedBox(width: 4),
                         Text(
@@ -391,7 +404,7 @@ class _SignupScreenState extends State<SignupScreen>
                 ),
               ),
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: _safeBack,
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 6),
                   minimumSize: Size.zero,

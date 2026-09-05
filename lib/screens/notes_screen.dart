@@ -221,13 +221,14 @@ class _NotesScreenState extends State<NotesScreen> {
         children: [
           Row(
             children: [
-              IconButton(
-                icon: Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: isDark ? Colors.white : Colors.black87,
+              if (Navigator.canPop(context))
+                IconButton(
+                  icon: Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                  onPressed: () => Navigator.pop(context),
                 ),
-                onPressed: () => Navigator.pop(context),
-              ),
               const SizedBox(width: 8),
               Text(
                 'ملاحظاتي',

@@ -142,6 +142,7 @@ class _LoginScreenState extends State<LoginScreen>
         MaterialPageRoute(builder: (_) => const MainScreen()),
       );
     } else {
+      if (!mounted) return;
       AppNotification.show(context, error, isError: true);
     }
   }

@@ -24,6 +24,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   Timer? _autoSaveTimer;
   bool _isSaving = false;
   String? _createdNoteId;
+  final FocusNode _editorFocusNode = FocusNode();
 
   Color? _noteColor;
   String _selectedCategory = 'أخرى';
@@ -184,6 +185,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     _autoSaveTimer?.cancel();
     _titleController.dispose();
     _quillController.dispose();
+    _editorFocusNode.dispose();
     super.dispose();
   }
 
@@ -454,60 +456,65 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
             // Editor
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                child: Directionality(
-                  textDirection: TextDirection.rtl,
-                  child: quill.QuillEditor.basic(
-                    controller: _quillController,
-                    config: quill.QuillEditorConfig(
-                      autoFocus: true,
-                      expands: true,
-                      padding: EdgeInsets.zero,
-                      placeholder: 'ابدأ بالكتابة هنا...',
-                      customStyles: quill.DefaultStyles(
-                        placeHolder: quill.DefaultTextBlockStyle(
-                          GoogleFonts.getFont(_selectedFont, fontSize: 18, color: textColor.withAlpha((0.3 * 255).toInt())),
-                          const quill.HorizontalSpacing(0, 0),
-                          const quill.VerticalSpacing(0, 0),
-                          const quill.VerticalSpacing(0, 0),
-                          null,
-                        ),
-                        paragraph: quill.DefaultTextBlockStyle(
-                          GoogleFonts.getFont(_selectedFont, fontSize: 18, color: textColor, height: 1.6),
-                          const quill.HorizontalSpacing(0, 0),
-                          const quill.VerticalSpacing(0, 0),
-                          const quill.VerticalSpacing(0, 0),
-                          null,
-                        ),
-                        h1: quill.DefaultTextBlockStyle(
-                          GoogleFonts.getFont(_selectedFont, fontSize: 32, color: textColor, fontWeight: FontWeight.bold),
-                          const quill.HorizontalSpacing(0, 0),
-                          const quill.VerticalSpacing(16, 0),
-                          const quill.VerticalSpacing(0, 0),
-                          null,
-                        ),
-                        h2: quill.DefaultTextBlockStyle(
-                          GoogleFonts.getFont(_selectedFont, fontSize: 26, color: textColor, fontWeight: FontWeight.bold),
-                          const quill.HorizontalSpacing(0, 0),
-                          const quill.VerticalSpacing(8, 0),
-                          const quill.VerticalSpacing(0, 0),
-                          null,
-                        ),
-                        h3: quill.DefaultTextBlockStyle(
-                          GoogleFonts.getFont(_selectedFont, fontSize: 22, color: textColor, fontWeight: FontWeight.bold),
-                          const quill.HorizontalSpacing(0, 0),
-                          const quill.VerticalSpacing(8, 0),
-                          const quill.VerticalSpacing(0, 0),
-                          null,
-                        ),
-                        lists: quill.DefaultListBlockStyle(
-                          GoogleFonts.getFont(_selectedFont, fontSize: 18, color: textColor),
-                          const quill.HorizontalSpacing(0, 0),
-                          const quill.VerticalSpacing(0, 0),
-                          const quill.VerticalSpacing(0, 0),
-                          null,
-                          null,
+              child: GestureDetector(
+                onTap: () => _editorFocusNode.requestFocus(),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  child: Directionality(
+                    textDirection: TextDirection.rtl,
+                    child: quill.QuillEditor(
+                      controller: _quillController,
+                      focusNode: _editorFocusNode,
+                      scrollController: ScrollController(),
+                      config: quill.QuillEditorConfig(
+                        autoFocus: true,
+                        expands: true,
+                        padding: EdgeInsets.zero,
+                        placeholder: 'ابدأ بالكتابة هنا...',
+                        customStyles: quill.DefaultStyles(
+                          placeHolder: quill.DefaultTextBlockStyle(
+                            GoogleFonts.getFont(_selectedFont, fontSize: 18, color: textColor.withAlpha((0.3 * 255).toInt())),
+                            const quill.HorizontalSpacing(0, 0),
+                            const quill.VerticalSpacing(0, 0),
+                            const quill.VerticalSpacing(0, 0),
+                            null,
+                          ),
+                          paragraph: quill.DefaultTextBlockStyle(
+                            GoogleFonts.getFont(_selectedFont, fontSize: 18, color: textColor, height: 1.6),
+                            const quill.HorizontalSpacing(0, 0),
+                            const quill.VerticalSpacing(0, 0),
+                            const quill.VerticalSpacing(0, 0),
+                            null,
+                          ),
+                          h1: quill.DefaultTextBlockStyle(
+                            GoogleFonts.getFont(_selectedFont, fontSize: 32, color: textColor, fontWeight: FontWeight.bold),
+                            const quill.HorizontalSpacing(0, 0),
+                            const quill.VerticalSpacing(16, 0),
+                            const quill.VerticalSpacing(0, 0),
+                            null,
+                          ),
+                          h2: quill.DefaultTextBlockStyle(
+                            GoogleFonts.getFont(_selectedFont, fontSize: 26, color: textColor, fontWeight: FontWeight.bold),
+                            const quill.HorizontalSpacing(0, 0),
+                            const quill.VerticalSpacing(8, 0),
+                            const quill.VerticalSpacing(0, 0),
+                            null,
+                          ),
+                          h3: quill.DefaultTextBlockStyle(
+                            GoogleFonts.getFont(_selectedFont, fontSize: 22, color: textColor, fontWeight: FontWeight.bold),
+                            const quill.HorizontalSpacing(0, 0),
+                            const quill.VerticalSpacing(8, 0),
+                            const quill.VerticalSpacing(0, 0),
+                            null,
+                          ),
+                          lists: quill.DefaultListBlockStyle(
+                            GoogleFonts.getFont(_selectedFont, fontSize: 18, color: textColor),
+                            const quill.HorizontalSpacing(0, 0),
+                            const quill.VerticalSpacing(0, 0),
+                            const quill.VerticalSpacing(0, 0),
+                            null,
+                            null,
+                          ),
                         ),
                       ),
                     ),

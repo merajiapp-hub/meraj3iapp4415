@@ -13,7 +13,7 @@ import 'swedd_screen.dart';
 import 'exam_generator_screen.dart';
 import 'student/reading_list_screen.dart';
 import 'student/progress_screen.dart';
-import '../features/smart_calculator/ui/screens/smart_calculator_screen.dart';
+
 
 class ServicesScreen extends StatelessWidget {
   const ServicesScreen({super.key});
@@ -102,17 +102,6 @@ class ServicesScreen extends StatelessWidget {
         gradient: AppTheme.purpleGradient,
         badge: 'AI',
         onTap: () => _checkFeatureAndNavigate(context, 'ai_enabled', const AiSearchScreen()),
-      ),
-      _ServiceItem(
-        title: 'الحاسبة الذكية',
-        icon: Icons.calculate_rounded,
-        gradient: const LinearGradient(
-          colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        badge: 'جديد',
-        onTap: () => _checkFeatureAndNavigate(context, 'ai_enabled', const SmartCalculatorScreen()),
       ),
       _ServiceItem(
         title: 'المراسلة',

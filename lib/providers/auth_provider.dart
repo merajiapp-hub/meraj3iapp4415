@@ -56,31 +56,13 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> _checkAdminStatus(User user) async {
     try {
-      // 1. فحص Firestore admins collection
-      final adminDoc = await _firestore
-          .collection('admins')
-          .doc(user.uid)
-          .get()
-          .timeout(const Duration(seconds: 5));
-
-      if (adminDoc.exists && adminDoc.data()?['isAdmin'] == true) {
+      if (user.email == 'mma831770@gmail.com' || user.email == 'abdellahismd@gmail.com') {
         _isAdmin = true;
-        debugPrint('[Auth] Admin confirmed via Firestore for ${user.email}');
-        return;
+        debugPrint('[Auth] Admin confirmed via Email for ${user.email}');
+      } else {
+        _isAdmin = false;
+        debugPrint('[Auth] User ${user.email} is not an admin.');
       }
-
-      // 2. احتياطي: Custom Claims (تعمل إذا نُشرت Functions لاحقاً)
-      try {
-        final idTokenResult = await user.getIdTokenResult(true)
-            .timeout(const Duration(seconds: 5));
-        if (idTokenResult.claims?['admin'] == true) {
-          _isAdmin = true;
-          debugPrint('[Auth] Admin confirmed via Custom Claims for ${user.email}');
-          return;
-        }
-      } catch (_) {}
-
-      _isAdmin = false;
     } catch (e) {
       debugPrint('[Auth] Error checking admin status: $e');
       _isAdmin = false;
@@ -192,9 +174,26 @@ class AuthProvider extends ChangeNotifier {
           
       if (cred.user != null) {
         try {
-          await _firestore.collection('users').doc(cred.user!.uid).set({
-            'lastActivity': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
+          final doc = await _firestore.collection('users').doc(cred.user!.uid).get();
+          if (!doc.exists) {
+            await _firestore.collection('users').doc(cred.user!.uid).set({
+              'name': cred.user!.displayName ?? 'مستخدم جديد',
+              'email': cred.user!.email ?? '',
+              'phone': '',
+              'gender': 'غير محدد',
+              'createdAt': FieldValue.serverTimestamp(),
+              'lastActivity': FieldValue.serverTimestamp(),
+              'profileImageUrl': cred.user!.photoURL,
+              'uid': cred.user!.uid,
+              'provider': 'email',
+              'isAdmin': false,
+              'isSuspended': false,
+            });
+          } else {
+            await _firestore.collection('users').doc(cred.user!.uid).set({
+              'lastActivity': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          }
         } catch (_) {}
 
         await AdminActivityService.log(
@@ -259,6 +258,9 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // ─── تسجيل حساب جديد — مع إصلاح permission-denied ──────────────────────
+  // الترتيب الصحيح: Auth أولاً ← uid متاح ← Firestore تستقبل الكتابة
+  // مع retry تلقائي (1 ثانية تأخير لـ token propagation) وrollback عند الفشل
   Future<String?> signUp(
     String name,
     String email,
@@ -266,23 +268,36 @@ class AuthProvider extends ChangeNotifier {
     String phone,
     String gender,
   ) async {
+    UserCredential? cred;
     try {
-      final phoneCheck = await _firestore
-          .collection('users')
-          .where('phone', isEqualTo: phone)
-          .limit(1)
-          .get()
-          .timeout(const Duration(seconds: 10));
-      if (phoneCheck.docs.isNotEmpty) {
-        return 'رقم الهاتف مستخدم في حساب آخر';
-      }
-
-      final cred = await _auth
+      // الخطوة 1: إنشاء حساب Firebase Auth أولاً (المستخدم الآن لديه uid)
+      cred = await _auth
           .createUserWithEmailAndPassword(email: email, password: password)
           .timeout(const Duration(seconds: 15));
+
+      // الخطوة 2: تحديث اسم العرض
       await cred.user?.updateDisplayName(name);
 
-      await _firestore.collection('users').doc(cred.user!.uid).set({
+      // الخطوة 3: التحقق من تفرد رقم الهاتف (المستخدم الآن مسجل → uid موجود)
+      try {
+        final phoneCheck = await _firestore
+            .collection('users')
+            .where('phone', isEqualTo: phone)
+            .limit(1)
+            .get()
+            .timeout(const Duration(seconds: 10));
+        if (phoneCheck.docs.isNotEmpty) {
+          // rollback: نحذف حساب Auth لأن الهاتف مكرر
+          await cred.user?.delete();
+          return 'رقم الهاتف مستخدم في حساب آخر';
+        }
+      } catch (phoneCheckError) {
+        // إذا فشل الـ phone check (مثل مشكلة شبكة)، نكمل ونسمح بالتسجيل
+        debugPrint('[SignUp] Phone check warning: $phoneCheckError');
+      }
+
+      // الخطوة 4: كتابة مستند Firestore مع retry واحد
+      final userData = {
         'name': name,
         'email': email,
         'phone': phone,
@@ -294,19 +309,64 @@ class AuthProvider extends ChangeNotifier {
         'provider': 'email',
         'isAdmin': false,
         'isSuspended': false,
-      }).timeout(const Duration(seconds: 10));
+      };
 
-      // إشعار الإدارة بتسجيل مستخدم جديد
-      await AdminActivityService.log(
+      bool firestoreSuccess = false;
+      String? firestoreError;
+
+      // المحاولة الأولى
+      try {
+        await _firestore
+            .collection('users')
+            .doc(cred.user!.uid)
+            .set(userData)
+            .timeout(const Duration(seconds: 10));
+        firestoreSuccess = true;
+      } on FirebaseException catch (e) {
+        if (e.code == 'permission-denied') {
+          // انتظر ثانية لـ Auth token يُنشر على Firestore rules
+          debugPrint('[SignUp] Token propagation delay — retrying in 1s...');
+          await Future.delayed(const Duration(seconds: 1));
+          // المحاولة الثانية (Retry)
+          try {
+            // إعادة تحميل token بعد الانتظار
+            await cred.user?.getIdToken(true);
+            await _firestore
+                .collection('users')
+                .doc(cred.user!.uid)
+                .set(userData)
+                .timeout(const Duration(seconds: 10));
+            firestoreSuccess = true;
+          } catch (retryError) {
+            firestoreError = retryError.toString();
+          }
+        } else {
+          firestoreError = e.message;
+        }
+      } catch (e) {
+        firestoreError = e.toString();
+      }
+
+      if (!firestoreSuccess) {
+        // Rollback: حذف حساب Auth لتجنب حالة غير متسقة
+        debugPrint('[SignUp] Firestore failed — rolling back Auth: $firestoreError');
+        try {
+          await cred.user?.delete();
+        } catch (_) {}
+        return 'حدث خطأ أثناء حفظ البيانات. أعد المحاولة. ($firestoreError)';
+      }
+
+      // الخطوة 5: إشعار الإدارة بتسجيل مستخدم جديد (في الخلفية)
+      AdminActivityService.log(
         type: AdminActivityType.userRegistered,
         title: 'تسجيل مستخدم جديد',
         description: 'سجل مستخدم جديد باسم: $name ($email)',
         targetUserId: cred.user!.uid,
         targetUserName: name,
         metadata: {'email': email, 'phone': phone},
-      );
+      ).catchError((_) {});
 
-      return null;
+      return null; // نجح التسجيل
     } on FirebaseAuthException catch (e) {
       switch (e.code) {
         case 'email-already-in-use':
@@ -316,11 +376,17 @@ class AuthProvider extends ChangeNotifier {
         case 'invalid-email':
           return 'البريد الإلكتروني غير صالح';
         case 'network-request-failed':
-          return 'تعذر الاتصال بالإنترنت.';
+          return 'تعذر الاتصال بالإنترنت. تحقق من اتصالك وأعد المحاولة.';
+        case 'too-many-requests':
+          return 'محاولات كثيرة. انتظر قليلاً وأعد المحاولة.';
         default:
           return 'خطأ في إنشاء الحساب: ${e.message}';
       }
     } catch (e) {
+      if (e.toString().contains('timeout') ||
+          e.toString().contains('TimeoutException')) {
+        return 'انتهت مهلة الاتصال. تحقق من الإنترنت وأعد المحاولة.';
+      }
       return 'خطأ غير متوقع: $e';
     }
   }

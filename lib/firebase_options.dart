@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -54,15 +51,28 @@ class DefaultFirebaseOptions {
     appId: '1:1097879132279:android:bf2ec0e3494d7a1ca58e72',
     messagingSenderId: '1097879132279',
     projectId: 'meraj3iapp',
+    databaseURL: 'https://meraj3iapp-default-rtdb.firebaseio.com',
     storageBucket: 'meraj3iapp.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'REPLACE_ME',
-    appId: 'REPLACE_ME',
-    messagingSenderId: 'REPLACE_ME',
-    projectId: 'meraj3i-app',
-    storageBucket: 'meraj3i-app.appspot.com',
-    iosBundleId: 'com.example.meraj3i',
+    apiKey: 'AIzaSyCXIHdqrmUN6HBQ1uBOq8_9VpvDh3sCBjE',
+    appId: '1:1097879132279:ios:b2f9475bd1f66ac1a58e72',
+    messagingSenderId: '1097879132279',
+    projectId: 'meraj3iapp',
+    databaseURL: 'https://meraj3iapp-default-rtdb.firebaseio.com',
+    storageBucket: 'meraj3iapp.firebasestorage.app',
+    androidClientId: '1097879132279-bd0ssd789t9ja3ok04l7ae1dcj57s1uj.apps.googleusercontent.com',
+    iosClientId: '1097879132279-cu52tjseem9f9vsnr13isp9uabaig8t5.apps.googleusercontent.com',
+    iosBundleId: 'com.example.myapp',
+  );
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyBIP7jV13xT6RmAuOePI7BPKI6M2S69UmU',
+    appId: '1:1097879132279:web:733b383ab5e49610a58e72',
+    messagingSenderId: '1097879132279',
+    projectId: 'meraj3iapp',
+    authDomain: 'meraj3iapp.firebaseapp.com',
+    databaseURL: 'https://meraj3iapp-default-rtdb.firebaseio.com',
+    storageBucket: 'meraj3iapp.firebasestorage.app',
+    measurementId: 'G-PMZ45BT0HB',
   );
 }

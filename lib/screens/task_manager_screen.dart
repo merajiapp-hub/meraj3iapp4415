@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -541,6 +542,14 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
                         ],
                       ),
                     ),
+                    // مؤشر الوقت الدائري الاحترافي
+                    _TaskTimeRing(
+                      startTime: item.startTime,
+                      endTime: item.endTime,
+                      isCompleted: item.isCompleted,
+                      color: item.isCompleted ? Colors.green : item.color,
+                      isDark: isDark,
+                    ),
                   ],
                 ),
               );
@@ -744,12 +753,13 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
                 borderRadius: BorderRadius.circular(32),
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1), blurRadius: 20, offset: const Offset(0, 10))],
               ),
+              // التبويبات: مهام اليوم (يسار) → جميع المراجعات (وسط) → الجدول العام (يمين)
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildTabIcon(0, isDark),
-                  _buildTabIcon(1, isDark),
-                  _buildTabIcon(2, isDark),
+                  _buildTabIcon(0, isDark), // مهام اليوم – يسار
+                  _buildTabIcon(1, isDark), // جميع المراجعات – وسط
+                  _buildTabIcon(2, isDark), // الجدول العام – يمين
                 ],
               ),
             ),
@@ -771,24 +781,222 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
             ),
           ),
 
-          Positioned(
-            top: 40, right: 16,
-            child: SafeArea(
-              child: IconButton(
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    shape: BoxShape.circle,
+          if (Navigator.canPop(context))
+            Positioned(
+              top: 40, right: 16,
+              child: SafeArea(
+                child: IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
                   ),
-                  child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20)
+                  onPressed: () => Navigator.pop(context),
                 ),
-                onPressed: () => Navigator.pop(context),
               ),
             ),
-          ),
         ],
       ),
     );
   }
+}
+
+// ─── مؤشر الوقت الدائري للمهمة ───────────────────────────────────────────────
+class _TaskTimeRing extends StatefulWidget {
+  final TimeOfDay startTime;
+  final TimeOfDay endTime;
+  final bool isCompleted;
+  final Color color;
+  final bool isDark;
+
+  const _TaskTimeRing({
+    required this.startTime,
+    required this.endTime,
+    required this.isCompleted,
+    required this.color,
+    required this.isDark,
+  });
+
+  @override
+  State<_TaskTimeRing> createState() => _TaskTimeRingState();
+}
+
+class _TaskTimeRingState extends State<_TaskTimeRing>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  double _computeProgress() {
+    if (widget.isCompleted) return 1.0;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final start = today.add(Duration(
+      hours: widget.startTime.hour,
+      minutes: widget.startTime.minute,
+    ));
+    final end = today.add(Duration(
+      hours: widget.endTime.hour,
+      minutes: widget.endTime.minute,
+    ));
+    if (now.isBefore(start)) return 0.0;
+    if (now.isAfter(end)) return 1.0;
+    final total = end.difference(start).inSeconds;
+    if (total <= 0) return 1.0;
+    final elapsed = now.difference(start).inSeconds;
+    return (elapsed / total).clamp(0.0, 1.0);
+  }
+
+  String _durationLabel() {
+    final startMin = widget.startTime.hour * 60 + widget.startTime.minute;
+    final endMin = widget.endTime.hour * 60 + widget.endTime.minute;
+    final diff = endMin - startMin;
+    if (diff <= 0) return '—';
+    if (diff < 60) return '$diff د';
+    final h = diff ~/ 60;
+    final m = diff % 60;
+    return m == 0 ? '$h س' : '$h س\n$m د';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final progress = _computeProgress();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _animation = Tween<double>(begin: 0, end: progress).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = _computeProgress();
+    final label = _durationLabel();
+
+    final ringColor = widget.isCompleted
+        ? Colors.green
+        : (progress >= 0.8 ? Colors.orange : widget.color);
+
+    final bgColor = widget.isDark
+        ? Colors.white.withValues(alpha: 0.06)
+        : ringColor.withValues(alpha: 0.07);
+
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, _) {
+        return Container(
+          width: 58,
+          height: 58,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: bgColor,
+            boxShadow: [
+              BoxShadow(
+                color: ringColor.withValues(alpha: 0.25),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                width: 58,
+                height: 58,
+                child: CustomPaint(
+                  painter: _RingPainter(
+                    progress: _animation.value,
+                    color: ringColor,
+                    trackColor: ringColor.withValues(
+                      alpha: widget.isDark ? 0.15 : 0.12,
+                    ),
+                    strokeWidth: 5,
+                  ),
+                ),
+              ),
+              widget.isCompleted
+                  ? const Icon(Icons.check_rounded,
+                      color: Colors.green, size: 22)
+                  : Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.outfit(
+                        fontSize: label.contains('\n') ? 9 : 11,
+                        fontWeight: FontWeight.bold,
+                        color: ringColor,
+                        height: 1.3,
+                      ),
+                    ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─── رسام الحلقة ──────────────────────────────────────────────────────────────
+class _RingPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+  final Color trackColor;
+  final double strokeWidth;
+
+  _RingPainter({
+    required this.progress,
+    required this.color,
+    required this.trackColor,
+    required this.strokeWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width - strokeWidth) / 2;
+
+    final trackPaint = Paint()
+      ..color = trackColor
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(center, radius, trackPaint);
+
+    if (progress > 0) {
+      final progressPaint = Paint()
+        ..shader = SweepGradient(
+          startAngle: -math.pi / 2,
+          endAngle: -math.pi / 2 + 2 * math.pi * progress,
+          colors: [color.withValues(alpha: 0.7), color],
+          tileMode: TileMode.clamp,
+        ).createShader(Rect.fromCircle(center: center, radius: radius))
+        ..strokeWidth = strokeWidth
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
+
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        -math.pi / 2,
+        2 * math.pi * progress,
+        false,
+        progressPaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_RingPainter oldDelegate) =>
+      oldDelegate.progress != progress || oldDelegate.color != color;
 }

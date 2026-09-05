@@ -1,58 +1,134 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper functions
-    // يتحقق من Custom Claims (إذا نُشرت Functions) أو من مجموعة admins في Firestore
+
+    // ═══════════════════════════════════════════════════════════════
+    //  دوال مساعدة
+    // ═══════════════════════════════════════════════════════════════
+
+    /// يتحقق من أن المستخدم هو أحد المسؤولَين المعتمدَين حصراً
     function isAdmin() {
-      return request.auth != null && (
-        request.auth.token.admin == true ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-      );
+      return request.auth != null &&
+        request.auth.token != null &&
+        request.auth.token.email != null &&
+        (request.auth.token.email == 'mma831770@gmail.com' ||
+         request.auth.token.email == 'abdellahismd@gmail.com');
     }
-    
+
+    /// يتحقق من أن المستخدم الحالي هو صاحب المستند
     function isOwner(uid) {
       return request.auth != null && request.auth.uid == uid;
     }
 
-    // ─── مجموعة admins ────────────────────────────────────────────────────────
-    // يمكن للمديرين فقط القراءة، ولا أحد يكتب إلا من Firebase Console مباشرة
-    match /admins/{adminId} {
-      allow read: if request.auth != null && request.auth.uid == adminId;
-      allow write: if false; // الكتابة فقط من Firebase Console أو Admin SDK
+    /// يتحقق من أن المستخدم مسجل الدخول
+    function isAuthenticated() {
+      return request.auth != null;
     }
 
+    /// يتحقق من أن حقل البيانات المُرسَلة لا يحتوي على حقول حساسة
+    function noSensitiveFields() {
+      return !request.resource.data.keys().hasAny([
+        'isAdmin', 'isSuspended', 'mustChangePassword', 'points'
+      ]);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  المستخدمون /users/{userId}
+    // ═══════════════════════════════════════════════════════════════
     match /users/{userId} {
-      // Users can read their own data, admins can read all
-      allow read: if isOwner(userId) || isAdmin();
-      
-      // Only admins can delete users or change sensitive fields
+      // القراءة المفردة: المالك أو المسؤول فقط
+      allow get: if isOwner(userId) || isAdmin();
+
+      // list (استعلام): مسموح للمستخدمين المسجلين فقط بغرض التحقق من رقم الهاتف
+      // (يُستخدم في signUp للتحقق من تفرد الهاتف بعد إنشاء Auth)
+      allow list: if isAuthenticated();
+
+      // إنشاء مستند جديد: المستخدم ينشئ مستنده الخاص فقط عند التسجيل
+      allow create: if isOwner(userId);
+
+      // تعديل: المالك (بدون حقول حساسة) أو المسؤول بصلاحيات كاملة
+      allow update: if (isOwner(userId) && noSensitiveFields()) || isAdmin();
+
+      // حذف: المسؤول فقط
       allow delete: if isAdmin();
-      
-      // Users can update their non-sensitive fields
-      allow update: if (isOwner(userId) && !request.resource.data.keys().hasAny(['admin', 'isSuspended', 'mustChangePassword', 'points'])) || isAdmin();
-      
-      allow create: if request.auth != null && request.auth.uid == userId;
+
+      // ── المجموعات الفرعية للمستخدم (إشعارات، ملاحظات، إلخ) ──
+      match /{subcollection}/{docId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  سجلات طلبات OTP /otp_requests_logs/{logId}
+    // ═══════════════════════════════════════════════════════════════
+    match /otp_requests_logs/{logId} {
+      // الكتابة: أي مستخدم مسجل (لتسجيل طلبه)، أو النظام (auth=null في Functions)
+      allow create: if isAuthenticated() || request.auth == null;
+      // القراءة والتعديل والحذف: المسؤول فقط
+      allow read, update, delete: if isAdmin();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  سجلات النشاط الإداري
+    // ═══════════════════════════════════════════════════════════════
+    match /admin_activity_logs/{logId} {
+      allow read, write: if isAdmin();
+      // السماح للمستخدمين المسجلين بالكتابة فقط (لتسجيل أنشطتهم)
+      allow create: if isAuthenticated();
     }
 
     match /audit_logs/{logId} {
-      // Strictly admin only
       allow read, write: if isAdmin();
     }
 
-    match /admin_settings/{settingId} {
-      allow read: if true; // Might need this for remote config fallback
+    // ═══════════════════════════════════════════════════════════════
+    //  إعدادات التطبيق والصيانة
+    // ═══════════════════════════════════════════════════════════════
+    match /app_settings/{settingId} {
+      // الجميع يقرأ (مطلوب لشاشة الصيانة)
+      allow read: if true;
       allow write: if isAdmin();
     }
 
-    match /app_settings/{settingId} {
-      allow read: if true; // Any user (even guests) can read maintenance settings
-      allow write: if isAdmin(); // Only admins can update it
+    match /admin_settings/{document} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
-    
-    // Default fallback (can adjust based on existing app rules)
-    match /{document=**} {
-      allow read, write: if request.auth != null; // Restrict based on actual app logic later
+
+    match /maintenance/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  الكتب والمحتوى
+    // ═══════════════════════════════════════════════════════════════
+    match /books/{bookId} {
+      // القراءة: المستخدمون المسجلون فقط
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  الإشعارات العامة
+    // ═══════════════════════════════════════════════════════════════
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  الإحصائيات
+    // ═══════════════════════════════════════════════════════════════
+    match /statistics/{statId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  ملاحظة أمنية: لا يوجد wildcard fallback هنا
+    //  كل مسار يجب أن يكون محدداً صراحةً أعلاه
+    //  أي مسار غير مذكور يُرفض تلقائياً
+    // ═══════════════════════════════════════════════════════════════
   }
 }
