@@ -11,7 +11,9 @@ const checkAdmin = (context) => {
         "The function must be called while authenticated."
     );
   }
-  if (context.auth.token.admin !== true) {
+  const allowedEmails = ["mma831770@gmail.com", "abdellahismd@gmail.com"];
+  if (context.auth.token.admin !== true &&
+      !allowedEmails.includes(context.auth.token.email)) {
     throw new functions.https.HttpsError(
         "permission-denied",
         "You must be an administrator to execute this operation."
@@ -164,34 +166,102 @@ exports.deleteUserAdmin = functions.https.onCall(async (data, context) => {
  */
 exports.sendAdminNotification = functions.https.onCall(async (data, context) => {
   checkAdmin(context);
-  const { title, body, topic, uid, dataPayload } = data;
+  const { title, body, topic, uid, dataPayload, type, targetAll } = data;
+  if (!title || (!targetAll && !uid && !topic)) {
+    throw new functions.https.HttpsError(
+        "invalid-argument", "title and a notification target are required");
+  }
+
+  const db = admin.firestore();
+  const targetUsers = [];
+  if (uid) {
+    const userDoc = await db.collection("users").doc(uid).get();
+    if (!userDoc.exists) {
+      throw new functions.https.HttpsError("not-found", "User not found");
+    }
+    targetUsers.push(userDoc);
+  } else if (targetAll) {
+    const users = await db.collection("users").get();
+    targetUsers.push(...users.docs);
+  }
+
+  const tokenEntries = [];
+  for (const userDoc of targetUsers) {
+    const userData = userDoc.data() || {};
+    const tokens = new Set();
+    if (typeof userData.fcmToken === "string" && userData.fcmToken) {
+      tokens.add(userData.fcmToken);
+    }
+    if (Array.isArray(userData.fcmTokens)) {
+      userData.fcmTokens.filter((token) => typeof token === "string" && token)
+          .forEach((token) => tokens.add(token));
+    }
+    for (const token of tokens) {
+      tokenEntries.push({token, uid: userDoc.id});
+    }
+  }
   
   const payload = {
     notification: {
       title: title || "MERAJ3I",
       body: body || "",
     },
-    data: dataPayload || {}
+    data: {...(dataPayload || {}), type: type || "general"},
   };
 
-  let response;
-  if (uid) {
-    // We would need the user's FCM token. Assuming we store it in their document.
-    const userDoc = await admin.firestore().collection("users").doc(uid).get();
-    const fcmToken = userDoc.data()?.fcmToken;
-    if (fcmToken) {
-      response = await admin.messaging().send({
-        token: fcmToken,
-        ...payload
-      });
-    } else {
-      throw new functions.https.HttpsError("not-found", "User FCM token not found");
+  let successCount = 0;
+  let failureCount = 0;
+  const invalidTokens = [];
+  for (let i = 0; i < tokenEntries.length; i += 500) {
+    const chunk = tokenEntries.slice(i, i + 500);
+    const response = await admin.messaging().sendEachForMulticast({
+      tokens: chunk.map((entry) => entry.token),
+      ...payload,
+    });
+    successCount += response.successCount;
+    failureCount += response.failureCount;
+    response.responses.forEach((result, index) => {
+      if (!result.success && ["messaging/registration-token-not-registered",
+        "messaging/invalid-registration-token"].includes(result.error?.code)) {
+        invalidTokens.push(chunk[index]);
+      }
+    });
+  }
+
+  const notificationData = {
+    title: title.toString(),
+    body: (body || "").toString(),
+    type: type || "general",
+    isRead: false,
+    sentAt: admin.firestore.FieldValue.serverTimestamp(),
+    timestamp: Date.now(),
+    targetAll: !!targetAll,
+    sentBy: context.auth.uid,
+  };
+  await db.collection("notifications").add({
+    ...notificationData,
+    targetUid: uid || null,
+    targetTopic: topic || null,
+    recipientCount: targetUsers.length,
+    successCount,
+    failureCount,
+  });
+  let storedCount = 0;
+  for (let i = 0; i < targetUsers.length; i += 400) {
+    const batch = db.batch();
+    for (const userDoc of targetUsers.slice(i, i + 400)) {
+      const ref = userDoc.ref.collection("notifications").doc();
+      batch.set(ref, {...notificationData, id: ref.id});
+      storedCount++;
     }
-  } else if (topic) {
-    // Send to a topic (e.g. "all", "students", "teachers")
-    response = await admin.messaging().sendToTopic(topic, payload);
-  } else {
-    throw new functions.https.HttpsError("invalid-argument", "Must provide either uid or topic");
+    await batch.commit();
+  }
+  for (const invalid of invalidTokens) {
+    await db.collection("users").doc(invalid.uid).update({
+      fcmTokens: admin.firestore.FieldValue.arrayRemove(invalid.token),
+      ...(invalid.token === (targetUsers.find((doc) => doc.id === invalid.uid)
+          ?.data()?.fcmToken) ? {fcmToken: admin.firestore.FieldValue.delete()} : {}),
+    });
   }
 
   await logAdminAction(
@@ -199,8 +269,16 @@ exports.sendAdminNotification = functions.https.onCall(async (data, context) => 
     context.auth.token.email || "Admin", 
     "SEND_NOTIFICATION", 
     uid || topic, 
-    { title, body, topic, uid }
+    { title, body, topic, uid, targetAll, successCount, failureCount, storedCount }
   );
 
-  return { message: "Notification sent", response };
+  return {
+    message: "Notification sent",
+    recipientCount: targetUsers.length,
+    tokenCount: tokenEntries.length,
+    successCount,
+    failureCount,
+    invalidTokenCount: invalidTokens.length,
+    storedCount,
+  };
 });

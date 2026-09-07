@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/results_service.dart';
+import '../../services/remote_config_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/results_skeleton.dart';
 import '../../widgets/top_students_section.dart';
@@ -132,6 +133,7 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
 
   Future<void> _onRefresh() async {
     await ResultsService.clearCacheForUrl(widget.examType, widget.csvUrl);
+    RemoteConfigService.instance.invalidateCache();
     await _load(forceRefresh: true);
   }
 

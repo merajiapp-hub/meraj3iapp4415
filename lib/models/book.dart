@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/drive_url_service.dart';
 
 class Book {
@@ -85,26 +86,39 @@ class Book {
 
   factory Book.fromMap(Map<String, dynamic> map, String documentId) {
     DateTime? addedAt;
-    if (map['uploadDate'] is Map && (map['uploadDate'] as Map).containsKey('_seconds')) {
+    final rawDate = map['uploadDate'] ?? map['createdAt'] ?? map['addedAt'];
+    if (rawDate is Timestamp) {
+      addedAt = rawDate.toDate();
+    } else if (rawDate is DateTime) {
+      addedAt = rawDate;
+    } else if (rawDate is Map && rawDate['_seconds'] is num) {
       addedAt = DateTime.fromMillisecondsSinceEpoch(
-          (map['uploadDate']['_seconds'] as int) * 1000);
+        (rawDate['_seconds'] as num).toInt() * 1000,
+      );
     }
 
+    String value(String key, [String fallback = '']) =>
+        (map[key] ?? fallback).toString().trim();
+
     return Book(
-      id: documentId,
-      title: map['title'] ?? '',
-      subtitle: map['subtitle'],
-      section: map['section'] ?? '',
-      grade: map['grade'] ?? '',
-      category: map['category'] ?? '',
-      subject: map['subject'] ?? '',
-      url: map['url'] ?? '',
-      solutionUrl: map['solutionUrl'] ?? '',
-      coverUrl: map['coverUrl'] ?? '',
-      uploaderId: map['uploaderId'] ?? '',
-      originalDriveUrl: map['originalDriveUrl'] ?? map['url'],
-      extractedFileId: map['extractedFileId'],
-      linkStatus: map['linkStatus'],
+      id: documentId.isNotEmpty ? documentId : value('id'),
+      title: value('title', value('name')),
+      subtitle: value('subtitle').isEmpty ? null : value('subtitle'),
+      section: value('section', value('stage')),
+      grade: value('grade', value('year')),
+      category: value('category', value('type')),
+      subject: value('subject'),
+      url: value('url', value('pdfUrl', value('fileUrl', value('downloadUrl')))),
+      solutionUrl: value('solutionUrl'),
+      coverUrl: value('coverUrl', value('imageUrl', value('thumbnailUrl'))),
+      uploaderId: value('uploaderId', value('userId')),
+      originalDriveUrl: value('originalDriveUrl', value('url')).isEmpty
+          ? null
+          : value('originalDriveUrl', value('url')),
+      extractedFileId: value('extractedFileId').isEmpty
+          ? null
+          : value('extractedFileId'),
+      linkStatus: value('linkStatus').isEmpty ? null : value('linkStatus'),
       addedAt: addedAt,
     );
   }

@@ -37,10 +37,8 @@ class AppConfigProvider extends ChangeNotifier {
   void _loadFromCache() {
     if (_prefs == null) return;
     
-    // We intentionally DO NOT cache maintenanceMode as true. 
-    // If the user starts offline, we assume maintenance is OFF to avoid locking them out.
-    // Maintenance mode requires an active connection to be verified as ON.
-    _maintenanceMode = false; 
+    _maintenanceMode = _prefs!.getBool('maintenance_mode') ?? false;
+    _maintenanceMessage = _prefs!.getString('maintenance_message') ?? _maintenanceMessage;
     
     _featureFlags = {
       'ai_enabled': _prefs!.getBool('ai_enabled') ?? true,
@@ -99,15 +97,14 @@ class AppConfigProvider extends ChangeNotifier {
         final data = snapshot.data()!;
         _maintenanceMode = data['isMaintenance'] == true;
         _maintenanceMessage = data['message'] ?? 'نعمل الآن على إجراء بعض التحسينات الهامة.\nسيعود التطبيق للعمل بشكل طبيعي قريباً.';
+        _saveMaintenanceToCache();
       } else {
-        // If document doesn't exist, default to false
         _maintenanceMode = false;
+        _saveMaintenanceToCache();
       }
       notifyListeners();
     }, onError: (error) {
       debugPrint('[AppConfig] Error listening to maintenance mode: $error');
-      // On connection error, default to false to protect against lockouts
-      _maintenanceMode = false;
       notifyListeners();
     });
   }
@@ -120,15 +117,21 @@ class AppConfigProvider extends ChangeNotifier {
         final data = doc.data()!;
         _maintenanceMode = data['isMaintenance'] == true;
         _maintenanceMessage = data['message'] ?? _maintenanceMessage;
+        _saveMaintenanceToCache();
       } else {
         _maintenanceMode = false;
+        _saveMaintenanceToCache();
       }
       notifyListeners();
     } catch (e) {
       debugPrint('[AppConfig] Error checking maintenance status: $e');
-      _maintenanceMode = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _saveMaintenanceToCache() async {
+    await _prefs?.setBool('maintenance_mode', _maintenanceMode);
+    await _prefs?.setString('maintenance_message', _maintenanceMessage);
   }
 
   bool isFeatureEnabled(String featureKey) {

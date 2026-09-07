@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -79,7 +80,12 @@ class AppNotificationModel {
         id: json['id'] ?? '',
         title: json['title'] ?? '',
         body: json['body'] ?? '',
-        type: NotificationType.values[json['type'] ?? 0],
+        type:
+            NotificationType.values[(json['type'] is int &&
+                    json['type'] >= 0 &&
+                    json['type'] < NotificationType.values.length)
+                ? json['type']
+                : 0],
         isRead: json['isRead'] ?? false,
         timestamp: DateTime.fromMillisecondsSinceEpoch(
           json['timestamp'] ?? DateTime.now().millisecondsSinceEpoch,
@@ -95,6 +101,10 @@ class NotificationsProvider extends ChangeNotifier {
   String? _uid;
   List<AppNotificationModel> _notifications = [];
   bool _isLoading = false;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _broadcastSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _personalSubscription;
 
   NotificationsProvider() {
     _setupFirebaseMessaging();
@@ -102,13 +112,102 @@ class NotificationsProvider extends ChangeNotifier {
 
   void updateUser(String? uid) {
     if (_uid != uid) {
+      _broadcastSubscription?.cancel();
+      _broadcastSubscription = null;
+      _personalSubscription?.cancel();
+      _personalSubscription = null;
       _uid = uid;
       if (_uid != null) {
         _loadFromFirestore();
+        _listenToBroadcastNotifications();
+        _listenToPersonalNotifications();
       } else {
         _loadFromStorage();
       }
     }
+  }
+
+  void _listenToPersonalNotifications() {
+    _personalSubscription = _firestore
+        .collection('users')
+        .doc(_uid)
+        .collection('notifications')
+        .snapshots()
+        .listen(
+          (snapshot) {
+            for (final change in snapshot.docChanges) {
+              if (change.type == DocumentChangeType.removed) continue;
+              final data = change.doc.data();
+              if (data == null) continue;
+              _addNotificationIfMissing(data, change.doc.id);
+            }
+          },
+          onError: (error) {
+            debugPrint('Personal notifications listener error: $error');
+          },
+        );
+  }
+
+  void _listenToBroadcastNotifications() {
+    _broadcastSubscription = _firestore
+        .collection('notifications')
+        .snapshots()
+        .listen(
+          (snapshot) {
+            for (final change in snapshot.docChanges) {
+              if (change.type != DocumentChangeType.removed) {
+                _acceptBroadcastDocument(change.doc);
+              }
+            }
+          },
+          onError: (error) {
+            debugPrint('Broadcast notifications listener error: $error');
+          },
+        );
+  }
+
+  void _acceptBroadcastDocument(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data();
+    if (data == null) return;
+    final targetUid = data['targetUid']?.toString();
+    final targetAll = data['targetAll'] == true || targetUid == null;
+    if (!targetAll && targetUid != _uid) return;
+
+    _addNotificationIfMissing(data, doc.id);
+  }
+
+  void _addNotificationIfMissing(Map<String, dynamic> data, String id) {
+    final notificationData = <String, dynamic>{
+      ...data,
+      'id': id,
+      'timestamp': data['timestamp'] is int
+          ? data['timestamp']
+          : DateTime.now().millisecondsSinceEpoch,
+    };
+    final notification = AppNotificationModel.fromJson(notificationData);
+    if (_notifications.any((item) => item.id == notification.id)) return;
+
+    _notifications = _mergeNotifications([notification, ..._notifications]);
+    notifyListeners();
+  }
+
+  List<AppNotificationModel> _mergeNotifications(
+    Iterable<AppNotificationModel> values,
+  ) {
+    final unique = <String, AppNotificationModel>{};
+    for (final notification in values) {
+      unique[notification.id] = notification;
+    }
+    final result = unique.values.toList()
+      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    return result.take(_maxNotifications).toList();
+  }
+
+  @override
+  void dispose() {
+    _broadcastSubscription?.cancel();
+    _personalSubscription?.cancel();
+    super.dispose();
   }
 
   List<AppNotificationModel> get notifications =>
@@ -268,13 +367,18 @@ class NotificationsProvider extends ChangeNotifier {
           .collection('users')
           .doc(_uid)
           .collection('notifications')
-          .orderBy('timestamp', descending: true)
-          .limit(_maxNotifications)
           .get();
 
-      _notifications = snapshot.docs
-          .map((doc) => AppNotificationModel.fromJson(doc.data()))
+      final loaded = snapshot.docs
+          .map(
+            (doc) => AppNotificationModel.fromJson({
+              ...doc.data(),
+              'id': doc.data()['id'] ?? doc.id,
+            }),
+          )
           .toList();
+      // Keep public notifications received while this request was running.
+      _notifications = _mergeNotifications([...loaded, ..._notifications]);
     } catch (e) {
       debugPrint('Error loading notifications from Firestore: $e');
       await _loadFromStorage();

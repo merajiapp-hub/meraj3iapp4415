@@ -46,8 +46,12 @@ class CompetitionModel {
         json.containsKey('isActive') ||
         json.containsKey('active');
     final publishedValue = json.containsKey('is_published')
-        ? json['is_published']
-        : (json.containsKey('isActive') ? json['isActive'] : json['active']);
+      ? json['is_published']
+      : (json.containsKey('isPublished')
+          ? json['isPublished']
+          : (json.containsKey('isActive')
+            ? json['isActive']
+            : json['active']));
     return CompetitionModel(
       rawKey: key,
       type: type,

@@ -114,38 +114,26 @@ class RemoteConfigService {
 
     QuerySnapshot<Map<String, dynamic>>? firestoreSnapshot;
     try {
+      // Read the collection first. The project contains documents written by
+      // older admin versions, so filtering by one status field at query level
+      // can hide valid competitions when the schemas are mixed.
       firestoreSnapshot = await _firestore
           .collection('competition_results')
-          .where('is_published', isEqualTo: true)
-          .orderBy('order')
           .get(const GetOptions(source: Source.serverAndCache))
           .timeout(const Duration(seconds: 8));
     } catch (_) {
-      // إذا لم يُنشر الفهرس بعد، نعيد نفس الاستعلام دون orderBy.
-      try {
-        firestoreSnapshot = await _firestore
-            .collection('competition_results')
-            .where('is_published', isEqualTo: true)
-            .get(const GetOptions(source: Source.serverAndCache))
-            .timeout(const Duration(seconds: 8));
-      } catch (_) {}
-    }
-
-    if (firestoreSnapshot != null && firestoreSnapshot.docs.isEmpty) {
-      try {
-        // دعم المستندات الحالية التي لا تحتوي is_published بعد.
-        firestoreSnapshot = await _firestore
-            .collection('competition_results')
-            .get(const GetOptions(source: Source.serverAndCache))
-            .timeout(const Duration(seconds: 8));
-      } catch (_) {}
+      firestoreSnapshot = null;
     }
 
     if (firestoreSnapshot != null) {
       final result =
           firestoreSnapshot.docs
               .map((doc) => CompetitionModel.fromJson(doc.id, doc.data()))
-              .where((competition) => _isValidLink(competition.link))
+              .where(
+                (competition) =>
+                    competition.isPublished &&
+                    _isValidLink(competition.link),
+              )
               .toList()
             ..sort((a, b) {
               final order = a.order.compareTo(b.order);

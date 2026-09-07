@@ -53,9 +53,11 @@ class _MaintenanceScreenState extends State<MaintenanceScreen>
     final configProvider = Provider.of<AppConfigProvider>(context);
     final String message = configProvider.maintenanceMessage;
 
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: Center(
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
@@ -159,6 +161,7 @@ class _MaintenanceScreenState extends State<MaintenanceScreen>
               ),
             ],
           ),
+        ),
         ),
       ),
     );

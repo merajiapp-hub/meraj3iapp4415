@@ -59,7 +59,6 @@ class _AddedBooksScreenState extends State<AddedBooksScreen> {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('uploaded_books')
-            .orderBy('uploadDate', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -67,9 +66,21 @@ class _AddedBooksScreenState extends State<AddedBooksScreen> {
           }
           if (snapshot.hasError) {
             return Center(
-              child: Text(
-                'تعذر تحميل الكتب',
-                style: GoogleFonts.tajawal(color: Colors.red),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'تعذر تحميل الكتب حاليًا، تحقق من الاتصال وحاول مرة أخرى.',
+                    style: GoogleFonts.tajawal(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: () => setState(() {}),
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('إعادة المحاولة'),
+                  ),
+                ],
               ),
             );
           }
@@ -78,25 +89,36 @@ class _AddedBooksScreenState extends State<AddedBooksScreen> {
           }
 
           final docs = snapshot.data!.docs;
-          var books = docs.map((d) => Book.fromMap(d.data() as Map<String, dynamic>, d.id)).toList();
+          var entries = docs
+              .map((d) => _BookEntry(
+                    doc: d,
+                    book: Book.fromMap(
+                      d.data() as Map<String, dynamic>,
+                      d.id,
+                    ),
+                  ))
+              .toList()
+            ..sort((a, b) => (b.book.addedAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+                .compareTo(a.book.addedAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
 
           // تطبيق الفلاتر
           if (_searchQuery.isNotEmpty) {
             final q = _searchQuery.toLowerCase();
-            books = books.where((b) =>
-              b.title.toLowerCase().contains(q) ||
-              b.subject.toLowerCase().contains(q) ||
-              b.section.toLowerCase().contains(q)
-            ).toList();
+            entries = entries.where((entry) {
+              final b = entry.book;
+              return b.title.toLowerCase().contains(q) ||
+                  b.subject.toLowerCase().contains(q) ||
+                  b.section.toLowerCase().contains(q);
+            }).toList();
           }
           if (_filterSection.isNotEmpty) {
-            books = books.where((b) => b.section == _filterSection).toList();
+            entries = entries.where((e) => e.book.section == _filterSection).toList();
           }
           if (_filterSubject.isNotEmpty) {
-            books = books.where((b) => b.subject == _filterSubject).toList();
+            entries = entries.where((e) => e.book.subject == _filterSubject).toList();
           }
           if (_filterGrade.isNotEmpty) {
-            books = books.where((b) => b.grade == _filterGrade).toList();
+            entries = entries.where((e) => e.book.grade == _filterGrade).toList();
           }
 
           // جمع الفلاتر المتاحة
@@ -118,7 +140,7 @@ class _AddedBooksScreenState extends State<AddedBooksScreen> {
                 child: Row(
                   children: [
                     Text(
-                      '${books.length} كتاب',
+                      '${entries.length} كتاب',
                       style: GoogleFonts.tajawal(
                         color: AppTheme.primaryColor,
                         fontWeight: FontWeight.bold,
@@ -143,15 +165,21 @@ class _AddedBooksScreenState extends State<AddedBooksScreen> {
                 ),
               ),
               Expanded(
-                child: books.isEmpty
+                child: entries.isEmpty
                     ? Center(
                         child: Text('لا توجد كتب مطابقة', style: GoogleFonts.tajawal(color: Colors.grey, fontSize: 16)),
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        itemCount: books.length,
+                        itemCount: entries.length,
                         itemBuilder: (context, index) {
-                          return _buildBookCard(context, books[index], docs[index], isDark);
+                          final entry = entries[index];
+                          return _buildBookCard(
+                            context,
+                            entry.book,
+                            entry.doc,
+                            isDark,
+                          );
                         },
                       ),
               ),
@@ -321,10 +349,7 @@ class _AddedBooksScreenState extends State<AddedBooksScreen> {
   }
 
   Widget _buildBookCard(BuildContext context, Book book, QueryDocumentSnapshot doc, bool isDark) {
-    final data = doc.data() as Map<String, dynamic>;
-    final uploadDate = data['uploadDate'] != null
-        ? (data['uploadDate'] as Timestamp).toDate()
-        : null;
+    final uploadDate = book.addedAt;
     final dateStr = uploadDate != null ? DateFormat('yyyy/MM/dd').format(uploadDate) : '';
 
     return Container(
@@ -348,7 +373,7 @@ class _AddedBooksScreenState extends State<AddedBooksScreen> {
           context,
           MaterialPageRoute(
             builder: (_) => PdfViewerScreen(
-              pdfUrl: book.url,
+              pdfUrl: book.normalizedUrl,
               title: book.title,
               stageName: book.section,
               sectionName: book.category,
@@ -513,7 +538,7 @@ class _AddedBooksScreenState extends State<AddedBooksScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => PdfViewerScreen(
-                    pdfUrl: book.url,
+                    pdfUrl: book.normalizedUrl,
                     title: book.title,
                     stageName: book.section,
                     sectionName: book.category,
@@ -643,4 +668,11 @@ class _AddedBooksScreenState extends State<AddedBooksScreen> {
       if (context.mounted) AppNotification.show(context, 'فشل التنزيل، تحقق من الاتصال', isError: true);
     }
   }
+}
+
+class _BookEntry {
+  final QueryDocumentSnapshot doc;
+  final Book book;
+
+  const _BookEntry({required this.doc, required this.book});
 }

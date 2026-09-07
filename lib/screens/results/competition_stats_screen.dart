@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -108,6 +109,10 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
       if (r.isComplementary) sc.complementary++;
       if (r.score != null && r.score! > sc.topScore) {
         sc.topScore = r.score!;
+      }
+      if (r.score != null) {
+        sc.scoreTotal += r.score!;
+        sc.scoredCount++;
       }
     }
 
@@ -894,12 +899,54 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
 
     // أفضل 10 مدارس للرسم البياني
     final top10 = schools.take(10).toList();
+    final totalParticipants = schools.fold<int>(
+      0,
+      (sum, school) => sum + school.total,
+    );
+    final totalPassed = schools.fold<int>(
+      0,
+      (sum, school) => sum + school.passed,
+    );
+    final totalFailed = schools.fold<int>(
+      0,
+      (sum, school) => sum + school.failed,
+    );
+    final overallPassRate = totalParticipants > 0
+        ? totalPassed / totalParticipants * 100
+        : 0.0;
+    final averagePassRate = schools.isNotEmpty
+      ? schools.fold<double>(0, (sum, school) => sum + school.passRate) /
+          schools.length
+      : 0.0;
+    final highestPassRate = schools.isEmpty ? 0.0 : schools.first.passRate;
+    final lowestPassRate = schools.isEmpty
+      ? 0.0
+      : schools.map((school) => school.passRate).reduce(math.min);
 
     // استخدام NestedScrollView لجعل الرسم البياني وحقل البحث يتمرران مع القائمة
     return ScrollConfiguration(
       behavior: ScrollBehavior().copyWith(scrollbars: false),
       child: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          if (schools.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: _buildSchoolSummary(
+                  isDark: isDark,
+                  primaryColor: primaryColor,
+                  bestSchool: schools.first,
+                  schoolCount: schools.length,
+                  participants: totalParticipants,
+                  passed: totalPassed,
+                  failed: totalFailed,
+                  passRate: overallPassRate,
+                  averagePassRate: averagePassRate,
+                  highestPassRate: highestPassRate,
+                  lowestPassRate: lowestPassRate,
+                ),
+              ),
+            ),
           // ── رسم بياني شريطي: أفضل 10 مدارس ──────────────────────────────
           if (top10.length >= 2)
             SliverToBoxAdapter(
@@ -1182,6 +1229,97 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
     );
   }
 
+  Widget _buildSchoolSummary({
+    required bool isDark,
+    required Color primaryColor,
+    required _SchoolData bestSchool,
+    required int schoolCount,
+    required int participants,
+    required int passed,
+    required int failed,
+    required double passRate,
+    required double averagePassRate,
+    required double highestPassRate,
+    required double lowestPassRate,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: widget.gradient,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: primaryColor.withValues(alpha: 0.22),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'أفضل مدرسة',
+            style: GoogleFonts.tajawal(color: Colors.white70, fontSize: 12),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            bestSchool.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.tajawal(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            '${bestSchool.passRate.toStringAsFixed(1)}% نجاح • متوسط ${bestSchool.averageScoreLabel}',
+            style: GoogleFonts.tajawal(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontSize: 11,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 18,
+            runSpacing: 8,
+            children: [
+              _buildSummaryValue('المدارس', '$schoolCount'),
+              _buildSummaryValue('المشاركون', '$participants'),
+              _buildSummaryValue('الناجحون', '$passed'),
+              _buildSummaryValue('الراسبون', '$failed'),
+              _buildSummaryValue('نسبة النجاح', '${passRate.toStringAsFixed(1)}%'),
+              _buildSummaryValue('متوسط المدارس', '${averagePassRate.toStringAsFixed(1)}%'),
+              _buildSummaryValue('الأعلى', '${highestPassRate.toStringAsFixed(1)}%'),
+              _buildSummaryValue('الأقل', '${lowestPassRate.toStringAsFixed(1)}%'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryValue(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: GoogleFonts.outfit(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 15,
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.tajawal(color: Colors.white70, fontSize: 10),
+        ),
+      ],
+    );
+  }
+
   int _compareSchools(_SchoolData a, _SchoolData b) {
     switch (_schoolSort) {
       case _SchoolSort.passRateAsc:
@@ -1355,6 +1493,12 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                         'تكميلي',
                         '${school.complementary}',
                         Colors.orange,
+                      ),
+                    if (school.averageScore != null)
+                      _buildMiniBadge(
+                        'المتوسط',
+                        school.averageScoreLabel,
+                        Colors.teal,
                       ),
                     _buildMiniBadge(
                       'أعلى $scoreLabel',
@@ -1789,9 +1933,13 @@ class _SchoolData {
   int expelled = 0;
   int complementary = 0;
   double topScore = 0.0;
+  double scoreTotal = 0.0;
+  int scoredCount = 0;
 
   double get passRate => total > 0 ? (passed / total * 100) : 0.0;
   double get failRate => total > 0 ? (failed / total * 100) : 0.0;
+  double? get averageScore => scoredCount > 0 ? scoreTotal / scoredCount : null;
+  String get averageScoreLabel => averageScore?.toStringAsFixed(2) ?? 'غير متوفر';
 
   _SchoolData({required this.name, required this.wilaya});
 }

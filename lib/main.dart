@@ -312,21 +312,11 @@ class Meraj3iApp extends StatelessWidget {
             final isAdmin = auth.isAdmin;
             return Directionality(
               textDirection: TextDirection.rtl,
-              child: Stack(
-                children: [
-                  ?child,
-                  if (isMaintenance && !isAdmin)
-                    Positioned.fill(
-                      child: MaterialApp(
-                        debugShowCheckedModeBanner: false,
-                        locale: const Locale('ar', ''),
-                        themeMode: themeProvider.themeMode,
-                        theme: AppTheme.lightTheme,
-                        darkTheme: AppTheme.darkTheme,
-                        home: const MaintenanceScreen(),
-                      ),
-                    ),
-                ],
+              child: ScrollConfiguration(
+                behavior: const _NoScrollbarBehavior(),
+                child: isMaintenance && !isAdmin
+                    ? const MaintenanceScreen()
+                    : (child ?? const SizedBox.shrink()),
               ),
             );
           },
@@ -335,4 +325,15 @@ class Meraj3iApp extends StatelessWidget {
       home: const SplashScreen(),
     );
   }
+}
+
+class _NoScrollbarBehavior extends ScrollBehavior {
+  const _NoScrollbarBehavior();
+
+  @override
+  Widget buildScrollbar(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) => child;
 }

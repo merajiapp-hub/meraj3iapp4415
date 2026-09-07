@@ -428,10 +428,11 @@ class AuthProvider extends ChangeNotifier {
         await _firestore
             .collection('users')
             .doc(_user!.uid)
-            .update({
+            .set({
               'fcmToken': token,
+              'fcmTokens': FieldValue.arrayUnion([token]),
               'lastTokenUpdate': FieldValue.serverTimestamp(),
-            })
+            }, SetOptions(merge: true))
             .timeout(const Duration(seconds: 8));
       } catch (e) {
         debugPrint('[Auth] Error updating FCM token: $e');

@@ -107,6 +107,44 @@ class _ConversionsScreenState extends State<ConversionsScreen> {
     return baseValue / toRate;
   }
 
+  Widget _buildUnitDropdown({
+    required BuildContext context,
+    required String value,
+    required ValueChanged<String?> onChanged,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final units = _conversionRates[_selectedCategory]!.keys.toList();
+    return Theme(
+      data: Theme.of(context).copyWith(
+        buttonTheme: Theme.of(context).buttonTheme.copyWith(
+          alignedDropdown: true,
+        ),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value,
+          isExpanded: true,
+          menuMaxHeight: 240,
+          menuWidth: null,
+          dropdownColor: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
+          items: units.map((unit) {
+            return DropdownMenuItem<String>(
+              value: unit,
+              child: Text(
+                unit,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.tajawal(fontSize: 13),
+              ),
+            );
+          }).toList(),
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -160,19 +198,13 @@ class _ConversionsScreenState extends State<ConversionsScreen> {
               const SizedBox(width: 16),
               Expanded(
                 flex: 1,
-                child: DropdownButton<String>(
-                  value: _fromUnit,
-                  menuMaxHeight: 280,
-                  items: _conversionRates[_selectedCategory]!.keys.map((u) {
-                    return DropdownMenuItem(
-                      value: u,
-                      child: Text(u, style: GoogleFonts.tajawal()),
-                    );
-                  }).toList(),
-                  onChanged: (val) => setState(() => _fromUnit = val!),
-                  isExpanded: true,
-                  underline: const SizedBox.shrink(),
-                ),
+                  child: _buildUnitDropdown(
+                    context: context,
+                    value: _fromUnit,
+                    onChanged: (val) {
+                      if (val != null) setState(() => _fromUnit = val);
+                    },
+                  ),
               ),
             ],
           ),
@@ -208,19 +240,13 @@ class _ConversionsScreenState extends State<ConversionsScreen> {
               const SizedBox(width: 16),
               Expanded(
                 flex: 1,
-                child: DropdownButton<String>(
-                  value: _toUnit,
-                  menuMaxHeight: 280,
-                  items: _conversionRates[_selectedCategory]!.keys.map((u) {
-                    return DropdownMenuItem(
-                      value: u,
-                      child: Text(u, style: GoogleFonts.tajawal()),
-                    );
-                  }).toList(),
-                  onChanged: (val) => setState(() => _toUnit = val!),
-                  isExpanded: true,
-                  underline: const SizedBox.shrink(),
-                ),
+                  child: _buildUnitDropdown(
+                    context: context,
+                    value: _toUnit,
+                    onChanged: (val) {
+                      if (val != null) setState(() => _toUnit = val);
+                    },
+                  ),
               ),
             ],
           ),
