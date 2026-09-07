@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -32,8 +35,6 @@ import 'package:receive_intent/receive_intent.dart';
 import 'data/ad_manager.dart';
 import 'screens/pdf_viewer_screen.dart';
 import 'services/remote_config_service.dart';
-import 'admin/core/security/admin_guard.dart';
-import 'admin/shared/layout/admin_layout.dart';
 
 // معالج الإشعارات في الخلفية الكاملة (يجب أن يكون دالة عامة خارج الكلاس)
 @pragma('vm:entry-point')
@@ -85,6 +86,7 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 /// يعالج ملفات PDF التي تُفتح عبر MERAJ3I من مدير الملفات أو المتصفح
 void _handleIncomingPdfIntent() async {
+  if (kIsWeb) return;
   try {
     final intent = await ReceiveIntent.getInitialIntent();
     if (intent != null && intent.data != null) {
@@ -108,23 +110,27 @@ void _handleIncomingPdfIntent() async {
     debugPrint('PDF intent handling error: $e');
   }
 
-  ReceiveIntent.receivedIntentStream.listen((intent) {
-    if (intent?.data != null) {
-      final String? path = intent!.data;
-      if (path != null && path.toLowerCase().endsWith('.pdf')) {
-        navigatorKey.currentState?.push(
-          MaterialPageRoute(
-            builder: (_) => PdfViewerScreen(
-              pdfUrl: '',
-              localPath: path.replaceFirst('file://', ''),
-              title: path.split('/').last,
-              book: null,
+  try {
+    ReceiveIntent.receivedIntentStream.listen((intent) {
+      if (intent?.data != null) {
+        final String? path = intent!.data;
+        if (path != null && path.toLowerCase().endsWith('.pdf')) {
+          navigatorKey.currentState?.push(
+            MaterialPageRoute(
+              builder: (_) => PdfViewerScreen(
+                pdfUrl: '',
+                localPath: path.replaceFirst('file://', ''),
+                title: path.split('/').last,
+                book: null,
+              ),
             ),
-          ),
-        );
+          );
+        }
       }
-    }
-  });
+    });
+  } catch (e) {
+    debugPrint('PDF intent stream unavailable: $e');
+  }
 }
 
 void main() async {
@@ -159,7 +165,7 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    
+
     // Enable Offline Persistence for performance
     FirebaseFirestore.instance.settings = const Settings(
       persistenceEnabled: true,
@@ -226,19 +232,28 @@ void main() async {
 Future<void> _initHeavyServicesAsync() async {
   // انتظار frame واحد لضمان ظهور الـ UI أولاً
   await Future.delayed(const Duration(milliseconds: 150));
+  final scheduleProvider = navigatorKey.currentContext == null
+      ? null
+      : Provider.of<ScheduleProvider>(
+          navigatorKey.currentContext!,
+          listen: false,
+        );
 
   // تهيئة الإشعارات المحلية
   try {
-    await NotificationService().init();
+    if (!kIsWeb) await NotificationService().init();
+    await scheduleProvider?.rescheduleAllNotifications();
   } catch (e) {
     debugPrint('Notification init error: $e');
   }
 
   // تهيئة AdMob
   try {
-    await MobileAds.instance.initialize();
-    AdManager.loadInterstitialAd();
-    AdManager.loadRewardedAd();
+    if (!kIsWeb) {
+      await MobileAds.instance.initialize();
+      AdManager.loadInterstitialAd();
+      AdManager.loadRewardedAd();
+    }
   } catch (e) {
     debugPrint('AdMob init error: $e');
   }
@@ -264,7 +279,7 @@ Future<void> _initHeavyServicesAsync() async {
   }
 
   // معالجة PDF intent
-  _handleIncomingPdfIntent();
+  if (!kIsWeb) _handleIncomingPdfIntent();
 }
 
 class Meraj3iApp extends StatelessWidget {
@@ -282,6 +297,13 @@ class Meraj3iApp extends StatelessWidget {
       darkTheme: AppTheme.darkTheme,
       navigatorKey: navigatorKey,
       locale: const Locale('ar', ''),
+      localizationsDelegates: const [
+        quill.FlutterQuillLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('ar', '')],
       // دعم كامل للغة العربية RTL
       builder: (context, child) {
         return Consumer2<AppConfigProvider, AuthProvider>(
@@ -309,14 +331,6 @@ class Meraj3iApp extends StatelessWidget {
             );
           },
         );
-      },
-      onGenerateRoute: (settings) {
-        if (settings.name == '/admin') {
-          return MaterialPageRoute(
-            builder: (_) => const AdminGuard(child: AdminLayout()),
-          );
-        }
-        return null;
       },
       home: const SplashScreen(),
     );

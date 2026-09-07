@@ -1,22 +1,20 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'dart:io';
 import 'dart:math';
 
 class AdManager {
   static InterstitialAd? _interstitialAd;
   static RewardedAd? _rewardedAd;
-  
-  static final String interstitialAdUnitId = Platform.isAndroid
-      ? 'ca-app-pub-7381352612061383/2609517278'
-      : 'ca-app-pub-7381352612061383/2609517278';
 
-  static final String rewardedAdUnitId = Platform.isAndroid
-      ? 'ca-app-pub-7381352612061383/4616019507'
-      : 'ca-app-pub-7381352612061383/4616019507';
+  static const String interstitialAdUnitId =
+      'ca-app-pub-7381352612061383/2609517278';
+
+  static const String rewardedAdUnitId =
+      'ca-app-pub-7381352612061383/4616019507';
 
   // تحميل الإعلان البيني
   static void loadInterstitialAd() {
+    if (kIsWeb) return;
     InterstitialAd.load(
       adUnitId: interstitialAdUnitId,
       request: const AdRequest(),
@@ -36,7 +34,7 @@ class AdManager {
   // عرض الإعلان البيني باحتمالية معينة لكي لا يكون مملاً (مثلاً 30%)
   static void showInterstitialAd({double chance = 0.3}) {
     if (_interstitialAd == null) return;
-    
+
     final random = Random().nextDouble();
     if (random <= chance) {
       _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
@@ -58,6 +56,7 @@ class AdManager {
 
   // تحميل إعلان بمكافأة
   static void loadRewardedAd() {
+    if (kIsWeb) return;
     RewardedAd.load(
       adUnitId: rewardedAdUnitId,
       request: const AdRequest(),

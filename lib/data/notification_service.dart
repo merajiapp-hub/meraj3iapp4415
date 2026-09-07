@@ -30,6 +30,11 @@ class NotificationService {
 
   Future<void> init() async {
     tz.initializeTimeZones();
+    try {
+      tz.setLocalLocation(tz.getLocation('Africa/Casablanca'));
+    } catch (_) {
+      // Keep the package default if the device timezone database is unavailable.
+    }
 
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
@@ -64,6 +69,7 @@ class NotificationService {
           AndroidFlutterLocalNotificationsPlugin
         >();
     await androidPlugin?.requestNotificationsPermission();
+    await androidPlugin?.requestExactAlarmsPermission();
   }
 
   Future<void> _createNotificationChannel() async {
@@ -252,12 +258,17 @@ class NotificationService {
     if (!item.notify) return;
 
     final int baseId = (item.id.hashCode.abs() % 100000) * 10;
-    
-    final nextStart = _nextInstanceOfWeekdayAndTime(item.weekday, item.startTime);
+
+    final nextStart = _nextInstanceOfWeekdayAndTime(
+      item.weekday,
+      item.startTime,
+    );
     final nextEnd = _nextInstanceOfWeekdayAndTime(item.weekday, item.endTime);
 
     // 1. إشعار التذكير قبل الموعد بـ 10 دقائق (أو حسب الإعداد)
-    DateTime prepTime = nextStart.subtract(Duration(minutes: item.notifyMinutesBefore));
+    DateTime prepTime = nextStart.subtract(
+      Duration(minutes: item.notifyMinutesBefore),
+    );
     if (prepTime.isBefore(DateTime.now())) {
       prepTime = prepTime.add(const Duration(days: 7));
     }
@@ -299,7 +310,8 @@ class NotificationService {
         await _plugin.zonedSchedule(
           id: baseId,
           title: '🔔 تذكير بالحصة',
-          body: 'ستبدأ حصة "${item.title}" بعد ${item.notifyMinutesBefore} دقيقة',
+          body:
+              'ستبدأ حصة "${item.title}" بعد ${item.notifyMinutesBefore} دقيقة',
           scheduledDate: tz.TZDateTime.from(prepTime, tz.local),
           notificationDetails: details,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -335,7 +347,7 @@ class NotificationService {
 
   Future<void> cancelSessionNotifications(String sessionId) async {
     final int baseId = (sessionId.hashCode.abs() % 100000) * 10;
-    await _plugin.cancel(id: baseId);     // Prep
+    await _plugin.cancel(id: baseId); // Prep
     await _plugin.cancel(id: baseId + 1); // Start
     await _plugin.cancel(id: baseId + 2); // End
   }

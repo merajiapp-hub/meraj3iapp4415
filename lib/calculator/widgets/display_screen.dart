@@ -28,19 +28,35 @@ class CalculatorDisplay extends StatelessWidget {
               Row(
                 children: [
                   if (provider.isShiftDown)
-                    const Text('S', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                    const Text(
+                      'S',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange,
+                      ),
+                    ),
                   if (provider.isAlphaDown)
-                    const Text(' A', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.purple)),
+                    const Text(
+                      ' A',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.purple,
+                      ),
+                    ),
                 ],
               ),
               Text(
                 provider.angleMode.name.toUpperCase(),
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          
+
           // Expression display
           Expanded(
             child: Align(
@@ -49,21 +65,25 @@ class CalculatorDisplay extends StatelessWidget {
                 reverse: true,
                 child: Text(
                   provider.expression.isEmpty ? '0' : provider.expression,
-                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.w400, color: theme.operatorTextColor),
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w400,
+                    color: theme.operatorTextColor,
+                  ),
                   textAlign: TextAlign.right,
                 ),
               ),
             ),
           ),
-          
+
           // Result display
           const SizedBox(height: 8),
           Text(
             provider.result,
             style: TextStyle(
-              fontSize: 24, 
-              fontWeight: FontWeight.w600, 
-              color: theme.operatorTextColor.withValues(alpha: 0.8)
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              color: theme.operatorTextColor.withValues(alpha: 0.8),
             ),
             textAlign: TextAlign.right,
           ),

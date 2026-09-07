@@ -35,8 +35,6 @@ import 'donations_screen.dart';
 import 'dedication_screen.dart';
 import 'student/reading_history_screen.dart';
 import '../widgets/banner_ad_widget.dart';
-import 'admin/admin_guard.dart';
-import 'admin/admin_dashboard_screen.dart';
 import '../features/smart_calculator/ui/screens/smart_calculator_screen.dart';
 import 'services_screen.dart';
 import 'add_book_screen.dart';
@@ -51,8 +49,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage>
     with SingleTickerProviderStateMixin {
-
-
   // نظام Toast الخروج
   bool _exitToastShown = false;
 
@@ -81,7 +77,7 @@ class _HomePageState extends State<HomePage>
           CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
         );
     _animController.forward();
-    
+
     _carouselTimer = Timer.periodic(const Duration(seconds: 3), (Timer timer) {
       if (_pageController.hasClients) {
         _pageController.nextPage(
@@ -457,13 +453,18 @@ class _HomePageState extends State<HomePage>
       ),
       child: FloatingActionButton(
         onPressed: () {
-          final isEnabled = context.read<AppConfigProvider>().isFeatureEnabled('books_upload_enabled');
+          final isEnabled = context.read<AppConfigProvider>().isFeatureEnabled(
+            'books_upload_enabled',
+          );
           if (!isEnabled) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
                   'خدمة رفع الكتب قيد الصيانة حالياً',
-                  style: GoogleFonts.tajawal(color: Colors.white, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.tajawal(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 backgroundColor: Colors.orange,
                 behavior: SnackBarBehavior.floating,
@@ -519,13 +520,18 @@ class _HomePageState extends State<HomePage>
         ),
         badge: 'جديد',
         onTap: () {
-          final isEnabled = context.read<AppConfigProvider>().isFeatureEnabled('ai_enabled');
+          final isEnabled = context.read<AppConfigProvider>().isFeatureEnabled(
+            'ai_enabled',
+          );
           if (!isEnabled) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
                   'هذه الخدمة قيد الصيانة حالياً',
-                  style: GoogleFonts.tajawal(color: Colors.white, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.tajawal(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 backgroundColor: Colors.orange,
                 behavior: SnackBarBehavior.floating,
@@ -1198,26 +1204,6 @@ class _HomePageState extends State<HomePage>
                     MaterialPageRoute(builder: (_) => const TermsOfUseScreen()),
                   );
                 }),
-                if (auth.isAdmin) ...[
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                    child: Divider(height: 1),
-                  ),
-                  _buildDrawerItem(
-                    Icons.admin_panel_settings_rounded,
-                    'لوحة الإدارة',
-                    () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminGuard(child: AdminDashboardScreen()),
-                        ),
-                      );
-                    },
-                  ),
-                ],
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                   child: Divider(height: 1),

@@ -18,6 +18,7 @@ class AuthProvider extends ChangeNotifier {
   bool _initialized = false;
   bool _isAdmin = false;
   bool _mustChangePassword = false;
+  bool _isProvisioningProfile = false;
 
   AuthProvider() {
     // قراءة الحالة المحلية الأولية بشكل متزامن دون انتظار
@@ -32,7 +33,9 @@ class AuthProvider extends ChangeNotifier {
         // التحقق من صلاحيات الإدارة: أولاً من Firestore ثم Custom Claims كاحتياطي
         await _checkAdminStatus(user);
         // تحميل بيانات المستخدم في الخلفية بدون تعليق الـ listener
-        _loadUserDataBackground();
+        if (!_isProvisioningProfile) {
+          _loadUserDataBackground();
+        }
       } else {
         _isAdmin = false;
         _mustChangePassword = false;
@@ -56,7 +59,8 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> _checkAdminStatus(User user) async {
     try {
-      if (user.email == 'mma831770@gmail.com' || user.email == 'abdellahismd@gmail.com') {
+      if (user.email == 'mma831770@gmail.com' ||
+          user.email == 'abdellahismd@gmail.com') {
         _isAdmin = true;
         debugPrint('[Auth] Admin confirmed via Email for ${user.email}');
       } else {
@@ -82,11 +86,13 @@ class AuthProvider extends ChangeNotifier {
   // مع ضمان عدم التعليق أبداً (Timeout = 8 ثوانٍ)
   Future<User?> getInitialAuthState() async {
     try {
-      final user = await _auth.authStateChanges().first
-          .timeout(const Duration(seconds: 8), onTimeout: () {
-        debugPrint('[Auth] getInitialAuthState timeout — using currentUser');
-        return _auth.currentUser;
-      });
+      final user = await _auth.authStateChanges().first.timeout(
+        const Duration(seconds: 8),
+        onTimeout: () {
+          debugPrint('[Auth] getInitialAuthState timeout — using currentUser');
+          return _auth.currentUser;
+        },
+      );
       _user = user;
       _initialized = true;
       return user;
@@ -112,13 +118,15 @@ class AuthProvider extends ChangeNotifier {
 
   // ─── تحميل حالة الـ Guest في الخلفية — لا تعليق ──────────────────────────
   void _loadGuestStateBackground() {
-    SharedPreferences.getInstance().then((prefs) {
-      final guest = prefs.getBool('isGuest') ?? false;
-      if (_isGuest != guest) {
-        _isGuest = guest;
-        notifyListeners();
-      }
-    }).catchError((_) {});
+    SharedPreferences.getInstance()
+        .then((prefs) {
+          final guest = prefs.getBool('isGuest') ?? false;
+          if (_isGuest != guest) {
+            _isGuest = guest;
+            notifyListeners();
+          }
+        })
+        .catchError((_) {});
   }
 
   // ─── تحميل بيانات المستخدم في الخلفية — لا تعليق ─────────────────────────
@@ -156,10 +164,11 @@ class AuthProvider extends ChangeNotifier {
     Future.microtask(() async {
       if (_user == null) return;
       try {
-        final token = knownToken ??
-            await FirebaseMessaging.instance
-                .getToken()
-                .timeout(const Duration(seconds: 8));
+        final token =
+            knownToken ??
+            await FirebaseMessaging.instance.getToken().timeout(
+              const Duration(seconds: 8),
+            );
         await updateFCMToken(token);
       } catch (_) {}
     });
@@ -171,10 +180,13 @@ class AuthProvider extends ChangeNotifier {
       final cred = await _auth
           .signInWithEmailAndPassword(email: email, password: password)
           .timeout(const Duration(seconds: 15));
-          
+
       if (cred.user != null) {
         try {
-          final doc = await _firestore.collection('users').doc(cred.user!.uid).get();
+          final doc = await _firestore
+              .collection('users')
+              .doc(cred.user!.uid)
+              .get();
           if (!doc.exists) {
             await _firestore.collection('users').doc(cred.user!.uid).set({
               'name': cred.user!.displayName ?? 'مستخدم جديد',
@@ -269,6 +281,7 @@ class AuthProvider extends ChangeNotifier {
     String gender,
   ) async {
     UserCredential? cred;
+    _isProvisioningProfile = true;
     try {
       // الخطوة 1: إنشاء حساب Firebase Auth أولاً (المستخدم الآن لديه uid)
       cred = await _auth
@@ -321,7 +334,12 @@ class AuthProvider extends ChangeNotifier {
             .doc(cred.user!.uid)
             .set(userData)
             .timeout(const Duration(seconds: 10));
-        firestoreSuccess = true;
+        final savedProfile = await _firestore
+            .collection('users')
+            .doc(cred.user!.uid)
+            .get()
+            .timeout(const Duration(seconds: 10));
+        firestoreSuccess = savedProfile.exists;
       } on FirebaseException catch (e) {
         if (e.code == 'permission-denied') {
           // انتظر ثانية لـ Auth token يُنشر على Firestore rules
@@ -336,7 +354,12 @@ class AuthProvider extends ChangeNotifier {
                 .doc(cred.user!.uid)
                 .set(userData)
                 .timeout(const Duration(seconds: 10));
-            firestoreSuccess = true;
+            final savedProfile = await _firestore
+                .collection('users')
+                .doc(cred.user!.uid)
+                .get()
+                .timeout(const Duration(seconds: 10));
+            firestoreSuccess = savedProfile.exists;
           } catch (retryError) {
             firestoreError = retryError.toString();
           }
@@ -349,7 +372,9 @@ class AuthProvider extends ChangeNotifier {
 
       if (!firestoreSuccess) {
         // Rollback: حذف حساب Auth لتجنب حالة غير متسقة
-        debugPrint('[SignUp] Firestore failed — rolling back Auth: $firestoreError');
+        debugPrint(
+          '[SignUp] Firestore failed — rolling back Auth: $firestoreError',
+        );
         try {
           await cred.user?.delete();
         } catch (_) {}
@@ -366,6 +391,10 @@ class AuthProvider extends ChangeNotifier {
         metadata: {'email': email, 'phone': phone},
       ).catchError((_) {});
 
+      // التسجيل يجهز الحساب فقط؛ تسجيل الدخول يتم من شاشة الدخول التالية.
+      await _auth.signOut();
+      _user = null;
+      _userData = null;
       return null; // نجح التسجيل
     } on FirebaseAuthException catch (e) {
       switch (e.code) {
@@ -388,16 +417,22 @@ class AuthProvider extends ChangeNotifier {
         return 'انتهت مهلة الاتصال. تحقق من الإنترنت وأعد المحاولة.';
       }
       return 'خطأ غير متوقع: $e';
+    } finally {
+      _isProvisioningProfile = false;
     }
   }
 
   Future<void> updateFCMToken(String? token) async {
     if (_user != null && token != null && token.isNotEmpty) {
       try {
-        await _firestore.collection('users').doc(_user!.uid).update({
-          'fcmToken': token,
-          'lastTokenUpdate': FieldValue.serverTimestamp(),
-        }).timeout(const Duration(seconds: 8));
+        await _firestore
+            .collection('users')
+            .doc(_user!.uid)
+            .update({
+              'fcmToken': token,
+              'lastTokenUpdate': FieldValue.serverTimestamp(),
+            })
+            .timeout(const Duration(seconds: 8));
       } catch (e) {
         debugPrint('[Auth] Error updating FCM token: $e');
       }
@@ -407,10 +442,11 @@ class AuthProvider extends ChangeNotifier {
   Future<void> setGuestMode(bool value) async {
     _isGuest = value;
     notifyListeners();
-    // حفظ في الخلفية
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.setBool('isGuest', value);
-    }).catchError((_) {});
+    SharedPreferences.getInstance()
+        .then((prefs) {
+          prefs.setBool('isGuest', value);
+        })
+        .catchError((_) {});
   }
 
   Future<void> signOut() async {
@@ -418,7 +454,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       await _auth.signOut().timeout(const Duration(seconds: 10));
     } catch (_) {}
-    
+
     if (currentUser != null) {
       AdminActivityService.log(
         type: AdminActivityType.userLoggedOut,
@@ -428,26 +464,19 @@ class AuthProvider extends ChangeNotifier {
         metadata: {'email': currentUser.email},
       ).catchError((_) {});
     }
-    
+
     _isGuest = false;
     _userData = null;
     _isAdmin = false;
     _mustChangePassword = false;
     notifyListeners();
 
-    // تنظيف في الخلفية
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.remove('isGuest');
-      final keys = prefs.getKeys().toList();
-      for (final key in keys) {
-        if (key.startsWith('favorite_') ||
-            key.startsWith('downloads_') ||
-            key.startsWith('reading_') ||
-            key.startsWith('study_tasks')) {
-          prefs.remove(key);
-        }
-      }
-    }).catchError((_) {});
+    // تسجيل الخروج ينهي الجلسة فقط؛ لا نحذف بيانات المستخدم المحلية أو السحابية.
+    SharedPreferences.getInstance()
+        .then((prefs) {
+          prefs.remove('isGuest');
+        })
+        .catchError((_) {});
   }
 
   Future<String?> resetPassword(String email) async {
@@ -501,8 +530,9 @@ class AuthProvider extends ChangeNotifier {
   // ─── تسجيل الدخول بـ Google ─────────────────────────────────────────────
   Future<String?> signInWithGoogle() async {
     try {
-      final googleUser =
-          await _googleSignIn.signIn().timeout(const Duration(seconds: 30));
+      final googleUser = await _googleSignIn.signIn().timeout(
+        const Duration(seconds: 30),
+      );
       if (googleUser == null) return 'تم إلغاء تسجيل الدخول بـ Google';
 
       final googleAuth = await googleUser.authentication;
@@ -517,53 +547,67 @@ class AuthProvider extends ChangeNotifier {
       final user = userCredential.user;
       if (user == null) return 'فشل تسجيل الدخول بـ Google';
 
-      // حفظ بيانات المستخدم في Firestore في الخلفية
-      Future.microtask(() async {
-        try {
-          final doc = await _firestore.collection('users').doc(user.uid).get();
-          if (!doc.exists) {
-            await _firestore.collection('users').doc(user.uid).set({
-              'name': user.displayName ?? '',
-              'email': user.email ?? '',
-              'phone': '',
-              'gender': 'غير محدد',
-              'createdAt': FieldValue.serverTimestamp(),
-              'lastActivity': FieldValue.serverTimestamp(),
-              'profileImageUrl': user.photoURL,
-              'uid': user.uid,
-              'provider': 'google',
-              'isAdmin': false,
-              'isSuspended': false,
-            });
-            // تسجيل نشاط مستخدم جديد
-            await AdminActivityService.log(
-              type: AdminActivityType.userRegistered,
-              title: 'تسجيل مستخدم جديد',
-              description: 'سجل مستخدم جديد باسم: ${user.displayName} (Google)',
-              targetUserId: user.uid,
-              targetUserName: user.displayName,
-              metadata: {'email': user.email, 'provider': 'google'},
-            );
-          } else {
-            // تحديث آخر نشاط
-            await _firestore.collection('users').doc(user.uid).set({
-              'lastActivity': FieldValue.serverTimestamp(),
-              'profileImageUrl': user.photoURL, // تحديث الصورة في حال تغيرها
-            }, SetOptions(merge: true));
+      // لا نعلن نجاح تسجيل Google قبل إنشاء profile والتأكد من وجوده.
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      final isNewProfile = !doc.exists;
+      await _firestore.collection('users').doc(user.uid).set({
+        if (isNewProfile) ...{
+          'name': user.displayName ?? '',
+          'email': user.email ?? '',
+          'phone': '',
+          'gender': 'غير محدد',
+          'createdAt': FieldValue.serverTimestamp(),
+          'uid': user.uid,
+          'provider': 'google',
+          'isAdmin': false,
+          'isSuspended': false,
+        },
+        'lastActivity': FieldValue.serverTimestamp(),
+        'profileImageUrl': user.photoURL,
+      }, SetOptions(merge: true));
+      final savedProfile = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .get()
+          .timeout(const Duration(seconds: 10));
+      if (!savedProfile.exists) {
+        await _auth.signOut();
+        return 'تعذر إنشاء ملف المستخدم في قاعدة البيانات. أعد المحاولة.';
+      }
 
-            // تسجيل دخول
-            await AdminActivityService.log(
-              type: AdminActivityType.userLoggedIn,
-              title: 'تسجيل دخول مستخدم',
-              description: 'قام المستخدم ${user.email} بتسجيل الدخول (Google)',
-              targetUserId: user.uid,
-              metadata: {'email': user.email, 'provider': 'google'},
-            );
-          }
-        } catch (_) {}
-      });
+      try {
+        if (isNewProfile) {
+          // تسجيل نشاط مستخدم جديد
+          await AdminActivityService.log(
+            type: AdminActivityType.userRegistered,
+            title: 'تسجيل مستخدم جديد',
+            description: 'سجل مستخدم جديد باسم: ${user.displayName} (Google)',
+            targetUserId: user.uid,
+            targetUserName: user.displayName,
+            metadata: {'email': user.email, 'provider': 'google'},
+          );
+        } else {
+          // تحديث آخر نشاط
+          await _firestore.collection('users').doc(user.uid).set({
+            'lastActivity': FieldValue.serverTimestamp(),
+            'profileImageUrl': user.photoURL, // تحديث الصورة في حال تغيرها
+          }, SetOptions(merge: true));
 
-      _loadUserDataBackground();
+          // تسجيل دخول
+          await AdminActivityService.log(
+            type: AdminActivityType.userLoggedIn,
+            title: 'تسجيل دخول مستخدم',
+            description: 'قام المستخدم ${user.email} بتسجيل الدخول (Google)',
+            targetUserId: user.uid,
+            metadata: {'email': user.email, 'provider': 'google'},
+          );
+        }
+      } catch (e) {
+        debugPrint('[Google] Activity logging warning: $e');
+      }
+
+      _user = user;
+      _userData = savedProfile.data();
       notifyListeners();
       return null;
     } catch (e) {
@@ -578,11 +622,15 @@ class AuthProvider extends ChangeNotifier {
     try {
       if (_user != null) {
         // Soft delete logic for 30-day disable
-        await _firestore.collection('users').doc(_user!.uid).update({
-          'disabled': true,
-          'deletedAt': FieldValue.serverTimestamp(),
-        }).timeout(const Duration(seconds: 10));
-        
+        await _firestore
+            .collection('users')
+            .doc(_user!.uid)
+            .update({
+              'disabled': true,
+              'deletedAt': FieldValue.serverTimestamp(),
+            })
+            .timeout(const Duration(seconds: 10));
+
         await signOut();
         return null;
       }

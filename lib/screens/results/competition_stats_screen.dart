@@ -25,12 +25,14 @@ class CompetitionStatsScreen extends StatefulWidget {
   State<CompetitionStatsScreen> createState() => _CompetitionStatsScreenState();
 }
 
-class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with SingleTickerProviderStateMixin {
+class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _schoolSearchCtrl = TextEditingController();
   final TextEditingController _compSearchCtrl = TextEditingController();
   String _schoolSearchQuery = '';
   String _compSearchQuery = '';
+  _SchoolSort _schoolSort = _SchoolSort.passRateDesc;
 
   @override
   void initState() {
@@ -38,10 +40,14 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
     final tabCount = widget.examType == ExamType.bac ? 4 : 3;
     _tabController = TabController(length: tabCount, vsync: this);
     _schoolSearchCtrl.addListener(() {
-      setState(() => _schoolSearchQuery = _schoolSearchCtrl.text.trim().toLowerCase());
+      setState(
+        () => _schoolSearchQuery = _schoolSearchCtrl.text.trim().toLowerCase(),
+      );
     });
     _compSearchCtrl.addListener(() {
-      setState(() => _compSearchQuery = _compSearchCtrl.text.trim().toLowerCase());
+      setState(
+        () => _compSearchQuery = _compSearchCtrl.text.trim().toLowerCase(),
+      );
     });
   }
 
@@ -64,7 +70,9 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
     final failed = widget.allResults.where((r) => r.isFailed).length;
     final absent = widget.allResults.where((r) => r.isAbsent).length;
     final expelled = widget.allResults.where((r) => r.isExpelled).length;
-    final complementary = widget.allResults.where((r) => r.isComplementary).length;
+    final complementary = widget.allResults
+        .where((r) => r.isComplementary)
+        .length;
 
     final passRate = total > 0 ? (passed / total * 100) : 0.0;
     final failRate = total > 0 ? (failed / total * 100) : 0.0;
@@ -87,7 +95,10 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
     final Map<String, _SchoolData> schoolMap = {};
     for (final r in widget.allResults) {
       if (r.school.isEmpty) continue;
-      schoolMap.putIfAbsent(r.school, () => _SchoolData(name: r.school, wilaya: r.wilaya));
+      schoolMap.putIfAbsent(
+        r.school,
+        () => _SchoolData(name: r.school, wilaya: r.wilaya),
+      );
       final sc = schoolMap[r.school]!;
       sc.total++;
       if (r.isPassed) sc.passed++;
@@ -100,16 +111,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
       }
     }
 
-    final sortedSchools = schoolMap.values.toList()
-      ..sort((a, b) {
-        if (b.passRate != a.passRate) {
-          return b.passRate.compareTo(a.passRate);
-        }
-        if (b.passed != a.passed) {
-          return b.passed.compareTo(a.passed);
-        }
-        return b.topScore.compareTo(a.topScore);
-      });
+    final sortedSchools = schoolMap.values.toList()..sort(_compareSchools);
 
     // إسناد ترتيب المدارس
     for (int i = 0; i < sortedSchools.length; i++) {
@@ -151,8 +153,9 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
         : <StudentResult>[];
 
     // ─── الأوائل ───
-    final passedStudents = widget.allResults.where((r) => r.isPassed && r.score != null).toList()
-      ..sort((a, b) => b.score!.compareTo(a.score!));
+    final passedStudents =
+        widget.allResults.where((r) => r.isPassed && r.score != null).toList()
+          ..sort((a, b) => b.score!.compareTo(a.score!));
     final topStudents = passedStudents.take(20).toList();
 
     return Scaffold(
@@ -161,7 +164,9 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
           'إحصائيات ${widget.title}',
           style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, fontSize: 16),
         ),
-        flexibleSpace: Container(decoration: BoxDecoration(gradient: widget.gradient)),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(gradient: widget.gradient),
+        ),
         elevation: 0,
         bottom: TabBar(
           controller: _tabController,
@@ -169,14 +174,29 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
           indicatorWeight: 3,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
-          labelStyle: GoogleFonts.tajawal(fontWeight: FontWeight.bold, fontSize: 13),
+          labelStyle: GoogleFonts.tajawal(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+          ),
           isScrollable: true,
           tabs: [
-            const Tab(icon: Icon(Icons.analytics_rounded, size: 20), text: 'نظرة عامة'),
-            const Tab(icon: Icon(Icons.school_rounded, size: 20), text: 'ترتيب المدارس'),
-            const Tab(icon: Icon(Icons.map_rounded, size: 20), text: 'ترتيب الولايات'),
+            const Tab(
+              icon: Icon(Icons.analytics_rounded, size: 20),
+              text: 'نظرة عامة',
+            ),
+            const Tab(
+              icon: Icon(Icons.school_rounded, size: 20),
+              text: 'ترتيب المدارس',
+            ),
+            const Tab(
+              icon: Icon(Icons.map_rounded, size: 20),
+              text: 'ترتيب الولايات',
+            ),
             if (widget.examType == ExamType.bac)
-              const Tab(icon: Icon(Icons.refresh_rounded, size: 20), text: 'المؤهلون للتكميلية'),
+              const Tab(
+                icon: Icon(Icons.refresh_rounded, size: 20),
+                text: 'المؤهلون للتكميلية',
+              ),
           ],
         ),
       ),
@@ -210,6 +230,8 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
             primaryColor: primaryColor,
             schools: sortedSchools,
             scoreLabel: scoreLabel,
+            sort: _schoolSort,
+            onSortChanged: (value) => setState(() => _schoolSort = value),
           ),
 
           // 3. ترتيب الولايات
@@ -286,7 +308,10 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                       children: [
                         Text(
                           'نسبة النجاح الإجمالية',
-                          style: GoogleFonts.tajawal(color: Colors.white70, fontSize: 13),
+                          style: GoogleFonts.tajawal(
+                            color: Colors.white70,
+                            fontSize: 13,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -305,7 +330,11 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                         color: Colors.white.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.emoji_events_rounded, color: Colors.white, size: 36),
+                      child: const Icon(
+                        Icons.emoji_events_rounded,
+                        color: Colors.white,
+                        size: 36,
+                      ),
                     ),
                   ],
                 ),
@@ -316,7 +345,9 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                     value: total > 0 ? (passed / total) : 0,
                     minHeight: 8,
                     backgroundColor: Colors.white.withValues(alpha: 0.2),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4ADE80)),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Color(0xFF4ADE80),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -325,11 +356,19 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                   children: [
                     Text(
                       '$passed ناجح من أصل $total مترشح',
-                      style: GoogleFonts.tajawal(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+                      style: GoogleFonts.tajawal(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     Text(
                       'أعلى $scoreLabel: ${topScore.toStringAsFixed(2)} / ${maxScore.toInt()}',
-                      style: GoogleFonts.outfit(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -341,7 +380,10 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
           // شبكة الإحصائيات التفصيلية
           Text(
             '📊 ملخص الحالات الدقيقة',
-            style: GoogleFonts.tajawal(fontSize: 16, fontWeight: FontWeight.bold),
+            style: GoogleFonts.tajawal(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 12),
 
@@ -420,7 +462,10 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
           // الرسم البياني الدائري
           Text(
             '🥧 التمثيل البياني للنتائج',
-            style: GoogleFonts.tajawal(fontSize: 16, fontWeight: FontWeight.bold),
+            style: GoogleFonts.tajawal(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 12),
 
@@ -430,7 +475,9 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE2E8F0),
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.05)
+                    : const Color(0xFFE2E8F0),
               ),
               boxShadow: [
                 BoxShadow(
@@ -475,7 +522,8 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                               ),
                               radius: 35,
                             ),
-                          if (widget.examType == ExamType.bac && complementary > 0)
+                          if (widget.examType == ExamType.bac &&
+                              complementary > 0)
                             PieChartSectionData(
                               color: Colors.orange,
                               value: complementary.toDouble(),
@@ -524,15 +572,35 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (passed > 0)
-                        _buildLegendItem('ناجح ($passed)', const Color(0xFF16A34A), '${passRate.toStringAsFixed(1)}%'),
+                        _buildLegendItem(
+                          'ناجح ($passed)',
+                          const Color(0xFF16A34A),
+                          '${passRate.toStringAsFixed(1)}%',
+                        ),
                       if (failed > 0)
-                        _buildLegendItem('راسب ($failed)', Colors.red, '${failRate.toStringAsFixed(1)}%'),
+                        _buildLegendItem(
+                          'راسب ($failed)',
+                          Colors.red,
+                          '${failRate.toStringAsFixed(1)}%',
+                        ),
                       if (widget.examType == ExamType.bac && complementary > 0)
-                        _buildLegendItem('تكميلي ($complementary)', Colors.orange, '${complementaryRate.toStringAsFixed(1)}%'),
+                        _buildLegendItem(
+                          'تكميلي ($complementary)',
+                          Colors.orange,
+                          '${complementaryRate.toStringAsFixed(1)}%',
+                        ),
                       if (absent > 0)
-                        _buildLegendItem('غائب ($absent)', Colors.grey, '${absentRate.toStringAsFixed(1)}%'),
+                        _buildLegendItem(
+                          'غائب ($absent)',
+                          Colors.grey,
+                          '${absentRate.toStringAsFixed(1)}%',
+                        ),
                       if (expelled > 0)
-                        _buildLegendItem('مطرود ($expelled)', Colors.purple, '${expelledRate.toStringAsFixed(1)}%'),
+                        _buildLegendItem(
+                          'مطرود ($expelled)',
+                          Colors.purple,
+                          '${expelledRate.toStringAsFixed(1)}%',
+                        ),
                     ],
                   ),
                 ),
@@ -545,19 +613,26 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
           if (topStudents.isNotEmpty) ...[
             Text(
               '🥇 أوائل المسابقة (Top 20)',
-              style: GoogleFonts.tajawal(fontSize: 16, fontWeight: FontWeight.bold),
+              style: GoogleFonts.tajawal(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 12),
             _buildTopStudentsSection(isDark, topStudents, primaryColor),
           ],
-          
+
           const SizedBox(height: 40),
         ],
       ),
     );
   }
 
-  Widget _buildTopStudentsSection(bool isDark, List<StudentResult> students, Color primaryColor) {
+  Widget _buildTopStudentsSection(
+    bool isDark,
+    List<StudentResult> students,
+    Color primaryColor,
+  ) {
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -565,12 +640,20 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
       itemBuilder: (context, index) {
         final student = students[index];
         final rank = index + 1;
-        
+
         Color rankColor;
-        if (rank == 1) { rankColor = const Color(0xFFFFD700); } // Gold
-        else if (rank == 2) { rankColor = const Color(0xFFC0C0C0); } // Silver
-        else if (rank == 3) { rankColor = const Color(0xFFCD7F32); } // Bronze
-        else { rankColor = primaryColor.withValues(alpha: 0.7); }
+        if (rank == 1) {
+          rankColor = const Color(0xFFFFD700);
+        } // Gold
+        else if (rank == 2) {
+          rankColor = const Color(0xFFC0C0C0);
+        } // Silver
+        else if (rank == 3) {
+          rankColor = const Color(0xFFCD7F32);
+        } // Bronze
+        else {
+          rankColor = primaryColor.withValues(alpha: 0.7);
+        }
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
@@ -578,7 +661,9 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE2E8F0),
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : const Color(0xFFE2E8F0),
             ),
             boxShadow: [
               BoxShadow(
@@ -589,7 +674,10 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
             ],
           ),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
+            ),
             leading: CircleAvatar(
               backgroundColor: rankColor.withValues(alpha: 0.15),
               radius: 22,
@@ -616,12 +704,18 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                 if (student.school.isNotEmpty)
                   Text(
                     '🏫 ${student.school}',
-                    style: GoogleFonts.tajawal(fontSize: 12, color: Colors.grey),
+                    style: GoogleFonts.tajawal(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
                   ),
                 if (student.wilaya.isNotEmpty)
                   Text(
                     '📍 ${student.wilaya}',
-                    style: GoogleFonts.tajawal(fontSize: 12, color: Colors.grey),
+                    style: GoogleFonts.tajawal(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
                   ),
               ],
             ),
@@ -648,9 +742,15 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                     student: student,
                     gradient: widget.gradient,
                     emoji: '🏆',
-                    passScore: widget.examType == ExamType.concours ? 100.0 : 10.0,
-                    maxScore: widget.examType == ExamType.concours ? 200.0 : 20.0,
-                    scoreLabel: widget.examType == ExamType.concours ? 'المجموع' : 'المعدل',
+                    passScore: widget.examType == ExamType.concours
+                        ? 100.0
+                        : 10.0,
+                    maxScore: widget.examType == ExamType.concours
+                        ? 200.0
+                        : 20.0,
+                    scoreLabel: widget.examType == ExamType.concours
+                        ? 'المجموع'
+                        : 'المعدل',
                     allResults: widget.allResults,
                     examType: widget.examType,
                   ),
@@ -677,7 +777,9 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE2E8F0),
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.05)
+              : const Color(0xFFE2E8F0),
         ),
         boxShadow: [
           BoxShadow(
@@ -747,7 +849,11 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         children: [
-          Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
@@ -758,7 +864,11 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
           ),
           Text(
             percent,
-            style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.bold, color: color),
+            style: GoogleFonts.outfit(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
           ),
         ],
       ),
@@ -773,6 +883,8 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
     required Color primaryColor,
     required List<_SchoolData> schools,
     required String scoreLabel,
+    required _SchoolSort sort,
+    required ValueChanged<_SchoolSort> onSortChanged,
   }) {
     final filtered = schools.where((s) {
       if (_schoolSearchQuery.isEmpty) return true;
@@ -799,11 +911,15 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                     color: isDark ? const Color(0xFF1E293B) : Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE2E8F0),
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.05)
+                          : const Color(0xFFE2E8F0),
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                        color: Colors.black.withValues(
+                          alpha: isDark ? 0.2 : 0.03,
+                        ),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -832,7 +948,10 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                                   final s = top10[group.x];
                                   return BarTooltipItem(
                                     '${s.name.split(' ').first}\n${rod.toY.toStringAsFixed(0)}%',
-                                    GoogleFonts.tajawal(color: Colors.white, fontSize: 10),
+                                    GoogleFonts.tajawal(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                    ),
                                   );
                                 },
                               ),
@@ -844,7 +963,9 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                                   showTitles: true,
                                   getTitlesWidget: (value, meta) {
                                     final idx = value.toInt();
-                                    if (idx >= top10.length) return const SizedBox();
+                                    if (idx >= top10.length) {
+                                      return const SizedBox();
+                                    }
                                     return Padding(
                                       padding: const EdgeInsets.only(top: 4),
                                       child: Text(
@@ -866,20 +987,29 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                                   interval: 25,
                                   getTitlesWidget: (value, meta) => Text(
                                     '${value.toInt()}%',
-                                    style: GoogleFonts.outfit(fontSize: 9, color: Colors.grey),
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 9,
+                                      color: Colors.grey,
+                                    ),
                                   ),
                                   reservedSize: 30,
                                 ),
                               ),
-                              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              topTitles: const AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
+                              rightTitles: const AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
                             ),
                             gridData: FlGridData(
                               show: true,
                               drawHorizontalLine: true,
                               horizontalInterval: 25,
                               getDrawingHorizontalLine: (_) => FlLine(
-                                color: isDark ? Colors.white12 : Colors.grey.shade200,
+                                color: isDark
+                                    ? Colors.white12
+                                    : Colors.grey.shade200,
                                 strokeWidth: 1,
                               ),
                               drawVerticalLine: false,
@@ -890,8 +1020,8 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                               final barColor = rate >= 80
                                   ? const Color(0xFF16A34A)
                                   : rate >= 50
-                                      ? const Color(0xFFD97706)
-                                      : Colors.red;
+                                  ? const Color(0xFFD97706)
+                                  : Colors.red;
                               return BarChartGroupData(
                                 x: i,
                                 barRods: [
@@ -899,7 +1029,9 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                                     toY: rate,
                                     color: barColor,
                                     width: 14,
-                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                                    borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(6),
+                                    ),
                                   ),
                                 ],
                               );
@@ -922,7 +1054,9 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                   color: isDark ? const Color(0xFF1E293B) : Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.05)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
                 child: TextField(
@@ -930,8 +1064,15 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                   style: GoogleFonts.tajawal(),
                   decoration: InputDecoration(
                     hintText: 'ابحث عن مدرسة أو ولاية...',
-                    hintStyle: GoogleFonts.tajawal(color: Colors.grey[400], fontSize: 13),
-                    prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.primaryColor, size: 20),
+                    hintStyle: GoogleFonts.tajawal(
+                      color: Colors.grey[400],
+                      fontSize: 13,
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.search_rounded,
+                      color: AppTheme.primaryColor,
+                      size: 20,
+                    ),
                     suffixIcon: _schoolSearchCtrl.text.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.clear_rounded, size: 16),
@@ -939,7 +1080,10 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                           )
                         : null,
                     border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
                 ),
               ),
@@ -963,9 +1107,53 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                   const Spacer(),
                   Text(
                     'مرتبة حسب نسبة النجاح',
-                    style: GoogleFonts.tajawal(fontSize: 11, color: Colors.grey[500]),
+                    style: GoogleFonts.tajawal(
+                      fontSize: 11,
+                      color: Colors.grey[500],
+                    ),
                   ),
                 ],
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: DropdownButtonFormField<_SchoolSort>(
+                initialValue: sort,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: 'ترتيب المدارس',
+                  prefixIcon: const Icon(Icons.sort_rounded),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: _SchoolSort.passRateDesc,
+                    child: Text('أعلى نسبة نجاح'),
+                  ),
+                  DropdownMenuItem(
+                    value: _SchoolSort.passRateAsc,
+                    child: Text('أقل نسبة نجاح'),
+                  ),
+                  DropdownMenuItem(
+                    value: _SchoolSort.passedDesc,
+                    child: Text('أعلى عدد ناجحين'),
+                  ),
+                  DropdownMenuItem(
+                    value: _SchoolSort.totalDesc,
+                    child: Text('أكبر عدد مشاركين'),
+                  ),
+                  DropdownMenuItem(
+                    value: _SchoolSort.rank,
+                    child: Text('الترتيب العام'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value != null) onSortChanged(value);
+                },
               ),
             ),
           ),
@@ -994,6 +1182,21 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
     );
   }
 
+  int _compareSchools(_SchoolData a, _SchoolData b) {
+    switch (_schoolSort) {
+      case _SchoolSort.passRateAsc:
+        return a.passRate.compareTo(b.passRate);
+      case _SchoolSort.passedDesc:
+        return b.passed.compareTo(a.passed);
+      case _SchoolSort.totalDesc:
+        return b.total.compareTo(a.total);
+      case _SchoolSort.rank:
+      case _SchoolSort.passRateDesc:
+        final rate = b.passRate.compareTo(a.passRate);
+        return rate != 0 ? rate : b.passed.compareTo(a.passed);
+    }
+  }
+
   Widget _buildSchoolCard({
     required _SchoolData school,
     required bool isDark,
@@ -1003,10 +1206,10 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
     final rankColor = school.rank == 1
         ? const Color(0xFFEAB308) // Gold
         : school.rank == 2
-            ? const Color(0xFF94A3B8) // Silver
-            : school.rank == 3
-                ? const Color(0xFFB45309) // Bronze
-                : AppTheme.primaryColor;
+        ? const Color(0xFF94A3B8) // Silver
+        : school.rank == 3
+        ? const Color(0xFFB45309) // Bronze
+        : AppTheme.primaryColor;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1014,7 +1217,9 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE2E8F0),
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.05)
+              : const Color(0xFFE2E8F0),
         ),
         boxShadow: [
           BoxShadow(
@@ -1059,7 +1264,9 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                       decoration: BoxDecoration(
                         color: rankColor.withValues(alpha: 0.15),
                         shape: BoxShape.circle,
-                        border: Border.all(color: rankColor.withValues(alpha: 0.5)),
+                        border: Border.all(
+                          color: rankColor.withValues(alpha: 0.5),
+                        ),
                       ),
                       child: Center(
                         child: Text(
@@ -1098,7 +1305,10 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFF16A34A).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12),
@@ -1122,14 +1332,35 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildMiniBadge('المشاركين', '${school.total}', Colors.blue),
-                    _buildMiniBadge('الناجحين', '${school.passed}', const Color(0xFF16A34A)),
+                    _buildMiniBadge(
+                      'المشاركين',
+                      '${school.total}',
+                      Colors.blue,
+                    ),
+                    _buildMiniBadge(
+                      'الناجحين',
+                      '${school.passed}',
+                      const Color(0xFF16A34A),
+                    ),
                     _buildMiniBadge('الراسبين', '${school.failed}', Colors.red),
                     if (school.absent > 0)
-                      _buildMiniBadge('الغائبين', '${school.absent}', Colors.grey),
-                    if (widget.examType == ExamType.bac && school.complementary > 0)
-                      _buildMiniBadge('تكميلي', '${school.complementary}', Colors.orange),
-                    _buildMiniBadge('أعلى $scoreLabel', school.topScore.toStringAsFixed(2), const Color(0xFFD97706)),
+                      _buildMiniBadge(
+                        'الغائبين',
+                        '${school.absent}',
+                        Colors.grey,
+                      ),
+                    if (widget.examType == ExamType.bac &&
+                        school.complementary > 0)
+                      _buildMiniBadge(
+                        'تكميلي',
+                        '${school.complementary}',
+                        Colors.orange,
+                      ),
+                    _buildMiniBadge(
+                      'أعلى $scoreLabel',
+                      school.topScore.toStringAsFixed(2),
+                      const Color(0xFFD97706),
+                    ),
                   ],
                 ),
               ],
@@ -1185,7 +1416,9 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                   examType: widget.examType,
                   gradient: widget.gradient,
                   emoji: '📍',
-                  passScore: widget.examType == ExamType.concours ? 100.0 : 10.0,
+                  passScore: widget.examType == ExamType.concours
+                      ? 100.0
+                      : 10.0,
                   maxScore: maxScore,
                   scoreLabel: scoreLabel,
                 ),
@@ -1199,7 +1432,9 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE2E8F0),
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.05)
+                    : const Color(0xFFE2E8F0),
               ),
               boxShadow: [
                 BoxShadow(
@@ -1232,49 +1467,61 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        w.name,
+                        style: GoogleFonts.tajawal(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        '${w.passed} ناجح من أصل ${w.total} مترشح',
+                        style: GoogleFonts.tajawal(
+                          fontSize: 11,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      w.name,
-                      style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, fontSize: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF16A34A).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${w.passRate.toStringAsFixed(1)}%',
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: const Color(0xFF16A34A),
+                        ),
+                      ),
                     ),
+                    const SizedBox(height: 3),
                     Text(
-                      '${w.passed} ناجح من أصل ${w.total} مترشح',
-                      style: GoogleFonts.tajawal(fontSize: 11, color: Colors.grey[500]),
+                      'أعلى $scoreLabel: ${w.topScore.toStringAsFixed(2)}',
+                      style: GoogleFonts.tajawal(
+                        fontSize: 10,
+                        color: Colors.grey[500],
+                      ),
                     ),
                   ],
                 ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF16A34A).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      '${w.passRate.toStringAsFixed(1)}%',
-                      style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: const Color(0xFF16A34A),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    'أعلى $scoreLabel: ${w.topScore.toStringAsFixed(2)}',
-                    style: GoogleFonts.tajawal(fontSize: 10, color: Colors.grey[500]),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      );
-    },
+        );
+      },
     );
   }
 
@@ -1323,7 +1570,11 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                     color: Colors.orange.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.refresh_rounded, color: Colors.orange, size: 28),
+                  child: const Icon(
+                    Icons.refresh_rounded,
+                    color: Colors.orange,
+                    size: 28,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -1341,7 +1592,10 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                       const SizedBox(height: 2),
                       Text(
                         '${compStudents.length} طالب مؤهل (يمثلون ${compRate.toStringAsFixed(1)}% من إجمالي مترشحي الباكلوريا)',
-                        style: GoogleFonts.tajawal(fontSize: 12, color: Colors.orange[800]),
+                        style: GoogleFonts.tajawal(
+                          fontSize: 12,
+                          color: Colors.orange[800],
+                        ),
                       ),
                     ],
                   ),
@@ -1359,7 +1613,9 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE2E8F0),
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.05)
+                    : const Color(0xFFE2E8F0),
               ),
             ),
             child: TextField(
@@ -1367,8 +1623,15 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
               style: GoogleFonts.tajawal(),
               decoration: InputDecoration(
                 hintText: 'ابحث بالاسم، الرقم، المدرسة، أو الولاية...',
-                hintStyle: GoogleFonts.tajawal(color: Colors.grey[400], fontSize: 13),
-                prefixIcon: const Icon(Icons.search_rounded, color: Colors.orange, size: 20),
+                hintStyle: GoogleFonts.tajawal(
+                  color: Colors.grey[400],
+                  fontSize: 13,
+                ),
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: Colors.orange,
+                  size: 20,
+                ),
                 suffixIcon: _compSearchCtrl.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear_rounded, size: 16),
@@ -1376,7 +1639,10 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                       )
                     : null,
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
             ),
           ),
@@ -1407,7 +1673,9 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                         color: isDark ? const Color(0xFF1E293B) : Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE2E8F0),
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.05)
+                              : const Color(0xFFE2E8F0),
                         ),
                       ),
                       child: InkWell(
@@ -1439,7 +1707,10 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                                 shape: BoxShape.circle,
                               ),
                               child: const Center(
-                                child: Text('🔄', style: TextStyle(fontSize: 16)),
+                                child: Text(
+                                  '🔄',
+                                  style: TextStyle(fontSize: 16),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -1448,15 +1719,23 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    student.name.isNotEmpty ? student.name : 'مترشح رقم ${student.id}',
-                                    style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, fontSize: 13),
+                                    student.name.isNotEmpty
+                                        ? student.name
+                                        : 'مترشح رقم ${student.id}',
+                                    style: GoogleFonts.tajawal(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
                                     '${student.school.isNotEmpty ? student.school : ""} ${student.wilaya.isNotEmpty ? "• ${student.wilaya}" : ""}',
-                                    style: GoogleFonts.tajawal(fontSize: 11, color: Colors.grey[500]),
+                                    style: GoogleFonts.tajawal(
+                                      fontSize: 11,
+                                      color: Colors.grey[500],
+                                    ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -1496,6 +1775,8 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen> with Si
     );
   }
 }
+
+enum _SchoolSort { passRateDesc, passRateAsc, passedDesc, totalDesc, rank }
 
 class _SchoolData {
   final String name;

@@ -21,17 +21,24 @@ class ScientificCalculatorScreen extends StatelessWidget {
           return Scaffold(
             backgroundColor: theme.backgroundColor,
             appBar: AppBar(
-              title: const Text('الحاسبة العلمية'),
+              title: const Text('Calculatrice'),
               centerTitle: true,
               backgroundColor: theme.backgroundColor,
               elevation: 0,
               iconTheme: IconThemeData(color: theme.operatorTextColor),
-              titleTextStyle: TextStyle(color: theme.operatorTextColor, fontSize: 20, fontWeight: FontWeight.bold),
+              titleTextStyle: TextStyle(
+                color: theme.operatorTextColor,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
               actions: [
                 IconButton(
                   icon: const Icon(Icons.history),
                   onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen()));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                    );
                   },
                 ),
                 IconButton(
@@ -48,15 +55,9 @@ class ScientificCalculatorScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(12.0),
                 child: Column(
                   children: const [
-                    Expanded(
-                      flex: 3,
-                      child: CalculatorDisplay(),
-                    ),
+                    Expanded(flex: 3, child: CalculatorDisplay()),
                     SizedBox(height: 16),
-                    Expanded(
-                      flex: 7,
-                      child: CalculatorKeypad(),
-                    ),
+                    Expanded(flex: 7, child: CalculatorKeypad()),
                   ],
                 ),
               ),
@@ -76,24 +77,27 @@ class ScientificCalculatorScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('اختر المظهر (الثيم)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text(
+                'Paramètres',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 16),
               ListTile(
-                title: const Text('الحديث الداكن'),
+                title: const Text('Sombre moderne'),
                 onTap: () {
                   provider.setThemeStyle(CalculatorThemeStyle.modernDark);
                   Navigator.pop(context);
                 },
               ),
               ListTile(
-                title: const Text('الكلاسيكي الفاتح'),
+                title: const Text('Classique clair'),
                 onTap: () {
                   provider.setThemeStyle(CalculatorThemeStyle.classicLight);
                   Navigator.pop(context);
                 },
               ),
               ListTile(
-                title: const Text('احترافي نيون'),
+                title: const Text('Neon professionnel'),
                 onTap: () {
                   provider.setThemeStyle(CalculatorThemeStyle.neonPro);
                   Navigator.pop(context);
@@ -102,8 +106,7 @@ class ScientificCalculatorScreen extends StatelessWidget {
             ],
           ),
         );
-      }
+      },
     );
   }
 }
-

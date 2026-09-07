@@ -3,9 +3,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:share_plus/share_plus.dart';
 import '../providers/notes_provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/geometric_header_card.dart';
+import '../services/note_export_service.dart';
 import 'note_editor_screen.dart';
 
 class NotesScreen extends StatefulWidget {
@@ -185,11 +188,18 @@ class _NotesScreenState extends State<NotesScreen> {
           child: Column(
             children: [
               _buildHeader(isDark, themeColor),
+              const GeometricHeaderCard(
+                title: 'مساحتك الذكية',
+                subtitle: 'رتّب أفكارك واحتفظ بملاحظاتك في مكان واحد.',
+                icon: Icons.auto_awesome_rounded,
+              ),
               _buildFilters(isDark),
 
               Expanded(
                 child: provider.isLoading
                     ? const Center(child: CircularProgressIndicator())
+                    : provider.errorMessage != null
+                    ? _buildNotesError(provider)
                     : _buildContent(provider, isDark),
               ),
             ],
@@ -208,6 +218,39 @@ class _NotesScreenState extends State<NotesScreen> {
             fontWeight: FontWeight.bold,
             fontSize: 16,
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotesError(NotesProvider provider) {
+    final textColor = Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : const Color(0xFF1E293B);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.cloud_off_rounded,
+              size: 64,
+              color: textColor.withValues(alpha: 0.35),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              provider.errorMessage!,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.tajawal(color: textColor),
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: provider.fetchNotes,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text('إعادة المحاولة', style: GoogleFonts.tajawal()),
+            ),
+          ],
         ),
       ),
     );
@@ -644,6 +687,40 @@ class _NotesScreenState extends State<NotesScreen> {
     return deltaStr; // Fallback
   }
 
+  Future<void> _exportNote(Note note, {required bool pdf}) async {
+    try {
+      final title = note.title.isEmpty ? 'ملاحظة MERAJ3I' : note.title;
+      final bytes = pdf
+          ? await NoteExportService.pdfBytes(
+              title: title,
+              content: note.content,
+            )
+          : NoteExportService.textBytes(title: title, content: note.content);
+      final extension = pdf ? 'pdf' : 'txt';
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile.fromData(
+              bytes,
+              name: '$title.$extension',
+              mimeType: pdf ? 'application/pdf' : 'text/plain',
+            ),
+          ],
+          subject: title,
+        ),
+      );
+    } catch (error) {
+      debugPrint('Note export error: $error');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تعذر تصدير الملاحظة.', style: GoogleFonts.tajawal()),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   Widget _buildNoteCard(Note note, bool isDark, NotesProvider provider) {
     final hasColor =
         note.color != null && note.color != Colors.white.toARGB32();
@@ -724,6 +801,28 @@ class _NotesScreenState extends State<NotesScreen> {
                     color: note.isFavorite ? Colors.orange : secondaryTextColor,
                     size: 22,
                   ),
+                ),
+                PopupMenuButton<String>(
+                  icon: Icon(
+                    Icons.ios_share_rounded,
+                    size: 20,
+                    color: secondaryTextColor,
+                  ),
+                  tooltip: 'تصدير الملاحظة',
+                  onSelected: (value) => _exportNote(note, pdf: value == 'pdf'),
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      value: 'pdf',
+                      child: Text('تصدير PDF', style: GoogleFonts.tajawal()),
+                    ),
+                    PopupMenuItem(
+                      value: 'txt',
+                      child: Text(
+                        'تصدير ملف نصي',
+                        style: GoogleFonts.tajawal(),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

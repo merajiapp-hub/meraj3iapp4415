@@ -4,12 +4,12 @@
 
 /// نوع المسابقة لتحديد طريقة عرض ومعالجة النتائج
 enum CompetitionType {
-  concours,       // كونكور — معدل/200
-  brevet,         // بريفية — معدل/20
-  bac,            // باكالوريا — معدل/20
-  complementary,  // تكميلي — معدل/20
-  excellence,     // امتياز — معدل/20
-  generic,        // أي نوع جديد — يُعامل مثل bac
+  concours, // كونكور — معدل/200
+  brevet, // بريفية — معدل/20
+  bac, // باكالوريا — معدل/20
+  complementary, // تكميلي — معدل/20
+  excellence, // امتياز — معدل/20
+  generic, // أي نوع جديد — يُعامل مثل bac
 }
 
 class CompetitionModel {
@@ -22,7 +22,7 @@ class CompetitionModel {
   final String? emoji;
   final String? subtitle;
   final String? color; // hex color مثل "#0D9488"
-  final int order;    // ترتيب العرض
+  final int order; // ترتيب العرض
 
   const CompetitionModel({
     required this.rawKey,
@@ -39,17 +39,36 @@ class CompetitionModel {
   /// إنشاء من JSON مع rawKey
   factory CompetitionModel.fromJson(String key, Map<String, dynamic> json) {
     final type = _inferType(key, json);
+    final rawOrder = json['order'] ?? json['sortOrder'] ?? json['position'];
+    final rawLink = json['link'] ?? json['url'] ?? json['resultsUrl'];
+    final hasExplicitPublished =
+        json.containsKey('is_published') ||
+        json.containsKey('isActive') ||
+        json.containsKey('active');
+    final publishedValue = json.containsKey('is_published')
+        ? json['is_published']
+        : (json.containsKey('isActive') ? json['isActive'] : json['active']);
     return CompetitionModel(
       rawKey: key,
       type: type,
       title: json['title'] as String? ?? _defaultTitle(key, type),
-      link: json['link'] as String? ?? '',
-      isPublished: json['is_published'] as bool? ?? false,
+      link: rawLink?.toString() ?? '',
+      isPublished: hasExplicitPublished
+          ? _asBool(publishedValue)
+          : (rawLink?.toString().trim().isNotEmpty ?? false),
       emoji: json['emoji'] as String?,
       subtitle: json['subtitle'] as String?,
       color: json['color'] as String?,
-      order: json['order'] as int? ?? _defaultOrder(key),
+      order: rawOrder is num
+          ? rawOrder.toInt()
+          : int.tryParse('$rawOrder') ?? _defaultOrder(key),
     );
+  }
+
+  static bool _asBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    return value?.toString().toLowerCase() == 'true';
   }
 
   // ─── حدّد نوع المسابقة من المفتاح ─────────────────────────────────
@@ -58,12 +77,18 @@ class CompetitionModel {
     // أولاً: إذا أرسل المستخدم النوع صراحةً
     if (json['type'] is String) {
       switch ((json['type'] as String).toLowerCase()) {
-        case 'concours': return CompetitionType.concours;
-        case 'brevet': return CompetitionType.brevet;
-        case 'bac': return CompetitionType.bac;
-        case 'complementary': return CompetitionType.complementary;
-        case 'excellence': return CompetitionType.excellence;
-        default: return CompetitionType.generic;
+        case 'concours':
+          return CompetitionType.concours;
+        case 'brevet':
+          return CompetitionType.brevet;
+        case 'bac':
+          return CompetitionType.bac;
+        case 'complementary':
+          return CompetitionType.complementary;
+        case 'excellence':
+          return CompetitionType.excellence;
+        default:
+          return CompetitionType.generic;
       }
     }
     // ثانياً: استنتاج من المفتاح
@@ -72,7 +97,9 @@ class CompetitionModel {
     if (k.startsWith('concours')) return CompetitionType.concours;
     if (k.startsWith('brevet')) return CompetitionType.brevet;
     if (k.startsWith('bac')) return CompetitionType.bac;
-    if (k.contains('complementary') || k.contains('rattrapage')) return CompetitionType.complementary;
+    if (k.contains('complementary') || k.contains('rattrapage')) {
+      return CompetitionType.complementary;
+    }
     return CompetitionType.generic;
   }
 
@@ -80,12 +107,18 @@ class CompetitionModel {
 
   static String _defaultTitle(String key, CompetitionType type) {
     switch (type) {
-      case CompetitionType.concours: return 'كونكور 2026';
-      case CompetitionType.brevet: return 'ابريفة 2026';
-      case CompetitionType.bac: return 'الباكلوريا – الدورة العادية';
-      case CompetitionType.complementary: return 'الباكلوريا – الدورة التكميلية';
-      case CompetitionType.excellence: return 'نتائج الامتياز';
-      case CompetitionType.generic: return key.replaceAll('_', ' ');
+      case CompetitionType.concours:
+        return 'كونكور 2026';
+      case CompetitionType.brevet:
+        return 'ابريفة 2026';
+      case CompetitionType.bac:
+        return 'الباكلوريا – الدورة العادية';
+      case CompetitionType.complementary:
+        return 'الباكلوريا – الدورة التكميلية';
+      case CompetitionType.excellence:
+        return 'نتائج الامتياز';
+      case CompetitionType.generic:
+        return key.replaceAll('_', ' ');
     }
   }
 
@@ -106,24 +139,36 @@ class CompetitionModel {
   String get displayEmoji {
     if (emoji != null && emoji!.isNotEmpty) return emoji!;
     switch (type) {
-      case CompetitionType.concours: return '🏆';
-      case CompetitionType.brevet: return '📚';
-      case CompetitionType.bac: return '🎓';
-      case CompetitionType.complementary: return '🔄';
-      case CompetitionType.excellence: return '⭐';
-      case CompetitionType.generic: return '📝';
+      case CompetitionType.concours:
+        return '🏆';
+      case CompetitionType.brevet:
+        return '📚';
+      case CompetitionType.bac:
+        return '🎓';
+      case CompetitionType.complementary:
+        return '🔄';
+      case CompetitionType.excellence:
+        return '⭐';
+      case CompetitionType.generic:
+        return '📝';
     }
   }
 
   String get displaySubtitle {
     if (subtitle != null && subtitle!.isNotEmpty) return subtitle!;
     switch (type) {
-      case CompetitionType.concours: return "مسابقة دخول السنة الأولى إعدادية";
-      case CompetitionType.brevet: return "مسابقة ختم الدروس الإعدادية (BEPC)";
-      case CompetitionType.bac: return 'الباكلوريا – الدورة العادية';
-      case CompetitionType.complementary: return 'الباكلوريا – الدورة التكميلية';
-      case CompetitionType.excellence: return "نتائج الامتياز الوطنية";
-      case CompetitionType.generic: return "نتائج المسابقة";
+      case CompetitionType.concours:
+        return "مسابقة دخول السنة الأولى إعدادية";
+      case CompetitionType.brevet:
+        return "مسابقة ختم الدروس الإعدادية (BEPC)";
+      case CompetitionType.bac:
+        return 'الباكلوريا – الدورة العادية';
+      case CompetitionType.complementary:
+        return 'الباكلوريا – الدورة التكميلية';
+      case CompetitionType.excellence:
+        return "نتائج الامتياز الوطنية";
+      case CompetitionType.generic:
+        return "نتائج المسابقة";
     }
   }
 
@@ -136,13 +181,20 @@ class CompetitionModel {
   // مفاتيح قديمة للتوافق مع الكود السابق
   CompetitionKey? get key {
     switch (rawKey) {
-      case 'concours': return CompetitionKey.concours;
-      case 'brevet': return CompetitionKey.brevet;
-      case 'bac': return CompetitionKey.bac;
-      case 'complementary': return CompetitionKey.complementary;
-      case 'concours_excellence': return CompetitionKey.concoursExcellence;
-      case 'brevet_excellence': return CompetitionKey.brevetExcellence;
-      default: return null;
+      case 'concours':
+        return CompetitionKey.concours;
+      case 'brevet':
+        return CompetitionKey.brevet;
+      case 'bac':
+        return CompetitionKey.bac;
+      case 'complementary':
+        return CompetitionKey.complementary;
+      case 'concours_excellence':
+        return CompetitionKey.concoursExcellence;
+      case 'brevet_excellence':
+        return CompetitionKey.brevetExcellence;
+      default:
+        return null;
     }
   }
 }

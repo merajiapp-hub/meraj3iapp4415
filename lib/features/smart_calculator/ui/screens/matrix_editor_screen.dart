@@ -11,7 +11,8 @@ class MatrixEditorScreen extends StatefulWidget {
   State<MatrixEditorScreen> createState() => _MatrixEditorScreenState();
 }
 
-class _MatrixEditorScreenState extends State<MatrixEditorScreen> with SingleTickerProviderStateMixin {
+class _MatrixEditorScreenState extends State<MatrixEditorScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabs;
   int _rowsA = 2, _colsA = 2;
   int _rowsB = 2;
@@ -30,21 +31,39 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen> with SingleTick
   @override
   void dispose() {
     _tabs.dispose();
-    for (var row in _ctrlA) { for (var c in row) { c.dispose(); } }
-    for (var row in _ctrlB) { for (var c in row) { c.dispose(); } }
+    for (var row in _ctrlA) {
+      for (var c in row) {
+        c.dispose();
+      }
+    }
+    for (var row in _ctrlB) {
+      for (var c in row) {
+        c.dispose();
+      }
+    }
     super.dispose();
   }
 
   void _initCtrlA() {
-    _ctrlA = List.generate(_rowsA, (i) => List.generate(_colsA, (j) => TextEditingController(text: '0')));
+    _ctrlA = List.generate(
+      _rowsA,
+      (i) => List.generate(_colsA, (j) => TextEditingController(text: '0')),
+    );
   }
+
   void _initCtrlB() {
-    _ctrlB = List.generate(_rowsB, (i) => List.generate(_rowsB, (j) => TextEditingController(text: '0')));
+    _ctrlB = List.generate(
+      _rowsB,
+      (i) => List.generate(_rowsB, (j) => TextEditingController(text: '0')),
+    );
   }
 
   Matrix _buildMatrix(List<List<TextEditingController>> ctrl, int r, int c) {
     return Matrix.fromList(
-      List.generate(r, (i) => List.generate(c, (j) => double.tryParse(ctrl[i][j].text) ?? 0.0)),
+      List.generate(
+        r,
+        (i) => List.generate(c, (j) => double.tryParse(ctrl[i][j].text) ?? 0.0),
+      ),
     );
   }
 
@@ -68,17 +87,26 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen> with SingleTick
           break;
         case 'add':
           final B = _buildMatrix(_ctrlB, _rowsB, _rowsB);
-          if (_rowsA != _rowsB || _colsA != _rowsB) { setState(() => _result = 'الأبعاد غير متوافقة'); return; }
+          if (_rowsA != _rowsB || _colsA != _rowsB) {
+            setState(() => _result = 'الأبعاد غير متوافقة');
+            return;
+          }
           res = 'A + B =\n${_matrixToString((A + B))}';
           break;
         case 'sub':
           final B = _buildMatrix(_ctrlB, _rowsB, _rowsB);
-          if (_rowsA != _rowsB || _colsA != _rowsB) { setState(() => _result = 'الأبعاد غير متوافقة'); return; }
+          if (_rowsA != _rowsB || _colsA != _rowsB) {
+            setState(() => _result = 'الأبعاد غير متوافقة');
+            return;
+          }
           res = 'A - B =\n${_matrixToString((A - B))}';
           break;
         case 'mul':
           final B = _buildMatrix(_ctrlB, _rowsB, _rowsB);
-          if (_colsA != _rowsB) { setState(() => _result = 'يجب أن يكون عدد أعمدة A = عدد صفوف B'); return; }
+          if (_colsA != _rowsB) {
+            setState(() => _result = 'يجب أن يكون عدد أعمدة A = عدد صفوف B');
+            return;
+          }
           res = 'A × B =\n${_matrixToString((A * B))}';
           break;
       }
@@ -89,13 +117,15 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen> with SingleTick
   }
 
   String _matrixToString(Matrix m) {
-    return m.rows.map((r) => '[ ${r.map((v) => v.toStringAsFixed(3)).join('  ')} ]').join('\n');
+    return m.rows
+        .map((r) => '[ ${r.map((v) => v.toStringAsFixed(3)).join('  ')} ]')
+        .join('\n');
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Column(
       children: [
         TabBar(
@@ -103,18 +133,43 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen> with SingleTick
           labelColor: AppTheme.primaryColor,
           unselectedLabelColor: isDark ? Colors.white54 : Colors.black54,
           indicatorColor: AppTheme.primaryColor,
-          tabs: const [Tab(text: 'المصفوفة A'), Tab(text: 'المصفوفة B')],
+          tabs: const [
+            Tab(text: 'المصفوفة A'),
+            Tab(text: 'المصفوفة B'),
+          ],
         ),
         Expanded(
           child: TabBarView(
             controller: _tabs,
             children: [
-              _buildMatrixEditor(context, _ctrlA, _rowsA, _colsA,
-                  onRowChange: (v) => setState(() { _rowsA = v!; _initCtrlA(); _result = ''; }),
-                  onColChange: (v) => setState(() { _colsA = v!; _initCtrlA(); _result = ''; })),
-              _buildMatrixEditor(context, _ctrlB, _rowsB, _rowsB,
-                  onRowChange: (v) => setState(() { _rowsB = v!; _initCtrlB(); _result = ''; }),
-                  onColChange: null),
+              _buildMatrixEditor(
+                context,
+                _ctrlA,
+                _rowsA,
+                _colsA,
+                onRowChange: (v) => setState(() {
+                  _rowsA = v!;
+                  _initCtrlA();
+                  _result = '';
+                }),
+                onColChange: (v) => setState(() {
+                  _colsA = v!;
+                  _initCtrlA();
+                  _result = '';
+                }),
+              ),
+              _buildMatrixEditor(
+                context,
+                _ctrlB,
+                _rowsB,
+                _rowsB,
+                onRowChange: (v) => setState(() {
+                  _rowsB = v!;
+                  _initCtrlB();
+                  _result = '';
+                }),
+                onColChange: null,
+              ),
             ],
           ),
         ),
@@ -126,7 +181,9 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen> with SingleTick
 
   Widget _buildMatrixEditor(
     BuildContext context,
-    List<List<TextEditingController>> ctrls, int rows, int cols, {
+    List<List<TextEditingController>> ctrls,
+    int rows,
+    int cols, {
     required Function(int?)? onRowChange,
     required Function(int?)? onColChange,
   }) {
@@ -138,7 +195,7 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen> with SingleTick
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('الصفوف:', style: GoogleFonts.tajawal()),
+              Text('Lignes:', style: GoogleFonts.tajawal()),
               const SizedBox(width: 8),
               Container(
                 height: 40,
@@ -146,21 +203,32 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen> with SingleTick
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF2A2A2A) : Colors.grey[50],
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: isDark ? Colors.white12 : Colors.grey[300]!),
+                  border: Border.all(
+                    color: isDark ? Colors.white12 : Colors.grey[300]!,
+                  ),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<int>(
                     value: rows,
                     isDense: true,
+                    menuMaxHeight: 220,
+                    menuWidth: 120,
                     alignment: Alignment.center,
-                    items: [2, 3, 4].map((e) => DropdownMenuItem(value: e, child: Text('$e', style: GoogleFonts.tajawal()))).toList(),
+                    items: [2, 3, 4]
+                        .map(
+                          (e) => DropdownMenuItem(
+                            value: e,
+                            child: Text('$e', style: GoogleFonts.tajawal()),
+                          ),
+                        )
+                        .toList(),
                     onChanged: onRowChange,
                   ),
                 ),
               ),
               if (onColChange != null) ...[
                 const SizedBox(width: 24),
-                Text('الأعمدة:', style: GoogleFonts.tajawal()),
+                Text('Colonnes:', style: GoogleFonts.tajawal()),
                 const SizedBox(width: 8),
                 Container(
                   height: 40,
@@ -168,14 +236,25 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen> with SingleTick
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF2A2A2A) : Colors.grey[50],
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: isDark ? Colors.white12 : Colors.grey[300]!),
+                    border: Border.all(
+                      color: isDark ? Colors.white12 : Colors.grey[300]!,
+                    ),
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<int>(
                       value: cols,
                       isDense: true,
+                      menuMaxHeight: 220,
+                      menuWidth: 120,
                       alignment: Alignment.center,
-                      items: [2, 3, 4].map((e) => DropdownMenuItem(value: e, child: Text('$e', style: GoogleFonts.tajawal()))).toList(),
+                      items: [2, 3, 4]
+                          .map(
+                            (e) => DropdownMenuItem(
+                              value: e,
+                              child: Text('$e', style: GoogleFonts.tajawal()),
+                            ),
+                          )
+                          .toList(),
                       onChanged: onColChange,
                     ),
                   ),
@@ -187,24 +266,41 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen> with SingleTick
           for (int r = 0; r < rows; r++) ...[
             Row(
               children: [
-                const Text('[', style: TextStyle(fontSize: 28, color: Colors.grey)),
-                ...List.generate(cols, (c) => Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: TextField(
-                      controller: ctrls[r][c],
-                      keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true),
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
-                      decoration: InputDecoration(
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                const Text(
+                  '[',
+                  style: TextStyle(fontSize: 28, color: Colors.grey),
+                ),
+                ...List.generate(
+                  cols,
+                  (c) => Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: TextField(
+                        controller: ctrls[r][c],
+                        keyboardType: const TextInputType.numberWithOptions(
+                          signed: true,
+                          decimal: true,
+                        ),
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
+                        decoration: InputDecoration(
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 12,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                )),
-                const Text(']', style: TextStyle(fontSize: 28, color: Colors.grey)),
+                ),
+                const Text(
+                  ']',
+                  style: TextStyle(fontSize: 28, color: Colors.grey),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -243,7 +339,10 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen> with SingleTick
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         elevation: 0,
       ),
-      child: Text(label, style: GoogleFonts.tajawal(fontWeight: FontWeight.bold)),
+      child: Text(
+        label,
+        style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
+      ),
     );
   }
 
@@ -269,5 +368,3 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen> with SingleTick
     );
   }
 }
-
-

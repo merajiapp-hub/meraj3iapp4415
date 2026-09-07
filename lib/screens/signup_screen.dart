@@ -6,7 +6,6 @@ import '../providers/auth_provider.dart';
 import '../widgets/app_notification.dart';
 import 'terms_of_use_screen.dart';
 import 'privacy_policy_screen.dart';
-import 'main_screen.dart';
 import 'login_screen.dart';
 import '../widgets/app_dropdown.dart';
 
@@ -41,6 +40,7 @@ class _SignupScreenState extends State<SignupScreen>
       );
     }
   }
+
   String _selectedGender = 'ذكر';
 
   late AnimationController _animController;
@@ -112,10 +112,13 @@ class _SignupScreenState extends State<SignupScreen>
     if (!mounted) return;
     setState(() => _isLoading = false);
     if (error == null) {
-      AppNotification.show(context, 'تم إنشاء الحساب بنجاح!');
+      AppNotification.show(
+        context,
+        'تم إنشاء الحساب بنجاح. يمكنك تسجيل الدخول الآن.',
+      );
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const MainScreen()),
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
         (route) => false,
       );
     } else {
@@ -252,10 +255,7 @@ class _SignupScreenState extends State<SignupScreen>
                         size: 18,
                       ),
                       const SizedBox(width: 10),
-                      Text(
-                        value,
-                        style: GoogleFonts.tajawal(fontSize: 13),
-                      ),
+                      Text(value, style: GoogleFonts.tajawal(fontSize: 13)),
                     ],
                   ),
                 );
@@ -434,7 +434,9 @@ class _SignupScreenState extends State<SignupScreen>
     bool isConfirm = false,
     TextInputType keyboardType = TextInputType.text,
   }) {
-    final isVisible = isConfirm ? _isConfirmPasswordVisible : _isPasswordVisible;
+    final isVisible = isConfirm
+        ? _isConfirmPasswordVisible
+        : _isPasswordVisible;
     return Container(
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.2),

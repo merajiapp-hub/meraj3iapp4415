@@ -39,12 +39,18 @@ Gradient _gradientForType(CompetitionType type) {
 
 ExamType _examTypeFor(CompetitionType t) {
   switch (t) {
-    case CompetitionType.concours: return ExamType.concours;
-    case CompetitionType.brevet: return ExamType.brevet;
-    case CompetitionType.bac: return ExamType.bac;
-    case CompetitionType.complementary: return ExamType.complementary;
-    case CompetitionType.excellence: return ExamType.excellence;
-    case CompetitionType.generic: return ExamType.bac;
+    case CompetitionType.concours:
+      return ExamType.concours;
+    case CompetitionType.brevet:
+      return ExamType.brevet;
+    case CompetitionType.bac:
+      return ExamType.bac;
+    case CompetitionType.complementary:
+      return ExamType.complementary;
+    case CompetitionType.excellence:
+      return ExamType.excellence;
+    case CompetitionType.generic:
+      return ExamType.bac;
   }
 }
 
@@ -55,7 +61,9 @@ double _maxScoreFor(CompetitionType t) =>
 String _scoreLabelFor(CompetitionType t) =>
     t == CompetitionType.concours ? 'المجموع' : 'المعدل';
 bool _showBranchFor(CompetitionType t) =>
-    t == CompetitionType.bac || t == CompetitionType.complementary || t == CompetitionType.generic;
+    t == CompetitionType.bac ||
+    t == CompetitionType.complementary ||
+    t == CompetitionType.generic;
 
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -123,15 +131,22 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // قسّم المسابقات إلى أساسية وامتياز وإضافية
-    final main = _competitions.where((c) =>
-      c.type == CompetitionType.concours ||
-      c.type == CompetitionType.brevet ||
-      c.type == CompetitionType.bac ||
-      c.type == CompetitionType.complementary
-    ).toList();
+    final main = _competitions
+        .where(
+          (c) =>
+              c.type == CompetitionType.concours ||
+              c.type == CompetitionType.brevet ||
+              c.type == CompetitionType.bac ||
+              c.type == CompetitionType.complementary,
+        )
+        .toList();
 
-    final excellence = _competitions.where((c) => c.type == CompetitionType.excellence).toList();
-    final extra = _competitions.where((c) => c.type == CompetitionType.generic).toList();
+    final excellence = _competitions
+        .where((c) => c.type == CompetitionType.excellence)
+        .toList();
+    final extra = _competitions
+        .where((c) => c.type == CompetitionType.generic)
+        .toList();
 
     // المفضلة
     final favorites = context.watch<FavoriteResultsProvider>().items;
@@ -154,7 +169,8 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => GlobalSearchScreen(competitions: _competitions),
+                      builder: (_) =>
+                          GlobalSearchScreen(competitions: _competitions),
                     ),
                   ),
                 ),
@@ -194,7 +210,11 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                         alignment: Alignment.centerRight,
                         child: Padding(
                           padding: EdgeInsets.only(right: 24),
-                          child: Icon(Icons.emoji_events_rounded, size: 48, color: Colors.white12),
+                          child: Icon(
+                            Icons.emoji_events_rounded,
+                            size: 48,
+                            color: Colors.white12,
+                          ),
                         ),
                       ),
                     ],
@@ -210,75 +230,92 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                       child: HomeSkeleton(),
                     )
                   : _error != null
-                      ? _buildError()
-                      : Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // ── بحث سريع ──
-                              _buildSearchBar(),
-                              const SizedBox(height: 20),
+                  ? _buildError()
+                  : Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (_competitions.isEmpty) ...[
+                            _buildEmptyState(isDark),
+                            const SizedBox(height: 16),
+                          ],
+                          // ── بحث سريع ──
+                          _buildSearchBar(),
+                          const SizedBox(height: 20),
 
-                              // ── المسابقات الأساسية ──
-                              if (main.isNotEmpty) ...[
-                                _sectionLabel('📋 المسابقات الأساسية', isDark),
-                                const SizedBox(height: 10),
-                                _buildDynamicGrid(main, isDark),
-                                const SizedBox(height: 20),
-                              ],
+                          // ── المسابقات الأساسية ──
+                          if (main.isNotEmpty) ...[
+                            _sectionLabel('📋 المسابقات الأساسية', isDark),
+                            const SizedBox(height: 10),
+                            _buildDynamicGrid(main, isDark),
+                            const SizedBox(height: 20),
+                          ],
 
-                              // ── الامتياز ──
-                              if (excellence.isNotEmpty) ...[
-                                _sectionLabel('⭐ نتائج الامتياز', isDark),
-                                const SizedBox(height: 10),
-                                _buildExcellenceRow(excellence, isDark),
-                                const SizedBox(height: 20),
-                              ],
+                          // ── الامتياز ──
+                          if (excellence.isNotEmpty) ...[
+                            _sectionLabel('⭐ نتائج الامتياز', isDark),
+                            const SizedBox(height: 10),
+                            _buildExcellenceRow(excellence, isDark),
+                            const SizedBox(height: 20),
+                          ],
 
-                              // ── مسابقات إضافية ديناميكية ──
-                              if (extra.isNotEmpty) ...[
-                                _sectionLabel('📝 مسابقات أخرى', isDark),
-                                const SizedBox(height: 10),
-                                _buildDynamicGrid(extra, isDark),
-                                const SizedBox(height: 20),
-                              ],
+                          // ── مسابقات إضافية ديناميكية ──
+                          if (extra.isNotEmpty) ...[
+                            _sectionLabel('📝 مسابقات أخرى', isDark),
+                            const SizedBox(height: 10),
+                            _buildDynamicGrid(extra, isDark),
+                            const SizedBox(height: 20),
+                          ],
 
-                              // ── المفضلة ──
-                              if (favorites.isNotEmpty) ...[
-                                _sectionLabel('❤️ نتائجك المفضلة', isDark),
-                                const SizedBox(height: 10),
-                                _buildFavoritesSection(favorites, isDark),
-                                const SizedBox(height: 20),
-                              ],
+                          // ── المفضلة ──
+                          if (favorites.isNotEmpty) ...[
+                            _sectionLabel('❤️ نتائجك المفضلة', isDark),
+                            const SizedBox(height: 10),
+                            _buildFavoritesSection(favorites, isDark),
+                            const SizedBox(height: 20),
+                          ],
 
-                              // ── معلومات التحديث ──
-                              _buildCacheInfo(isDark),
-                              const SizedBox(height: 12),
+                          // ── معلومات التحديث ──
+                          _buildCacheInfo(isDark),
+                          const SizedBox(height: 12),
 
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primaryColor.withValues(alpha: 0.08),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.2)),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.info_outline_rounded, color: AppTheme.primaryColor, size: 18),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        'اسحب للأسفل لتحديث النتائج من المصدر مباشرة.',
-                                        style: GoogleFonts.tajawal(fontSize: 12, color: AppTheme.primaryColor),
-                                      ),
-                                    ),
-                                  ],
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor.withValues(
+                                alpha: 0.08,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppTheme.primaryColor.withValues(
+                                  alpha: 0.2,
                                 ),
                               ),
-                            ],
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.info_outline_rounded,
+                                  color: AppTheme.primaryColor,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'اسحب للأسفل لتحديث النتائج من المصدر مباشرة.',
+                                    style: GoogleFonts.tajawal(
+                                      fontSize: 12,
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                        ],
+                      ),
+                    ),
             ),
           ],
         ),
@@ -290,7 +327,9 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => GlobalSearchScreen(competitions: _competitions)),
+        MaterialPageRoute(
+          builder: (_) => GlobalSearchScreen(competitions: _competitions),
+        ),
       ),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -310,6 +349,46 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(bool isDark) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF162D27) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: AppTheme.primaryColor.withValues(alpha: 0.12),
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.inbox_rounded,
+            size: 54,
+            color: AppTheme.primaryColor.withValues(alpha: 0.55),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'لا توجد نتائج منشورة حالياً',
+            style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'سيتم عرض النتائج هنا فور نشرها من لوحة الإدارة.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.tajawal(color: Colors.grey, fontSize: 13),
+          ),
+          const SizedBox(height: 14),
+          OutlinedButton.icon(
+            onPressed: _onRefresh,
+            icon: const Icon(Icons.refresh_rounded),
+            label: Text('إعادة المحاولة', style: GoogleFonts.tajawal()),
+          ),
+        ],
       ),
     );
   }
@@ -349,11 +428,16 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
               onTap: comp.isPublished ? () => _navigateToComp(comp) : null,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: comp.isPublished
                       ? color.withValues(alpha: 0.12)
-                      : (isDark ? Colors.white.withValues(alpha: 0.04) : Colors.grey.shade100),
+                      : (isDark
+                            ? Colors.white.withValues(alpha: 0.04)
+                            : Colors.grey.shade100),
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: comp.isPublished
                       ? [
@@ -361,7 +445,7 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                             color: color.withValues(alpha: 0.15),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
-                          )
+                          ),
                         ]
                       : null,
                   border: Border.all(
@@ -372,7 +456,13 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                 ),
                 child: Row(
                   children: [
-                    Text(comp.displayEmoji, style: TextStyle(fontSize: 22, color: comp.isPublished ? null : Colors.grey[400])),
+                    Text(
+                      comp.displayEmoji,
+                      style: TextStyle(
+                        fontSize: 22,
+                        color: comp.isPublished ? null : Colors.grey[400],
+                      ),
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -383,14 +473,21 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                             style: GoogleFonts.tajawal(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: comp.isPublished ? (isDark ? Colors.white : Colors.black87) : Colors.grey[400],
+                              color: comp.isPublished
+                                  ? (isDark ? Colors.white : Colors.black87)
+                                  : Colors.grey[400],
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           Text(
                             comp.isPublished ? 'متاح' : 'قريباً...',
-                            style: GoogleFonts.tajawal(fontSize: 10, color: comp.isPublished ? color : Colors.grey[400]),
+                            style: GoogleFonts.tajawal(
+                              fontSize: 10,
+                              color: comp.isPublished
+                                  ? color
+                                  : Colors.grey[400],
+                            ),
                           ),
                         ],
                       ),
@@ -405,7 +502,10 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
     );
   }
 
-  Widget _buildFavoritesSection(List<FavoriteResultItem> favorites, bool isDark) {
+  Widget _buildFavoritesSection(
+    List<FavoriteResultItem> favorites,
+    bool isDark,
+  ) {
     return SizedBox(
       height: 80,
       child: ListView.separated(
@@ -417,8 +517,8 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
           final statusColor = item.result.isPassed
               ? const Color(0xFF16A34A)
               : item.result.status == 'الدورة التكميلية'
-                  ? Colors.blue
-                  : Colors.red;
+              ? Colors.blue
+              : Colors.red;
           return GestureDetector(
             onTap: () {
               // البحث عن المسابقة المناسبة للانتقال إليها
@@ -439,7 +539,9 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                     maxScore: _maxScoreFor(comp.type),
                     scoreLabel: _scoreLabelFor(comp.type),
                     showBranch: _showBranchFor(comp.type),
-                    initialSearchQuery: item.result.name.isNotEmpty ? item.result.name : item.result.id,
+                    initialSearchQuery: item.result.name.isNotEmpty
+                        ? item.result.name
+                        : item.result.id,
                   ),
                 ),
               );
@@ -466,14 +568,23 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                   Row(
                     children: [
                       Container(
-                        width: 8, height: 8,
-                        decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: statusColor,
+                          shape: BoxShape.circle,
+                        ),
                       ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          item.result.name.isNotEmpty ? item.result.name : item.result.id,
-                          style: GoogleFonts.tajawal(fontSize: 12, fontWeight: FontWeight.bold),
+                          item.result.name.isNotEmpty
+                              ? item.result.name
+                              : item.result.id,
+                          style: GoogleFonts.tajawal(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -483,14 +594,19 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                   const SizedBox(height: 4),
                   Text(
                     item.title,
-                    style: GoogleFonts.tajawal(fontSize: 10, color: Colors.grey[500]),
+                    style: GoogleFonts.tajawal(
+                      fontSize: 10,
+                      color: Colors.grey[500],
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
                     item.result.status,
                     style: GoogleFonts.tajawal(
-                      fontSize: 11, fontWeight: FontWeight.bold, color: statusColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: statusColor,
                     ),
                   ),
                 ],
@@ -529,12 +645,16 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
           gradient: published ? gradient : null,
           color: published
               ? null
-              : (isDark ? Colors.white.withValues(alpha: 0.04) : Colors.grey.shade100),
+              : (isDark
+                    ? Colors.white.withValues(alpha: 0.04)
+                    : Colors.grey.shade100),
           borderRadius: BorderRadius.circular(20),
           boxShadow: published
               ? [
                   BoxShadow(
-                    color: (gradient as LinearGradient).colors.first.withValues(alpha: 0.3),
+                    color: (gradient as LinearGradient).colors.first.withValues(
+                      alpha: 0.3,
+                    ),
                     blurRadius: 12,
                     offset: const Offset(0, 6),
                   ),
@@ -543,7 +663,9 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
           border: published
               ? null
               : Border.all(
-                  color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE2E8F0),
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : const Color(0xFFE2E8F0),
                 ),
         ),
         child: Padding(
@@ -556,7 +678,13 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                   color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(emoji, style: TextStyle(fontSize: 22, color: published ? null : Colors.grey[400])),
+                child: Text(
+                  emoji,
+                  style: TextStyle(
+                    fontSize: 22,
+                    color: published ? null : Colors.grey[400],
+                  ),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -585,7 +713,11 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                 ),
               ),
               if (published)
-                const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white54, size: 14),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: Colors.white54,
+                  size: 14,
+                ),
             ],
           ),
         ),
@@ -597,7 +729,10 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
     final firstComp = _competitions.isNotEmpty ? _competitions.first : null;
     if (firstComp == null) return const SizedBox.shrink();
     return FutureBuilder<DateTime?>(
-      future: ResultsService.lastUpdated(_examTypeFor(firstComp.type), firstComp.link),
+      future: ResultsService.lastUpdated(
+        _examTypeFor(firstComp.type),
+        firstComp.link,
+      ),
       builder: (context, snap) {
         final dt = snap.data;
         if (dt == null) return const SizedBox.shrink();
@@ -615,23 +750,36 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.04)
+                : const Color(0xFFF1F5F9),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
             children: [
-              Icon(Icons.update_rounded, size: 16, color: isDark ? Colors.white38 : Colors.grey[500]),
+              Icon(
+                Icons.update_rounded,
+                size: 16,
+                color: isDark ? Colors.white38 : Colors.grey[500],
+              ),
               const SizedBox(width: 8),
               Text(
                 'آخر تحديث: $timeAgo',
-                style: GoogleFonts.tajawal(fontSize: 11, color: isDark ? Colors.white38 : Colors.grey[500]),
+                style: GoogleFonts.tajawal(
+                  fontSize: 11,
+                  color: isDark ? Colors.white38 : Colors.grey[500],
+                ),
               ),
               const Spacer(),
               GestureDetector(
                 onTap: _onRefresh,
                 child: Text(
                   'تحديث الآن',
-                  style: GoogleFonts.tajawal(fontSize: 11, color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.tajawal(
+                    fontSize: 11,
+                    color: AppTheme.primaryColor,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -649,7 +797,11 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
           children: [
             Icon(Icons.wifi_off_rounded, size: 56, color: Colors.grey[400]),
             const SizedBox(height: 16),
-            Text(_error!, style: GoogleFonts.tajawal(fontSize: 15, color: Colors.grey[600]), textAlign: TextAlign.center),
+            Text(
+              _error!,
+              style: GoogleFonts.tajawal(fontSize: 15, color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: _onRefresh,

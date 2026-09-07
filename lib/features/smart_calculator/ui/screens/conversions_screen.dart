@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class ConversionsScreen extends StatefulWidget {
@@ -13,7 +13,20 @@ class _ConversionsScreenState extends State<ConversionsScreen> {
   String _fromUnit = 'm';
   String _toUnit = 'cm';
   double _inputValue = 1.0;
-  
+
+  String _categoryLabel(String value) {
+    const labels = {
+      'الطول': 'Longueur',
+      'الوزن': 'Poids',
+      'الزمن': 'Temps',
+      'المساحة': 'Surface',
+      'الحجم': 'Volume',
+      'السرعة': 'Vitesse',
+      'البيانات': 'Données',
+    };
+    return labels[value] ?? value;
+  }
+
   final Map<String, Map<String, double>> _conversionRates = {
     'الطول': {
       'mm': 0.001,
@@ -47,17 +60,8 @@ class _ConversionsScreenState extends State<ConversionsScreen> {
       'acre': 4046.86,
       'hectare': 10000.0,
     },
-    'الحجم': {
-      'ml': 0.001,
-      'liter': 1.0,
-      'm³': 1000.0,
-      'gallon': 3.78541,
-    },
-    'السرعة': {
-      'm/s': 1.0,
-      'km/h': 0.277778,
-      'mph': 0.44704,
-    },
+    'الحجم': {'ml': 0.001, 'liter': 1.0, 'm³': 1000.0, 'gallon': 3.78541},
+    'السرعة': {'m/s': 1.0, 'km/h': 0.277778, 'mph': 0.44704},
     'البيانات': {
       'bit': 0.125,
       'byte': 1.0,
@@ -65,7 +69,7 @@ class _ConversionsScreenState extends State<ConversionsScreen> {
       'MB': 1048576.0,
       'GB': 1073741824.0,
       'TB': 1099511627776.0,
-    }
+    },
   };
 
   void _onCategoryChanged(String? newCategory) {
@@ -80,16 +84,24 @@ class _ConversionsScreenState extends State<ConversionsScreen> {
 
   double _convert() {
     if (_selectedCategory == 'الحرارة') {
-       if (_fromUnit == 'Celsius' && _toUnit == 'Fahrenheit') return (_inputValue * 9/5) + 32;
-       if (_fromUnit == 'Fahrenheit' && _toUnit == 'Celsius') return (_inputValue - 32) * 5/9;
-       if (_fromUnit == 'Celsius' && _toUnit == 'Kelvin') return _inputValue + 273.15;
-       if (_fromUnit == 'Kelvin' && _toUnit == 'Celsius') return _inputValue - 273.15;
-       return _inputValue;
+      if (_fromUnit == 'Celsius' && _toUnit == 'Fahrenheit') {
+        return (_inputValue * 9 / 5) + 32;
+      }
+      if (_fromUnit == 'Fahrenheit' && _toUnit == 'Celsius') {
+        return (_inputValue - 32) * 5 / 9;
+      }
+      if (_fromUnit == 'Celsius' && _toUnit == 'Kelvin') {
+        return _inputValue + 273.15;
+      }
+      if (_fromUnit == 'Kelvin' && _toUnit == 'Celsius') {
+        return _inputValue - 273.15;
+      }
+      return _inputValue;
     }
 
     final fromRate = _conversionRates[_selectedCategory]![_fromUnit]!;
     final toRate = _conversionRates[_selectedCategory]![_toUnit]!;
-    
+
     // Convert to base unit, then to target unit
     final baseValue = _inputValue * fromRate;
     return baseValue / toRate;
@@ -99,7 +111,7 @@ class _ConversionsScreenState extends State<ConversionsScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final result = _convert();
-    
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -107,13 +119,20 @@ class _ConversionsScreenState extends State<ConversionsScreen> {
         children: [
           DropdownButtonFormField<String>(
             initialValue: _selectedCategory,
+            isExpanded: true,
+            menuMaxHeight: 280,
             items: _conversionRates.keys.map((cat) {
-              return DropdownMenuItem(value: cat, child: Text(cat, style: GoogleFonts.tajawal()));
+              return DropdownMenuItem(
+                value: cat,
+                child: Text(_categoryLabel(cat), style: GoogleFonts.tajawal()),
+              );
             }).toList(),
             onChanged: _onCategoryChanged,
             decoration: InputDecoration(
-              labelText: 'الفئة',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              labelText: 'Catégorie',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
           const SizedBox(height: 24),
@@ -122,10 +141,14 @@ class _ConversionsScreenState extends State<ConversionsScreen> {
               Expanded(
                 flex: 2,
                 child: TextField(
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: InputDecoration(
-                    labelText: 'القيمة',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    labelText: 'Valeur',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   onChanged: (val) {
                     setState(() {
@@ -137,17 +160,28 @@ class _ConversionsScreenState extends State<ConversionsScreen> {
               const SizedBox(width: 16),
               Expanded(
                 flex: 1,
-                child: DropdownButton<String>(value: _fromUnit,
+                child: DropdownButton<String>(
+                  value: _fromUnit,
+                  menuMaxHeight: 280,
                   items: _conversionRates[_selectedCategory]!.keys.map((u) {
-                    return DropdownMenuItem(value: u, child: Text(u, style: GoogleFonts.tajawal()));
+                    return DropdownMenuItem(
+                      value: u,
+                      child: Text(u, style: GoogleFonts.tajawal()),
+                    );
                   }).toList(),
                   onChanged: (val) => setState(() => _fromUnit = val!),
-                  isExpanded: true,),
+                  isExpanded: true,
+                  underline: const SizedBox.shrink(),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          const Icon(Icons.arrow_downward_rounded, size: 32, color: Colors.grey),
+          const Icon(
+            Icons.arrow_downward_rounded,
+            size: 32,
+            color: Colors.grey,
+          ),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -160,20 +194,33 @@ class _ConversionsScreenState extends State<ConversionsScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    result.toStringAsFixed(4).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), ''),
-                    style: GoogleFonts.tajawal(fontSize: 24, fontWeight: FontWeight.bold),
+                    result
+                        .toStringAsFixed(4)
+                        .replaceAll(RegExp(r'0+$'), '')
+                        .replaceAll(RegExp(r'\.$'), ''),
+                    style: GoogleFonts.tajawal(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 flex: 1,
-                child: DropdownButton<String>(value: _toUnit,
+                child: DropdownButton<String>(
+                  value: _toUnit,
+                  menuMaxHeight: 280,
                   items: _conversionRates[_selectedCategory]!.keys.map((u) {
-                    return DropdownMenuItem(value: u, child: Text(u, style: GoogleFonts.tajawal()));
+                    return DropdownMenuItem(
+                      value: u,
+                      child: Text(u, style: GoogleFonts.tajawal()),
+                    );
                   }).toList(),
                   onChanged: (val) => setState(() => _toUnit = val!),
-                  isExpanded: true,),
+                  isExpanded: true,
+                  underline: const SizedBox.shrink(),
+                ),
               ),
             ],
           ),
@@ -182,5 +229,3 @@ class _ConversionsScreenState extends State<ConversionsScreen> {
     );
   }
 }
-
-

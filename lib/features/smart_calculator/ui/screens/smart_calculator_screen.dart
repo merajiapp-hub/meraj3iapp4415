@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../theme/app_theme.dart';
 import 'scientific_calculator_screen.dart';
@@ -14,7 +14,8 @@ class SmartCalculatorScreen extends StatefulWidget {
   State<SmartCalculatorScreen> createState() => _SmartCalculatorScreenState();
 }
 
-class _SmartCalculatorScreenState extends State<SmartCalculatorScreen> with SingleTickerProviderStateMixin {
+class _SmartCalculatorScreenState extends State<SmartCalculatorScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -22,7 +23,7 @@ class _SmartCalculatorScreenState extends State<SmartCalculatorScreen> with Sing
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
   }
-  
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -32,16 +33,18 @@ class _SmartCalculatorScreenState extends State<SmartCalculatorScreen> with Sing
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
-      backgroundColor: isDark ? AppTheme.backgroundDark : AppTheme.backgroundLight,
+      backgroundColor: isDark
+          ? AppTheme.backgroundDark
+          : AppTheme.backgroundLight,
       appBar: AppBar(
         backgroundColor: isDark ? AppTheme.surfaceDark : Colors.white,
         elevation: 0,
         centerTitle: true,
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
         title: Text(
-          'الحاسبة المتقدمة',
+          'Calculatrice avancée',
           style: GoogleFonts.tajawal(
             fontWeight: FontWeight.w900,
             color: isDark ? Colors.white : Colors.black87,
@@ -56,31 +59,26 @@ class _SmartCalculatorScreenState extends State<SmartCalculatorScreen> with Sing
           indicatorColor: AppTheme.primaryColor,
           labelStyle: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
           tabs: const [
-            Tab(text: 'الحاسبة'),
-            Tab(text: 'المعادلات'),
-            Tab(text: 'الرسم البياني'),
-            Tab(text: 'المصفوفات'),
-            Tab(text: 'التحويلات'),
+            Tab(text: 'Calculatrice'),
+            Tab(text: 'Équations'),
+            Tab(text: 'Graphique'),
+            Tab(text: 'Matrices'),
+            Tab(text: 'Conversions'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
-        physics: const NeverScrollableScrollPhysics(), // Prevent swipe to avoid conflicting with graph/matrix gestures
+        physics:
+            const NeverScrollableScrollPhysics(), // Prevent swipe to avoid conflicting with graph/matrix gestures
         children: [
           const ScientificCalculatorScreen(), // Tab 1: الحاسبة
-          const EquationSolverScreen(),       // Tab 2: المعادلات
-          const GraphingScreen(),             // Tab 3: الرسم البياني
-          const MatrixEditorScreen(),         // Tab 4: المصفوفات
+          const EquationSolverScreen(), // Tab 2: المعادلات
+          const GraphingScreen(), // Tab 3: الرسم البياني
+          const MatrixEditorScreen(), // Tab 4: المصفوفات
           const ConversionsScreen(), // Tab 5: التحويلات (To be implemented or replaced)
         ],
       ),
     );
   }
-
 }
-
-
-
-
-

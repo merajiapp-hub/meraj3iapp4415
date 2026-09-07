@@ -4,6 +4,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/competition_model.dart';
 
 class RemoteConfigService {
@@ -12,6 +13,7 @@ class RemoteConfigService {
   RemoteConfigService._();
 
   FirebaseRemoteConfig get _rc => FirebaseRemoteConfig.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   bool _initialized = false;
   bool _initializing = false;
@@ -26,19 +28,22 @@ class RemoteConfigService {
   static const Map<String, Map<String, dynamic>> _fallbackData = {
     'concours': {
       'title': 'كونكور 2026',
-      'link': 'https://docs.google.com/spreadsheets/d/1jMXqMtXHFdWdkzVz9OpYKr8XxUPfW3B0GQ2L7NvCeRI/export?format=csv&gid=361235812',
+      'link':
+          'https://docs.google.com/spreadsheets/d/1jMXqMtXHFdWdkzVz9OpYKr8XxUPfW3B0GQ2L7NvCeRI/export?format=csv&gid=361235812',
       'is_published': true,
       'order': 0,
     },
     'brevet': {
       'title': 'ابريفة 2026',
-      'link': 'https://docs.google.com/spreadsheets/d/1jMXqMtXHFdWdkzVz9OpYKr8XxUPfW3B0GQ2L7NvCeRI/export?format=csv&gid=1962707704',
+      'link':
+          'https://docs.google.com/spreadsheets/d/1jMXqMtXHFdWdkzVz9OpYKr8XxUPfW3B0GQ2L7NvCeRI/export?format=csv&gid=1962707704',
       'is_published': true,
       'order': 1,
     },
     'bac': {
       'title': 'الباكلوريا – الدورة العادية',
-      'link': 'https://docs.google.com/spreadsheets/d/1jMXqMtXHFdWdkzVz9OpYKr8XxUPfW3B0GQ2L7NvCeRI/export?format=csv&gid=1215098731',
+      'link':
+          'https://docs.google.com/spreadsheets/d/1jMXqMtXHFdWdkzVz9OpYKr8XxUPfW3B0GQ2L7NvCeRI/export?format=csv&gid=1215098731',
       'is_published': true,
       'order': 2,
     },
@@ -73,11 +78,15 @@ class RemoteConfigService {
     _initializing = true;
 
     try {
-      await _rc.setConfigSettings(RemoteConfigSettings(
-        fetchTimeout: const Duration(seconds: 15),
-        minimumFetchInterval: const Duration(minutes: 5),
-      ));
-      await _rc.setDefaults({'competitions_data': jsonEncode(_buildDefaultJson())});
+      await _rc.setConfigSettings(
+        RemoteConfigSettings(
+          fetchTimeout: const Duration(seconds: 15),
+          minimumFetchInterval: const Duration(minutes: 5),
+        ),
+      );
+      await _rc.setDefaults({
+        'competitions_data': jsonEncode(_buildDefaultJson()),
+      });
       unawaited(_rc.fetchAndActivate());
     } catch (_) {
       // فشل التهيئة لا يوقف التطبيق
@@ -103,6 +112,51 @@ class RemoteConfigService {
       return _cached!;
     }
 
+    QuerySnapshot<Map<String, dynamic>>? firestoreSnapshot;
+    try {
+      firestoreSnapshot = await _firestore
+          .collection('competition_results')
+          .where('is_published', isEqualTo: true)
+          .orderBy('order')
+          .get(const GetOptions(source: Source.serverAndCache))
+          .timeout(const Duration(seconds: 8));
+    } catch (_) {
+      // إذا لم يُنشر الفهرس بعد، نعيد نفس الاستعلام دون orderBy.
+      try {
+        firestoreSnapshot = await _firestore
+            .collection('competition_results')
+            .where('is_published', isEqualTo: true)
+            .get(const GetOptions(source: Source.serverAndCache))
+            .timeout(const Duration(seconds: 8));
+      } catch (_) {}
+    }
+
+    if (firestoreSnapshot != null && firestoreSnapshot.docs.isEmpty) {
+      try {
+        // دعم المستندات الحالية التي لا تحتوي is_published بعد.
+        firestoreSnapshot = await _firestore
+            .collection('competition_results')
+            .get(const GetOptions(source: Source.serverAndCache))
+            .timeout(const Duration(seconds: 8));
+      } catch (_) {}
+    }
+
+    if (firestoreSnapshot != null) {
+      final result =
+          firestoreSnapshot.docs
+              .map((doc) => CompetitionModel.fromJson(doc.id, doc.data()))
+              .where((competition) => _isValidLink(competition.link))
+              .toList()
+            ..sort((a, b) {
+              final order = a.order.compareTo(b.order);
+              return order != 0 ? order : a.rawKey.compareTo(b.rawKey);
+            });
+      _cached = result;
+      _cachedAt = DateTime.now();
+      // Firestore is authoritative, including the legitimate empty state.
+      return result;
+    }
+
     try {
       if (!_initialized) await initialize();
       if (forceRefresh) await _rc.fetchAndActivate();
@@ -121,6 +175,13 @@ class RemoteConfigService {
     _cached = fallback;
     _cachedAt = DateTime.now();
     return fallback;
+  }
+
+  static bool _isValidLink(String value) {
+    final uri = Uri.tryParse(value.trim());
+    return uri != null &&
+        (uri.scheme == 'https' || uri.scheme == 'http') &&
+        uri.host.isNotEmpty;
   }
 
   Future<void> refreshInBackground() async {
@@ -143,7 +204,12 @@ class RemoteConfigService {
     final result = <CompetitionModel>[];
     for (final entry in data.entries) {
       if (entry.value is Map<String, dynamic>) {
-        result.add(CompetitionModel.fromJson(entry.key, entry.value as Map<String, dynamic>));
+        result.add(
+          CompetitionModel.fromJson(
+            entry.key,
+            entry.value as Map<String, dynamic>,
+          ),
+        );
       }
     }
     // ترتيب حسب حقل order ثم اسم المفتاح

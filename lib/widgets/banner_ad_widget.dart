@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'dart:io';
 
 class BannerAdWidget extends StatefulWidget {
   const BannerAdWidget({super.key});
@@ -13,9 +13,7 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
   BannerAd? _bannerAd;
   bool _isLoaded = false;
 
-  final adUnitId = Platform.isAndroid
-      ? 'ca-app-pub-7381352612061383/9877064981' // Real ID for Android
-      : 'ca-app-pub-7381352612061383/9877064981'; // iOS ID
+  static const adUnitId = 'ca-app-pub-7381352612061383/9877064981';
 
   @override
   void didChangeDependencies() {
@@ -26,6 +24,7 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
   }
 
   Future<void> _loadAd() async {
+    if (kIsWeb) return;
     // الحصول على العرض المناسب للشاشة للإعلان المتكيف
     final width = MediaQuery.of(context).size.width.truncate();
     final size = await AdSize.getLargeAnchoredAdaptiveBannerAdSize(width);
@@ -64,6 +63,7 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
 
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb) return const SizedBox.shrink();
     if (_isLoaded && _bannerAd != null) {
       return Container(
         alignment: Alignment.center,
@@ -76,4 +76,3 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
     return const SizedBox.shrink();
   }
 }
-

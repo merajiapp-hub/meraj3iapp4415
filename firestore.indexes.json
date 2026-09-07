@@ -1,17 +1,11 @@
 {
   "indexes": [
     {
-      "collectionGroup": "messages",
+      "collectionGroup": "competition_results",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "createdAt", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "chats",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
+        { "fieldPath": "is_published", "order": "ASCENDING" },
+        { "fieldPath": "order", "order": "ASCENDING" }
       ]
     }
   ],

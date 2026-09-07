@@ -10,7 +10,13 @@ class ScheduleProvider extends ChangeNotifier {
   static const _prefsKey = 'schedule_items_v3';
 
   final Map<int, List<ScheduleItem>> _items = {
-    1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [],
+    1: [],
+    2: [],
+    3: [],
+    4: [],
+    5: [],
+    6: [],
+    7: [],
   }; // Key is weekday 1..7 (1 = Monday, 7 = Sunday)
 
   ScheduleProvider() {
@@ -36,6 +42,14 @@ class ScheduleProvider extends ChangeNotifier {
 
     _sortItems();
     notifyListeners();
+  }
+
+  Future<void> rescheduleAllNotifications() async {
+    for (final dayItems in _items.values) {
+      for (final item in dayItems) {
+        await _scheduleNotification(item);
+      }
+    }
   }
 
   void _sortItems() {
@@ -113,7 +127,7 @@ class ScheduleProvider extends ChangeNotifier {
     // Add new
     _items[newItem.weekday]?.add(newItem);
     _sortItems();
-    
+
     notifyListeners();
     await _saveToPrefs();
     await _scheduleNotification(newItem);
@@ -126,25 +140,28 @@ class ScheduleProvider extends ChangeNotifier {
     await _cancelNotification(item);
   }
 
-  Future<void> toggleItemCompletion(ScheduleItem item, BuildContext context) async {
+  Future<void> toggleItemCompletion(
+    ScheduleItem item,
+    BuildContext context,
+  ) async {
     final dayItems = _items[item.weekday];
     if (dayItems == null) return;
-    
+
     final index = dayItems.indexWhere((i) => i.id == item.id);
     if (index != -1) {
       final oldItem = dayItems[index];
       final newItem = oldItem.copyWith(isCompleted: !oldItem.isCompleted);
       dayItems[index] = newItem;
-      
+
       notifyListeners();
       await _saveToPrefs();
-      
+
       // Update statistics
       if (context.mounted) {
         final stats = Provider.of<StatisticsProvider>(context, listen: false);
         if (newItem.isCompleted) {
           stats.incrementUserStat('completedTasks', value: 1);
-          
+
           // Play sound if completed
           try {
             final player = AudioPlayer();
@@ -157,4 +174,3 @@ class ScheduleProvider extends ChangeNotifier {
     }
   }
 }
-

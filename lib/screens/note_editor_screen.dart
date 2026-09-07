@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import '../theme/app_theme.dart';
 import '../providers/notes_provider.dart';
+import '../services/note_export_service.dart';
 
 class NoteEditorScreen extends StatefulWidget {
   final Note? note;
@@ -19,7 +20,7 @@ class NoteEditorScreen extends StatefulWidget {
 class _NoteEditorScreenState extends State<NoteEditorScreen> {
   late TextEditingController _titleController;
   late quill.QuillController _quillController;
-  
+
   bool _isChanged = false;
   Timer? _autoSaveTimer;
   bool _isSaving = false;
@@ -31,13 +32,25 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   String _selectedFont = 'Tajawal';
 
   final List<String> _fonts = [
-    'Tajawal', 'Amiri', 'Cairo', 'El Messiri', 'Reem Kufi', 'Lalezar', 'Changa'
+    'Tajawal',
+    'Amiri',
+    'Cairo',
+    'El Messiri',
+    'Reem Kufi',
+    'Lalezar',
+    'Changa',
   ];
 
   final List<String> _categories = [
-    'الرياضيات', 'العلوم', 'اللغة العربية', 
-    'التاريخ', 'الجغرافيا', 'التربية الإسلامية', 
-    'مراجعة', 'أفكار', 'أخرى'
+    'الرياضيات',
+    'العلوم',
+    'اللغة العربية',
+    'التاريخ',
+    'الجغرافيا',
+    'التربية الإسلامية',
+    'مراجعة',
+    'أفكار',
+    'أخرى',
   ];
 
   final List<Color> _availableColors = [
@@ -54,7 +67,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.note?.title ?? '');
-    
+
     // Parse quill content
     final contentJson = widget.note?.content ?? '';
     quill.Document doc;
@@ -96,7 +109,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
   void _scheduleAutoSave() {
     _autoSaveTimer?.cancel();
-    _autoSaveTimer = Timer(const Duration(milliseconds: 1500), _autoSave); // 1.5s debounce
+    _autoSaveTimer = Timer(
+      const Duration(milliseconds: 1500),
+      _autoSave,
+    ); // 1.5s debounce
   }
 
   Future<void> _autoSave() async {
@@ -126,14 +142,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         );
       } else {
         // Add note
-        await provider.addNote(
+        _createdNoteId = await provider.addNote(
           title.isEmpty ? 'بدون عنوان' : title,
           content,
           color: _noteColor?.toARGB32(),
           tags: [_selectedCategory],
         );
         // Note: provider.addNote doesn't return ID currently.
-        // It's safer to pop after first creation if we can't track ID, but for seamless UX, 
+        // It's safer to pop after first creation if we can't track ID, but for seamless UX,
         // a workaround is to fetch the latest note. For now we assume the provider handles it nicely.
       }
     } catch (e) {
@@ -148,7 +164,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     }
   }
 
-  void _saveAndPop() {
+  Future<void> _saveAndPop() async {
     _autoSaveTimer?.cancel();
     final title = _titleController.text.trim();
     final content = jsonEncode(_quillController.document.toDelta().toJson());
@@ -162,14 +178,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final existingId = widget.note?.id ?? _createdNoteId;
 
     if (existingId == null) {
-      provider.addNote(
+      await provider.addNote(
         title.isEmpty ? 'بدون عنوان' : title,
         content,
         color: _noteColor?.toARGB32(),
         tags: [_selectedCategory],
       );
     } else {
-      provider.updateNote(
+      await provider.updateNote(
         existingId,
         title.isEmpty ? 'بدون عنوان' : title,
         content,
@@ -177,7 +193,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         tags: [_selectedCategory],
       );
     }
-    Navigator.pop(context);
+    if (mounted) Navigator.pop(context);
   }
 
   @override
@@ -189,11 +205,156 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     super.dispose();
   }
 
+  String get _noteTitle => _titleController.text.trim().isEmpty
+      ? 'ملاحظة MERAJ3I'
+      : _titleController.text.trim();
+
+  String get _noteContent => _quillController.document.toPlainText().trim();
+
   Future<void> _shareNote() async {
     final title = _titleController.text.trim();
     final plainText = _quillController.document.toPlainText();
-    // ignore: deprecated_member_use
-    await Share.share('$title\n\n$plainText', subject: title);
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          text: '$title\n\n$plainText'.trim(),
+          subject: title.isEmpty ? 'ملاحظة MERAJ3I' : title,
+        ),
+      );
+    } catch (error) {
+      _showExportError(error);
+    }
+  }
+
+  Future<void> _exportTextFile() async {
+    try {
+      final file = XFile.fromData(
+        NoteExportService.textBytes(title: _noteTitle, content: _noteContent),
+        name: '${_safeFileName(_noteTitle)}.txt',
+        mimeType: 'text/plain',
+      );
+      await SharePlus.instance.share(
+        ShareParams(files: [file], subject: _noteTitle),
+      );
+    } catch (error) {
+      _showExportError(error);
+    }
+  }
+
+  Future<void> _exportPdfFile() async {
+    try {
+      final bytes = await NoteExportService.pdfBytes(
+        title: _noteTitle,
+        content: _noteContent,
+      );
+      final file = XFile.fromData(
+        bytes,
+        name: '${_safeFileName(_noteTitle)}.pdf',
+        mimeType: 'application/pdf',
+      );
+      await SharePlus.instance.share(
+        ShareParams(files: [file], subject: _noteTitle),
+      );
+    } catch (error) {
+      _showExportError(error);
+    }
+  }
+
+  String _safeFileName(String value) => value
+      .replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')
+      .replaceAll(RegExp(r'\s+'), '_');
+
+  void _showExportError(Object error) {
+    debugPrint('Note export error: $error');
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'تعذر تصدير الملاحظة. حاول مرة أخرى.',
+          style: GoogleFonts.tajawal(),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _showExportMenu() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF162D27) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              'مشاركة وتصدير الملاحظة',
+              style: GoogleFonts.tajawal(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _exportAction(
+              sheetContext,
+              Icons.share_rounded,
+              'مشاركة كنص',
+              _shareNote,
+            ),
+            _exportAction(
+              sheetContext,
+              Icons.picture_as_pdf_rounded,
+              'تصدير PDF',
+              _exportPdfFile,
+            ),
+            _exportAction(
+              sheetContext,
+              Icons.description_rounded,
+              'تصدير ملف نصي TXT',
+              _exportTextFile,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _exportAction(
+    BuildContext sheetContext,
+    IconData icon,
+    String label,
+    Future<void> Function() action,
+  ) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: CircleAvatar(
+        backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.12),
+        child: Icon(icon, color: AppTheme.primaryColor),
+      ),
+      title: Text(
+        label,
+        style: GoogleFonts.tajawal(fontWeight: FontWeight.w700),
+      ),
+      trailing: const Icon(Icons.chevron_left_rounded),
+      onTap: () async {
+        Navigator.pop(sheetContext);
+        await action();
+      },
+    );
   }
 
   void _showOptionsModal() {
@@ -222,7 +383,13 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                 ),
               ),
             ),
-            Text('لون الملاحظة', style: GoogleFonts.tajawal(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(
+              'لون الملاحظة',
+              style: GoogleFonts.tajawal(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 16),
             Wrap(
               spacing: 12,
@@ -244,17 +411,33 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                       color: color,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isSelected ? AppTheme.primaryColor : Colors.grey.withValues(alpha: 0.3),
+                        color: isSelected
+                            ? AppTheme.primaryColor
+                            : Colors.grey.withValues(alpha: 0.3),
                         width: isSelected ? 3 : 1,
                       ),
                     ),
-                    child: isSelected ? Icon(Icons.check_rounded, color: color == Colors.white ? Colors.black : Colors.white, size: 20) : null,
+                    child: isSelected
+                        ? Icon(
+                            Icons.check_rounded,
+                            color: color == Colors.white
+                                ? Colors.black
+                                : Colors.white,
+                            size: 20,
+                          )
+                        : null,
                   ),
                 );
               }).toList(),
             ),
             const SizedBox(height: 24),
-            Text('تصنيف الملاحظة', style: GoogleFonts.tajawal(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(
+              'تصنيف الملاحظة',
+              style: GoogleFonts.tajawal(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 16),
             Wrap(
               spacing: 8,
@@ -271,16 +454,25 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                     Navigator.pop(ctx);
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
-                      color: isSelected ? AppTheme.primaryColor : (isDark ? Colors.white12 : Colors.grey[200]),
+                      color: isSelected
+                          ? AppTheme.primaryColor
+                          : (isDark ? Colors.white12 : Colors.grey[200]),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       cat,
                       style: GoogleFonts.tajawal(
-                        color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected
+                            ? Colors.white
+                            : (isDark ? Colors.white70 : Colors.black87),
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                       ),
                     ),
                   ),
@@ -288,7 +480,13 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               }).toList(),
             ),
             const SizedBox(height: 24),
-            Text('خط الملاحظة', style: GoogleFonts.tajawal(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(
+              'خط الملاحظة',
+              style: GoogleFonts.tajawal(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 16),
             Wrap(
               spacing: 8,
@@ -305,17 +503,26 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                     Navigator.pop(ctx);
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
-                      color: isSelected ? AppTheme.primaryColor : (isDark ? Colors.white12 : Colors.grey[200]),
+                      color: isSelected
+                          ? AppTheme.primaryColor
+                          : (isDark ? Colors.white12 : Colors.grey[200]),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       font,
                       style: GoogleFonts.getFont(
                         font,
-                        color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected
+                            ? Colors.white
+                            : (isDark ? Colors.white70 : Colors.black87),
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                       ),
                     ),
                   ),
@@ -339,9 +546,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     } else if (isDark && bgColor != Colors.white) {
       bgColor = Color.alphaBlend(Colors.black.withValues(alpha: 0.7), bgColor);
     }
-    
-    final textColor = (isDark && bgColor == const Color(0xFF0F172A)) ? Colors.white : Colors.black87;
-    
+
+    final textColor = (isDark && bgColor == const Color(0xFF0F172A))
+        ? Colors.white
+        : Colors.black87;
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -362,11 +571,17 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             children: [
               if (_isSaving)
                 const SizedBox(
-                  width: 12, height: 12,
+                  width: 12,
+                  height: 12,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              else if (!_isChanged && (_autoSaveTimer == null || !_autoSaveTimer!.isActive))
-                Icon(Icons.cloud_done_rounded, size: 16, color: textColor.withValues(alpha: 0.5)),
+              else if (!_isChanged &&
+                  (_autoSaveTimer == null || !_autoSaveTimer!.isActive))
+                Icon(
+                  Icons.cloud_done_rounded,
+                  size: 16,
+                  color: textColor.withValues(alpha: 0.5),
+                ),
               const SizedBox(width: 8),
               Text(
                 _isSaving ? 'جارٍ الحفظ...' : (!_isChanged ? 'تم الحفظ' : ''),
@@ -386,7 +601,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             ),
             IconButton(
               icon: Icon(Icons.share_rounded, color: textColor),
-              onPressed: _shareNote,
+              onPressed: _showExportMenu,
               tooltip: 'مشاركة',
             ),
           ],
@@ -406,7 +621,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                 ),
                 decoration: InputDecoration(
                   hintText: 'عنوان الملاحظة...',
-                  hintStyle: GoogleFonts.tajawal(color: textColor.withValues(alpha: 0.3)),
+                  hintStyle: GoogleFonts.tajawal(
+                    color: textColor.withValues(alpha: 0.3),
+                  ),
                   border: InputBorder.none,
                 ),
                 maxLines: null,
@@ -419,37 +636,42 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.05),
+                color: isDark
+                    ? Colors.white12
+                    : Colors.black.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: quill.QuillSimpleToolbar(
-                controller: _quillController,
-                config: const quill.QuillSimpleToolbarConfig(
-                  showFontFamily: false,
-                  showFontSize: false,
-                  showInlineCode: false,
-                  showCodeBlock: false,
-                  showListCheck: true,
-                  showColorButton: false,
-                  showBackgroundColorButton: false,
-                  showClearFormat: false,
-                  showAlignmentButtons: true,
-                  showLeftAlignment: false,
-                  showCenterAlignment: false,
-                  showRightAlignment: false,
-                  showJustifyAlignment: false,
-                  showHeaderStyle: true,
-                  showListNumbers: true,
-                  showListBullets: true,
-                  showQuote: true,
-                  showLink: false,
-                  showUndo: true,
-                  showRedo: true,
-                  showDirection: true,
-                  showSearchButton: false,
-                  showSubscript: false,
-                  showSuperscript: false,
-                  showStrikeThrough: true,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: quill.QuillSimpleToolbar(
+                  controller: _quillController,
+                  config: const quill.QuillSimpleToolbarConfig(
+                    showFontFamily: false,
+                    showFontSize: false,
+                    showInlineCode: false,
+                    showCodeBlock: false,
+                    showListCheck: true,
+                    showColorButton: false,
+                    showBackgroundColorButton: false,
+                    showClearFormat: false,
+                    showAlignmentButtons: true,
+                    showLeftAlignment: false,
+                    showCenterAlignment: false,
+                    showRightAlignment: false,
+                    showJustifyAlignment: false,
+                    showHeaderStyle: true,
+                    showListNumbers: true,
+                    showListBullets: true,
+                    showQuote: true,
+                    showLink: false,
+                    showUndo: true,
+                    showRedo: true,
+                    showDirection: true,
+                    showSearchButton: false,
+                    showSubscript: false,
+                    showSuperscript: false,
+                    showStrikeThrough: true,
+                  ),
                 ),
               ),
             ),
@@ -459,7 +681,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               child: GestureDetector(
                 onTap: () => _editorFocusNode.requestFocus(),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 8,
+                  ),
                   child: Directionality(
                     textDirection: TextDirection.rtl,
                     child: quill.QuillEditor(
@@ -473,42 +698,70 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                         placeholder: 'ابدأ بالكتابة هنا...',
                         customStyles: quill.DefaultStyles(
                           placeHolder: quill.DefaultTextBlockStyle(
-                            GoogleFonts.getFont(_selectedFont, fontSize: 18, color: textColor.withAlpha((0.3 * 255).toInt())),
+                            GoogleFonts.getFont(
+                              _selectedFont,
+                              fontSize: 18,
+                              color: textColor.withAlpha((0.3 * 255).toInt()),
+                            ),
                             const quill.HorizontalSpacing(0, 0),
                             const quill.VerticalSpacing(0, 0),
                             const quill.VerticalSpacing(0, 0),
                             null,
                           ),
                           paragraph: quill.DefaultTextBlockStyle(
-                            GoogleFonts.getFont(_selectedFont, fontSize: 18, color: textColor, height: 1.6),
+                            GoogleFonts.getFont(
+                              _selectedFont,
+                              fontSize: 18,
+                              color: textColor,
+                              height: 1.6,
+                            ),
                             const quill.HorizontalSpacing(0, 0),
                             const quill.VerticalSpacing(0, 0),
                             const quill.VerticalSpacing(0, 0),
                             null,
                           ),
                           h1: quill.DefaultTextBlockStyle(
-                            GoogleFonts.getFont(_selectedFont, fontSize: 32, color: textColor, fontWeight: FontWeight.bold),
+                            GoogleFonts.getFont(
+                              _selectedFont,
+                              fontSize: 32,
+                              color: textColor,
+                              fontWeight: FontWeight.bold,
+                            ),
                             const quill.HorizontalSpacing(0, 0),
                             const quill.VerticalSpacing(16, 0),
                             const quill.VerticalSpacing(0, 0),
                             null,
                           ),
                           h2: quill.DefaultTextBlockStyle(
-                            GoogleFonts.getFont(_selectedFont, fontSize: 26, color: textColor, fontWeight: FontWeight.bold),
+                            GoogleFonts.getFont(
+                              _selectedFont,
+                              fontSize: 26,
+                              color: textColor,
+                              fontWeight: FontWeight.bold,
+                            ),
                             const quill.HorizontalSpacing(0, 0),
                             const quill.VerticalSpacing(8, 0),
                             const quill.VerticalSpacing(0, 0),
                             null,
                           ),
                           h3: quill.DefaultTextBlockStyle(
-                            GoogleFonts.getFont(_selectedFont, fontSize: 22, color: textColor, fontWeight: FontWeight.bold),
+                            GoogleFonts.getFont(
+                              _selectedFont,
+                              fontSize: 22,
+                              color: textColor,
+                              fontWeight: FontWeight.bold,
+                            ),
                             const quill.HorizontalSpacing(0, 0),
                             const quill.VerticalSpacing(8, 0),
                             const quill.VerticalSpacing(0, 0),
                             null,
                           ),
                           lists: quill.DefaultListBlockStyle(
-                            GoogleFonts.getFont(_selectedFont, fontSize: 18, color: textColor),
+                            GoogleFonts.getFont(
+                              _selectedFont,
+                              fontSize: 18,
+                              color: textColor,
+                            ),
                             const quill.HorizontalSpacing(0, 0),
                             const quill.VerticalSpacing(0, 0),
                             const quill.VerticalSpacing(0, 0),

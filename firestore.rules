@@ -117,6 +117,26 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // نتائج المسابقات المنشورة تُعرض داخل التطبيق للمستخدمين.
+    // الكتابة محصورة بالإدارة حتى لا يتم العبث بالروابط أو الترتيب.
+    match /competition_results/{competitionId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // التقييمات العامة: القراءة متاحة، والكتابة محصورة في صاحب التقييم.
+    // لا يعتمد التطبيق على البريد الإلكتروني في العرض أو التخزين.
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated() &&
+        request.auth.uid == reviewId &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.keys().hasOnly([
+          'rating', 'text', 'userId', 'userName', 'createdAt'
+        ]);
+      allow delete: if isAdmin() || (isAuthenticated() && request.auth.uid == reviewId);
+    }
+
     // ═══════════════════════════════════════════════════════════════
     //  الإحصائيات
     // ═══════════════════════════════════════════════════════════════

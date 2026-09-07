@@ -31,40 +31,105 @@ class CalculatorDrawer extends StatelessWidget {
               child: ListView(
                 padding: EdgeInsets.zero,
                 children: [
-                  _buildSectionHeader('الأدوات الأساسية'),
-                  _buildDrawerItem(context, Icons.calculate, 'الحاسبة العلمية', () {}),
-                  _buildDrawerItem(context, Icons.history, 'سجل الحاسبة', () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen()));
+                  _buildSectionHeader('Outils principaux'),
+                  _buildDrawerItem(
+                    context,
+                    Icons.calculate,
+                    'Calculatrice',
+                    () {},
+                  ),
+                  _buildDrawerItem(context, Icons.history, 'Historique', () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                    );
                   }),
-                  _buildDrawerItem(context, Icons.superscript, 'قيمة متغيرة (Variables)', () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const VariablesManagerScreen()));
+                  _buildDrawerItem(context, Icons.superscript, 'Variables', () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const VariablesManagerScreen(),
+                      ),
+                    );
                   }),
-                  _buildDrawerItem(context, Icons.swap_horiz, 'محول الوحدات', () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const UnitConverterScreen()));
-                  }),
-                  _buildDrawerItem(context, Icons.code, 'البرمجة', () {}),
-                  
+                  _buildDrawerItem(
+                    context,
+                    Icons.swap_horiz,
+                    "Convertisseur d'unites",
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const UnitConverterScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildDrawerItem(context, Icons.code, 'Programmation', () {}),
+
                   const Divider(),
-                  _buildSectionHeader('الرياضيات'),
-                  _buildDrawerItem(context, Icons.show_chart, 'الرسم البياني', () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const GraphingScreen()));
+                  _buildSectionHeader('Mathematiques'),
+                  _buildDrawerItem(context, Icons.show_chart, 'Graphique', () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const GraphingScreen()),
+                    );
                   }),
-                  _buildDrawerItem(context, Icons.functions, 'الصيغ الرياضية', () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => FormulaLibraryScreen(categoryName: 'الصيغ الرياضية', categories: mathFormulas)));
-                  }),
-                  _buildDrawerItem(context, Icons.grid_on, 'المصفوفات', () {}),
-                  
+                  _buildDrawerItem(
+                    context,
+                    Icons.functions,
+                    'Formules mathematiques',
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => FormulaLibraryScreen(
+                            categoryName: 'Formules mathematiques',
+                            categories: mathFormulas,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildDrawerItem(context, Icons.grid_on, 'Matrices', () {}),
+
                   const Divider(),
-                  _buildSectionHeader('الفيزياء والكيمياء'),
-                  _buildDrawerItem(context, Icons.flash_on, 'الصيغ الفيزيائية', () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => FormulaLibraryScreen(categoryName: 'الصيغ الفيزيائية', categories: physicsFormulas)));
+                  _buildSectionHeader('Physique et chimie'),
+                  _buildDrawerItem(
+                    context,
+                    Icons.flash_on,
+                    'Formules de physique',
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => FormulaLibraryScreen(
+                            categoryName: 'Formules de physique',
+                            categories: physicsFormulas,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildDrawerItem(context, Icons.science, 'Chimie', () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => FormulaLibraryScreen(
+                          categoryName: 'Chimie',
+                          categories: chemistryFormulas,
+                        ),
+                      ),
+                    );
                   }),
-                  _buildDrawerItem(context, Icons.science, 'الكيمياء', () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => FormulaLibraryScreen(categoryName: 'الكيمياء', categories: chemistryFormulas)));
-                  }),
-                  
+
                   const Divider(),
-                  _buildDrawerItem(context, Icons.settings, 'الإعدادات', () {}),
+                  _buildDrawerItem(
+                    context,
+                    Icons.settings,
+                    'Parametres',
+                    () {},
+                  ),
                 ],
               ),
             ),
@@ -88,7 +153,12 @@ class CalculatorDrawer extends StatelessWidget {
     );
   }
 
-  Widget _buildDrawerItem(BuildContext context, IconData icon, String title, VoidCallback onTap) {
+  Widget _buildDrawerItem(
+    BuildContext context,
+    IconData icon,
+    String title,
+    VoidCallback onTap,
+  ) {
     return ListTile(
       leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
       title: Text(title, style: const TextStyle(fontSize: 16)),

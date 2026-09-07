@@ -14,7 +14,6 @@ import 'exam_generator_screen.dart';
 import 'student/reading_list_screen.dart';
 import 'student/progress_screen.dart';
 
-
 class ServicesScreen extends StatelessWidget {
   const ServicesScreen({super.key});
 
@@ -31,36 +30,115 @@ class ServicesScreen extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'اختر الخدمة التي تناسبك',
-              style: GoogleFonts.tajawal(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
+      body: Stack(
+        children: [
+          Positioned(
+            top: -70,
+            right: -50,
+            child: _backgroundShape(
+              220,
+              AppTheme.primaryColor.withValues(alpha: 0.08),
             ),
-            const SizedBox(height: 20),
-            _buildAllServicesGrid(context, size, isDark),
-          ],
+          ),
+          Positioned(
+            bottom: -90,
+            left: -60,
+            child: _backgroundShape(
+              260,
+              AppTheme.secondaryColor.withValues(alpha: 0.08),
+            ),
+          ),
+          SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.brandGradient,
+                    borderRadius: BorderRadius.circular(26),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Image.asset('assets/images/logo.png'),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Text(
+                          'اختر الخدمة التي تناسبك',
+                          style: GoogleFonts.tajawal(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white70,
+                        size: 18,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 22),
+                _buildAllServicesGrid(context, size, isDark),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _backgroundShape(double size, Color color) {
+    return Transform.rotate(
+      angle: -0.35,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(size * 0.25),
         ),
       ),
     );
   }
 
-  void _checkFeatureAndNavigate(BuildContext context, String? featureKey, Widget screen) {
+  void _checkFeatureAndNavigate(
+    BuildContext context,
+    String? featureKey,
+    Widget screen,
+  ) {
     if (featureKey != null) {
-      final isEnabled = context.read<AppConfigProvider>().isFeatureEnabled(featureKey);
+      final isEnabled = context.read<AppConfigProvider>().isFeatureEnabled(
+        featureKey,
+      );
       if (!isEnabled) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               'هذه الخدمة قيد الصيانة حالياً',
-              style: GoogleFonts.tajawal(color: Colors.white, fontWeight: FontWeight.bold),
+              style: GoogleFonts.tajawal(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             backgroundColor: Colors.orange,
             behavior: SnackBarBehavior.floating,
@@ -83,7 +161,11 @@ class ServicesScreen extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         badge: 'جديد',
-        onTap: () => _checkFeatureAndNavigate(context, 'competition_enabled', const StudentCompetitionScreen()),
+        onTap: () => _checkFeatureAndNavigate(
+          context,
+          'competition_enabled',
+          const StudentCompetitionScreen(),
+        ),
       ),
       _ServiceItem(
         title: 'نتائج المسابقات',
@@ -94,14 +176,22 @@ class ServicesScreen extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         badge: null,
-        onTap: () => _checkFeatureAndNavigate(context, 'results_enabled', const ResultsHomeScreen()),
+        onTap: () => _checkFeatureAndNavigate(
+          context,
+          'results_enabled',
+          const ResultsHomeScreen(),
+        ),
       ),
       _ServiceItem(
         title: 'MERAJ3I AI',
         icon: Icons.auto_awesome_rounded,
         gradient: AppTheme.purpleGradient,
         badge: 'AI',
-        onTap: () => _checkFeatureAndNavigate(context, 'ai_enabled', const AiSearchScreen()),
+        onTap: () => _checkFeatureAndNavigate(
+          context,
+          'ai_enabled',
+          const AiSearchScreen(),
+        ),
       ),
       _ServiceItem(
         title: 'المراسلة',
@@ -112,28 +202,35 @@ class ServicesScreen extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         badge: 'جديد',
-        onTap: () => _checkFeatureAndNavigate(context, null, const DirectChatScreen()),
+        onTap: () =>
+            _checkFeatureAndNavigate(context, null, const DirectChatScreen()),
       ),
       _ServiceItem(
         title: 'التنزيلات',
         icon: Icons.download_for_offline_rounded,
         gradient: AppTheme.greenGradient,
         badge: null,
-        onTap: () => _checkFeatureAndNavigate(context, null, const DownloadsScreen()),
+        onTap: () =>
+            _checkFeatureAndNavigate(context, null, const DownloadsScreen()),
       ),
       _ServiceItem(
         title: 'SWEDD',
         icon: Icons.health_and_safety_rounded,
         gradient: AppTheme.pinkGradient,
         badge: null,
-        onTap: () => _checkFeatureAndNavigate(context, null, const SweddScreen()),
+        onTap: () =>
+            _checkFeatureAndNavigate(context, null, const SweddScreen()),
       ),
       _ServiceItem(
         title: 'الاختبارات',
         icon: Icons.quiz_rounded,
         gradient: AppTheme.primaryGradient,
         badge: null,
-        onTap: () => _checkFeatureAndNavigate(context, 'quizzes_enabled', const ExamGeneratorScreen()),
+        onTap: () => _checkFeatureAndNavigate(
+          context,
+          'quizzes_enabled',
+          const ExamGeneratorScreen(),
+        ),
       ),
       _ServiceItem(
         title: 'قائمة القراءة',
@@ -144,7 +241,8 @@ class ServicesScreen extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         badge: null,
-        onTap: () => _checkFeatureAndNavigate(context, null, const ReadingListScreen()),
+        onTap: () =>
+            _checkFeatureAndNavigate(context, null, const ReadingListScreen()),
       ),
       _ServiceItem(
         title: 'تطور المستوى',
@@ -155,23 +253,29 @@ class ServicesScreen extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         badge: null,
-        onTap: () => _checkFeatureAndNavigate(context, null, const ProgressScreen()),
+        onTap: () =>
+            _checkFeatureAndNavigate(context, null, const ProgressScreen()),
       ),
     ];
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.2,
-      ),
-      itemCount: services.length,
-      itemBuilder: (context, index) {
-        final s = services[index];
-        return _buildServiceCard(s, isDark);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 720 ? 3 : 2;
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: columns == 3 ? 1.05 : 1.15,
+          ),
+          itemCount: services.length,
+          itemBuilder: (context, index) {
+            final s = services[index];
+            return _buildServiceCard(s, isDark);
+          },
+        );
       },
     );
   }
@@ -185,7 +289,8 @@ class ServicesScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: (service.gradient as LinearGradient).colors.first.withValues(alpha: isDark ? 0.18 : 0.10),
+              color: (service.gradient as LinearGradient).colors.first
+                  .withValues(alpha: isDark ? 0.18 : 0.10),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -193,7 +298,9 @@ class ServicesScreen extends StatelessWidget {
           border: Border.all(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.06)
-                : (service.gradient as LinearGradient).colors.first.withValues(alpha: 0.12),
+                : (service.gradient as LinearGradient).colors.first.withValues(
+                    alpha: 0.12,
+                  ),
             width: 1,
           ),
         ),
@@ -207,7 +314,9 @@ class ServicesScreen extends StatelessWidget {
                 height: 3,
                 decoration: BoxDecoration(
                   gradient: service.gradient,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
                 ),
               ),
             ),
@@ -223,7 +332,10 @@ class ServicesScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: (service.gradient as LinearGradient).colors.first.withValues(alpha: 0.30),
+                          color: (service.gradient as LinearGradient)
+                              .colors
+                              .first
+                              .withValues(alpha: 0.30),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -251,7 +363,10 @@ class ServicesScreen extends StatelessWidget {
                 top: 8,
                 left: 8,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     gradient: service.gradient,
                     borderRadius: BorderRadius.circular(20),

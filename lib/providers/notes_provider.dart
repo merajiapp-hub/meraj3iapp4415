@@ -12,16 +12,19 @@ class NotesProvider with ChangeNotifier {
   List<Note> _notes = [];
   final List<NoteFolder> _folders = [];
   final List<NoteTag> _tags = [];
-  
+
   bool _isLoading = false;
+  String? _errorMessage;
   String _searchQuery = '';
   String? _selectedFolderId;
   String? _selectedTagId;
-  String _currentTab = 'all'; // all, recent, favorites, pinned, archive, folders, trash
+  String _currentTab =
+      'all'; // all, recent, favorites, pinned, archive, folders, trash
 
   List<NoteFolder> get folders => _folders;
   List<NoteTag> get tags => _tags;
   bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
   String get currentTab => _currentTab;
 
   List<Note> get notes {
@@ -40,19 +43,26 @@ class NotesProvider with ChangeNotifier {
 
     // Folder & Tag Filtering
     if (_selectedFolderId != null) {
-      filtered = filtered.where((n) => n.folderId == _selectedFolderId).toList();
+      filtered = filtered
+          .where((n) => n.folderId == _selectedFolderId)
+          .toList();
     }
     if (_selectedTagId != null) {
-      filtered = filtered.where((n) => n.tags.contains(_selectedTagId)).toList();
+      filtered = filtered
+          .where((n) => n.tags.contains(_selectedTagId))
+          .toList();
     }
 
     // Search Filtering
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();
-      filtered = filtered.where((n) => 
-        n.title.toLowerCase().contains(q) || 
-        n.content.toLowerCase().contains(q)
-      ).toList();
+      filtered = filtered
+          .where(
+            (n) =>
+                n.title.toLowerCase().contains(q) ||
+                n.content.toLowerCase().contains(q),
+          )
+          .toList();
     }
 
     // Sorting
@@ -61,10 +71,10 @@ class NotesProvider with ChangeNotifier {
       if (!a.isPinned && b.isPinned) return 1;
       return b.updatedAt.compareTo(a.updatedAt);
     });
-    
+
     return filtered;
   }
-  
+
   List<Note> get trashedNotes {
     var filtered = _notes.where((n) => n.isDeleted).toList();
     filtered.sort((a, b) {
@@ -101,6 +111,7 @@ class NotesProvider with ChangeNotifier {
     if (user == null) return;
 
     _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
 
     try {
@@ -110,11 +121,14 @@ class NotesProvider with ChangeNotifier {
           .collection('notes')
           .get();
 
-      _notes = snapshot.docs.map((doc) => Note.fromMap(doc.id, doc.data())).toList();
-      
+      _notes = snapshot.docs
+          .map((doc) => Note.fromMap(doc.id, doc.data()))
+          .toList();
+
       // Also fetch folders and tags here if implemented in Firestore
       // For now, initializing empty or mock
     } catch (e) {
+      _errorMessage = 'تعذر تحميل الملاحظات. تحقق من الاتصال ثم أعد المحاولة.';
       debugPrint('Error fetching notes: $e');
     }
 
@@ -122,10 +136,10 @@ class NotesProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addNote(
-    String title, 
+  Future<String?> addNote(
+    String title,
     String content, {
-    int? color, 
+    int? color,
     DateTime? reminderTime,
     String? folderId,
     List<String>? tags,
@@ -133,7 +147,7 @@ class NotesProvider with ChangeNotifier {
     NotePageSettings? pageSettings,
   }) async {
     final user = _auth.currentUser;
-    if (user == null) return;
+    if (user == null) return null;
 
     final now = DateTime.now();
     final newNoteData = {
@@ -146,7 +160,9 @@ class NotesProvider with ChangeNotifier {
       'isArchived': false,
       'isDeleted': false,
       'color': color,
-      'reminderTime': reminderTime != null ? Timestamp.fromDate(reminderTime) : null,
+      'reminderTime': reminderTime != null
+          ? Timestamp.fromDate(reminderTime)
+          : null,
       'folderId': folderId,
       'tags': tags ?? [],
       'wordCount': 0,
@@ -181,16 +197,18 @@ class NotesProvider with ChangeNotifier {
         ),
       );
       notifyListeners();
+      return docRef.id;
     } catch (e) {
       debugPrint('Error adding note: $e');
+      rethrow;
     }
   }
 
   Future<void> updateNote(
-    String id, 
-    String title, 
+    String id,
+    String title,
     String content, {
-    int? color, 
+    int? color,
     DateTime? reminderTime,
     String? folderId,
     List<String>? tags,
@@ -208,16 +226,18 @@ class NotesProvider with ChangeNotifier {
           .collection('notes')
           .doc(id)
           .update({
-        'title': title,
-        'content': content,
-        'updatedAt': FieldValue.serverTimestamp(),
-        'color': color,
-        'reminderTime': reminderTime != null ? Timestamp.fromDate(reminderTime) : null,
-        'folderId': folderId,
-        'tags': tags,
-        'isFavorite': ?isFavorite,
-        'pageSettings': pageSettings?.toMap(),
-      });
+            'title': title,
+            'content': content,
+            'updatedAt': FieldValue.serverTimestamp(),
+            'color': color,
+            'reminderTime': reminderTime != null
+                ? Timestamp.fromDate(reminderTime)
+                : null,
+            'folderId': folderId,
+            'tags': tags,
+            'isFavorite': ?isFavorite,
+            'pageSettings': pageSettings?.toMap(),
+          });
 
       final index = _notes.indexWhere((n) => n.id == id);
       if (index != -1) {
@@ -336,9 +356,9 @@ class NotesProvider with ChangeNotifier {
           .collection('notes')
           .doc(id)
           .update({
-        'isDeleted': true,
-        'deletedAt': FieldValue.serverTimestamp(),
-      });
+            'isDeleted': true,
+            'deletedAt': FieldValue.serverTimestamp(),
+          });
 
       final old = _notes[index];
       _notes[index] = Note(
@@ -379,10 +399,10 @@ class NotesProvider with ChangeNotifier {
           .collection('notes')
           .doc(id)
           .update({
-        'isDeleted': false,
-        'deletedAt': FieldValue.delete(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+            'isDeleted': false,
+            'deletedAt': FieldValue.delete(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
 
       final old = _notes[index];
       _notes[index] = Note(

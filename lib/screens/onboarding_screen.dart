@@ -27,21 +27,24 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       subtitle: 'رفيقك للنجاح الدراسي',
       imagePath: 'assets/images/logo.png',
       fallbackIcon: Icons.school_rounded,
-      description: 'تطبيق تعليمي متكامل يجمع كل ما تحتاجه للدراسة والتفوق في مكان واحد.',
+      description:
+          'تطبيق تعليمي متكامل يجمع كل ما تحتاجه للدراسة والتفوق في مكان واحد.',
     ),
     _OnboardingSlide(
       title: 'ملاحظاتك الذكية',
       subtitle: 'نظّم أفكارك بشكل مثالي',
       imagePath: '',
       fallbackIcon: Icons.note_alt_rounded,
-      description: 'دفتر ملاحظات ذكي مع محرر نصوص غني، رسم يدوي، ومزامنة سحابية فورية.',
+      description:
+          'دفتر ملاحظات ذكي مع محرر نصوص غني، رسم يدوي، ومزامنة سحابية فورية.',
     ),
     _OnboardingSlide(
       title: 'استعد للامتحانات',
       subtitle: 'اختبر نفسك وتفوق',
       imagePath: '',
       fallbackIcon: Icons.quiz_rounded,
-      description: 'مسابقات، اختبارات وطنية، وإحصائيات مفصّلة لمتابعة تقدمك الدراسي.',
+      description:
+          'مسابقات، اختبارات وطنية، وإحصائيات مفصّلة لمتابعة تقدمك الدراسي.',
     ),
   ];
 
@@ -68,13 +71,23 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     await prefs.setBool('has_seen_onboarding', true);
   }
 
+  void _goNext() {
+    if (_currentIndex < _slides.length - 1) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
   void _goToSignup() async {
     await _markOnboardingSeen();
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const SignupScreen(),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const SignupScreen(),
         transitionsBuilder: (context, anim, secondaryAnimation, child) =>
             FadeTransition(opacity: anim, child: child),
         transitionDuration: const Duration(milliseconds: 300),
@@ -88,7 +101,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const LoginScreen(),
         transitionsBuilder: (context, anim, secondaryAnimation, child) =>
             FadeTransition(opacity: anim, child: child),
         transitionDuration: const Duration(milliseconds: 300),
@@ -101,91 +115,196 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     final size = MediaQuery.of(context).size;
     final isSmall = size.height < 700;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: FadeTransition(
-        opacity: _fadeAnim,
-        child: SafeArea(
-          child: Column(
-            children: [
-              // ── PageView للشرائح ──
-              Expanded(
-                child: PageView.builder(
-                  controller: _pageController,
-                  onPageChanged: (index) {
-                    setState(() => _currentIndex = index);
-                  },
-                  itemCount: _slides.length,
-                  itemBuilder: (context, index) {
-                    return _buildSlide(_slides[index], isSmall);
-                  },
-                ),
-              ),
-
-              // ── Dots Indicator ──
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(_slides.length, (index) {
-                    final isActive = index == _currentIndex;
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      width: isActive ? 28 : 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: isActive
-                            ? AppTheme.primaryColor
-                            : Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(4),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_currentIndex > 0) {
+          _pageController.previousPage(
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeOutCubic,
+          );
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF6FBF9),
+        body: FadeTransition(
+          opacity: _fadeAnim,
+          child: SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 14, 24, 0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.primaryColor.withValues(
+                                    alpha: 0.12,
+                                  ),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: Image.asset('assets/images/logo.png'),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'MERAJ3I',
+                            style: GoogleFonts.cairo(
+                              color: AppTheme.primaryColor,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ],
                       ),
-                    );
-                  }),
-                ),
-              ),
-
-              // ── الأزرار ──
-              Padding(
-                padding: EdgeInsets.fromLTRB(32, 0, 32, isSmall ? 16 : 28),
-                child: Column(
-                  children: [
-                    // زر ابدأ الآن
-                    SizedBox(
-                      width: double.infinity,
-                      height: isSmall ? 48 : 54,
-                      child: ElevatedButton(
-                        onPressed: _goToSignup,
-                        child: Text(
-                          'ابدأ الآن',
-                          style: GoogleFonts.tajawal(
-                            fontSize: isSmall ? 16 : 18,
-                            fontWeight: FontWeight.bold,
+                      if (_currentIndex < _slides.length - 1)
+                        TextButton(
+                          onPressed: _goToLogin,
+                          child: Text(
+                            'تخطي',
+                            style: GoogleFonts.tajawal(color: Colors.black54),
                           ),
                         ),
-                      ),
-                    ),
-                    SizedBox(height: isSmall ? 10 : 14),
+                    ],
+                  ),
+                ),
+                // ── PageView للشرائح ──
+                Expanded(
+                  child: PageView.builder(
+                    controller: _pageController,
+                    onPageChanged: (index) {
+                      setState(() => _currentIndex = index);
+                    },
+                    itemCount: _slides.length,
+                    itemBuilder: (context, index) {
+                      return _buildSlide(_slides[index], isSmall);
+                    },
+                  ),
+                ),
 
-                    // زر تسجيل الدخول
-                    SizedBox(
-                      width: double.infinity,
-                      height: isSmall ? 48 : 54,
-                      child: OutlinedButton(
-                        onPressed: _goToLogin,
-                        child: Text(
-                          'تسجيل الدخول',
-                          style: GoogleFonts.tajawal(
-                            fontSize: isSmall ? 16 : 18,
-                            fontWeight: FontWeight.bold,
+                // ── Dots Indicator ──
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(_slides.length, (index) {
+                      final isActive = index == _currentIndex;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: isActive ? 28 : 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: isActive
+                              ? AppTheme.primaryColor
+                              : Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+
+                // ── الأزرار ──
+                Padding(
+                  padding: EdgeInsets.fromLTRB(32, 0, 32, isSmall ? 16 : 28),
+                  child: Column(
+                    children: [
+                      if (_currentIndex < _slides.length - 1)
+                        SizedBox(
+                          width: double.infinity,
+                          height: isSmall ? 50 : 56,
+                          child: ElevatedButton.icon(
+                            onPressed: _goNext,
+                            icon: const Icon(Icons.arrow_back_rounded),
+                            label: Text(
+                              'التالي',
+                              style: GoogleFonts.tajawal(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              elevation: 8,
+                              shadowColor: AppTheme.primaryColor.withValues(
+                                alpha: 0.25,
+                              ),
+                            ),
+                          ),
+                        )
+                      else ...[
+                        SizedBox(
+                          width: double.infinity,
+                          height: isSmall ? 50 : 56,
+                          child: ElevatedButton.icon(
+                            onPressed: _goToSignup,
+                            icon: const Icon(Icons.person_add_alt_1_rounded),
+                            label: Text(
+                              'إنشاء حساب',
+                              style: GoogleFonts.tajawal(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              elevation: 8,
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                  ],
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          height: isSmall ? 46 : 50,
+                          child: OutlinedButton.icon(
+                            onPressed: _goToLogin,
+                            icon: const Icon(Icons.login_rounded),
+                            label: Text(
+                              'تسجيل الدخول',
+                              style: GoogleFonts.tajawal(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppTheme.primaryColor,
+                              side: const BorderSide(
+                                color: AppTheme.primaryColor,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -231,37 +350,54 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                return ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: Image.asset(
-                    slide.imagePath,
-                    fit: BoxFit.contain,
-                    width: constraints.maxWidth,
-                    height: constraints.maxHeight,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        width: constraints.maxWidth,
-                        height: constraints.maxHeight,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              AppTheme.primaryColor.withValues(alpha: 0.1),
-                              AppTheme.primaryColor.withValues(alpha: 0.02),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          shape: BoxShape.circle,
+                return Container(
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.brandGradient,
+                    borderRadius: BorderRadius.circular(40),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.18),
+                        blurRadius: 24,
+                        offset: const Offset(0, 12),
+                      ),
+                    ],
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Positioned(
+                        top: -30,
+                        right: -20,
+                        child: _shape(
+                          150,
+                          Colors.white.withValues(alpha: 0.08),
                         ),
-                        child: Center(
-                          child: Icon(
-                            slide.fallbackIcon,
-                            size: isSmall ? 100 : 130,
-                            color: AppTheme.primaryColor.withValues(alpha: 0.8),
-                          ),
+                      ),
+                      Positioned(
+                        bottom: -45,
+                        left: -25,
+                        child: _shape(
+                          180,
+                          Colors.black.withValues(alpha: 0.08),
                         ),
-                      );
-                    },
+                      ),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(40),
+                        child: slide.imagePath.isNotEmpty
+                            ? Image.asset(
+                                slide.imagePath,
+                                fit: BoxFit.contain,
+                                width: constraints.maxWidth,
+                                height: constraints.maxHeight,
+                              )
+                            : Icon(
+                                slide.fallbackIcon,
+                                size: isSmall ? 110 : 150,
+                                color: Colors.white,
+                              ),
+                      ),
+                    ],
                   ),
                 );
               },
@@ -285,6 +421,20 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
           SizedBox(height: isSmall ? 12 : 20),
         ],
+      ),
+    );
+  }
+
+  Widget _shape(double size, Color color) {
+    return Transform.rotate(
+      angle: -0.35,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(size * 0.28),
+        ),
       ),
     );
   }
