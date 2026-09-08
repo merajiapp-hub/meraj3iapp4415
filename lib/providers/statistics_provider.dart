@@ -142,19 +142,31 @@ class StatisticsProvider extends ChangeNotifier {
     isLoading = true;
     notifyListeners();
     try {
-      final aggregateQuery =
-          await _firestore.collection('uploaded_books').count().get();
-      uploadedBooksCount = aggregateQuery.count ?? 0;
+      final snapshots = await Future.wait([
+        _firestore.collection('books').get(),
+        _firestore.collection('uploaded_books').get(),
+      ]);
+      final uniqueBooks = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
+      for (final snapshot in snapshots) {
+        for (final doc in snapshot.docs) {
+          final data = doc.data();
+          final title = (data['title'] ?? data['name'] ?? '').toString().trim().toLowerCase();
+          final url = (data['url'] ?? data['drive_link'] ?? data['pdfUrl'] ?? '').toString().trim();
+          final identity = title.isNotEmpty
+              ? '$title|$url|${data['section'] ?? data['stage']}|${data['grade'] ?? data['year']}'
+              : doc.id;
+          uniqueBooks.putIfAbsent(identity, () => doc);
+        }
+      }
+      uploadedBooksCount = uniqueBooks.length;
       totalBooks = staticBooksCount + uploadedBooksCount;
 
       final user = _auth.currentUser;
       if (user != null) {
-        final userUploadsQuery = await _firestore
-            .collection('uploaded_books')
-            .where('uploaderId', isEqualTo: user.uid)
-            .count()
-            .get();
-        userAddedBooks = userUploadsQuery.count ?? 0;
+        userAddedBooks = uniqueBooks.values
+            .where((doc) =>
+                (doc.data()['uploaderId'] ?? doc.data()['userId']) == user.uid)
+            .length;
       }
     } catch (e) {
       debugPrint('Error fetching global stats: $e');

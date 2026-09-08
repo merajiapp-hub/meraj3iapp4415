@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart' as intl;
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 
 /// شاشة المسؤول — رؤية جميع المحادثات والرد على كل مستخدم
 class AdminChatDashboardScreen extends StatefulWidget {
@@ -28,13 +30,13 @@ class _AdminChatDashboardScreenState extends State<AdminChatDashboardScreen> {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('chats')
-            .orderBy('lastMessageAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          final docs = snapshot.data?.docs ?? [];
+          final docs = [...(snapshot.data?.docs ?? [])]
+            ..sort((a, b) => _chatDate(b).compareTo(_chatDate(a)));
           if (docs.isEmpty) {
             return Center(
               child: Text(
@@ -78,24 +80,11 @@ class _AdminChatDashboardScreenState extends State<AdminChatDashboardScreen> {
                   ),
                   child: Row(
                     children: [
-                      // Avatar
                       Container(
                         width: 46,
                         height: 46,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: const Color(0xFF0D9488).withValues(alpha: 0.2),
-                        ),
-                        child: Center(
-                          child: Text(
-                            userName.isNotEmpty ? userName[0] : 'م',
-                            style: GoogleFonts.tajawal(
-                              color: const Color(0xFF0D9488),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                            ),
-                          ),
-                        ),
+                        decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFF0D9488).withValues(alpha: 0.2)),
+                        child: Center(child: Text(userName.isNotEmpty ? userName[0] : 'م', style: GoogleFonts.tajawal(color: const Color(0xFF0D9488), fontWeight: FontWeight.bold, fontSize: 20))),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -160,6 +149,12 @@ class _AdminChatDashboardScreenState extends State<AdminChatDashboardScreen> {
       ),
     );
   }
+
+  DateTime _chatDate(QueryDocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    final value = data['updatedAt'] ?? data['lastMessageAt'];
+    return value is Timestamp ? value.toDate() : DateTime.fromMillisecondsSinceEpoch(0);
+  }
 }
 
 class _AdminChatViewScreen extends StatefulWidget {
@@ -176,6 +171,8 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
   final TextEditingController _ctrl = TextEditingController();
   final ScrollController _scroll = ScrollController();
   bool _sending = false;
+  final Set<String> _seenMessageIds = <String>{};
+  bool _messageStreamInitialized = false;
 
   @override
   void initState() {
@@ -195,15 +192,19 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
     final text = _ctrl.text.trim();
     if (text.isEmpty) return;
     setState(() => _sending = true);
-    _ctrl.clear();
     try {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final adminId = auth.user?.uid;
+      if (adminId == null || !auth.isAdmin) {
+        throw StateError('لا توجد صلاحية إدارية لإرسال الرد');
+      }
       await FirebaseFirestore.instance
           .collection('chats')
           .doc(widget.chatId)
           .collection('messages')
           .add({
         'text': text,
-        'senderId': 'admin',
+        'senderId': adminId,
         'senderName': 'فريق MERAJ3I',
         'isAdmin': true,
         'createdAt': FieldValue.serverTimestamp(),
@@ -212,14 +213,81 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
       await FirebaseFirestore.instance.collection('chats').doc(widget.chatId).set({
         'lastMessage': text,
         'lastMessageAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
         'userUnread': FieldValue.increment(1),
+        'status': 'open',
       }, SetOptions(merge: true));
+      _ctrl.clear();
       if (_scroll.hasClients) {
         _scroll.animateTo(_scroll.position.maxScrollExtent,
             duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
       }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('تعذر إرسال الرد: $e'), backgroundColor: Colors.red),
+        );
+      }
     } finally {
       if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Future<void> _toggleStatus() async {
+    final doc = await FirebaseFirestore.instance.collection('chats').doc(widget.chatId).get();
+    final isClosed = doc.data()?['status'] == 'closed';
+    await doc.reference.update({
+      'status': isClosed ? 'open' : 'closed',
+      'closedAt': isClosed ? FieldValue.delete() : FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _assignToMe() async {
+    final uid = Provider.of<AuthProvider>(context, listen: false).user?.uid;
+    if (uid == null) return;
+    await FirebaseFirestore.instance.collection('chats').doc(widget.chatId).update({'assignedTo': uid, 'updatedAt': FieldValue.serverTimestamp()});
+  }
+
+
+  Future<void> _deleteMessage(String messageId) async {
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('حذف الرسالة'),
+            content: const Text('سيتم إخفاء الرسالة مع الاحتفاظ بسجلها.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+              FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('حذف')),
+            ],
+          ),
+        );
+        if (confirm != true) return;
+        if (!mounted) return;
+        try {
+          final uid = Provider.of<AuthProvider>(context, listen: false).user?.uid;
+          await FirebaseFirestore.instance.collection('chats').doc(widget.chatId).collection('messages').doc(messageId).update({
+            'isDeleted': true,
+            'deletedAt': FieldValue.serverTimestamp(),
+            'deletedBy': uid,
+          });
+        } catch (_) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر حذف الرسالة')));
+        }
+  }
+
+  void _playIncomingSound(List<QueryDocumentSnapshot> docs) {
+    final hasNewIncoming = docs.any((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      return data['isAdmin'] != true && !_seenMessageIds.contains(doc.id);
+    });
+    _seenMessageIds.addAll(docs.map((doc) => doc.id));
+    final shouldPlay = _messageStreamInitialized && hasNewIncoming;
+    _messageStreamInitialized = true;
+    if (shouldPlay) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+      });
     }
   }
 
@@ -235,6 +303,10 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
           widget.userName,
           style: GoogleFonts.tajawal(color: Colors.white, fontWeight: FontWeight.bold),
         ),
+        actions: [
+          IconButton(tooltip: 'تعيين لي', onPressed: _assignToMe, icon: const Icon(Icons.assignment_ind_rounded)),
+          IconButton(tooltip: 'إغلاق أو إعادة فتح', onPressed: _toggleStatus, icon: const Icon(Icons.lock_open_rounded)),
+        ],
       ),
       body: Column(
         children: [
@@ -248,6 +320,7 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
                   .snapshots(),
               builder: (context, snapshot) {
                 final docs = snapshot.data?.docs ?? [];
+                _playIncomingSound(docs);
                 return ListView.builder(
                   controller: _scroll,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -256,13 +329,16 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
                     final d = docs[index].data() as Map<String, dynamic>;
                     final isAdmin = d['isAdmin'] as bool? ?? false;
                     final text = d['text'] as String? ?? '';
+                    final isDeleted = d['isDeleted'] == true;
                     final time = d['createdAt'] as Timestamp?;
                     final timeStr = time != null
                         ? '${time.toDate().hour.toString().padLeft(2, '0')}:${time.toDate().minute.toString().padLeft(2, '0')}'
                         : '';
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
+                    return GestureDetector(
+                      onLongPress: () => _deleteMessage(docs[index].id),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
                         mainAxisAlignment: isAdmin ? MainAxisAlignment.start : MainAxisAlignment.end,
                         children: [
                           Flexible(
@@ -278,11 +354,10 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
                               child: Column(
                                 crossAxisAlignment: isAdmin ? CrossAxisAlignment.start : CrossAxisAlignment.end,
                                 children: [
-                                  Text(
-                                    text,
-                                    textDirection: TextDirection.rtl,
-                                    style: GoogleFonts.tajawal(color: Colors.white, fontSize: 14, height: 1.4),
-                                  ),
+                                  if (isDeleted)
+                                    const Text('تم حذف هذه الرسالة', style: TextStyle(color: Colors.white54, fontStyle: FontStyle.italic))
+                                  else if (text.isNotEmpty)
+                                    Text(text, textDirection: TextDirection.rtl, style: GoogleFonts.tajawal(color: Colors.white, fontSize: 14, height: 1.4)),
                                   const SizedBox(height: 4),
                                   Text(
                                     timeStr,
@@ -293,6 +368,7 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
                             ),
                           ),
                         ],
+                        ),
                       ),
                     );
                   },

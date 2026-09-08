@@ -132,9 +132,9 @@ class NotificationService {
     final provider = Provider.of<NotificationsProvider>(context, listen: false);
     try {
       final notif = provider.notifications.firstWhere(
-        (n) => n.id == notificationId,
+        (n) => n.id == notificationId || n.id == notificationId.toString(),
       );
-      provider.markAsRead(notificationId);
+      provider.markAsRead(notif.id);
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -144,6 +144,7 @@ class NotificationService {
     } catch (e) {
       // الإشعار غير موجود محلياً — انتقل لصفحة الإشعارات
       debugPrint('Notification not found locally: $e');
+      Navigator.pushNamed(context, '/notifications');
     }
   }
 
@@ -154,6 +155,19 @@ class NotificationService {
     required String body,
     String? payload,
   }) async {
+    final resolvedPayload = payload ?? 'local-$id';
+    final context = navigatorKey.currentContext;
+    if (context != null) {
+      try {
+        final provider = Provider.of<NotificationsProvider>(context, listen: false);
+        await provider.addNotification(
+          title: title,
+          body: body,
+          type: NotificationType.reminder,
+        );
+      } catch (_) {}
+    }
+
     final details = NotificationDetails(
       android: AndroidNotificationDetails(
         _channelId,
@@ -164,13 +178,11 @@ class NotificationService {
         enableVibration: true,
         playSound: true,
         icon: '@mipmap/ic_launcher',
-        // عرض النص الكامل بدون اقتطاع
         styleInformation: BigTextStyleInformation(
           body,
           contentTitle: title,
           summaryText: 'مراجعي',
         ),
-        // لون العلامة التجارية
         color: const Color(0xFF14B8A6),
         autoCancel: false,
       ),
@@ -187,7 +199,7 @@ class NotificationService {
       title: title,
       body: body,
       notificationDetails: details,
-      payload: payload,
+      payload: resolvedPayload,
     );
   }
 
@@ -197,12 +209,15 @@ class NotificationService {
     required String title,
     required String body,
     required DateTime scheduledDate,
+    String? payload,
   }) async {
+    final resolvedPayload = payload ?? 'task-$id';
     await _plugin.zonedSchedule(
       id: id,
       title: title,
       body: body,
       scheduledDate: tz.TZDateTime.from(scheduledDate, tz.local),
+      payload: resolvedPayload,
       notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           _tasksChannelId,

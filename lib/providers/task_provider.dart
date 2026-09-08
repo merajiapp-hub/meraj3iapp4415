@@ -101,6 +101,7 @@ class TaskProvider extends ChangeNotifier {
         title: '⏰ انتهى وقت المهمة',
         body: '${task.title} — ${task.subject}',
         scheduledDate: task.endTime,
+        payload: 'task-end-${task.id}',
       );
     }
   }
@@ -129,6 +130,7 @@ class TaskProvider extends ChangeNotifier {
             id: task.notificationId + 9000,
             title: '✅ أنجزت مهمتك!',
             body: '${task.title} — ${task.subject}، عمل رائع! 💪',
+            payload: 'task-complete-${task.id}',
           );
         }
       }

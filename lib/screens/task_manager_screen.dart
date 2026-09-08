@@ -182,8 +182,9 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
                                     context: context,
                                     initialTime: startTime,
                                   );
-                                  if (time != null)
+                                  if (time != null) {
                                     setModalState(() => startTime = time);
+                                  }
                                 },
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
@@ -238,8 +239,9 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
                                     context: context,
                                     initialTime: endTime,
                                   );
-                                  if (time != null)
+                                  if (time != null) {
                                     setModalState(() => endTime = time);
+                                  }
                                 },
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(

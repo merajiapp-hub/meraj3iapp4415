@@ -231,7 +231,15 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                         'تعليق الحساب',
                         'هل أنت متأكد من تعليق حساب $name؟',
                         () => _updateFirestoreUser(
-                            {'isSuspended': true},
+                            {
+                              'isSuspended': true,
+                              'accountStatus': 'suspended',
+                              'suspensionReason': 'تم تعليق الحساب من قبل الإدارة',
+                              'suspensionStartAt': FieldValue.serverTimestamp(),
+                              'suspensionEndAt': null,
+                              'suspendedAt': FieldValue.serverTimestamp(),
+                              'suspendedBy': 'admin',
+                            },
                             'تم تعليق الحساب بنجاح',
                             activityType: AdminActivityType.userSuspended,
                             activityTitle: 'تعليق حساب: $name',
@@ -248,7 +256,15 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                         'إعادة التفعيل',
                         'هل تريد إعادة تفعيل حساب $name؟',
                         () => _updateFirestoreUser(
-                            {'isSuspended': false},
+                            {
+                              'isSuspended': false,
+                              'accountStatus': 'active',
+                              'suspensionReason': '',
+                              'suspensionStartAt': null,
+                              'suspensionEndAt': null,
+                              'suspendedAt': null,
+                              'suspendedBy': null,
+                            },
                             'تم تفعيل الحساب بنجاح',
                             activityType: AdminActivityType.userReactivated,
                             activityTitle: 'إعادة تفعيل حساب: $name',

@@ -73,16 +73,7 @@ class StudentResult {
   static double? _findNumericField(Map<String, String> row, List<String> keys) {
     final str = _findField(row, keys);
     if (str.isEmpty) return null;
-    try {
-      final cleaned = str
-          .replaceAll(',', '.')
-          .replaceAll('٫', '.')
-          .replaceAll('\u00a0', '')
-          .replaceAll(' ', '');
-      return double.parse(cleaned);
-    } catch (_) {
-      return null;
-    }
+    return _parseDouble(str);
   }
 
   factory StudentResult.fromCsv(Map<String, String> row, ExamType type) {
@@ -146,25 +137,7 @@ class StudentResult {
     } else if (type == ExamType.concours) {
       // Concours: المجموع موجود في TOTAL
       score = _findNumericField(row, ['total']);
-      // إذا لم يتم العثور على المجموع، ابحث كاحتياط
-      score ??= _findNumericField(row, [
-        'somme',
-        'sum',
-        'note',
-        'score',
-        'مجموع',
-        'مجموع_النقاط',
-      ]);
-
-      if (score == null) {
-        for (final entry in row.entries) {
-          final v = _parseDouble(entry.value);
-          if (v != null && v > 20) {
-            score = v;
-            break;
-          }
-        }
-      }
+      // لا نستبدل TOTAL بمعدل أو حقل آخر؛ غياب TOTAL يعني أن النتيجة غير صالحة للتصنيف.
       averageScore = score != null ? (score / 200.0 * 20.0) : null;
     } else if (type == ExamType.brevet) {
       // Brevet: المعدل موجود في Moyg
@@ -215,11 +188,13 @@ class StudentResult {
     String status = _normalizeStatus(rawStatus, type);
 
     if (type == ExamType.concours) {
-      if (status.isEmpty) {
-        if (score != null) {
-          status = score >= 85.0 ? 'ناجح' : 'راسب';
+      // Concours classification is score-driven: 85..200 is successful.
+      // Values above the documented maximum are invalid data, not failures.
+      if (!['غائب', 'مطرود'].contains(status)) {
+        if (score != null && score > 200.0) {
+          status = 'بيانات غير صالحة';
         } else {
-          status = 'راسب';
+          status = score != null && score >= 85.0 ? 'ناجح' : 'راسب';
         }
       }
     } else if (type == ExamType.excellence) {
@@ -289,7 +264,8 @@ class StudentResult {
           .replaceAll('\u00a0', '')
           .replaceAll(' ', '');
       if (cleaned.isEmpty) return null;
-      return double.parse(cleaned);
+      final match = RegExp(r'-?\d+(?:\.\d+)?').firstMatch(cleaned);
+      return match == null ? null : double.parse(match.group(0)!);
     } catch (_) {
       return null;
     }
@@ -352,6 +328,7 @@ class StudentResult {
 
   bool get isPassed => status == 'ناجح';
   bool get isFailed => status == 'راسب';
+  bool get isInvalid => status == 'بيانات غير صالحة';
   bool get isAbsent => status == 'غائب';
   bool get isComplementary =>
       status == 'تكميلي' ||
@@ -400,7 +377,7 @@ class _CacheMeta {
 
 class ResultsService {
   // نستخدم ملفات على القرص لـ Cache البيانات الكبيرة بدل SharedPreferences
-  static const _metaPrefix = 'rc_meta_v5_'; // v5 = file-based
+  static const _metaPrefix = 'rc_meta_v6_'; // v6 = corrected concours score classification
 
   /// 30 دقيقة: Soft Expiry
   static const _cacheSoftMs = 30 * 60 * 1000;

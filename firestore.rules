@@ -20,6 +20,15 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
+    /// يتحقق من أن المستخدم مسؤول فعليًا إما عبر البريد أو عبر ملف المستخدم/role
+    function isAppAdmin() {
+      return isAdmin() ||
+        (request.auth != null &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+        (request.auth != null &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
+    }
+
     /// يتحقق من أن المستخدم مسجل الدخول
     function isAuthenticated() {
       return request.auth != null;
@@ -28,7 +37,9 @@ service cloud.firestore {
     /// يتحقق من أن حقل البيانات المُرسَلة لا يحتوي على حقول حساسة
     function noSensitiveFields() {
       return !request.resource.data.keys().hasAny([
-        'isAdmin', 'isSuspended', 'mustChangePassword', 'points'
+        'isAdmin', 'isSuspended', 'accountStatus', 'suspensionReason',
+        'suspensionStartAt', 'suspensionEndAt', 'suspendedAt', 'suspendedBy',
+        'mustChangePassword', 'points', 'role', 'isActive'
       ]);
     }
 
@@ -44,7 +55,11 @@ service cloud.firestore {
       allow list: if isAuthenticated();
 
       // إنشاء مستند جديد: المستخدم ينشئ مستنده الخاص فقط عند التسجيل
-      allow create: if isOwner(userId);
+      allow create: if isOwner(userId) &&
+        request.resource.data.uid == userId &&
+        !request.resource.data.keys().hasAny(['isAdmin', 'isSuspended', 'mustChangePassword', 'points']) &&
+        (!request.resource.data.keys().hasAny(['role']) || request.resource.data.role == 'user') &&
+        (!request.resource.data.keys().hasAny(['isActive']) || request.resource.data.isActive == true);
 
       // تعديل: المالك (بدون حقول حساسة) أو المسؤول بصلاحيات كاملة
       allow update: if (isOwner(userId) && noSensitiveFields()) || isAdmin();
@@ -72,13 +87,16 @@ service cloud.firestore {
     //  سجلات النشاط الإداري
     // ═══════════════════════════════════════════════════════════════
     match /admin_activity_logs/{logId} {
-      allow read, write: if isAdmin();
-      // السماح للمستخدمين المسجلين بالكتابة فقط (لتسجيل أنشطتهم)
-      allow create: if isAuthenticated();
+      allow read, write: if isAppAdmin();
+    }
+
+    // Legacy activity collection used by the standalone admin dashboard.
+    match /admin_activity/{logId} {
+      allow read, write: if isAppAdmin();
     }
 
     match /audit_logs/{logId} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAppAdmin();
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -87,17 +105,17 @@ service cloud.firestore {
     match /app_settings/{settingId} {
       // الجميع يقرأ (مطلوب لشاشة الصيانة)
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAppAdmin();
     }
 
     match /admin_settings/{document} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAppAdmin();
     }
 
     match /maintenance/{docId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAppAdmin();
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -106,7 +124,29 @@ service cloud.firestore {
     match /books/{bookId} {
       // القراءة: المستخدمون المسجلون فقط
       allow read: if isAuthenticated();
+      // المستخدم ينشئ كتابه فقط؛ التعديل والحذف للإدارة.
+      allow create: if isAdmin() ||
+        (isAuthenticated() && request.resource.data.uploaderId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    // نسخة التوافق القديمة التي ما زالت تستخدمها بعض شاشات التطبيق.
+    match /uploaded_books/{bookId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() ||
+        (isAuthenticated() && request.resource.data.uploaderId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    // بنك الأسئلة: القراءة للتطبيق، والإدارة للكتابة.
+    match /quizzes/{quizId} {
+      allow read: if isAuthenticated();
       allow write: if isAdmin();
+    }
+
+    // إشعارات لوحة الإدارة.
+    match /admin_notifications/{notificationId} {
+      allow read, write: if isAdmin();
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -128,13 +168,46 @@ service cloud.firestore {
     // لا يعتمد التطبيق على البريد الإلكتروني في العرض أو التخزين.
     match /reviews/{reviewId} {
       allow read: if true;
-      allow create, update: if isAuthenticated() &&
-        request.auth.uid == reviewId &&
+      allow create: if isAuthenticated() &&
         request.resource.data.userId == request.auth.uid &&
         request.resource.data.keys().hasOnly([
-          'rating', 'text', 'userId', 'userName', 'createdAt'
+          'rating', 'text', 'userId', 'userName', 'createdAt', 'userEmail', 'userPhone', 'uid'
         ]);
-      allow delete: if isAdmin() || (isAuthenticated() && request.auth.uid == reviewId);
+      allow update: if isAdmin() || (isAuthenticated() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'text', 'createdAt']));
+      allow delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+    }
+
+    match /chats/{chatId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAppAdmin());
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.keys().hasAny(['userId', 'lastMessage']);
+      allow update: if isAppAdmin() ||
+        (isAuthenticated() && resource.data.userId == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'userName', 'lastMessage', 'lastMessageAt', 'updatedAt', 'userUnread', 'adminUnread'
+          ]));
+      allow delete: if isAppAdmin();
+
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() &&
+          (get(/databases/$(database)/documents/chats/$(chatId)).data.userId == request.auth.uid || isAppAdmin());
+        allow create: if isAuthenticated() &&
+          request.resource.data.senderId == request.auth.uid &&
+          request.resource.data.keys().hasOnly(['text', 'senderId', 'senderName', 'isAdmin', 'createdAt', 'isRead']) &&
+          request.resource.data.text is string &&
+          request.resource.data.isAdmin == isAppAdmin();
+        allow update: if isAppAdmin() || (isAuthenticated() &&
+          resource.data.senderId == request.auth.uid &&
+          request.resource.data.senderId == resource.data.senderId &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isDeleted', 'deletedAt', 'deletedBy']) &&
+          request.resource.data.isDeleted == true &&
+          request.resource.data.deletedBy == request.auth.uid);
+        allow delete: if isAppAdmin();
+      }
     }
 
     // ═══════════════════════════════════════════════════════════════

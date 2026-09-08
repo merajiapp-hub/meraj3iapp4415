@@ -84,7 +84,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
     // أعلى نقطة/معدل
     double topScore = 0.0;
     for (final r in widget.allResults) {
-      if (r.score != null && r.score! > topScore) {
+      if (!r.isInvalid && r.score != null && r.score! > topScore) {
         topScore = r.score!;
       }
     }
@@ -107,10 +107,10 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
       if (r.isAbsent) sc.absent++;
       if (r.isExpelled) sc.expelled++;
       if (r.isComplementary) sc.complementary++;
-      if (r.score != null && r.score! > sc.topScore) {
+      if (!r.isInvalid && r.score != null && r.score! > sc.topScore) {
         sc.topScore = r.score!;
       }
-      if (r.score != null) {
+      if (!r.isInvalid && r.score != null) {
         sc.scoreTotal += r.score!;
         sc.scoredCount++;
       }
@@ -135,7 +135,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
       if (r.isAbsent) w.absent++;
       if (r.isExpelled) w.expelled++;
       if (r.isComplementary) w.complementary++;
-      if (r.score != null && r.score! > w.topScore) {
+      if (!r.isInvalid && r.score != null && r.score! > w.topScore) {
         w.topScore = r.score!;
       }
     }

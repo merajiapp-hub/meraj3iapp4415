@@ -98,54 +98,29 @@ class QuizProvider extends ChangeNotifier {
       allLocal = allLocal.where((q) => q.difficulty.name == difficulty.name).toList();
     }
     
-    // Combine avoiding duplicates
-    final Set<String> seenIds = {};
+    // Merge remote and local pools by content, because the same question can
+    // have different document IDs in Firestore and in the bundled bank.
+    final Set<String> seenQuestions = {};
     List<QuizQuestion> finalAvailable = [];
     for (var q in combined) {
-      if (!seenIds.contains(q.id)) {
+      final key = _questionKey(q);
+      if (seenQuestions.add(key)) {
         finalAvailable.add(q);
-        seenIds.add(q.id);
       }
     }
     for (var q in allLocal) {
-      if (!seenIds.contains(q.id)) {
+      final key = _questionKey(q);
+      if (seenQuestions.add(key)) {
         finalAvailable.add(q);
-        seenIds.add(q.id);
       }
     }
 
     // Filter out previously used questions if possible
     var unusedAvailable = finalAvailable.where((q) => !_usedQuestionIds.contains(q.id)).toList();
     if (unusedAvailable.length < count) {
-      // If we don't have enough unused, we have to reuse questions. Reset history.
+      // Start a new cycle only after exhausting the current pool.
       _usedQuestionIds.clear();
       unusedAvailable = List<QuizQuestion>.from(finalAvailable);
-    }
-
-    // If we STILL don't have enough to meet the count, duplicate existing ones with unique IDs
-    if (unusedAvailable.isNotEmpty && unusedAvailable.length < count) {
-      List<QuizQuestion> duplicated = [];
-      // أولاً نضيف الأسئلة الموجودة
-      duplicated.addAll(unusedAvailable);
-      
-      // ثم نبدأ بالنسخ العشوائي لبقية العدد المطلوب
-      int duplicateIndex = 0;
-      final random = Random();
-      while (duplicated.length < count) {
-        final q = unusedAvailable[random.nextInt(unusedAvailable.length)];
-        final newId = '${q.id}_dup_$duplicateIndex';
-        duplicated.add(QuizQuestion(
-          id: newId,
-          question: q.question,
-          options: q.options,
-          correctIndex: q.correctIndex,
-          category: q.category,
-          explanation: q.explanation,
-          difficulty: q.difficulty,
-        ));
-        duplicateIndex++;
-      }
-      unusedAvailable = duplicated;
     }
 
     // Shuffle and pick the requested count
@@ -158,6 +133,14 @@ class QuizProvider extends ChangeNotifier {
     }
     _saveProgress();
     notifyListeners();
+  }
+
+  String _questionKey(QuizQuestion question) {
+    final normalizedQuestion = question.question.trim().toLowerCase();
+    final normalizedOptions = question.options
+        .map((option) => option.trim().toLowerCase())
+        .join('|');
+    return '$normalizedQuestion::$normalizedOptions';
   }
 
   QuizQuestion _shuffleOptions(QuizQuestion q) {

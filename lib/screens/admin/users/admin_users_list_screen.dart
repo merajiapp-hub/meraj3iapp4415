@@ -58,9 +58,10 @@ class _AdminUsersListScreenState extends State<AdminUsersListScreen> {
     final q = _searchQuery.toLowerCase();
     return docs.where((doc) {
       final d = doc.data() as Map<String, dynamic>;
-      return (d['name'] ?? '').toLowerCase().contains(q) ||
-          (d['email'] ?? '').toLowerCase().contains(q) ||
-          (d['phone'] ?? '').toLowerCase().contains(q) ||
+        return (d['name'] ?? d['fullName'] ?? '').toString().toLowerCase().contains(q) ||
+          (d['email'] ?? '').toString().toLowerCase().contains(q) ||
+          (d['phone'] ?? '').toString().toLowerCase().contains(q) ||
+          (d['authProvider'] ?? d['provider'] ?? '').toString().toLowerCase().contains(q) ||
           doc.id.toLowerCase().contains(q);
     }).toList();
   }
@@ -200,9 +201,9 @@ class _UserTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isSuspended = data['isSuspended'] == true;
-    final name = data['name'] ?? 'بدون اسم';
+    final name = data['name'] ?? data['fullName'] ?? 'بدون اسم';
     final email = data['email'] ?? '';
-    final photoUrl = data['profileImageUrl'];
+    final photoUrl = data['profileImageUrl'] ?? data['photoUrl'];
 
     return Card(
       color: const Color(0xFF1E1E1E),
@@ -250,7 +251,7 @@ class _UserTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(email, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-            Text('UID: ${uid.substring(0, 10)}...',
+            Text('UID: ${uid.substring(0, uid.length < 10 ? uid.length : 10)}${uid.length > 10 ? '...' : ''}',
                 style: const TextStyle(color: Colors.grey, fontSize: 11)),
           ],
         ),

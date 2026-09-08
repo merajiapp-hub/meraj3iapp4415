@@ -20,12 +20,15 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   String _uid = '';
   String _userName = 'مستخدم';
   String _chatId = '';
+  final Set<String> _seenMessageIds = <String>{};
+  bool _messageStreamInitialized = false;
+  bool _chatClosed = false;
 
   @override
   void initState() {
     super.initState();
     // defer until first frame so context/provider is ready
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final auth = Provider.of<AuthProvider>(context, listen: false);
       setState(() {
@@ -34,7 +37,18 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
         _chatId = 'chat_$_uid';
       });
       if (_uid.isNotEmpty) {
-        _db.collection('chats').doc(_chatId).set({'userUnread': 0}, SetOptions(merge: true));
+        await _db.collection('chats').doc(_chatId).set({
+          'userId': _uid,
+          'userName': _userName,
+          'status': 'open',
+          'userUnread': 0,
+          'adminUnread': 0,
+        }, SetOptions(merge: true));
+        await _db.collection('chats').doc(_chatId).update({'userUnread': 0});
+        _db.collection('chats').doc(_chatId).snapshots().listen((snapshot) {
+          if (!mounted) return;
+          setState(() => _chatClosed = snapshot.data()?['status'] == 'closed');
+        });
       }
     });
   }
@@ -47,11 +61,10 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   }
 
   Future<void> _sendMessage() async {
-    if (_uid.isEmpty) return;
+    if (_uid.isEmpty || _chatClosed) return;
     final text = _ctrl.text.trim();
     if (text.isEmpty) return;
     setState(() => _sending = true);
-    _ctrl.clear();
     try {
       await _db.collection('chats').doc(_chatId).collection('messages').add({
         'text': text,
@@ -67,9 +80,11 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
         'userName': _userName,
         'lastMessage': text,
         'lastMessageAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
         'userUnread': 0,
         'adminUnread': FieldValue.increment(1),
       }, SetOptions(merge: true));
+      _ctrl.clear();
       // Scroll to bottom after messages update
       await Future.delayed(const Duration(milliseconds: 300));
       if (_scroll.hasClients) {
@@ -89,6 +104,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       if (mounted) setState(() => _sending = false);
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -185,6 +201,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 final docs = snapshot.data?.docs ?? [];
+                _playIncomingSound(docs);
                 if (docs.isEmpty) {
                   return Center(
                     child: Column(
@@ -207,21 +224,71 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                   itemBuilder: (context, index) {
                     final d = docs[index].data() as Map<String, dynamic>;
                     final isMe = !(d['isAdmin'] as bool? ?? false);
-                    return _buildBubble(d, isMe, isDark);
+                    return GestureDetector(
+                      onLongPress: isMe ? () => _deleteOwnMessage(docs[index].id) : null,
+                      child: _buildBubble(d, isMe, isDark),
+                    );
                   },
                 );
               },
             ),
           ),
           // Input
-          _buildInputBar(isDark),
+          if (_chatClosed)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              child: Text('تم إغلاق هذه المحادثة من الدعم الفني.', textAlign: TextAlign.center, style: GoogleFonts.tajawal(color: isDark ? Colors.white70 : Colors.black54)),
+            )
+          else
+            _buildInputBar(isDark),
         ],
       ),
     );
   }
 
+  Future<void> _deleteOwnMessage(String messageId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('حذف الرسالة'),
+        content: const Text('هل تريد حذف هذه الرسالة؟'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('حذف')),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      await _db.collection('chats').doc(_chatId).collection('messages').doc(messageId).update({
+        'isDeleted': true,
+        'deletedAt': FieldValue.serverTimestamp(),
+        'deletedBy': _uid,
+      });
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر حذف الرسالة')));
+    }
+  }
+
+  void _playIncomingSound(List<QueryDocumentSnapshot> docs) {
+    final hasNewIncoming = docs.any((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      return data['isAdmin'] == true && !_seenMessageIds.contains(doc.id);
+    });
+    _seenMessageIds.addAll(docs.map((doc) => doc.id));
+    final shouldPlay = _messageStreamInitialized && hasNewIncoming;
+    _messageStreamInitialized = true;
+    if (shouldPlay) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+      });
+    }
+  }
+
   Widget _buildBubble(Map<String, dynamic> d, bool isMe, bool isDark) {
     final text = d['text'] as String? ?? '';
+    final isDeleted = d['isDeleted'] == true;
     final time = d['createdAt'] as Timestamp?;
     final timeStr = time != null
         ? '${time.toDate().hour.toString().padLeft(2, '0')}:${time.toDate().minute.toString().padLeft(2, '0')}'
@@ -273,15 +340,10 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
               child: Column(
                 crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    text,
-                    textDirection: TextDirection.rtl,
-                    style: GoogleFonts.tajawal(
-                      fontSize: 14,
-                      height: 1.4,
-                      color: isMe ? Colors.white : (isDark ? Colors.white : const Color(0xFF1E293B)),
-                    ),
-                  ),
+                  if (isDeleted)
+                    Text('تم حذف هذه الرسالة', style: GoogleFonts.tajawal(fontStyle: FontStyle.italic, color: isMe ? Colors.white70 : Colors.grey))
+                  else if (text.isNotEmpty)
+                    Text(text, textDirection: TextDirection.rtl, style: GoogleFonts.tajawal(fontSize: 14, height: 1.4, color: isMe ? Colors.white : (isDark ? Colors.white : const Color(0xFF1E293B)))),
                   const SizedBox(height: 4),
                   Text(
                     timeStr,

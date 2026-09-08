@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import '../models/reading_session.dart';
 import '../models/book.dart';
 
@@ -11,23 +12,28 @@ class ReadingProvider extends ChangeNotifier {
   static const String _readingKey = 'reading_sessions_v2';
   final Map<String, ReadingSession> _sessions = {};
   String? _uid;
-  final _firestore = FirebaseFirestore.instance;
-  final _auth = FirebaseAuth.instance;
+
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
+  FirebaseAuth get _auth => FirebaseAuth.instance;
 
   ReadingProvider() {
     _loadLocal();
   }
 
-  void updateUid(String? uid) {
-    if (_uid != uid) {
-      _uid = uid;
-      if (_uid != null) {
-        _syncFromFirestore();
-      } else {
-        _sessions.clear();
-        _loadLocal();
-      }
+  Future<void> updateUid(String? uid) async {
+    if (_uid == uid) return;
+
+    _uid = uid;
+    _sessions.clear();
+
+    if (_uid != null) {
+      await _loadLocal();
+      await _syncFromFirestore();
+    } else {
+      await _loadLocal();
     }
+
+    notifyListeners();
   }
 
   List<ReadingSession> get sessions =>
@@ -71,6 +77,8 @@ class ReadingProvider extends ChangeNotifier {
   }
 
   Future<void> _syncFromFirestore() async {
+    if (Firebase.apps.isEmpty) return;
+
     final user = _auth.currentUser;
     if (user == null || _uid != user.uid) return;
     try {
@@ -79,16 +87,24 @@ class ReadingProvider extends ChangeNotifier {
           .doc(user.uid)
           .collection('reading_sessions')
           .get();
+
+      final merged = Map<String, ReadingSession>.from(_sessions);
       for (final doc in snapshot.docs) {
         final data = doc.data();
         final sessionData = data['session'];
         if (sessionData is! Map<String, dynamic>) continue;
+
         final remote = ReadingSession.fromMap(sessionData);
-        final local = _sessions[remote.bookKey];
+        final local = merged[remote.bookKey];
         if (local == null || remote.lastReadAt.isAfter(local.lastReadAt)) {
-          _sessions[remote.bookKey] = remote;
+          merged[remote.bookKey] = remote;
         }
       }
+
+      _sessions
+        ..clear()
+        ..addAll(merged);
+
       await _saveLocal();
       notifyListeners();
     } catch (e) {
@@ -100,6 +116,9 @@ class ReadingProvider extends ChangeNotifier {
     _sessions[session.bookKey] = session;
     notifyListeners();
     await _saveLocal();
+
+    if (Firebase.apps.isEmpty) return;
+
     final user = _auth.currentUser;
     if (user != null && _uid == user.uid) {
       try {

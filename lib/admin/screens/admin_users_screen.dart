@@ -33,11 +33,26 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
   Future<void> _toggleUserSuspension(String uid, bool currentStatus) async {
     final action = currentStatus ? 'إلغاء حظر' : 'حظر';
+    final reasonController = TextEditingController();
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('تأكيد $action'),
-        content: Text('هل أنت متأكد من رغبتك في $action هذا المستخدم؟'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('هل أنت متأكد من رغبتك في $action هذا المستخدم؟'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'سبب الإيقاف',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -54,10 +69,20 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
     if (confirm != true) return;
 
+    final reason = reasonController.text.trim();
+
     try {
-      await _firestore.collection('users').doc(uid).update({
+      final payload = <String, dynamic>{
         'isSuspended': !currentStatus,
-      });
+        'accountStatus': !currentStatus ? 'suspended' : 'active',
+        'suspensionReason': !currentStatus ? reason : '',
+        'suspensionStartAt': !currentStatus ? FieldValue.serverTimestamp() : null,
+        'suspensionEndAt': null,
+        'suspendedAt': !currentStatus ? FieldValue.serverTimestamp() : null,
+        'suspendedBy': !currentStatus ? 'admin' : null,
+      };
+
+      await _firestore.collection('users').doc(uid).update(payload);
       _showSnackBar('تم $action المستخدم بنجاح');
     } catch (e) {
       _showSnackBar('حدث خطأ: $e', isError: true);

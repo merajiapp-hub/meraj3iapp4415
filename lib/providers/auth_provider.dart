@@ -1,16 +1,19 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import '../core/account_status.dart';
 import '../services/admin_activity_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  late final GoogleSignIn _googleSignIn;
 
   User? _user;
   Map<String, dynamic>? _userData;
@@ -18,9 +21,14 @@ class AuthProvider extends ChangeNotifier {
   bool _initialized = false;
   bool _isAdmin = false;
   bool _mustChangePassword = false;
-  bool _isProvisioningProfile = false;
+  bool _profileReady = false;
+  bool _isAccountSuspended = false;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _accountStatusSubscription;
 
   AuthProvider() {
+    if (!kIsWeb) {
+      _googleSignIn = GoogleSignIn();
+    }
     // قراءة الحالة المحلية الأولية بشكل متزامن دون انتظار
     _user = _auth.currentUser;
     _isGuest = false; // سيُحدَّث من SharedPreferences لاحقاً
@@ -30,15 +38,22 @@ class AuthProvider extends ChangeNotifier {
       _user = user;
       if (user != null) {
         _isGuest = false;
-        // التحقق من صلاحيات الإدارة: أولاً من Firestore ثم Custom Claims كاحتياطي
-        await _checkAdminStatus(user);
-        // تحميل بيانات المستخدم في الخلفية بدون تعليق الـ listener
-        if (!_isProvisioningProfile) {
-          _loadUserDataBackground();
+        _profileReady = false;
+        _isAccountSuspended = false;
+        try {
+          await ensureUserDocument(user);
+          await _checkAdminStatus(user);
+          await refreshAccountStatus();
+        } catch (e) {
+          debugPrint('[Auth] Profile provisioning failed: $e');
         }
       } else {
         _isAdmin = false;
         _mustChangePassword = false;
+        _profileReady = false;
+        _isAccountSuspended = false;
+        _accountStatusSubscription?.cancel();
+        _accountStatusSubscription = null;
       }
       _initialized = true;
       notifyListeners();
@@ -59,13 +74,25 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> _checkAdminStatus(User user) async {
     try {
-      if (user.email == 'mma831770@gmail.com' ||
-          user.email == 'abdellahismd@gmail.com') {
+      final email = user.email?.trim().toLowerCase();
+      final isKnownAdmin = email == 'mma831770@gmail.com' ||
+          email == 'abdellahismd@gmail.com';
+
+      if (isKnownAdmin) {
         _isAdmin = true;
         debugPrint('[Auth] Admin confirmed via Email for ${user.email}');
-      } else {
+        return;
+      }
+
+      try {
+        final userDoc = await _firestore.collection('users').doc(user.uid).get();
+        final data = userDoc.data();
+        final role = (data?['role'] ?? data?['userRole'] ?? '').toString().toLowerCase();
+        final isAdminFlag = data?['isAdmin'] == true;
+        _isAdmin = role == 'admin' || isAdminFlag;
+        debugPrint('[Auth] Admin status from Firestore: $_isAdmin for ${user.email}');
+      } catch (_) {
         _isAdmin = false;
-        debugPrint('[Auth] User ${user.email} is not an admin.');
       }
     } catch (e) {
       debugPrint('[Auth] Error checking admin status: $e');
@@ -78,8 +105,11 @@ class AuthProvider extends ChangeNotifier {
   bool get isGuest => _isGuest;
   bool get initialized => _initialized;
   bool get isAdmin => _isAdmin;
+  bool get profileReady => _profileReady;
   bool get mustChangePassword => _mustChangePassword;
   Map<String, dynamic>? get userData => _userData;
+  bool get isAccountSuspended => _isAccountSuspended;
+  String get suspendedReason => normalizeAccountStatus(_userData).reason;
 
   // ─── getInitialAuthState مع Timeout آمن ──────────────────────────────────
   // يُستخدم في SplashScreen للانتظار حتى يحسم Firebase حالة المستخدم
@@ -94,12 +124,69 @@ class AuthProvider extends ChangeNotifier {
         },
       );
       _user = user;
+      if (user != null) {
+        try {
+          await ensureUserDocument(user);
+          await refreshAccountStatus();
+        } catch (e) {
+          debugPrint('[Auth] Initial profile provisioning failed: $e');
+          _user = null;
+          await _auth.signOut();
+        }
+      }
       _initialized = true;
-      return user;
+      return _user;
     } catch (e) {
       debugPrint('[Auth] getInitialAuthState error: $e');
       _initialized = true;
-      return _auth.currentUser;
+      return _user;
+    }
+  }
+
+  Future<bool> refreshAccountStatus() async {
+    if (_user == null) {
+      _isAccountSuspended = false;
+      return false;
+    }
+
+    try {
+      final doc = await _firestore
+          .collection('users')
+          .doc(_user!.uid)
+          .get()
+          .timeout(const Duration(seconds: 10));
+
+      final data = doc.data();
+      _userData = data ?? _userData;
+      final snapshot = normalizeAccountStatus(data ?? _userData);
+      _isAccountSuspended = snapshot.isSuspended;
+      _profileReady = true;
+
+      if (snapshot.isSuspended) {
+        _accountStatusSubscription?.cancel();
+        _accountStatusSubscription = _firestore
+            .collection('users')
+            .doc(_user!.uid)
+            .snapshots()
+            .listen((event) {
+              final eventData = event.data();
+              final eventSnapshot = normalizeAccountStatus(eventData);
+              _userData = eventData ?? _userData;
+              _isAccountSuspended = eventSnapshot.isSuspended;
+              notifyListeners();
+            });
+      } else {
+        _accountStatusSubscription?.cancel();
+        _accountStatusSubscription = null;
+      }
+
+      notifyListeners();
+      return !snapshot.isSuspended;
+    } catch (e) {
+      debugPrint('[Auth] refreshAccountStatus error: $e');
+      _isAccountSuspended = false;
+      notifyListeners();
+      return false;
     }
   }
 
@@ -183,30 +270,26 @@ class AuthProvider extends ChangeNotifier {
 
       if (cred.user != null) {
         try {
-          final doc = await _firestore
-              .collection('users')
-              .doc(cred.user!.uid)
-              .get();
-          if (!doc.exists) {
-            await _firestore.collection('users').doc(cred.user!.uid).set({
-              'name': cred.user!.displayName ?? 'مستخدم جديد',
-              'email': cred.user!.email ?? '',
-              'phone': '',
-              'gender': 'غير محدد',
-              'createdAt': FieldValue.serverTimestamp(),
-              'lastActivity': FieldValue.serverTimestamp(),
-              'profileImageUrl': cred.user!.photoURL,
-              'uid': cred.user!.uid,
-              'provider': 'email',
-              'isAdmin': false,
-              'isSuspended': false,
-            });
-          } else {
-            await _firestore.collection('users').doc(cred.user!.uid).set({
-              'lastActivity': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true));
+          await ensureUserDocument(cred.user!, provider: 'email');
+          final userDoc = await _firestore.collection('users').doc(cred.user!.uid).get();
+          final snapshot = normalizeAccountStatus(userDoc.data());
+          _user = cred.user;
+          _userData = userDoc.data();
+          _isAccountSuspended = snapshot.isSuspended;
+          _profileReady = true;
+
+          if (snapshot.isSuspended) {
+            _user = cred.user;
+            _userData = userDoc.data();
+            _isAccountSuspended = true;
+            _profileReady = true;
+            notifyListeners();
+            return 'suspended';
           }
-        } catch (_) {}
+        } on FirebaseException catch (e) {
+          await _auth.signOut();
+          return 'تعذر تحميل ملف المستخدم: ${e.message ?? e.code}';
+        }
 
         await AdminActivityService.log(
           type: AdminActivityType.userLoggedIn,
@@ -281,7 +364,6 @@ class AuthProvider extends ChangeNotifier {
     String gender,
   ) async {
     UserCredential? cred;
-    _isProvisioningProfile = true;
     try {
       // الخطوة 1: إنشاء حساب Firebase Auth أولاً (المستخدم الآن لديه uid)
       cred = await _auth
@@ -320,8 +402,8 @@ class AuthProvider extends ChangeNotifier {
         'profileImageUrl': null,
         'uid': cred.user!.uid,
         'provider': 'email',
-        'isAdmin': false,
-        'isSuspended': false,
+        'role': 'user',
+        'isActive': true,
       };
 
       bool firestoreSuccess = false;
@@ -417,8 +499,6 @@ class AuthProvider extends ChangeNotifier {
         return 'انتهت مهلة الاتصال. تحقق من الإنترنت وأعد المحاولة.';
       }
       return 'خطأ غير متوقع: $e';
-    } finally {
-      _isProvisioningProfile = false;
     }
   }
 
@@ -470,6 +550,9 @@ class AuthProvider extends ChangeNotifier {
     _userData = null;
     _isAdmin = false;
     _mustChangePassword = false;
+    _isAccountSuspended = false;
+    _accountStatusSubscription?.cancel();
+    _accountStatusSubscription = null;
     notifyListeners();
 
     // تسجيل الخروج ينهي الجلسة فقط؛ لا نحذف بيانات المستخدم المحلية أو السحابية.
@@ -531,49 +614,44 @@ class AuthProvider extends ChangeNotifier {
   // ─── تسجيل الدخول بـ Google ─────────────────────────────────────────────
   Future<String?> signInWithGoogle() async {
     try {
-      final googleUser = await _googleSignIn.signIn().timeout(
-        const Duration(seconds: 30),
-      );
-      if (googleUser == null) return 'تم إلغاء تسجيل الدخول بـ Google';
+      late final UserCredential userCredential;
+      if (kIsWeb) {
+        userCredential = await _auth
+            .signInWithPopup(GoogleAuthProvider())
+            .timeout(const Duration(seconds: 45));
+      } else {
+        final googleUser = await _googleSignIn.signIn().timeout(
+          const Duration(seconds: 30),
+        );
+        if (googleUser == null) return 'تم إلغاء تسجيل الدخول بـ Google';
 
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final userCredential = await _auth
-          .signInWithCredential(credential)
-          .timeout(const Duration(seconds: 15));
+        final googleAuth = await googleUser.authentication;
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+        userCredential = await _auth
+            .signInWithCredential(credential)
+            .timeout(const Duration(seconds: 15));
+      }
       final user = userCredential.user;
       if (user == null) return 'فشل تسجيل الدخول بـ Google';
 
       // لا نعلن نجاح تسجيل Google قبل إنشاء profile والتأكد من وجوده.
       final doc = await _firestore.collection('users').doc(user.uid).get();
       final isNewProfile = !doc.exists;
-      await _firestore.collection('users').doc(user.uid).set({
-        if (isNewProfile) ...{
-          'name': user.displayName ?? '',
-          'email': user.email ?? '',
-          'phone': '',
-          'gender': 'غير محدد',
-          'createdAt': FieldValue.serverTimestamp(),
-          'uid': user.uid,
-          'provider': 'google',
-          'isAdmin': false,
-          'isSuspended': false,
-        },
-        'lastActivity': FieldValue.serverTimestamp(),
-        'profileImageUrl': user.photoURL,
-      }, SetOptions(merge: true));
-      final savedProfile = await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .get()
-          .timeout(const Duration(seconds: 10));
-      if (!savedProfile.exists) {
-        await _auth.signOut();
-        return 'تعذر إنشاء ملف المستخدم في قاعدة البيانات. أعد المحاولة.';
+      final savedProfile = await ensureUserDocument(user);
+      final snapshot = normalizeAccountStatus(savedProfile.data());
+      _user = user;
+      _userData = savedProfile.data();
+      _isAccountSuspended = snapshot.isSuspended;
+      _profileReady = true;
+      if (snapshot.isSuspended) {
+        _isAccountSuspended = true;
+        _userData = savedProfile.data();
+        _profileReady = true;
+        notifyListeners();
+        return 'suspended';
       }
 
       try {
@@ -588,12 +666,6 @@ class AuthProvider extends ChangeNotifier {
             metadata: {'email': user.email, 'provider': 'google'},
           );
         } else {
-          // تحديث آخر نشاط
-          await _firestore.collection('users').doc(user.uid).set({
-            'lastActivity': FieldValue.serverTimestamp(),
-            'profileImageUrl': user.photoURL, // تحديث الصورة في حال تغيرها
-          }, SetOptions(merge: true));
-
           // تسجيل دخول
           await AdminActivityService.log(
             type: AdminActivityType.userLoggedIn,
@@ -609,13 +681,136 @@ class AuthProvider extends ChangeNotifier {
 
       _user = user;
       _userData = savedProfile.data();
+      _profileReady = true;
       notifyListeners();
       return null;
+    } on FirebaseAuthException catch (e) {
+      debugPrint('[Google] Authentication failed: ${e.code} ${e.message}');
+      return _googleAuthErrorMessage(e);
+    } on FirebaseException catch (e) {
+      debugPrint('[Google] Firestore stage failed: ${e.code} ${e.message}');
+      await _auth.signOut();
+      return _googleErrorMessage(e);
     } catch (e) {
+      await _auth.signOut();
       if (e.toString().contains('timeout')) {
         return 'انتهت مهلة الاتصال. أعد المحاولة.';
       }
       return 'خطأ في تسجيل الدخول بـ Google: $e';
+    }
+  }
+
+  /// Ensures users/{uid} exists without overwriting profile fields edited in-app.
+  Future<DocumentSnapshot<Map<String, dynamic>>> ensureUserDocument(
+    User user, {
+    String provider = 'google',
+  }) async {
+    if (user.uid.isEmpty) {
+      throw FirebaseException(plugin: 'firebase_auth', code: 'missing-uid');
+    }
+
+    final ref = _firestore.collection('users').doc(user.uid);
+    final current = await ref.get().timeout(const Duration(seconds: 10));
+    final data = current.data();
+    final update = <String, dynamic>{
+      'uid': user.uid,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'lastLoginAt': FieldValue.serverTimestamp(),
+      'lastActivity': FieldValue.serverTimestamp(),
+    };
+
+    if (!current.exists) {
+      update.addAll({
+        'fullName': user.displayName ?? (provider == 'google' ? 'مستخدم Google' : 'مستخدم جديد'),
+        'name': user.displayName ?? (provider == 'google' ? 'مستخدم Google' : 'مستخدم جديد'),
+        'email': user.email ?? '',
+        'photoUrl': user.photoURL ?? '',
+        'profileImageUrl': user.photoURL,
+        'phone': '',
+        'educationLevel': '',
+        'gender': 'غير محدد',
+        'authProvider': provider,
+        'provider': provider,
+        'role': 'user',
+        'isActive': true,
+        'accountStatus': 'active',
+        'isSuspended': false,
+        'suspensionReason': '',
+        'suspensionStartAt': null,
+        'suspensionEndAt': null,
+        'suspendedAt': null,
+        'suspendedBy': null,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } else if (data != null) {
+      if (!data.containsKey('fullName') && !data.containsKey('name')) {
+        update['fullName'] = user.displayName ?? (provider == 'google' ? 'مستخدم Google' : 'مستخدم جديد');
+      }
+      if (!data.containsKey('authProvider') && !data.containsKey('provider')) {
+        update['authProvider'] = provider;
+        update['provider'] = provider;
+      }      if (!data.containsKey('accountStatus')) {
+        update['accountStatus'] = 'active';
+      }
+      if (!data.containsKey('isSuspended')) {
+        update['isSuspended'] = false;
+      }
+      if (!data.containsKey('suspensionReason')) {
+        update['suspensionReason'] = '';
+      }
+      if (!data.containsKey('suspensionStartAt')) {
+        update['suspensionStartAt'] = null;
+      }
+      if (!data.containsKey('suspensionEndAt')) {
+        update['suspensionEndAt'] = null;
+      }
+      if (!data.containsKey('suspendedAt')) {
+        update['suspendedAt'] = null;
+      }
+      if (!data.containsKey('suspendedBy')) {
+        update['suspendedBy'] = null;
+      }    }
+
+    await ref.set(update, SetOptions(merge: true)).timeout(const Duration(seconds: 10));
+    final saved = await ref.get().timeout(const Duration(seconds: 10));
+    if (!saved.exists || saved.data() == null) {
+      throw FirebaseException(plugin: 'cloud_firestore', code: 'profile-not-created');
+    }
+    _userData = saved.data();
+    _mustChangePassword = _userData?['mustChangePassword'] == true;
+    _profileReady = true;
+    return saved;
+  }
+
+  String _googleErrorMessage(FirebaseException error) {
+    switch (error.code) {
+      case 'permission-denied':
+        return 'تم تسجيل Google، لكن لا يمكن حفظ ملفك. تحقق من اتصالك ثم أعد المحاولة.';
+      case 'unavailable':
+      case 'network-request-failed':
+        return 'تعذر الاتصال بقاعدة البيانات. أعد المحاولة عند توفر الإنترنت.';
+      case 'profile-not-created':
+        return 'تعذر تجهيز ملف المستخدم. أعد المحاولة.';
+      default:
+        return 'تعذر إكمال تسجيل الدخول بـ Google. أعد المحاولة.';
+    }
+  }
+
+  String _googleAuthErrorMessage(FirebaseAuthException error) {
+    switch (error.code) {
+      case 'popup-closed-by-user':
+      case 'cancelled-popup-request':
+        return 'تم إلغاء تسجيل الدخول بـ Google.';
+      case 'popup-blocked':
+        return 'تم حظر نافذة Google. اسمح بالنوافذ المنبثقة ثم أعد المحاولة.';
+      case 'unauthorized-domain':
+        return 'النطاق الحالي غير مضاف إلى Authorized domains في Firebase Authentication.';
+      case 'account-exists-with-different-credential':
+        return 'هذا البريد مرتبط بطريقة دخول أخرى. استخدم البريد وكلمة المرور.';
+      case 'network-request-failed':
+        return 'تعذر الاتصال بخدمة Google. تحقق من الإنترنت وأعد المحاولة.';
+      default:
+        return 'تعذر تسجيل الدخول بـ Google (${error.code}). أعد المحاولة.';
     }
   }
 
@@ -642,6 +837,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> signOutGoogle() async {
+    if (kIsWeb) return;
     try {
       await _googleSignIn.signOut();
     } catch (_) {}

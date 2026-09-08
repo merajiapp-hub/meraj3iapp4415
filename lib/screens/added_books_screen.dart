@@ -58,7 +58,7 @@ class _AddedBooksScreenState extends State<AddedBooksScreen> {
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('uploaded_books')
+            .collection('books')
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -84,22 +84,43 @@ class _AddedBooksScreenState extends State<AddedBooksScreen> {
               ),
             );
           }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return _buildEmpty(isDark);
+
+          return StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('uploaded_books')
+                .snapshots(),
+            builder: (context, legacySnapshot) {
+              if (legacySnapshot.connectionState == ConnectionState.waiting &&
+                  legacySnapshot.data == null) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final docs = <QueryDocumentSnapshot>[
+                ...(snapshot.data?.docs ?? <QueryDocumentSnapshot>[]),
+                ...(legacySnapshot.data?.docs ?? <QueryDocumentSnapshot>[]),
+              ];
+              if (docs.isEmpty) {
+                return _buildEmpty(isDark);
+              }
+
+          final map = <String, _BookEntry>{};
+          for (final d in docs) {
+            final data = d.data();
+            if (data is! Map<String, dynamic>) continue;
+            final book = Book.fromMap(data, d.id);
+            final key = book.id.isNotEmpty
+                ? book.id
+                : '${book.title}_${book.section}_${book.grade}_${book.category}';
+            if (!map.containsKey(key)) {
+              map[key] = _BookEntry(doc: d, book: book);
+            }
           }
 
-          final docs = snapshot.data!.docs;
-          var entries = docs
-              .map((d) => _BookEntry(
-                    doc: d,
-                    book: Book.fromMap(
-                      d.data() as Map<String, dynamic>,
-                      d.id,
-                    ),
-                  ))
-              .toList()
+          var entries = map.values.toList()
             ..sort((a, b) => (b.book.addedAt ?? DateTime.fromMillisecondsSinceEpoch(0))
                 .compareTo(a.book.addedAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
+
+          entries = entries.where((entry) => entry.book.isActive).toList();
 
           // تطبيق الفلاتر
           if (_searchQuery.isNotEmpty) {
@@ -122,9 +143,21 @@ class _AddedBooksScreenState extends State<AddedBooksScreen> {
           }
 
           // جمع الفلاتر المتاحة
-          final sections = docs.map((d) => (d.data() as Map<String, dynamic>)['section'] as String? ?? '').where((s) => s.isNotEmpty).toSet().toList();
-          final subjects = docs.map((d) => (d.data() as Map<String, dynamic>)['subject'] as String? ?? '').where((s) => s.isNotEmpty).toSet().toList();
-          final grades = docs.map((d) => (d.data() as Map<String, dynamic>)['grade'] as String? ?? '').where((s) => s.isNotEmpty).toSet().toList();
+          final sections = entries
+              .map((e) => e.book.section)
+              .where((s) => s.isNotEmpty)
+              .toSet()
+              .toList();
+          final subjects = entries
+              .map((e) => e.book.subject)
+              .where((s) => s.isNotEmpty)
+              .toSet()
+              .toList();
+          final grades = entries
+              .map((e) => e.book.grade)
+              .where((s) => s.isNotEmpty)
+              .toSet()
+              .toList();
 
           return Column(
             children: [
@@ -184,6 +217,8 @@ class _AddedBooksScreenState extends State<AddedBooksScreen> {
                       ),
               ),
             ],
+          );
+            },
           );
         },
       ),

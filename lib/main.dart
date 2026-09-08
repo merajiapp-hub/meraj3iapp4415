@@ -29,6 +29,8 @@ import 'providers/app_config_provider.dart';
 import 'features/smart_calculator/smart_calculator_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/maintenance_screen.dart';
+import 'screens/account_suspended_screen.dart';
+import 'widgets/account_status_guard.dart';
 import 'data/notification_service.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:receive_intent/receive_intent.dart';
@@ -310,13 +312,18 @@ class Meraj3iApp extends StatelessWidget {
           builder: (context, appConfig, auth, _) {
             final isMaintenance = appConfig.maintenanceMode;
             final isAdmin = auth.isAdmin;
+            final shouldBlockSuspended = auth.user != null && auth.isAccountSuspended;
+            final pageContent = shouldBlockSuspended
+                ? const AccountSuspendedScreen()
+                : (isMaintenance && !isAdmin
+                    ? const MaintenanceScreen()
+                    : (child ?? const SizedBox.shrink()));
+
             return Directionality(
               textDirection: TextDirection.rtl,
               child: ScrollConfiguration(
                 behavior: const _NoScrollbarBehavior(),
-                child: isMaintenance && !isAdmin
-                    ? const MaintenanceScreen()
-                    : (child ?? const SizedBox.shrink()),
+                child: AccountStatusGuard(child: pageContent),
               ),
             );
           },

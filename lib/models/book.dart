@@ -17,6 +17,7 @@ class Book {
   final String? originalDriveUrl;
   final String? extractedFileId;
   final String? linkStatus;
+  final bool isActive;
   final DateTime? addedAt;
 
   const Book({
@@ -34,6 +35,7 @@ class Book {
     this.originalDriveUrl,
     this.extractedFileId,
     this.linkStatus,
+    this.isActive = true,
     this.addedAt,
   });
 
@@ -86,7 +88,11 @@ class Book {
 
   factory Book.fromMap(Map<String, dynamic> map, String documentId) {
     DateTime? addedAt;
-    final rawDate = map['uploadDate'] ?? map['createdAt'] ?? map['addedAt'];
+    final rawDate = map['uploadDate'] ??
+        map['createdAt'] ??
+        map['created_at'] ??
+        map['addedAt'] ??
+        map['updatedAt'];
     if (rawDate is Timestamp) {
       addedAt = rawDate.toDate();
     } else if (rawDate is DateTime) {
@@ -100,25 +106,32 @@ class Book {
     String value(String key, [String fallback = '']) =>
         (map[key] ?? fallback).toString().trim();
 
+    final rawSection = value('section', value('stage'));
+    final rawGrade = value('grade', value('year'));
+    final rawCategory = value('category', value('type', value('bookType')));
+    final rawSubject = value('subject', value('material'));
+    final rawUrl = value('url', value('drive_link', value('pdfUrl', value('fileUrl', value('downloadUrl')))));
+
     return Book(
       id: documentId.isNotEmpty ? documentId : value('id'),
       title: value('title', value('name')),
       subtitle: value('subtitle').isEmpty ? null : value('subtitle'),
-      section: value('section', value('stage')),
-      grade: value('grade', value('year')),
-      category: value('category', value('type')),
-      subject: value('subject'),
-      url: value('url', value('pdfUrl', value('fileUrl', value('downloadUrl')))),
+      section: rawSection,
+      grade: rawGrade,
+      category: rawCategory,
+      subject: rawSubject,
+      url: rawUrl,
       solutionUrl: value('solutionUrl'),
       coverUrl: value('coverUrl', value('imageUrl', value('thumbnailUrl'))),
       uploaderId: value('uploaderId', value('userId')),
-      originalDriveUrl: value('originalDriveUrl', value('url')).isEmpty
+      originalDriveUrl: value('originalDriveUrl', value('url', value('drive_link'))).isEmpty
           ? null
-          : value('originalDriveUrl', value('url')),
+          : value('originalDriveUrl', value('url', value('drive_link'))),
       extractedFileId: value('extractedFileId').isEmpty
           ? null
           : value('extractedFileId'),
       linkStatus: value('linkStatus').isEmpty ? null : value('linkStatus'),
+      isActive: map['is_active'] ?? map['isActive'] ?? true,
       addedAt: addedAt,
     );
   }
@@ -139,6 +152,8 @@ class Book {
       'originalDriveUrl': originalDriveUrl ?? url,
       'extractedFileId': extractedFileId ?? resolvedFileId,
       'linkStatus': linkStatus,
+      'is_active': isActive,
+      'isActive': isActive,
     };
   }
 
@@ -167,6 +182,7 @@ class Book {
       originalDriveUrl: originalDriveUrl ?? this.url,
       extractedFileId: extractedFileId ?? this.extractedFileId,
       linkStatus: linkStatus ?? this.linkStatus,
+      isActive: isActive,
       addedAt: addedAt,
     );
   }

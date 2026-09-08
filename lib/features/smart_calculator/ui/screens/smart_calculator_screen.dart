@@ -6,6 +6,7 @@ import 'graphing_screen.dart';
 import 'equation_solver_screen.dart';
 import 'matrix_editor_screen.dart';
 import 'conversions_screen.dart';
+import 'advanced_math_lab_screen.dart';
 
 class SmartCalculatorScreen extends StatefulWidget {
   const SmartCalculatorScreen({super.key});
@@ -21,7 +22,7 @@ class _SmartCalculatorScreenState extends State<SmartCalculatorScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
   }
 
   @override
@@ -64,6 +65,7 @@ class _SmartCalculatorScreenState extends State<SmartCalculatorScreen>
             Tab(text: 'Graphique'),
             Tab(text: 'Matrices'),
             Tab(text: 'Conversions'),
+            Tab(text: 'مختبر الرياضيات'),
           ],
         ),
       ),
@@ -77,6 +79,7 @@ class _SmartCalculatorScreenState extends State<SmartCalculatorScreen>
           const GraphingScreen(), // Tab 3: الرسم البياني
           const MatrixEditorScreen(), // Tab 4: المصفوفات
           const ConversionsScreen(), // Tab 5: التحويلات (To be implemented or replaced)
+          const AdvancedMathLabScreen(),
         ],
       ),
     );

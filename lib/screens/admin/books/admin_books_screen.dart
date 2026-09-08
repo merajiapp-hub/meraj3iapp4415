@@ -74,6 +74,33 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
     }
   }
 
+  Future<void> _toggleBookStatus(String docId, Map<String, dynamic> data, String title) async {
+    final currentStatus = (data['is_active'] ?? data['isActive'] ?? true) as bool;
+
+    try {
+      await FirebaseFirestore.instance.collection('books').doc(docId).update({
+        'is_active': !currentStatus,
+        'isActive': !currentStatus,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(!currentStatus ? '✅ تم تفعيل الكتاب: $title' : '✅ تم إيقاف الكتاب: $title'),
+            backgroundColor: !currentStatus ? Colors.green : Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ في تحديث الحالة: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -111,8 +138,6 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
           : StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('books')
-                  .orderBy('createdAt', descending: true)
-                  .limit(100)
                   .snapshots(),
               builder: (ctx, snap) {
                 if (snap.connectionState == ConnectionState.waiting) {
@@ -131,8 +156,20 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
                         (data['title'] ?? '').toString().toLowerCase();
                     final author =
                         (data['author'] ?? '').toString().toLowerCase();
+                  final section =
+                    (data['section'] ?? data['stage'] ?? '').toString().toLowerCase();
+                  final grade =
+                    (data['grade'] ?? data['year'] ?? '').toString().toLowerCase();
+                  final category =
+                    (data['category'] ?? data['type'] ?? data['bookType'] ?? '').toString().toLowerCase();
+                  final subject =
+                    (data['subject'] ?? data['material'] ?? '').toString().toLowerCase();
                     return title.contains(_search) ||
-                        author.contains(_search);
+                    author.contains(_search) ||
+                    section.contains(_search) ||
+                    grade.contains(_search) ||
+                    category.contains(_search) ||
+                    subject.contains(_search);
                   }).toList();
                 }
                 if (docs.isEmpty) {
@@ -149,6 +186,11 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
                     final d = doc.data() as Map<String, dynamic>;
                     final title = d['title'] ?? 'بدون عنوان';
                     final author = d['author'] ?? '';
+                    final section = d['section'] ?? d['stage'] ?? '';
+                    final grade = d['grade'] ?? d['year'] ?? '';
+                    final category = d['category'] ?? d['type'] ?? d['bookType'] ?? '';
+                    final subject = d['subject'] ?? d['material'] ?? '';
+                    final isActive = (d['is_active'] ?? d['isActive'] ?? true) as bool;
                     final coverUrl = d['coverUrl'] ?? d['imageUrl'];
                     final opens = d['opens'] ?? d['openCount'] ?? 0;
                     final downloads = d['downloads'] ?? d['downloadCount'] ?? 0;
@@ -182,6 +224,19 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  if (!isActive)
+                                    Container(
+                                      margin: const EdgeInsets.only(bottom: 6),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange.withValues(alpha: 0.14),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Text(
+                                        'غير نشط',
+                                        style: TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
                                   Text(title,
                                       style: const TextStyle(
                                           color: Colors.white,
@@ -193,6 +248,21 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
                                     Text(author,
                                         style: const TextStyle(
                                             color: Colors.grey, fontSize: 12)),
+                                  const SizedBox(height: 6),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 6,
+                                    children: [
+                                      if (section.isNotEmpty)
+                                        _metaChip(section, Colors.blue),
+                                      if (grade.isNotEmpty)
+                                        _metaChip(grade, Colors.purple),
+                                      if (category.isNotEmpty)
+                                        _metaChip(category, Colors.green),
+                                      if (subject.isNotEmpty)
+                                        _metaChip(subject, Colors.orange),
+                                    ],
+                                  ),
                                   const SizedBox(height: 8),
                                   Row(
                                     children: [
@@ -210,6 +280,20 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
                             Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: IconButton(
+                                    icon: Icon(
+                                      isActive ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                                      color: isActive ? Colors.green : Colors.orange,
+                                      size: 20,
+                                    ),
+                                    onPressed: () => _toggleBookStatus(doc.id, d, title),
+                                    tooltip: isActive ? 'إيقاف الكتاب' : 'تفعيل الكتاب',
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                ),
                                 // Link Status Badge
                                 Builder(builder: (context) {
                                   final url = d['url'] as String? ?? '';
@@ -357,6 +441,24 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
         Text(val,
             style: const TextStyle(color: Colors.grey, fontSize: 11)),
       ],
+    );
+  }
+
+  Widget _metaChip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 }

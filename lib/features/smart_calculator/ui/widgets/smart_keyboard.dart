@@ -38,8 +38,14 @@ class _SmartKeyboardState extends State<SmartKeyboard> {
             ],
           ),
           padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
               // Toggle Advanced Mode
               GestureDetector(
                 onTap: () => setState(() => _isAdvanced = !_isAdvanced),
@@ -56,8 +62,8 @@ class _SmartKeyboardState extends State<SmartKeyboard> {
               
               if (_isAdvanced) ...[
                 // Advanced Scientific Buttons
-                Expanded(
-                  flex: 2,
+                SizedBox(
+                  height: 150,
                   child: GridView.count(
                     crossAxisCount: 5,
                     mainAxisSpacing: 8,
@@ -89,23 +95,23 @@ class _SmartKeyboardState extends State<SmartKeyboard> {
               ],
               
               // Basic Keypad
-              Expanded(
-                flex: _isAdvanced ? 3 : 5,
-                child: Column(
+                Column(
                   children: [
-                    Expanded(child: _buildRow(['AC', 'DEL', '(', ')'], isDark, provider)),
+                    SizedBox(height: 52, child: _buildRow(['AC', 'DEL', '(', ')'], isDark, provider)),
                     const SizedBox(height: 8),
-                    Expanded(child: _buildRow(['7', '8', '9', '÷'], isDark, provider)),
+                    SizedBox(height: 52, child: _buildRow(['7', '8', '9', '÷'], isDark, provider)),
                     const SizedBox(height: 8),
-                    Expanded(child: _buildRow(['4', '5', '6', '×'], isDark, provider)),
+                    SizedBox(height: 52, child: _buildRow(['4', '5', '6', '×'], isDark, provider)),
                     const SizedBox(height: 8),
-                    Expanded(child: _buildRow(['1', '2', '3', '-'], isDark, provider)),
+                    SizedBox(height: 52, child: _buildRow(['1', '2', '3', '-'], isDark, provider)),
                     const SizedBox(height: 8),
-                    Expanded(child: _buildRow(['0', '.', '=', '+'], isDark, provider)),
+                    SizedBox(height: 52, child: _buildRow(['0', '.', '=', '+'], isDark, provider)),
+                  ],
+                ),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
         );
       },

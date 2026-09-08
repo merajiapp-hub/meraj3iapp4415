@@ -202,6 +202,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _showSnack(value ? 'تم تفعيل إشعارات الكتب' : 'تم إيقاف إشعارات الكتب');
   }
 
+
   void _showSnack(String msg, {bool isError = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(

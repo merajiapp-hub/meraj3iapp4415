@@ -5,9 +5,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
 import '../theme/app_theme.dart';
 import '../providers/auth_provider.dart';
+import '../providers/app_config_provider.dart';
 import '../widgets/app_notification.dart';
 import 'main_screen.dart';
 import 'signup_screen.dart';
+import 'account_suspended_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -141,6 +143,12 @@ class _LoginScreenState extends State<LoginScreen>
         context,
         MaterialPageRoute(builder: (_) => const MainScreen()),
       );
+    } else if (error == 'suspended') {
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const AccountSuspendedScreen()),
+      );
     } else {
       if (!mounted) return;
       AppNotification.show(context, error, isError: true);
@@ -192,6 +200,11 @@ class _LoginScreenState extends State<LoginScreen>
           context,
           MaterialPageRoute(builder: (_) => const MainScreen()),
         );
+      } else if (error == 'suspended') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const AccountSuspendedScreen()),
+        );
       } else {
         AppNotification.show(context, error, isError: true);
       }
@@ -199,6 +212,16 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _loginAsGuest() async {
+    final appConfig = Provider.of<AppConfigProvider>(context, listen: false);
+    if (!appConfig.allowGuestView) {
+      AppNotification.show(
+        context,
+        'تم تعطيل دخول الضيف من إعدادات التطبيق في الوقت الحالي.',
+        isError: true,
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     await authProvider.setGuestMode(true);
@@ -220,6 +243,11 @@ class _LoginScreenState extends State<LoginScreen>
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const MainScreen()),
+      );
+    } else if (error == 'suspended') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const AccountSuspendedScreen()),
       );
     } else {
       AppNotification.show(context, error, isError: true);
@@ -777,18 +805,23 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _buildGuestButton() {
+    final guestEnabled = context.watch<AppConfigProvider>().allowGuestView;
+    if (!guestEnabled) {
+      return const SizedBox.shrink();
+    }
+
     return TextButton.icon(
       onPressed: _isLoading ? null : _loginAsGuest,
       icon: Icon(
         Icons.person_outline_rounded,
-        size: 20, // تصغير
+        size: 20,
         color: Colors.white.withValues(alpha: 0.7),
       ),
       label: Text(
         'المتابعة كزائر',
         style: GoogleFonts.tajawal(
           color: Colors.white.withValues(alpha: 0.9),
-          fontSize: 14, // تصغير
+          fontSize: 14,
           fontWeight: FontWeight.w600,
           decoration: TextDecoration.underline,
           decorationColor: Colors.white.withValues(alpha: 0.5),

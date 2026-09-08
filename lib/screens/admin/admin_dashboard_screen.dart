@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'users/admin_users_list_screen.dart';
 import 'notifications/admin_notifications_screen.dart';
 import 'books/admin_books_screen.dart';
+import 'reviews/admin_reviews_screen.dart';
 import 'settings/admin_settings_screen.dart';
 import 'monitoring/admin_health_screen.dart';
 import 'logs/admin_audit_logs_screen.dart';
@@ -130,6 +131,12 @@ class _DashboardBody extends StatelessWidget {
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminHealthScreen())),
         ),
         _ActionTile(
+          icon: Icons.star_rounded,
+          title: 'آراء المستخدمين',
+          color: const Color(0xFFF59E0B),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminReviewsScreen())),
+        ),
+        _ActionTile(
           icon: Icons.chat_rounded,
           title: 'صندوق الرسائل والدعم',
           color: const Color(0xFF0D9488), // Teal
@@ -165,7 +172,7 @@ class _StatisticsGrid extends StatelessWidget {
       childAspectRatio: 1.1,
       children: [
         _buildStatCard('المستخدمين', _getCount('users'), Icons.group_rounded, const Color(0xFF3B82F6)),
-        _buildStatCard('الكتب المتاحة', _getCount('uploaded_books'), Icons.menu_book_rounded, const Color(0xFFF59E0B)),
+        _buildStatCard('الكتب المتاحة', _getCount('books'), Icons.menu_book_rounded, const Color(0xFFF59E0B)),
         _buildStatCard('عمليات البحث', _getCount('search_logs'), Icons.travel_explore_rounded, const Color(0xFF14B8A6)),
         _buildStatCard('سجلات الإدارة', _getCount('admin_activity_logs'), Icons.admin_panel_settings_rounded, const Color(0xFFEF4444)),
       ],

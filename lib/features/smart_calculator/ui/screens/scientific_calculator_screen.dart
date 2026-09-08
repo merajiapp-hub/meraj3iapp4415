@@ -61,7 +61,9 @@ class _ScientificCalculatorScreenState
       builder: (context, provider, child) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
 
-        return KeyboardListener(
+        return SafeArea(
+          top: false,
+          child: KeyboardListener(
           focusNode: _focusNode,
           onKeyEvent: (event) => _handleKeyEvent(event, provider),
           child: Column(
@@ -205,6 +207,7 @@ class _ScientificCalculatorScreenState
               // ── Keypad Section ──
               const Expanded(flex: 7, child: SmartKeyboard()),
             ],
+          ),
           ),
         );
       },

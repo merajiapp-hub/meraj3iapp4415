@@ -9,6 +9,7 @@ import '../widgets/app_dropdown.dart';
 import '../widgets/app_notification.dart';
 import '../providers/statistics_provider.dart';
 import '../services/admin_activity_service.dart';
+import '../core/content_schema.dart';
 
 class AddBookScreen extends StatefulWidget {
   const AddBookScreen({super.key});
@@ -80,19 +81,20 @@ class _AddBookScreenState extends State<AddBookScreen> {
     try {
       final processedUrl = _processUrl(_urlController.text.trim());
       
-      final bookData = {
-        'title': _titleController.text.trim(),
-        'subject': _subjectController.text.trim(),
-        'section': _selectedStage,
-        'grade': _selectedGrade,
-        'category': _selectedCategory,
-        'url': processedUrl,
-        'uploaderId': user.uid,
-        'uploadDate': FieldValue.serverTimestamp(),
-        'openCount': 0,
-      };
+      final bookData = normalizeBookData(
+        title: _titleController.text.trim(),
+        subject: _subjectController.text.trim(),
+        stage: _selectedStage,
+        grade: _selectedGrade,
+        category: _selectedCategory,
+        url: processedUrl,
+        uploaderId: user.uid,
+        isActive: true,
+        isShared: false,
+      );
 
-      await FirebaseFirestore.instance.collection('uploaded_books').add(bookData);
+      final bookRef = await FirebaseFirestore.instance.collection('books').add(bookData);
+      await FirebaseFirestore.instance.collection('uploaded_books').doc(bookRef.id).set(bookData);
 
       // إشعار الإدارة
       await AdminActivityService.log(

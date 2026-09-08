@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
 import '../theme/app_theme.dart';
 import '../providers/auth_provider.dart';
+import '../providers/app_config_provider.dart';
 import 'main_screen.dart';
 import 'login_screen.dart';
 import 'onboarding_screen.dart';
@@ -90,12 +91,18 @@ class _SplashScreenState extends State<SplashScreen>
 
     // تحقق من وضع الضيف أولاً
     if (authProvider.isGuest) {
+      final appConfig = context.read<AppConfigProvider>();
+      if (!appConfig.allowGuestView) {
+        await authProvider.setGuestMode(false);
+        _navigateTo(const LoginScreen());
+        return;
+      }
       _navigateTo(const MainScreen(isGuest: true));
       return;
     }
 
     // تحقق من تسجيل الدخول
-    if (authProvider.user != null) {
+    if (authProvider.user != null && authProvider.profileReady) {
       // التحقق البيومتري إذا كان مفعّلاً
       bool biometricsEnabled = false;
       try {

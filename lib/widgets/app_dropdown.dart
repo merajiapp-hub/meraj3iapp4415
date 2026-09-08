@@ -27,6 +27,7 @@ class AppDropdown<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
+    final safeMenuHeight = menuMaxHeight.clamp(180.0, MediaQuery.sizeOf(context).height * 0.42);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -52,7 +53,7 @@ class AppDropdown<T> extends StatelessWidget {
           child: DropdownButtonFormField<T>(
             initialValue: value, // نستخدم initialValue (غير مُهمل)
             isExpanded: isExpanded,
-            menuMaxHeight: menuMaxHeight,
+            menuMaxHeight: safeMenuHeight,
             hint: hint != null
                 ? Text(
                     hint!,

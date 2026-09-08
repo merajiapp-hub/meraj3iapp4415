@@ -216,7 +216,7 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
   }
 
   Set<String> get _availableStatuses {
-    return _allResults.map((r) => r.status).where((s) {
+    final statuses = _allResults.map((r) => r.status).where((s) {
       if (s.isEmpty) return false;
       if (widget.examType != ExamType.bac &&
           (s == 'الدورة التكميلية' || s == 'تكميلي' || s == 'مؤهل للدورة التكميلية')) {
@@ -224,6 +224,11 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
       }
       return true;
     }).toSet();
+    if (widget.examType == ExamType.concours) {
+      statuses.add('ناجح');
+      statuses.add('راسب');
+    }
+    return statuses;
   }
 
   @override
@@ -670,6 +675,8 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
   Widget _buildStudentTile(StudentResult student, bool isDark) {
     final statusColor = student.isPassed
         ? const Color(0xFF16A34A)
+        : student.isInvalid
+            ? Colors.deepOrange
         : student.isAbsent
             ? Colors.grey
             : student.isExpelled
@@ -721,6 +728,8 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
                 child: Text(
                   student.isPassed
                       ? '✓'
+                      : student.isInvalid
+                        ? '!'
                       : student.isAbsent
                           ? '?'
                           : student.isComplementary
