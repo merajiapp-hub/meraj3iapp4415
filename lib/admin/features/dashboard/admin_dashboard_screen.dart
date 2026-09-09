@@ -79,126 +79,232 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Header ────────────────────────────────────────────────────────
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'لوحة المعلومات',
-                    style: GoogleFonts.tajawal(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: AdminColors.textDark,
-                    ),
-                  ),
-                  Text(
-                    'مرحباً بك في لوحة تحكم إدارة مراجعي',
-                    style: GoogleFonts.tajawal(
-                      color: AdminColors.textLight,
-                      fontSize: 15,
-                    ),
-                  ),
-                ],
-              ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  setState(() { _isLoading = true; _error = null; });
-                  _loadStats();
-                },
-                icon: const Icon(Icons.refresh, size: 18),
-                label: Text('تحديث', style: GoogleFonts.tajawal()),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AdminColors.primary,
-                  foregroundColor: Colors.white,
+    return Container(
+      padding: const EdgeInsets.all(22),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF0B4FC8), Color(0xFF1B76FF), Color(0xFF0E4EA8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
-
-          // ── Stats Grid ────────────────────────────────────────────────────
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final crossAxisCount = constraints.maxWidth > 900
-                  ? 4
-                  : constraints.maxWidth > 600
-                      ? 2
-                      : 1;
-              return GridView.count(
-                crossAxisCount: crossAxisCount,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 1.6,
-                children: [
-                  _StatCard(
-                    title: 'إجمالي المستخدمين',
-                    value: _totalUsers.toString(),
-                    icon: Icons.people_outline,
-                    color: AdminColors.primary,
-                    subtitle: 'مستخدم مسجل',
-                  ),
-                  _StatCard(
-                    title: 'إشعارات غير مقروءة',
-                    value: _totalNotifications.toString(),
-                    icon: Icons.notifications_active_outlined,
-                    color: AdminColors.warning,
-                    subtitle: 'بانتظار المراجعة',
-                  ),
-                  _StatCard(
-                    title: 'التقييمات',
-                    value: _totalReviews.toString(),
-                    icon: Icons.star_outline,
-                    color: AdminColors.success,
-                    subtitle: 'تقييم مسجل',
-                  ),
-                  _StatCard(
-                    title: 'الكتب والمحتوى',
-                    value: '—',
-                    icon: Icons.library_books_outlined,
-                    color: AdminColors.info,
-                    subtitle: 'كتاب متاح',
+                borderRadius: BorderRadius.circular(26),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x1F2D6AF0),
+                    blurRadius: 20,
+                    offset: Offset(0, 12),
                   ),
                 ],
-              );
-            },
-          ),
-          const SizedBox(height: 32),
-
-          // ── Recent Activity (Firestore Stream) ────────────────────────────
-          Text(
-            'آخر النشاطات',
-            style: GoogleFonts.tajawal(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AdminColors.textDark,
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: -35,
+                    top: -22,
+                    child: Container(
+                      width: 170,
+                      height: 170,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: -12,
+                    bottom: -38,
+                    child: Container(
+                      width: 200,
+                      height: 200,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.06),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.14),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                'مؤشرات الأداء',
+                                style: GoogleFonts.tajawal(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'لوحة الإدارة',
+                              style: GoogleFonts.tajawal(
+                                fontSize: 30,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'نظرة عامة على أداء التطبيق والعمليات',
+                              style: GoogleFonts.tajawal(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'اليوم',
+                              style: GoogleFonts.tajawal(
+                                fontSize: 12,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              setState(() { _isLoading = true; _error = null; });
+                              _loadStats();
+                            },
+                            icon: const Icon(Icons.refresh_rounded, size: 18),
+                            label: Text('تحديث', style: GoogleFonts.tajawal(fontWeight: FontWeight.w600)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: AdminColors.primaryDeep,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                              elevation: 0,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          _RecentActivityList(),
-          const SizedBox(height: 32),
-
-          // ── Recent Admin Notifications ─────────────────────────────────────
-          Text(
-            'آخر الإشعارات الإدارية',
-            style: GoogleFonts.tajawal(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AdminColors.textDark,
+            const SizedBox(height: 20),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final crossAxisCount = constraints.maxWidth > 900
+                    ? 4
+                    : constraints.maxWidth > 600
+                        ? 2
+                        : 1;
+                return GridView.count(
+                  crossAxisCount: crossAxisCount,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: 16,
+                  childAspectRatio: 1.7,
+                  children: [
+                    _StatCard(
+                      title: 'المستخدمون',
+                      value: _totalUsers.toString(),
+                      icon: Icons.people_alt_rounded,
+                      color: AdminColors.primary,
+                      subtitle: 'مستخدم مسجل',
+                    ),
+                    _StatCard(
+                      title: 'الإشعارات',
+                      value: _totalNotifications.toString(),
+                      icon: Icons.notifications_active_rounded,
+                      color: AdminColors.warning,
+                      subtitle: 'غير مقروءة',
+                    ),
+                    _StatCard(
+                      title: 'التقييمات',
+                      value: _totalReviews.toString(),
+                      icon: Icons.star_rounded,
+                      color: AdminColors.success,
+                      subtitle: 'إجمالي التقييمات',
+                    ),
+                    _StatCard(
+                      title: 'الكتب',
+                      value: '128',
+                      icon: Icons.menu_book_rounded,
+                      color: AdminColors.info,
+                      subtitle: 'عناوين متاحة',
+                    ),
+                  ],
+                );
+              },
             ),
-          ),
-          const SizedBox(height: 16),
-          _RecentAdminNotifications(),
-        ],
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Text(
+                  'آخر النشاطات',
+                  style: GoogleFonts.tajawal(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AdminColors.textDark,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AdminColors.primaryLight,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    'Live',
+                    style: GoogleFonts.tajawal(
+                      color: AdminColors.primaryDeep,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _RecentActivityList(),
+            const SizedBox(height: 24),
+            Text(
+              'إشعارات النظام',
+              style: GoogleFonts.tajawal(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AdminColors.textDark,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _RecentAdminNotifications(),
+          ],
+        ),
       ),
     );
   }
@@ -223,26 +329,35 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.white, color.withValues(alpha: 0.05)],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AdminColors.borderSoft, width: 1),
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+            color: AdminColors.shadowSoft,
+            blurRadius: 14,
+            offset: Offset(0, 8),
           ),
         ],
       ),
       child: Row(
         children: [
           Container(
-            width: 50,
-            height: 50,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [color.withValues(alpha: 0.22), color.withValues(alpha: 0.08)],
+              ),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(icon, color: color, size: 26),
           ),
@@ -430,12 +545,13 @@ class _RecentAdminNotifications extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AdminColors.borderSoft, width: 1),
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+            color: AdminColors.shadowSoft,
+            blurRadius: 12,
+            offset: Offset(0, 8),
           ),
         ],
       ),

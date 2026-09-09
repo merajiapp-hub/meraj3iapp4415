@@ -80,23 +80,29 @@ class _AdminHealthScreenState extends State<AdminHealthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF4F7FB);
+    final surface = isDark ? const Color(0xFF111827) : Colors.white;
+    final text = isDark ? Colors.white : const Color(0xFF111827);
+    final softText = isDark ? Colors.white70 : const Color(0xFF5B6474);
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final border = isDark ? Colors.white12 : const Color(0xFFE5EAF2);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1F1F1F),
-        title: const Text('حالة النظام',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: isDark ? const Color(0xFF111827) : Colors.white,
+        title: Text('حالة النظام', style: TextStyle(color: text, fontWeight: FontWeight.bold)),
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: text),
         actions: [
           IconButton(
             icon: _isChecking
-                ? const SizedBox(
+                ? SizedBox(
                     width: 20,
                     height: 20,
-                    child:
-                        CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : const Icon(Icons.refresh, color: Colors.white),
+                    child: CircularProgressIndicator(color: text, strokeWidth: 2))
+                : Icon(Icons.refresh, color: text),
             onPressed: _isChecking ? null : _runHealthCheck,
           )
         ],
@@ -104,39 +110,29 @@ class _AdminHealthScreenState extends State<AdminHealthScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // System health
-          const Text('مراقبة الخدمات',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold)),
+          Text('مراقبة الخدمات', style: TextStyle(color: text, fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           ..._statuses.entries.map((e) => _ServiceCard(
                 name: e.key,
                 status: e.value,
+                isDark: isDark,
               )),
           const SizedBox(height: 24),
-          // Error log section
-          const Text('سجل الأخطاء الأخيرة',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold)),
+          Text('سجل الأخطاء الأخيرة', style: TextStyle(color: text, fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-          _ErrorLogSection(),
+          _ErrorLogSection(isDark: isDark, surface: surface, cardBg: cardBg, border: border, softText: softText),
         ],
       ),
     );
   }
 }
 
-enum _ServiceStatus { unknown, checking, ok, warning, error }
-
 class _ServiceCard extends StatelessWidget {
   final String name;
   final _ServiceStatus status;
+  final bool isDark;
 
-  const _ServiceCard({required this.name, required this.status});
+  const _ServiceCard({required this.name, required this.status, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -149,23 +145,30 @@ class _ServiceCard extends StatelessWidget {
     };
 
     return Card(
-      color: const Color(0xFF1E1E1E),
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE5EAF2)),
+      ),
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         leading: Icon(data.$3, color: data.$1),
-        title: Text(name,
-            style: const TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold)),
-        trailing: Text(data.$2,
-            style: TextStyle(color: data.$1, fontWeight: FontWeight.bold)),
+        title: Text(name, style: TextStyle(color: isDark ? Colors.white : const Color(0xFF111827), fontWeight: FontWeight.bold)),
+        trailing: Text(data.$2, style: TextStyle(color: data.$1, fontWeight: FontWeight.bold)),
       ),
     );
   }
 }
 
 class _ErrorLogSection extends StatelessWidget {
+  final bool isDark;
+  final Color surface;
+  final Color cardBg;
+  final Color border;
+  final Color softText;
+
+  const _ErrorLogSection({required this.isDark, required this.surface, required this.cardBg, required this.border, required this.softText});
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
@@ -181,9 +184,11 @@ class _ErrorLogSection extends StatelessWidget {
         final docs = snap.data?.docs ?? [];
         if (docs.isEmpty) {
           return Card(
-            color: const Color(0xFF1E1E1E),
+            color: cardBg,
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: border),
+            ),
             child: const Padding(
               padding: EdgeInsets.all(20),
               child: Center(
@@ -200,33 +205,27 @@ class _ErrorLogSection extends StatelessWidget {
             final d = doc.data() as Map<String, dynamic>;
             final ts = d['timestamp'] as Timestamp?;
             return Card(
-              color: const Color(0xFF1E1E1E),
+              color: cardBg,
               margin: const EdgeInsets.only(bottom: 8),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: border),
+              ),
               child: ListTile(
                 leading: const CircleAvatar(
                   backgroundColor: Color(0xFF2D1515),
                   child: Icon(Icons.bug_report, color: Colors.red, size: 20),
                 ),
-                title: Text(d['type'] ?? 'خطأ غير محدد',
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold)),
+                title: Text(d['type'] ?? 'خطأ غير محدد', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF111827), fontWeight: FontWeight.bold)),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (d['screen'] != null)
-                      Text('الشاشة: ${d['screen']}',
-                          style: const TextStyle(
-                              color: Colors.grey, fontSize: 11)),
+                      Text('الشاشة: ${d['screen']}', style: TextStyle(color: softText, fontSize: 11)),
                     if (d['appVersion'] != null)
-                      Text('الإصدار: ${d['appVersion']}',
-                          style: const TextStyle(
-                              color: Colors.grey, fontSize: 11)),
+                      Text('الإصدار: ${d['appVersion']}', style: TextStyle(color: softText, fontSize: 11)),
                     if (ts != null)
-                      Text(ts.toDate().toString().split('.')[0],
-                          style: const TextStyle(
-                              color: Colors.grey, fontSize: 11)),
+                      Text(ts.toDate().toString().split('.')[0], style: TextStyle(color: softText, fontSize: 11)),
                   ],
                 ),
               ),
@@ -237,3 +236,5 @@ class _ErrorLogSection extends StatelessWidget {
     );
   }
 }
+
+enum _ServiceStatus { unknown, checking, ok, warning, error }

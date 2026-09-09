@@ -46,16 +46,16 @@ class _AdvancedMathLabScreenState extends State<AdvancedMathLabScreen> {
           double.parse(_lower.text.replaceAll(',', '.')),
           double.parse(_upper.text.replaceAll(',', '.')),
         );
-        result = 'المشتقة:\n$derivative\n\nالتكامل المحدد:\n${_format(integral)}';
+        result = 'Dérivée :\n$derivative\n\nIntégrale définie :\n${_format(integral)}';
       } else if (_tool == 1) {
         final values = _numbers(_data.text);
-        if (values.isEmpty) throw const FormatException('أدخل أرقامًا مفصولة بفواصل');
+        if (values.isEmpty) throw const FormatException('Saisissez des nombres séparés par des virgules');
         final modes = StatisticsEngine.mode(values).map(_format).join(', ');
-        result = 'المتوسط: ${_format(StatisticsEngine.mean(values))}\n'
-            'الوسيط: ${_format(StatisticsEngine.median(values))}\n'
-            'المنوال: $modes\n'
-            'التباين: ${_format(StatisticsEngine.variance(values))}\n'
-            'الانحراف المعياري: ${_format(StatisticsEngine.standardDeviation(values))}';
+        result = 'Moyenne : ${_format(StatisticsEngine.mean(values))}\n'
+            'Médiane : ${_format(StatisticsEngine.median(values))}\n'
+            'Mode : $modes\n'
+            'Variance : ${_format(StatisticsEngine.variance(values))}\n'
+            'Écart type : ${_format(StatisticsEngine.standardDeviation(values))}';
       } else {
         final coefficients = _numbers(_coefficients.text);
         if (coefficients.length == 2) {
@@ -67,7 +67,7 @@ class _AdvancedMathLabScreenState extends State<AdvancedMathLabScreen> {
           result = _complexList(EquationSolverEngine.solveCubic(
               coefficients[0], coefficients[1], coefficients[2], coefficients[3]));
         } else {
-          throw const FormatException('اكتب معاملات المعادلة من الأعلى درجة إلى الثابت');
+          throw const FormatException('Saisissez les coefficients du polynôme du plus haut degré au terme constant');
         }
       }
       setState(() {
@@ -101,7 +101,7 @@ class _AdvancedMathLabScreenState extends State<AdvancedMathLabScreen> {
       .toList();
 
   String _complexList(List<dynamic> values) => values.isEmpty
-      ? 'لا توجد حلول حقيقية أو مركبة.'
+      ? 'Aucune solution réelle ou complexe.'
       : values.map((value) => value.toString()).join('\n');
 
   String _format(double value) {
@@ -117,7 +117,7 @@ class _AdvancedMathLabScreenState extends State<AdvancedMathLabScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('مختبر الرياضيات', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold)),
+        title: Text('Laboratoire de mathématiques', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),
       body: ListView(
@@ -127,9 +127,9 @@ class _AdvancedMathLabScreenState extends State<AdvancedMathLabScreen> {
             scrollDirection: Axis.horizontal,
             child: SegmentedButton<int>(
             segments: const [
-              ButtonSegment(value: 0, label: Text('تفاضل وتكامل'), icon: Icon(Icons.functions)),
-              ButtonSegment(value: 1, label: Text('إحصاء'), icon: Icon(Icons.bar_chart)),
-              ButtonSegment(value: 2, label: Text('جذور'), icon: Icon(Icons.polyline)),
+              ButtonSegment(value: 0, label: Text('Dérivée & Intégrale'), icon: Icon(Icons.functions)),
+              ButtonSegment(value: 1, label: Text('Statistiques'), icon: Icon(Icons.bar_chart)),
+              ButtonSegment(value: 2, label: Text('Équations'), icon: Icon(Icons.polyline)),
             ],
             selected: {_tool},
             onSelectionChanged: (value) => setState(() {
@@ -141,23 +141,23 @@ class _AdvancedMathLabScreenState extends State<AdvancedMathLabScreen> {
           ),
           const SizedBox(height: 18),
           if (_tool == 0) ...[
-            _field(_function, 'الدالة f(x)', 'مثال: sin(x) + x^2'),
-            _field(_variable, 'المتغير', 'x'),
+            _field(_function, 'Fonction f(x)', 'Exemple : sin(x) + x^2'),
+            _field(_variable, 'Variable', 'x'),
             Row(children: [
-              Expanded(child: _field(_lower, 'من', '0')),
+              Expanded(child: _field(_lower, 'De', '0')),
               const SizedBox(width: 10),
-              Expanded(child: _field(_upper, 'إلى', '1')),
+              Expanded(child: _field(_upper, 'À', '1')),
             ]),
           ] else if (_tool == 1) ...[
-            _field(_data, 'البيانات', '1, 2, 3, 4, 5'),
-            Text('يدعم الفواصل والمسافات، ويحسب المتوسط والوسيط والمنوال والتباين والانحراف المعياري.', style: TextStyle(color: text.withValues(alpha: 0.65))),
+            _field(_data, 'Données', '1, 2, 3, 4, 5'),
+            Text('Prend en charge les virgules et espaces ; calcule la moyenne, la médiane, le mode, la variance et l’écart type.', style: TextStyle(color: text.withValues(alpha: 0.65))),
           ] else ...[
-            _field(_coefficients, 'المعاملات', 'a,b,c للثانية أو a,b للخطية'),
-            Text('مثال: 1,-3,2 يعني x² - 3x + 2 = 0', style: TextStyle(color: text.withValues(alpha: 0.65))),
+            _field(_coefficients, 'Coefficients', 'a,b,c pour le second degré ou a,b pour le premier degré'),
+            Text('Exemple : 1,-3,2 signifie x² - 3x + 2 = 0', style: TextStyle(color: text.withValues(alpha: 0.65))),
           ],
           _buildMathKeyboard(),
           const SizedBox(height: 18),
-          FilledButton.icon(onPressed: _calculate, icon: const Icon(Icons.auto_awesome), label: const Text('احسب بدقة')),
+          FilledButton.icon(onPressed: _calculate, icon: const Icon(Icons.auto_awesome), label: const Text('Calculer avec précision')),
           const SizedBox(height: 18),
           if (_error != null) _output(_error!, Colors.redAccent, surface, isDark),
           if (_result.isNotEmpty) _output(_result, Colors.tealAccent, surface, isDark),

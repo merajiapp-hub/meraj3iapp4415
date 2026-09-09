@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,6 +14,8 @@ class QuizProvider extends ChangeNotifier {
   List<QuizQuestion> _currentQuiz = [];
   final Map<String, bool> _answeredQuestions = {};
   final List<String> _usedQuestionIds = [];
+  final List<QuizQuestion> _publishedQuestions = [];
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _publishedSubscription;
 
   int _lastCount = 15;
   String? _lastCategory;
@@ -26,7 +29,24 @@ class QuizProvider extends ChangeNotifier {
   int get wrongCount => _answeredQuestions.values.where((v) => !v).length;
 
   QuizProvider() {
+    _listenToPublishedQuestions();
     _loadProgress();
+  }
+
+  void _listenToPublishedQuestions() {
+    _publishedSubscription = FirebaseFirestore.instance.collection('quizzes').snapshots().listen((snapshot) {
+      _publishedQuestions
+        ..clear()
+        ..addAll(snapshot.docs.map((doc) => (doc.id, doc.data())).where((item) {
+          final data = item.$2;
+          return data['kind'] == 'question' &&
+              data['status'] == 'published' &&
+              data['isActive'] == true &&
+              data['options'] is List &&
+              (data['options'] as List).length >= 2;
+        }).map((item) => QuizQuestion.fromMap(item.$2, item.$1)));
+      notifyListeners();
+    });
   }
 
   Future<void> _loadProgress() async {
@@ -61,6 +81,12 @@ class QuizProvider extends ChangeNotifier {
     );
   }
 
+  void startPublishedQuiz(List<QuizQuestion> questions) {
+    _currentQuiz = questions.map(_shuffleOptions).toList();
+    _answeredQuestions.clear();
+    notifyListeners();
+  }
+
   Future<void> generateNewQuiz({
     int count = 15,
     String? category,
@@ -75,15 +101,25 @@ class QuizProvider extends ChangeNotifier {
     bool hasInternet = !connectivityResults.contains(ConnectivityResult.none) || connectivityResults.length > 1 || (connectivityResults.isNotEmpty && connectivityResults.first != ConnectivityResult.none);
 
     // 1. Fetch from Firebase
-    List<QuizQuestion> combined = [];
+    List<QuizQuestion> combined = List<QuizQuestion>.from(_publishedQuestions);
     if (hasInternet) {
       try {
-        Query query = FirebaseFirestore.instance.collection('quizzes');
-        if (category != null) query = query.where('category', isEqualTo: category);
-        if (difficulty != null) query = query.where('difficulty', isEqualTo: difficulty.name);
-
-        final snapshot = await query.limit(50).get();
-        combined.addAll(snapshot.docs.map((doc) => QuizQuestion.fromMap(doc.data() as Map<String, dynamic>, doc.id)));
+        final snapshot = await FirebaseFirestore.instance.collection('quizzes').limit(200).get();
+        if (combined.isEmpty) {
+          for (final doc in snapshot.docs) {
+            final data = doc.data();
+            final isPublishedQuestion = data['kind'] == 'question' &&
+                data['status'] == 'published' &&
+                data['isActive'] == true &&
+                (data['options'] is List) &&
+                (data['options'] as List).length >= 2;
+            if (!isPublishedQuestion) continue;
+            final question = QuizQuestion.fromMap(data, doc.id);
+            if (category != null && question.category != category) continue;
+            if (difficulty != null && question.difficulty != difficulty) continue;
+            combined.add(question);
+          }
+        }
       } catch (e) {
         debugPrint('Error fetching quizzes from Firebase: $e');
       }
@@ -133,6 +169,12 @@ class QuizProvider extends ChangeNotifier {
     }
     _saveProgress();
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _publishedSubscription?.cancel();
+    super.dispose();
   }
 
   String _questionKey(QuizQuestion question) {

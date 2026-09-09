@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -26,6 +27,7 @@ class _EquationSolverScreenState extends State<EquationSolverScreen>
   String _input = '';
   List<_SolutionStep> _steps = [];
   bool _isLoading = false;
+  int _mode = 0;
   late AnimationController _animCtrl;
   final ScrollController _scrollCtrl = ScrollController();
 
@@ -66,6 +68,28 @@ class _EquationSolverScreenState extends State<EquationSolverScreen>
     });
     _animCtrl.reset();
 
+    if (_mode == 1) {
+      final expansion = _expandExpression(_input);
+      setState(() {
+        _steps = expansion ?? [
+          _SolutionStep('❌', 'اكتب حاصل ضرب قوسين مثل: (x + 2)(x + 3)', StepType.error),
+        ];
+        _isLoading = false;
+      });
+      _animCtrl.forward();
+      return;
+    }
+
+    final localSolution = _solvePolynomialLocally(_input);
+    if (localSolution != null) {
+      setState(() {
+        _steps = localSolution;
+        _isLoading = false;
+      });
+      _animCtrl.forward();
+      return;
+    }
+
     try {
       final prompt = '''
 أنت مساعد رياضي متخصص. المستخدم يريد حل: "$_input"
@@ -102,6 +126,123 @@ class _EquationSolverScreenState extends State<EquationSolverScreen>
       setState(() => _isLoading = false);
     }
   }
+
+  List<_SolutionStep>? _solvePolynomialLocally(String raw) {
+    final expression = raw.replaceAll('×', '*').replaceAll(' ', '');
+    final linear = RegExp(r'^([+-]?(?:\d+(?:\.\d+)?)?)x([+-]\d+(?:\.\d+)?)?=0$').firstMatch(expression);
+    if (linear != null) {
+      final a = _coefficient(linear.group(1));
+      final b = double.tryParse(linear.group(2) ?? '0');
+      if (a == null || b == null || a == 0) return null;
+      final x = -b / a;
+      return [
+        _SolutionStep('📌', 'المعادلة الخطية: $expression', StepType.info),
+        _SolutionStep('▶', '${_formatNumber(a)}x = ${_formatNumber(-b)}', StepType.step),
+        _SolutionStep('▶', 'نقسم الطرفين على ${_formatNumber(a)}.', StepType.step),
+        _SolutionStep('✅', 'x = ${_formatNumber(x)}', StepType.result),
+      ];
+    }
+
+    final quadratic = RegExp(r'^([+-]?(?:\d+(?:\.\d+)?)?)x\^2([+-]\d+(?:\.\d+)?)x([+-]\d+(?:\.\d+)?)=0$').firstMatch(expression);
+    if (quadratic == null) return null;
+    final a = _coefficient(quadratic.group(1));
+    final b = double.tryParse(quadratic.group(2)!);
+    final c = double.tryParse(quadratic.group(3)!);
+    if (a == null || b == null || c == null || a == 0) return null;
+    final discriminant = b * b - 4 * a * c;
+    if (discriminant < 0) {
+      return [
+        _SolutionStep('📌', 'المعادلة التربيعية: $expression', StepType.info),
+        _SolutionStep('▶', 'نحسب المميز Δ = b² − 4ac = ${_formatNumber(discriminant)}.', StepType.step),
+        _SolutionStep('📝', 'بما أن Δ أصغر من صفر، فلا توجد حلول حقيقية.', StepType.note),
+      ];
+    }
+    final root = math.sqrt(discriminant);
+    final x1 = (-b + root) / (2 * a);
+    final x2 = (-b - root) / (2 * a);
+    return [
+      _SolutionStep('📌', 'المعادلة التربيعية: $expression', StepType.info),
+      _SolutionStep('▶', 'نحدد a = ${_formatNumber(a)}، b = ${_formatNumber(b)}، c = ${_formatNumber(c)}.', StepType.step),
+      _SolutionStep('▶', 'نحسب المميز Δ = b² − 4ac = ${_formatNumber(discriminant)}.', StepType.step),
+      _SolutionStep('▶', 'نطبق x = (−b ± √Δ) ÷ 2a.', StepType.step),
+      _SolutionStep('✅', 'x₁ = ${_formatNumber(x1)}\nx₂ = ${_formatNumber(x2)}', StepType.result),
+    ];
+  }
+
+  double? _coefficient(String? value) {
+    if (value == null || value.isEmpty || value == '+') return 1;
+    if (value == '-') return -1;
+    return double.tryParse(value);
+  }
+
+  List<_SolutionStep>? _expandExpression(String raw) {
+    final expression = raw.replaceAll('×', '*').replaceAll(' ', '');
+    final product = RegExp(r'^\(([^()]+)\)(?:\*|)\(([^()]+)\)$').firstMatch(expression);
+    final power = RegExp(r'^\(([^()]+)\)\^([23])$').firstMatch(expression);
+    final left = product?.group(1) ?? power?.group(1);
+    final right = product?.group(2);
+    final exponent = power == null ? null : int.tryParse(power.group(2)!);
+    if (left == null) return null;
+
+    final first = _parseLinear(left);
+    final second = right == null ? first : _parseLinear(right);
+    if (first == null || second == null) return null;
+    final a = first.$1;
+    final b = first.$2;
+    final c = second.$1;
+    final d = second.$2;
+    final result = <int, double>{};
+    void add(int degree, double value) => result[degree] = (result[degree] ?? 0) + value;
+    if (exponent == 3) {
+      add(3, a * a * a);
+      add(2, 3 * a * a * b);
+      add(1, 3 * a * b * b);
+      add(0, b * b * b);
+    } else {
+      add(2, a * c);
+      add(1, a * d + b * c);
+      add(0, b * d);
+    }
+    final expanded = _formatPolynomial(result);
+    final original = product != null ? '($left) × ($right)' : '($left)^$exponent';
+    return [
+      _SolutionStep('📌', 'نوسع التعبير: $original', StepType.info),
+      _SolutionStep('▶', product != null ? 'نضرب كل حد في القوس الأول بكل حد في القوس الثاني.' : 'نستخدم متطابقة القوة للتعبير ذي الحدين.', StepType.step),
+      _SolutionStep('▶', 'نجمع الحدود المتشابهة.', StepType.step),
+      _SolutionStep('✅', '$original = $expanded', StepType.result),
+    ];
+  }
+
+  (double, double)? _parseLinear(String value) {
+    final match = RegExp(r'^([+-]?(?:\d+(?:\.\d+)?)?)x([+-]\d+(?:\.\d+)?)?$').firstMatch(value);
+    if (match == null) return null;
+    final coefficient = match.group(1);
+    final a = coefficient == null || coefficient.isEmpty || coefficient == '+'
+        ? 1.0
+        : coefficient == '-' ? -1.0 : double.tryParse(coefficient);
+    final b = match.group(2) == null ? 0.0 : double.tryParse(match.group(2)!);
+    if (a == null || b == null) return null;
+    return (a, b);
+  }
+
+  String _formatPolynomial(Map<int, double> terms) {
+    final entries = terms.entries.where((entry) => entry.value.abs() > 1e-10).toList()..sort((a, b) => b.key.compareTo(a.key));
+    if (entries.isEmpty) return '0';
+    final output = StringBuffer();
+    for (final entry in entries) {
+      final value = entry.value;
+      final sign = value < 0 ? '-' : (output.length == 0 ? '' : '+');
+      final magnitude = value.abs();
+      final coefficient = (magnitude - 1).abs() < 1e-10 && entry.key > 0 ? '' : _formatNumber(magnitude);
+      final variable = entry.key == 0 ? '' : entry.key == 1 ? 'x' : 'x^${entry.key}';
+      output.write('$sign$coefficient$variable');
+    }
+    return output.toString();
+  }
+
+  String _formatNumber(double value) => value == value.roundToDouble()
+      ? value.round().toString()
+      : value.toStringAsFixed(4).replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
 
   Future<void> _takePhoto() async {
     final picker = ImagePicker();
@@ -253,6 +394,19 @@ class _EquationSolverScreenState extends State<EquationSolverScreen>
                   ),
                 ),
                 const SizedBox(height: 20),
+
+                SegmentedButton<int>(
+                  segments: const [
+                    ButtonSegment(value: 0, label: Text('حل تفصيلي'), icon: Icon(Icons.functions_rounded)),
+                    ButtonSegment(value: 1, label: Text('توسيع المعادلة'), icon: Icon(Icons.open_in_full_rounded)),
+                  ],
+                  selected: {_mode},
+                  onSelectionChanged: (value) => setState(() {
+                    _mode = value.first;
+                    _steps = [];
+                  }),
+                ),
+                const SizedBox(height: 16),
 
                 // Solution steps
                 if (_isLoading)

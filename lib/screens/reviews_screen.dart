@@ -729,17 +729,23 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                               decoration: BoxDecoration(
                                 color: surface,
                                 borderRadius: BorderRadius.circular(24),
-                                border: Border.all(
-                                  color: AppTheme.primaryColor.withValues(alpha: isDark ? 0.3 : 0.14),
-                                  width: 1.2,
-                                ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppTheme.primaryColor.withValues(alpha: isDark ? 0.04 : 0.06),
+                                    color: AppTheme.primaryColor.withValues(alpha: isDark ? 0.05 : 0.08),
                                     blurRadius: 14,
                                     offset: const Offset(0, 6),
                                   ),
                                 ],
+                                // The green edge is the visual anchor used by the ratings design.
+                                border: Border(
+                                  left: BorderSide(
+                                    color: AppTheme.primaryColor,
+                                    width: 7,
+                                  ),
+                                  top: BorderSide(color: AppTheme.primaryColor.withValues(alpha: isDark ? 0.3 : 0.14)),
+                                  right: BorderSide(color: AppTheme.primaryColor.withValues(alpha: isDark ? 0.3 : 0.14)),
+                                  bottom: BorderSide(color: AppTheme.primaryColor.withValues(alpha: isDark ? 0.3 : 0.14)),
+                                ),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -809,6 +815,31 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                             style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.primaryColor),
                                           ),
                                         ],
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Container(
+                                        width: 72,
+                                        height: 72,
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.primaryColor,
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 3),
+                                            ),
+                                          ],
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: Text(
+                                          rating.round().toString(),
+                                          style: GoogleFonts.outfit(
+                                            color: Colors.white,
+                                            fontSize: 26,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),

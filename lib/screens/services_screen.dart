@@ -10,7 +10,7 @@ import 'ai_search_screen.dart';
 import 'direct_chat_screen.dart';
 import 'downloads_screen.dart';
 import 'swedd_screen.dart';
-import 'exam_generator_screen.dart';
+import 'published_exams_screen.dart';
 import 'student/reading_list_screen.dart';
 import 'student/progress_screen.dart';
 
@@ -229,7 +229,7 @@ class ServicesScreen extends StatelessWidget {
         onTap: () => _checkFeatureAndNavigate(
           context,
           'quizzes_enabled',
-          const ExamGeneratorScreen(),
+          const PublishedExamsScreen(),
         ),
       ),
       _ServiceItem(

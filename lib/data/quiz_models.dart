@@ -23,29 +23,43 @@ class QuizQuestion {
 
   factory QuizQuestion.fromMap(Map<String, dynamic> data, String documentId) {
     QuestionDifficulty diff = QuestionDifficulty.medium;
-    if (data['difficulty'] != null) {
-      switch (data['difficulty']) {
+    final rawDifficulty = data['difficulty']?.toString().trim();
+    if (rawDifficulty != null) {
+      switch (rawDifficulty) {
         case 'easy':
+        case 'سهل':
           diff = QuestionDifficulty.easy;
           break;
         case 'hard':
+        case 'صعب':
           diff = QuestionDifficulty.hard;
           break;
         case 'veryHard':
+        case 'متقدم':
           diff = QuestionDifficulty.veryHard;
           break;
         case 'medium':
+        case 'متوسط':
         default:
           diff = QuestionDifficulty.medium;
       }
     }
 
+    final rawOptions = data['options'] ?? data['answers'] ?? const [];
+    final options = List<String>.from(rawOptions is List ? rawOptions : const []);
+    var correctIndex = (data['correctIndex'] as num?)?.toInt();
+    if (correctIndex == null) {
+      final answer = data['correctAnswer']?.toString();
+      correctIndex = answer == null ? 0 : options.indexOf(answer);
+      if (correctIndex < 0) correctIndex = int.tryParse(answer ?? '') ?? 0;
+    }
+
     return QuizQuestion(
       id: documentId,
-      question: data['question'] ?? '',
-      options: List<String>.from(data['options'] ?? []),
-      correctIndex: data['correctIndex'] ?? 0,
-      category: data['category'] ?? 'عام',
+      question: data['question'] ?? data['text'] ?? '',
+      options: options,
+      correctIndex: correctIndex.clamp(0, options.isEmpty ? 0 : options.length - 1),
+      category: data['category'] ?? data['subject'] ?? 'عام',
       explanation: data['explanation'],
       difficulty: diff,
     );

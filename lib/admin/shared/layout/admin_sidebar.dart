@@ -16,29 +16,98 @@ class AdminSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final menuItems = [
+      _MenuItem(id: 0, icon: Icons.dashboard_outlined, title: 'الرئيسية'),
+      _MenuItem(id: 1, icon: Icons.notifications_none_outlined, title: 'الإشعارات'),
+      _MenuItem(id: 2, icon: Icons.history_outlined, title: 'النشاط'),
+      _MenuItem(id: 3, icon: Icons.people_outline, title: 'المستخدمون'),
+      _MenuItem(id: 4, icon: Icons.library_books_outlined, title: 'الكتب'),
+      _MenuItem(id: 5, icon: Icons.quiz_outlined, title: 'الاختبارات'),
+      _MenuItem(id: 6, icon: Icons.star_outline, title: 'التقييمات'),
+      _MenuItem(id: 7, icon: Icons.message_outlined, title: 'الرسائل'),
+      _MenuItem(id: 8, icon: Icons.analytics_outlined, title: 'التحليلات'),
+      _MenuItem(id: 9, icon: Icons.settings_outlined, title: 'الإعدادات'),
+      _MenuItem(id: 10, icon: Icons.security_outlined, title: 'الأمان'),
+    ];
+
     return Container(
-      color: AdminColors.sidebarBackground,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [AdminColors.sidebarBackground, AdminColors.sidebarBackgroundAlt],
+        ),
+      ),
       child: Column(
         children: [
           _buildHeader(),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              children: [
-                _buildMenuItem(context, 0, Icons.dashboard_outlined, 'الرئيسية'),
-                _buildMenuItem(context, 1, Icons.notifications_none_outlined, 'الإشعارات'),
-                _buildMenuItem(context, 2, Icons.history_outlined, 'النشاط'),
-                const Divider(color: Colors.white24, height: 32),
-                _buildMenuItem(context, 3, Icons.people_outline, 'المستخدمون'),
-                _buildMenuItem(context, 4, Icons.library_books_outlined, 'المحتوى والكتب'),
-                _buildMenuItem(context, 5, Icons.quiz_outlined, 'الامتحانات والنتائج'),
-                _buildMenuItem(context, 6, Icons.star_outline, 'المراجعات والتقييمات'),
-                const Divider(color: Colors.white24, height: 32),
-                _buildMenuItem(context, 7, Icons.message_outlined, 'الرسائل والتواصل'),
-                _buildMenuItem(context, 8, Icons.analytics_outlined, 'التحليلات'),
-                _buildMenuItem(context, 9, Icons.settings_outlined, 'إعدادات التطبيق'),
-                _buildMenuItem(context, 10, Icons.security_outlined, 'سجل التدقيق الأمني'),
-              ],
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+              itemCount: menuItems.length,
+              itemBuilder: (context, index) {
+                final item = menuItems[index];
+                final isSelected = selectedIndex == item.id;
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeInOut,
+                    decoration: BoxDecoration(
+                      color: isSelected ? Colors.white.withValues(alpha: 0.12) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(14),
+                      border: isSelected ? Border.all(color: Colors.white.withValues(alpha: 0.16), width: 1) : null,
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => onMenuSelected(item.id),
+                        borderRadius: BorderRadius.circular(14),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isCollapsed ? 0 : 14,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  item.icon,
+                                  color: isSelected ? AdminColors.primaryDeep : AdminColors.sidebarItemText,
+                                  size: 18,
+                                ),
+                              ),
+                              if (!isCollapsed) ...[
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    item.title,
+                                    style: GoogleFonts.tajawal(
+                                      color: isSelected ? Colors.white : AdminColors.sidebarItemText,
+                                      fontSize: 14,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
           _buildFooter(),
@@ -49,112 +118,100 @@ class AdminSidebar extends StatelessWidget {
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.all(16),
-      height: 80,
-      alignment: Alignment.center,
-      child: Row(
-        mainAxisAlignment: isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
-        children: [
-          Image.asset(
-            'assets/images/logo.png',
-            height: 40,
-            width: 40,
-            errorBuilder: (_, _, _) => const Icon(Icons.school, color: Colors.white, size: 40),
-          ),
-          if (!isCollapsed) ...[
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'MERAJ3I Admin',
-                style: GoogleFonts.tajawal(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ]
-        ],
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.white12)),
       ),
-    );
-  }
-
-  Widget _buildMenuItem(BuildContext context, int index, IconData icon, String title) {
-    final isSelected = selectedIndex == index;
-    final color = isSelected ? AdminColors.sidebarItemSelected : AdminColors.sidebarItemText;
-    final bgColor = isSelected ? AdminColors.sidebarItemBackgroundSelected : Colors.transparent;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => onMenuSelected(index),
-        child: Container(
-          color: bgColor,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            mainAxisAlignment: isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
-            children: [
-              Icon(icon, color: color, size: 24),
-              if (!isCollapsed) ...[
-                const SizedBox(width: 16),
+      child: isCollapsed
+          ? Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.business_center_rounded, color: AdminColors.primaryDeep, size: 22),
+            )
+          : Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(Icons.business_center_rounded, color: AdminColors.primaryDeep, size: 22),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    title,
-                    style: GoogleFonts.tajawal(
-                      color: color,
-                      fontSize: 15,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'MERAJ3I',
+                        style: GoogleFonts.tajawal(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Admin Panel',
+                        style: GoogleFonts.tajawal(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 
   Widget _buildFooter() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: Colors.white12)),
+      ),
       child: Row(
         mainAxisAlignment: isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
         children: [
-          const CircleAvatar(
-            backgroundColor: AdminColors.primary,
-            radius: 16,
-            child: Icon(Icons.person, color: Colors.white, size: 18),
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.person, color: AdminColors.primaryDeep, size: 18),
           ),
           if (!isCollapsed) ...[
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'المدير',
-                    style: GoogleFonts.tajawal(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    'Admin',
-                    style: GoogleFonts.tajawal(
-                      color: AdminColors.sidebarItemText,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
+              child: Text(
+                'المدير',
+                style: GoogleFonts.tajawal(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ]
+          ],
         ],
       ),
     );
   }
+}
+
+class _MenuItem {
+  final int id;
+  final IconData icon;
+  final String title;
+
+  const _MenuItem({required this.id, required this.icon, required this.title});
 }

@@ -18,51 +18,58 @@ class AdminTopbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 70,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      height: 78,
+      padding: const EdgeInsets.symmetric(horizontal: 18),
       decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: AdminColors.topbarBackground,
+        border: const Border(bottom: BorderSide(color: AdminColors.borderSoft)),
       ),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: onToggleSidebar,
-            color: AdminColors.textDark,
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AdminColors.primaryLight,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.menu_rounded, size: 20),
+              onPressed: onToggleSidebar,
+              color: AdminColors.primaryDeep,
+              splashRadius: 20,
+              tooltip: 'تبديل القائمة',
+            ),
           ),
           if (!isMobile) ...[
             const SizedBox(width: 16),
             Expanded(
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: 'ابحث في لوحة الإدارة...',
-                  hintStyle: GoogleFonts.tajawal(color: AdminColors.textLight),
-                  prefixIcon: const Icon(Icons.search, color: AdminColors.textLight),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
-                  ),
-                  filled: true,
-                  fillColor: AdminColors.background,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AdminColors.background,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AdminColors.borderSoft),
                 ),
-                style: GoogleFonts.tajawal(),
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'بحث سريع',
+                    hintStyle: GoogleFonts.tajawal(color: AdminColors.textLight, fontSize: 13),
+                    prefixIcon: const Icon(Icons.search_rounded, color: AdminColors.textLight, size: 18),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  ),
+                  style: GoogleFonts.tajawal(fontSize: 13, color: AdminColors.textDark),
+                ),
               ),
             ),
           ] else
             const Spacer(),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           _buildNotificationIcon(context),
           const SizedBox(width: 8),
           _buildIconButton(Icons.dark_mode_outlined, context),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           _buildProfileMenu(context),
         ],
       ),

@@ -84,7 +84,7 @@ class StudentCompetitionScreen extends StatefulWidget {
 }
 
 class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final _firestore = FirebaseFirestore.instance;
   late TabController _tabController;
   late AnimationController _animController;

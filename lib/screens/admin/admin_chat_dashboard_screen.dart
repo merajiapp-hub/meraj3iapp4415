@@ -16,21 +16,27 @@ class AdminChatDashboardScreen extends StatefulWidget {
 class _AdminChatDashboardScreenState extends State<AdminChatDashboardScreen> {
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF4F7FB);
+    final surface = isDark ? const Color(0xFF111827) : Colors.white;
+    final card = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final text = isDark ? Colors.white : const Color(0xFF111827);
+    final softText = isDark ? Colors.white70 : const Color(0xFF5B6474);
+    final border = isDark ? Colors.white12 : const Color(0xFFE5EAF2);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: surface,
         centerTitle: true,
         title: Text(
           'صندوق الرسائل',
-          style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, color: Colors.white),
+          style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, color: text),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: text),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('chats')
-            .snapshots(),
+        stream: FirebaseFirestore.instance.collection('chats').snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -41,7 +47,7 @@ class _AdminChatDashboardScreenState extends State<AdminChatDashboardScreen> {
             return Center(
               child: Text(
                 'لا توجد محادثات بعد',
-                style: GoogleFonts.tajawal(color: Colors.grey, fontSize: 16),
+                style: GoogleFonts.tajawal(color: softText, fontSize: 16),
               ),
             );
           }
@@ -63,19 +69,19 @@ class _AdminChatDashboardScreenState extends State<AdminChatDashboardScreen> {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => _AdminChatViewScreen(chatId: chatId, userName: userName),
+                    builder: (_) => _AdminChatViewScreen(chatId: chatId, userName: userName, isDark: isDark),
                   ),
                 ),
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E293B),
+                    color: card,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: adminUnread > 0
                           ? const Color(0xFF10B981).withValues(alpha: 0.5)
-                          : Colors.white.withValues(alpha: 0.05),
+                          : border,
                     ),
                   ),
                   child: Row(
@@ -97,7 +103,7 @@ class _AdminChatDashboardScreenState extends State<AdminChatDashboardScreen> {
                                   child: Text(
                                     userName,
                                     style: GoogleFonts.tajawal(
-                                      color: Colors.white,
+                                      color: text,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 15,
                                     ),
@@ -107,7 +113,7 @@ class _AdminChatDashboardScreenState extends State<AdminChatDashboardScreen> {
                                 ),
                                 Text(
                                   timeStr,
-                                  style: GoogleFonts.tajawal(color: Colors.grey[600], fontSize: 11),
+                                  style: GoogleFonts.tajawal(color: softText, fontSize: 11),
                                 ),
                               ],
                             ),
@@ -116,7 +122,7 @@ class _AdminChatDashboardScreenState extends State<AdminChatDashboardScreen> {
                               lastMsg,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.tajawal(color: Colors.grey[500], fontSize: 13),
+                              style: GoogleFonts.tajawal(color: softText, fontSize: 13),
                               textDirection: TextDirection.rtl,
                             ),
                           ],
@@ -160,8 +166,9 @@ class _AdminChatDashboardScreenState extends State<AdminChatDashboardScreen> {
 class _AdminChatViewScreen extends StatefulWidget {
   final String chatId;
   final String userName;
+  final bool isDark;
 
-  const _AdminChatViewScreen({required this.chatId, required this.userName});
+  const _AdminChatViewScreen({required this.chatId, required this.userName, required this.isDark});
 
   @override
   State<_AdminChatViewScreen> createState() => _AdminChatViewScreenState();
@@ -293,19 +300,27 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bg = widget.isDark ? const Color(0xFF0F172A) : const Color(0xFFF4F7FB);
+    final surface = widget.isDark ? const Color(0xFF111827) : Colors.white;
+    final card = widget.isDark ? const Color(0xFF1E293B) : Colors.white;
+    final text = widget.isDark ? Colors.white : const Color(0xFF111827);
+    final softText = widget.isDark ? Colors.white70 : const Color(0xFF5B6474);
+    final inputBg = widget.isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final border = widget.isDark ? Colors.white12 : const Color(0xFFE5EAF2);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: surface,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: text),
         title: Text(
           widget.userName,
-          style: GoogleFonts.tajawal(color: Colors.white, fontWeight: FontWeight.bold),
+          style: GoogleFonts.tajawal(color: text, fontWeight: FontWeight.bold),
         ),
         actions: [
-          IconButton(tooltip: 'تعيين لي', onPressed: _assignToMe, icon: const Icon(Icons.assignment_ind_rounded)),
-          IconButton(tooltip: 'إغلاق أو إعادة فتح', onPressed: _toggleStatus, icon: const Icon(Icons.lock_open_rounded)),
+          IconButton(tooltip: 'تعيين لي', onPressed: _assignToMe, icon: Icon(Icons.assignment_ind_rounded, color: text)),
+          IconButton(tooltip: 'إغلاق أو إعادة فتح', onPressed: _toggleStatus, icon: Icon(Icons.lock_open_rounded, color: text)),
         ],
       ),
       body: Column(
@@ -328,7 +343,7 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
                   itemBuilder: (context, index) {
                     final d = docs[index].data() as Map<String, dynamic>;
                     final isAdmin = d['isAdmin'] as bool? ?? false;
-                    final text = d['text'] as String? ?? '';
+                    final textValue = d['text'] as String? ?? '';
                     final isDeleted = d['isDeleted'] == true;
                     final time = d['createdAt'] as Timestamp?;
                     final timeStr = time != null
@@ -339,35 +354,42 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Row(
-                        mainAxisAlignment: isAdmin ? MainAxisAlignment.start : MainAxisAlignment.end,
-                        children: [
-                          Flexible(
-                            child: Container(
-                              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: isAdmin
-                                    ? const Color(0xFF1E293B)
-                                    : const Color(0xFF0D9488),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: isAdmin ? CrossAxisAlignment.start : CrossAxisAlignment.end,
-                                children: [
-                                  if (isDeleted)
-                                    const Text('تم حذف هذه الرسالة', style: TextStyle(color: Colors.white54, fontStyle: FontStyle.italic))
-                                  else if (text.isNotEmpty)
-                                    Text(text, textDirection: TextDirection.rtl, style: GoogleFonts.tajawal(color: Colors.white, fontSize: 14, height: 1.4)),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    timeStr,
-                                    style: const TextStyle(color: Colors.white54, fontSize: 10),
-                                  ),
-                                ],
+                          mainAxisAlignment: isAdmin ? MainAxisAlignment.start : MainAxisAlignment.end,
+                          children: [
+                            Flexible(
+                              child: Container(
+                                constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: isAdmin ? card : const Color(0xFF0D9488),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: border),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: isAdmin ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+                                  children: [
+                                    if (isDeleted)
+                                      Text('تم حذف هذه الرسالة', style: TextStyle(color: softText, fontStyle: FontStyle.italic))
+                                    else if (textValue.isNotEmpty)
+                                      Text(
+                                        textValue,
+                                        textDirection: TextDirection.rtl,
+                                        style: GoogleFonts.tajawal(
+                                          color: isAdmin ? text : Colors.white,
+                                          fontSize: 14,
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      timeStr,
+                                      style: TextStyle(color: softText, fontSize: 10),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
                         ),
                       ),
                     );
@@ -376,22 +398,21 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
               },
             ),
           ),
-          // Reply Input
           Container(
             padding: const EdgeInsets.all(12),
-            color: const Color(0xFF1E293B),
+            color: surface,
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _ctrl,
                     textDirection: TextDirection.rtl,
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: text),
                     decoration: InputDecoration(
                       hintText: 'اكتب ردك...',
-                      hintStyle: const TextStyle(color: Colors.grey),
+                      hintStyle: TextStyle(color: softText),
                       filled: true,
-                      fillColor: const Color(0xFF0F172A),
+                      fillColor: inputBg,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(20),
                         borderSide: BorderSide.none,

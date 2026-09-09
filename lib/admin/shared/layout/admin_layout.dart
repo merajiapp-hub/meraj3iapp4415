@@ -56,11 +56,12 @@ class _AdminLayoutState extends State<AdminLayout> {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 1024;
-    final isTablet = MediaQuery.of(context).size.width >= 768 && !isDesktop;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth >= 1024;
+    final isTablet = screenWidth >= 768 && !isDesktop;
 
     if (!isDesktop && !_isSidebarCollapsed) {
-      _isSidebarCollapsed = true; // Auto collapse on small screens
+      _isSidebarCollapsed = true;
     }
 
     return ChangeNotifierProvider.value(
@@ -73,40 +74,81 @@ class _AdminLayoutState extends State<AdminLayout> {
                   selectedIndex: _selectedIndex,
                   onMenuSelected: (i) {
                     _onMenuSelected(i);
-                    Navigator.pop(context); // Close drawer
+                    Navigator.pop(context);
                   },
                   isCollapsed: false,
                 ),
               )
             : null,
-        body: Row(
-          children: [
-            if (isDesktop || isTablet)
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                width: _isSidebarCollapsed ? 80 : 260,
-                child: AdminSidebar(
-                  selectedIndex: _selectedIndex,
-                  onMenuSelected: _onMenuSelected,
-                  isCollapsed: _isSidebarCollapsed,
+        body: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFFF5F9FF), Color(0xFFEEF4FB)],
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.74),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: AdminColors.borderSoft, width: 1.2),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: AdminColors.shadowSoft,
+                        blurRadius: 24,
+                        offset: Offset(0, 14),
+                      ),
+                    ],
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    children: [
+                      AdminTopbar(
+                        onToggleSidebar: _toggleSidebar,
+                        isMobile: !isDesktop && !isTablet,
+                      ),
+                      Expanded(
+                        child: Container(
+                          color: AdminColors.background,
+                          child: _buildContent(),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            Expanded(
-              child: Column(
-                children: [
-                  AdminTopbar(
-                    onToggleSidebar: _toggleSidebar,
-                    isMobile: !isDesktop && !isTablet,
+              if (isDesktop || isTablet)
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 260),
+                  width: _isSidebarCollapsed ? 92 : 268,
+                  curve: Curves.easeInOut,
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(22),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: AdminColors.shadowSoft,
+                        blurRadius: 18,
+                        offset: Offset(0, 12),
+                      ),
+                    ],
                   ),
-                  Expanded(
-                    child: ClipRRect(
-                      child: _buildContent(),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(22),
+                    child: AdminSidebar(
+                      selectedIndex: _selectedIndex,
+                      onMenuSelected: _onMenuSelected,
+                      isCollapsed: _isSidebarCollapsed,
                     ),
                   ),
-                ],
-              ),
-            ),
-          ],
+                ),
+            ],
+          ),
         ),
       ),
     );

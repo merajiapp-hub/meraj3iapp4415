@@ -1,29 +1,33 @@
 import 'package:flutter/material.dart';
 
 class AdminColors {
-  // الألوان الأساسية المستوحاة من هوية تطبيق مراجعي (البنفسجي/البنفسجي الداكن)
-  static const Color primary = Color(0xFF5E35B1); // Deep Purple
-  static const Color primaryLight = Color(0xFFD1C4E9);
-  static const Color primaryDark = Color(0xFF311B92);
-  
-  static const Color secondary = Color(0xFF0F766E); // Teal accent
-  
-  static const Color background = Color(0xFFF3F4F6); // Light gray background
-  static const Color surface = Colors.white;
-  
-  // ألوان النصوص
-  static const Color textDark = Color(0xFF111827); // Dark text
-  static const Color textLight = Color(0xFF6B7280); // Gray text
-  
-  // ألوان الحالات (Status Colors)
-  static const Color success = Color(0xFF10B981);
-  static const Color error = Color(0xFFEF4444);
-  static const Color warning = Color(0xFFF59E0B);
-  static const Color info = Color(0xFF3B82F6);
-  
-  // السايدبار (Sidebar)
-  static const Color sidebarBackground = Color(0xFF1F2937); // Dark gray/black
-  static const Color sidebarItemText = Color(0xFF9CA3AF);
+  static const Color primary = Color(0xFF0F5BD8);
+  static const Color primaryDeep = Color(0xFF0B2F5D);
+  static const Color primaryLight = Color(0xFFEAF3FF);
+  static const Color primaryDark = Color(0xFF081E3A);
+  static const Color accent = Color(0xFF3DA5FF);
+  static const Color accentSoft = Color(0xFFDAEEFF);
+
+  static const Color secondary = Color(0xFF00B8A9);
+
+  static const Color background = Color(0xFFF3F7FC);
+  static const Color surface = Color(0xFFFFFFFF);
+  static const Color surfaceAlt = Color(0xFFEFF5FF);
+
+  static const Color textDark = Color(0xFF182334);
+  static const Color textLight = Color(0xFF64748B);
+
+  static const Color success = Color(0xFF1CCB7F);
+  static const Color error = Color(0xFFE44D5A);
+  static const Color warning = Color(0xFFF4B942);
+  static const Color info = Color(0xFF3A8DFF);
+
+  static const Color sidebarBackground = Color(0xFF0A2240);
+  static const Color sidebarBackgroundAlt = Color(0xFF0F315E);
+  static const Color sidebarItemText = Color(0xFFD7E8FF);
   static const Color sidebarItemSelected = Colors.white;
-  static const Color sidebarItemBackgroundSelected = Color(0xFF374151);
+  static const Color sidebarItemBackgroundSelected = Color(0xFF1C5FB8);
+  static const Color topbarBackground = Color(0xFFF8FAFF);
+  static const Color borderSoft = Color(0xFFE3EAF4);
+  static const Color shadowSoft = Color(0x1A25418A);
 }

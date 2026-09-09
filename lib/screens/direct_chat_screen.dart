@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -23,6 +25,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   final Set<String> _seenMessageIds = <String>{};
   bool _messageStreamInitialized = false;
   bool _chatClosed = false;
+  final Set<String> _selectedMessageIds = <String>{};
+  final Set<String> _ownMessageIds = <String>{};
+  Timer? _selectionTimer;
 
   @override
   void initState() {
@@ -55,9 +60,81 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
 
   @override
   void dispose() {
+    _selectionTimer?.cancel();
     _ctrl.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  bool get _selectionMode => _selectedMessageIds.isNotEmpty;
+
+  void _startSelectionTimer(String messageId) {
+    _selectionTimer?.cancel();
+    _selectionTimer = Timer(const Duration(seconds: 3), () {
+      if (!mounted) return;
+      setState(() => _selectedMessageIds.add(messageId));
+    });
+  }
+
+  void _cancelSelectionTimer() {
+    _selectionTimer?.cancel();
+    _selectionTimer = null;
+  }
+
+  void _toggleMessageSelection(String messageId) {
+    setState(() {
+      if (_selectedMessageIds.contains(messageId)) {
+        _selectedMessageIds.remove(messageId);
+      } else {
+        _selectedMessageIds.add(messageId);
+      }
+    });
+  }
+
+  void _clearMessageSelection() => setState(_selectedMessageIds.clear);
+
+  Future<void> _selectAllOwnMessages() async {
+    setState(() {
+      _selectedMessageIds
+        ..clear()
+        ..addAll(_ownMessageIds);
+    });
+  }
+
+  Future<void> _deleteSelectedMessages() async {
+    if (_selectedMessageIds.isEmpty) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('حذف الرسائل؟'),
+        content: const Text('هل أنت متأكد من حذف الرسائل المحددة؟\nلا يمكن التراجع عن هذا الإجراء.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('حذف')),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      final ids = List<String>.from(_selectedMessageIds);
+      for (var start = 0; start < ids.length; start += 450) {
+        final batch = _db.batch();
+        for (final id in ids.skip(start).take(450)) {
+          batch.update(_db.collection('chats').doc(_chatId).collection('messages').doc(id), {
+            'isDeleted': true,
+            'deletedAt': FieldValue.serverTimestamp(),
+            'deletedBy': _uid,
+          });
+        }
+        await batch.commit();
+      }
+      if (mounted) {
+        _clearMessageSelection();
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حذف الرسائل بنجاح')));
+      }
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر حذف الرسائل: $error')));
+    }
   }
 
   Future<void> _sendMessage() async {
@@ -133,26 +210,25 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
         backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         elevation: 0,
         centerTitle: true,
-        title: Column(
-          children: [
-            Text(
-              'الدعم الفني',
-              style: GoogleFonts.tajawal(
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : AppTheme.primaryColor,
-                fontSize: 17,
+        title: _selectionMode
+            ? Text('تم تحديد ${_selectedMessageIds.length} رسائل', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold))
+            : Column(
+                children: [
+                  Text('الدعم الفني', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, color: isDark ? Colors.white : AppTheme.primaryColor, fontSize: 17)),
+                  Text('فريق MERAJ3I', style: GoogleFonts.tajawal(fontSize: 11, color: Colors.grey[500])),
+                ],
               ),
-            ),
-            Text(
-              'فريق MERAJ3I',
-              style: GoogleFonts.tajawal(fontSize: 11, color: Colors.grey[500]),
-            ),
-          ],
-        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_rounded),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: _selectionMode
+            ? [
+                IconButton(tooltip: 'تحديد الكل', icon: const Icon(Icons.select_all_rounded), onPressed: _selectAllOwnMessages),
+                IconButton(tooltip: 'حذف', icon: const Icon(Icons.delete_outline_rounded), onPressed: _deleteSelectedMessages),
+                IconButton(tooltip: 'إلغاء التحديد', icon: const Icon(Icons.close_rounded), onPressed: _clearMessageSelection),
+              ]
+            : null,
       ),
       body: Column(
         children: [
@@ -201,6 +277,12 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 final docs = snapshot.data?.docs ?? [];
+                _ownMessageIds
+                  ..clear()
+                  ..addAll(docs.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    return data['isAdmin'] != true && data['isDeleted'] != true;
+                  }).map((doc) => doc.id));
                 _playIncomingSound(docs);
                 if (docs.isEmpty) {
                   return Center(
@@ -224,9 +306,13 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                   itemBuilder: (context, index) {
                     final d = docs[index].data() as Map<String, dynamic>;
                     final isMe = !(d['isAdmin'] as bool? ?? false);
+                    final canSelect = isMe && d['isDeleted'] != true;
+                    final selected = _selectedMessageIds.contains(docs[index].id);
                     return GestureDetector(
-                      onLongPress: isMe ? () => _deleteOwnMessage(docs[index].id) : null,
-                      child: _buildBubble(d, isMe, isDark),
+                      onLongPressStart: canSelect ? (_) => _startSelectionTimer(docs[index].id) : null,
+                      onLongPressEnd: canSelect ? (_) => _cancelSelectionTimer() : null,
+                      onTap: _selectionMode && canSelect ? () => _toggleMessageSelection(docs[index].id) : null,
+                      child: _buildBubble(d, docs[index].id, isMe, isDark, selected: selected),
                     );
                   },
                 );
@@ -248,30 +334,6 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     );
   }
 
-  Future<void> _deleteOwnMessage(String messageId) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('حذف الرسالة'),
-        content: const Text('هل تريد حذف هذه الرسالة؟'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('حذف')),
-        ],
-      ),
-    );
-    if (confirm != true) return;
-    try {
-      await _db.collection('chats').doc(_chatId).collection('messages').doc(messageId).update({
-        'isDeleted': true,
-        'deletedAt': FieldValue.serverTimestamp(),
-        'deletedBy': _uid,
-      });
-    } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر حذف الرسالة')));
-    }
-  }
-
   void _playIncomingSound(List<QueryDocumentSnapshot> docs) {
     final hasNewIncoming = docs.any((doc) {
       final data = doc.data() as Map<String, dynamic>;
@@ -286,7 +348,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     }
   }
 
-  Widget _buildBubble(Map<String, dynamic> d, bool isMe, bool isDark) {
+  Widget _buildBubble(Map<String, dynamic> d, String messageId, bool isMe, bool isDark, {bool selected = false}) {
     final text = d['text'] as String? ?? '';
     final isDeleted = d['isDeleted'] == true;
     final time = d['createdAt'] as Timestamp?;
@@ -308,6 +370,11 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
             ),
             const SizedBox(width: 6),
           ],
+          if (_selectionMode && isMe)
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Checkbox(value: selected, onChanged: (_) => _toggleMessageSelection(messageId)),
+            ),
           Flexible(
             child: Container(
               constraints: BoxConstraints(
@@ -329,6 +396,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                   bottomLeft: isMe ? const Radius.circular(16) : const Radius.circular(4),
                   bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(16),
                 ),
+                border: selected ? Border.all(color: AppTheme.primaryColor, width: 2) : null,
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.08),

@@ -142,6 +142,11 @@ service cloud.firestore {
     match /quizzes/{quizId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
+
+      match /questions/{questionId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
     }
 
     // إشعارات لوحة الإدارة.
