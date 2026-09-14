@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
+import '../theme/app_theme.dart';
+import '../widgets/curved_header.dart';
 
 class MyExamsScreen extends StatelessWidget {
   const MyExamsScreen({super.key});
@@ -19,56 +21,17 @@ class MyExamsScreen extends StatelessWidget {
           isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
       body: Column(
         children: [
-          _buildHeader(context, isDark),
+          const CurvedHeader(
+            title: 'اختباراتي',
+            gradient: AppTheme.brandGradient,
+            leadingIcon: Icons.history_rounded,
+          ),
           Expanded(
             child: uid == null
                 ? _buildLoginRequired(isDark)
                 : _buildAttemptsList(uid, isDark),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context, bool isDark) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF1E40AF), Color(0xFF7C3AED)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(28),
-          bottomRight: Radius.circular(28),
-        ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 8, 16, 24),
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                    color: Colors.white, size: 20),
-                onPressed: () => Navigator.pop(context),
-              ),
-              Expanded(
-                child: Text(
-                  'اختباراتي',
-                  style: GoogleFonts.cairo(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 22,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(width: 40),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -99,8 +62,6 @@ class MyExamsScreen extends StatelessWidget {
       stream: FirebaseFirestore.instance
           .collection('exam_attempts')
           .where('userId', isEqualTo: uid)
-          .orderBy('submittedAt', descending: true)
-          .limit(50)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -113,7 +74,12 @@ class MyExamsScreen extends StatelessWidget {
           );
         }
 
-        final docs = snapshot.data?.docs ?? [];
+        final docs = snapshot.data?.docs.toList() ?? [];
+        docs.sort((a, b) {
+          final aTime = (a.data()['submittedAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+          final bTime = (b.data()['submittedAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+          return bTime.compareTo(aTime);
+        });
         if (docs.isEmpty) {
           return _buildEmpty(isDark);
         }

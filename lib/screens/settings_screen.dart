@@ -12,6 +12,7 @@ import 'privacy_policy_screen.dart';
 import 'terms_of_use_screen.dart';
 import '../theme/app_theme.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/geometric_sliver_app_bar.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -227,23 +228,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           : const Color(0xFFF1F5F9),
       body: CustomScrollView(
         slivers: [
-          SliverAppBar(
-            pinned: true,
-            expandedHeight: 110,
-            flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                'الإعدادات',
-                style: GoogleFonts.tajawal(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: AppTheme.deepBlueGradient,
-                ),
-              ),
-            ),
+          const GeometricSliverAppBar(
+            title: 'الإعدادات',
+            icon: Icons.settings_rounded,
+            gradient: AppTheme.deepBlueGradient,
           ),
           SliverPadding(
             padding: const EdgeInsets.all(16),

@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../data/quiz_models.dart';
 import 'exam_taking_screen.dart';
 import 'my_exams_screen.dart';
+import '../theme/app_theme.dart';
+import '../widgets/curved_header.dart';
 
 class PublishedExamsScreen extends StatelessWidget {
   const PublishedExamsScreen({super.key});
@@ -18,72 +20,17 @@ class PublishedExamsScreen extends StatelessWidget {
           isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
       body: Column(
         children: [
-          _buildHeader(context, isDark),
+          CurvedHeader(
+            title: 'الاختبارات',
+            subtitle: 'اختبر معلوماتك وتحقق من مستواك',
+            gradient: AppTheme.brandGradient,
+            trailing: IconButton(
+              icon: const Icon(Icons.history_rounded, color: Colors.white),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyExamsScreen())),
+            ),
+          ),
           Expanded(child: _buildExamsList(isDark)),
         ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context, bool isDark) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF1E40AF), Color(0xFF7C3AED)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(28),
-          bottomRight: Radius.circular(28),
-        ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 8, 16, 24),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                        color: Colors.white, size: 20),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  Expanded(
-                    child: Text(
-                      'الاختبارات',
-                      style: GoogleFonts.cairo(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 22,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  // My exams button
-                  IconButton(
-                    icon: const Icon(Icons.history_rounded, color: Colors.white),
-                    tooltip: 'اختباراتي',
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const MyExamsScreen()),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'اختبر معلوماتك وتحقق من مستواك',
-                style: GoogleFonts.cairo(
-                  color: Colors.white70,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

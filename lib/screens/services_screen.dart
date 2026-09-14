@@ -8,11 +8,11 @@ import 'student_competition_screen.dart';
 import 'results/results_home_screen.dart';
 import 'ai_search_screen.dart';
 import 'direct_chat_screen.dart';
-import 'downloads_screen.dart';
 import 'swedd_screen.dart';
 import 'published_exams_screen.dart';
 import 'student/reading_list_screen.dart';
 import 'student/progress_screen.dart';
+import '../widgets/curved_header.dart';
 
 class ServicesScreen extends StatelessWidget {
   const ServicesScreen({super.key});
@@ -23,13 +23,6 @@ class ServicesScreen extends StatelessWidget {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'جميع الخدمات',
-          style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-      ),
       body: Stack(
         children: [
           Positioned(
@@ -48,14 +41,19 @@ class ServicesScreen extends StatelessWidget {
               AppTheme.secondaryColor.withValues(alpha: 0.08),
             ),
           ),
-          SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 18, 16, 32),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildAllServicesGrid(context, size, isDark),
-              ],
-            ),
+          Column(
+            children: [
+              const CurvedHeader(
+                title: 'جميع الخدمات',
+                gradient: AppTheme.brandGradient,
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 32),
+                  child: _buildAllServicesGrid(context, size, isDark),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -110,11 +108,7 @@ class ServicesScreen extends StatelessWidget {
       _ServiceItem(
         title: 'التنافس بين الطلاب',
         icon: Icons.emoji_events_rounded,
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFB75E), Color(0xFFED8F03)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: AppTheme.primaryGradient,
         badge: 'جديد',
         onTap: () => _checkFeatureAndNavigate(
           context,
@@ -125,11 +119,7 @@ class ServicesScreen extends StatelessWidget {
       _ServiceItem(
         title: 'نتائج المسابقات',
         icon: Icons.leaderboard_rounded,
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFF6B35), Color(0xFFE53935)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: AppTheme.primaryGradient,
         badge: null,
         onTap: () => _checkFeatureAndNavigate(
           context,
@@ -140,7 +130,7 @@ class ServicesScreen extends StatelessWidget {
       _ServiceItem(
         title: 'MERAJ3I AI',
         icon: Icons.auto_awesome_rounded,
-        gradient: AppTheme.purpleGradient,
+        gradient: AppTheme.primaryGradient,
         badge: 'AI',
         onTap: () => _checkFeatureAndNavigate(
           context,
@@ -151,27 +141,15 @@ class ServicesScreen extends StatelessWidget {
       _ServiceItem(
         title: 'المراسلة',
         icon: Icons.chat_rounded,
-        gradient: const LinearGradient(
-          colors: [Color(0xFF10B981), Color(0xFF059669)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: AppTheme.primaryGradient,
         badge: 'جديد',
         onTap: () =>
             _checkFeatureAndNavigate(context, null, const DirectChatScreen()),
       ),
       _ServiceItem(
-        title: 'التنزيلات',
-        icon: Icons.download_for_offline_rounded,
-        gradient: AppTheme.greenGradient,
-        badge: null,
-        onTap: () =>
-            _checkFeatureAndNavigate(context, null, const DownloadsScreen()),
-      ),
-      _ServiceItem(
         title: 'SWEDD',
         icon: Icons.health_and_safety_rounded,
-        gradient: AppTheme.pinkGradient,
+        gradient: AppTheme.primaryGradient,
         badge: null,
         onTap: () =>
             _checkFeatureAndNavigate(context, null, const SweddScreen()),
@@ -190,11 +168,7 @@ class ServicesScreen extends StatelessWidget {
       _ServiceItem(
         title: 'قائمة القراءة',
         icon: Icons.menu_book_rounded,
-        gradient: const LinearGradient(
-          colors: [Color(0xFF14B8A6), Color(0xFF0D9488)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: AppTheme.primaryGradient,
         badge: null,
         onTap: () =>
             _checkFeatureAndNavigate(context, null, const ReadingListScreen()),
@@ -202,11 +176,7 @@ class ServicesScreen extends StatelessWidget {
       _ServiceItem(
         title: 'تطور المستوى',
         icon: Icons.trending_up_rounded,
-        gradient: const LinearGradient(
-          colors: [Color(0xFF10B981), Color(0xFF059669)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: AppTheme.primaryGradient,
         badge: null,
         onTap: () =>
             _checkFeatureAndNavigate(context, null, const ProgressScreen()),

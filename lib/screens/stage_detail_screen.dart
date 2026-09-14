@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../data/books_data.dart';
 import 'books_list_screen.dart';
+import '../widgets/curved_header.dart';
 
 class StageDetailScreen extends StatefulWidget {
   final String stageTitle;
@@ -65,62 +66,27 @@ class _StageDetailScreenState extends State<StageDetailScreen> {
     return Scaffold(
       body: Column(
         children: [
-          // ── الرأس بالتدرج ──
-          Container(
-            decoration: BoxDecoration(gradient: widget.gradient),
-            child: SafeArea(
-              bottom: false,
-              child: Column(
-                children: [
-                  // شريط العودة والعنوان
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                        Expanded(
-                          child: Text(
-                            widget.stageTitle,
-                            style: GoogleFonts.tajawal(
-                              fontSize: screenWidth < 360 ? 17 : 19,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
+          CurvedHeader(
+            title: widget.stageTitle,
+            gradient: widget.gradient,
+            leadingIcon: Icons.school_rounded,
+          ),
 
-                  // إحصائيات الملفات
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                    child: Row(
-                      children: [
-                        _StatChip(
-                          icon: Icons.folder_rounded,
-                          label:
-                              '${BooksData.allBooks.where((b) => b.section == widget.section).length} ملف',
-                        ),
-                        const SizedBox(width: 8),
-                        _StatChip(
-                          icon: Icons.layers_rounded,
-                          label: '${sections.length} أقسام',
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 4),
+            child: Row(
+              children: [
+                _StatChip(
+                  icon: Icons.folder_rounded,
+                  label:
+                      '${BooksData.allBooks.where((b) => b.section == widget.section).length} ملف',
+                ),
+                const SizedBox(width: 8),
+                _StatChip(
+                  icon: Icons.layers_rounded,
+                  label: '${sections.length} أقسام',
+                ),
+              ],
             ),
           ),
 

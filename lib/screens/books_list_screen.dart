@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../data/books_data.dart';
 import '../models/book.dart';
 import '../widgets/book_card.dart';
+import '../widgets/geometric_sliver_app_bar.dart';
 
 class BooksListScreen extends StatefulWidget {
   final String stageTitle;
@@ -73,86 +74,17 @@ class _BooksListScreenState extends State<BooksListScreen> {
     final grades = _getGrades(books);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accentColor = (widget.gradient as LinearGradient).colors.first;
-    final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // ── AppBar مع تدرج ──
-          SliverAppBar(
-            expandedHeight: 120,
-            pinned: true,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
-              onPressed: () => Navigator.pop(context),
-            ),
-            flexibleSpace: FlexibleSpaceBar(
-              titlePadding:
-                  const EdgeInsets.only(right: 16, left: 60, bottom: 14),
-              title: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.categoryFilter,
-                    style: GoogleFonts.tajawal(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      fontSize: screenWidth < 360 ? 13 : 15,
-                    ),
-                  ),
-                  Text(
-                    widget.stageTitle,
-                    style: GoogleFonts.tajawal(
-                      color: Colors.white70,
-                      fontSize: 10,
-                    ),
-                  ),
-                ],
-              ),
-              background: Container(
-                decoration: BoxDecoration(gradient: widget.gradient),
-                child: Stack(
-                  children: [
-                    Positioned(
-                      left: -20,
-                      bottom: -20,
-                      child: Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.07),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      right: 16,
-                      top: 40,
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          widget.categoryFilter == 'الكتب المدرسية'
-                              ? Icons.menu_book_rounded
-                              : Icons.play_lesson_rounded,
-                          color: Colors.white,
-                          size: 26,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          GeometricSliverAppBar(
+            title: widget.categoryFilter,
+            subtitle: widget.stageTitle,
+            icon: widget.categoryFilter == 'الكتب المدرسية'
+                ? Icons.menu_book_rounded
+                : Icons.play_lesson_rounded,
+            gradient: widget.gradient,
           ),
 
           // ── المحتوى ──

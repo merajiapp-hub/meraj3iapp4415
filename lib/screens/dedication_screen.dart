@@ -16,7 +16,7 @@ class DedicationScreen extends StatelessWidget {
           const GeometricSliverAppBar(
             title: 'الإهداء',
             icon: Icons.auto_awesome_rounded,
-            gradient: AppTheme.purpleGradient,
+            gradient: AppTheme.brandGradient,
           ),
           SliverToBoxAdapter(
             child: Padding(

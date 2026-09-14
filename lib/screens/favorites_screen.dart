@@ -20,11 +20,7 @@ class FavoritesScreen extends StatelessWidget {
           const GeometricSliverAppBar(
             title: 'المفضلة',
             icon: Icons.favorite_rounded,
-            gradient: LinearGradient(
-              colors: [Color(0xFFEF4444), Color(0xFFB91C1C)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            gradient: AppTheme.brandGradient,
           ),
           Consumer<FavoritesProvider>(
             builder: (context, favoritesProvider, child) {

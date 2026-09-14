@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../widgets/geometric_sliver_app_bar.dart';
+import '../theme/app_theme.dart';
 
 class TermsOfUseScreen extends StatelessWidget {
   const TermsOfUseScreen({super.key});
@@ -11,38 +13,10 @@ class TermsOfUseScreen extends StatelessWidget {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          SliverAppBar(
-            expandedHeight: 120,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                'شروط الاستخدام',
-                style: GoogleFonts.tajawal(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: Align(
-                  alignment: Alignment.bottomRight,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Icon(
-                      Icons.gavel_rounded,
-                      size: 60,
-                      color: Colors.white.withValues(alpha: 0.12),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+          const GeometricSliverAppBar(
+            title: 'شروط الاستخدام',
+            icon: Icons.gavel_rounded,
+            gradient: AppTheme.brandGradient,
           ),
           SliverPadding(
             padding: const EdgeInsets.all(20),

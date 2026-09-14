@@ -4,6 +4,7 @@ import '../models/reference_category.dart';
 import '../models/book.dart';
 import '../theme/app_theme.dart';
 import '../widgets/book_card.dart';
+import '../widgets/curved_header.dart';
 
 class CategoryDetailScreen extends StatelessWidget {
   final ReferenceCategory category;
@@ -22,15 +23,13 @@ class CategoryDetailScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-      appBar: AppBar(
-        title: Text(category.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
-        elevation: 0,
-        centerTitle: true,
-      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          CurvedHeader(
+            title: category.name,
+            gradient: AppTheme.brandGradient,
+          ),
           _buildBreadcrumbs(context, currentPath, isDark),
           Expanded(
             child: SingleChildScrollView(
@@ -54,16 +53,19 @@ class CategoryDetailScreen extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      color: isDark ? const Color(0xFF1E293B) : Colors.white,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
             InkWell(
-              onTap: () => Navigator.popUntil(context, ModalRoute.withName('/references')), // Needs route defined
-              child: Text(
-                'مراجع أخرى',
-                style: TextStyle(color: isDark ? Colors.blue[300] : Colors.blue[700]),
+              onTap: () => Navigator.popUntil(context, (route) => route.isFirst || route.settings.name == '/references'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.home_rounded, size: 18, color: isDark ? Colors.blue[300] : AppTheme.primaryColor),
               ),
             ),
             ...path.map((cat) {
@@ -71,8 +73,8 @@ class CategoryDetailScreen extends StatelessWidget {
               return Row(
                 children: [
                   const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4),
-                    child: Icon(Icons.chevron_left, size: 16, color: Colors.grey),
+                    padding: EdgeInsets.symmetric(horizontal: 6),
+                    child: Icon(Icons.chevron_left_rounded, size: 16, color: Colors.grey),
                   ),
                   InkWell(
                     onTap: isLast
@@ -83,13 +85,24 @@ class CategoryDetailScreen extends StatelessWidget {
                               Navigator.pop(context);
                             }
                           },
-                    child: Text(
-                      cat.name,
-                      style: TextStyle(
-                        color: isLast
-                            ? (isDark ? Colors.white : Colors.black)
-                            : (isDark ? Colors.blue[300] : Colors.blue[700]),
-                        fontWeight: isLast ? FontWeight.bold : FontWeight.normal,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isLast 
+                            ? AppTheme.primaryColor.withValues(alpha: 0.1) 
+                            : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
+                        borderRadius: BorderRadius.circular(12),
+                        border: isLast ? Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)) : null,
+                      ),
+                      child: Text(
+                        cat.name,
+                        style: TextStyle(
+                          color: isLast
+                              ? AppTheme.primaryColor
+                              : (isDark ? Colors.white70 : Colors.black87),
+                          fontWeight: isLast ? FontWeight.bold : FontWeight.w500,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ),
@@ -107,11 +120,15 @@ class CategoryDetailScreen extends StatelessWidget {
       stream: FirebaseFirestore.instance
           .collection('reference_categories')
           .where('parentId', isEqualTo: category.id)
-          .orderBy('order')
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const SizedBox.shrink();
-        final docs = snapshot.data!.docs;
+        final docs = snapshot.data!.docs.toList()
+          ..sort((a, b) {
+            final aOrder = (a.data() as Map<String, dynamic>)['order'] as num? ?? 0;
+            final bOrder = (b.data() as Map<String, dynamic>)['order'] as num? ?? 0;
+            return aOrder.compareTo(bOrder);
+          });
         if (docs.isEmpty) return const SizedBox.shrink();
 
         final cats = docs.map((d) => ReferenceCategory.fromMap(d.data() as Map<String, dynamic>, d.id)).toList();

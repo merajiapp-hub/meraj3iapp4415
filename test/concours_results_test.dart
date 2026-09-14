@@ -19,4 +19,13 @@ void main() {
     expect(StudentResult.fromCsv({'NAME': 'F', 'TOTAL': '85,5'}, ExamType.concours).score, 85.5);
     expect(StudentResult.fromCsv({'NAME': 'G', 'TOTAL': ''}, ExamType.concours).score, isNull);
   });
+
+  test('concours ignores stale status and derives it from TOTAL', () {
+    final result = StudentResult.fromCsv({
+      'NAME': 'G',
+      'TOTAL': '100',
+      'STATUS': 'راسب',
+    }, ExamType.concours);
+    expect(result.status, 'ناجح');
+  });
 }

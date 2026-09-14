@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
+import '../widgets/curved_header.dart';
 
 class ContactUsScreen extends StatelessWidget {
   const ContactUsScreen({super.key});
@@ -37,14 +38,10 @@ class ContactUsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'اتصل بنا',
-          style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
+      body: Column(
+        children: [
+          const CurvedHeader(title: 'اتصل بنا', gradient: AppTheme.brandGradient, leadingIcon: Icons.support_agent_rounded),
+          Expanded(child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
@@ -109,6 +106,8 @@ class ContactUsScreen extends StatelessWidget {
             ),
           ],
         ),
+          )),
+        ],
       ),
     );
   }

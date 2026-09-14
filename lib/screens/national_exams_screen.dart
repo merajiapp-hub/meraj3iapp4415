@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../data/books_data.dart';
 import '../models/book.dart';
-import '../widgets/geometric_sliver_app_bar.dart';
+import '../widgets/curved_header.dart';
 import 'pdf_viewer_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -87,10 +87,12 @@ class NationalExamsScreen extends StatelessWidget {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          GeometricSliverAppBar(
-            title: 'امتحانات المسابقات الوطنية',
-            icon: Icons.emoji_events_rounded,
-            gradient: AppTheme.goldGradient,
+          SliverToBoxAdapter(
+            child: CurvedHeader(
+              title: 'امتحانات المسابقات الوطنية',
+              gradient: AppTheme.brandGradient,
+              leadingIcon: Icons.emoji_events_rounded,
+            ),
           ),
 
           if (exams.isEmpty)

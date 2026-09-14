@@ -17,7 +17,10 @@ class ReviewStatisticsScreen extends StatelessWidget {
         centerTitle: true,
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('reviews').snapshots(),
+        stream: FirebaseFirestore.instance
+          .collection('reviews')
+          .where('status', isEqualTo: 'published')
+          .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());

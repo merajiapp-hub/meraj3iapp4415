@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/curved_header.dart';
 
 class DirectChatScreen extends StatefulWidget {
   const DirectChatScreen({super.key});
@@ -45,14 +46,19 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
         _chatId = 'chat_$_uid';
       });
       if (_uid.isNotEmpty) {
-        await _db.collection('chats').doc(_chatId).set({
-          'userId': _uid,
-          'userName': _userName,
-          'status': 'open',
-          'userUnread': 0,
-          'adminUnread': 0,
-        }, SetOptions(merge: true));
-        await _db.collection('chats').doc(_chatId).update({'userUnread': 0});
+        final chatRef = _db.collection('chats').doc(_chatId);
+        final chat = await chatRef.get();
+        if (!chat.exists) {
+          await chatRef.set({
+            'userId': _uid,
+            'userName': _userName,
+            'status': 'open',
+            'userUnread': 0,
+            'adminUnread': 0,
+          });
+        } else {
+          await chatRef.update({'userUnread': 0});
+        }
         _db.collection('chats').doc(_chatId).snapshots().listen((snapshot) {
           if (!mounted) return;
           setState(() => _chatClosed = snapshot.data()?['status'] == 'closed');
@@ -203,6 +209,19 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     if (text.isEmpty) return;
     setState(() => _sending = true);
     try {
+      // The message rule reads the parent chat document. Ensure it exists
+      // before creating the first message.
+      final chatRef = _db.collection('chats').doc(_chatId);
+      final chatSnapshot = await chatRef.get();
+      if (!chatSnapshot.exists) {
+        await chatRef.set({
+          'userId': _uid,
+          'userName': _userName,
+          'status': 'open',
+          'userUnread': 0,
+          'adminUnread': 0,
+        });
+      }
       await _db.collection('chats').doc(_chatId).collection('messages').add({
         'text': text,
         'senderId': _uid,
@@ -212,8 +231,6 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
         'isRead': false,
       });
       await _db.collection('chats').doc(_chatId).set({
-        'userId': _uid,
-        'userName': _userName,
         'lastMessage': text,
         'lastMessageAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -265,12 +282,23 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       final auth = Provider.of<AuthProvider>(context, listen: false);
       if (auth.isGuest || auth.user == null) {
         return Scaffold(
-          appBar: AppBar(title: Text('الدعم الفني', style: GoogleFonts.tajawal())),
-          body: Center(
-            child: Text(
-              'يجب تسجيل الدخول للوصول إلى الدعم الفني',
-              style: GoogleFonts.tajawal(),
-            ),
+          body: Column(
+            children: [
+              const CurvedHeader(
+                title: 'الدعم الفني',
+                subtitle: 'فريق MERAJ3I',
+                gradient: AppTheme.brandGradient,
+                leadingIcon: Icons.support_agent_rounded,
+              ),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    'يجب تسجيل الدخول للوصول إلى الدعم الفني',
+                    style: GoogleFonts.tajawal(),
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       }
@@ -282,9 +310,19 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       // automatically shrinks body when keyboard appears, keeping input at bottom
       resizeToAvoidBottomInset: true,
       backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-      appBar: _buildAppBar(isDark),
-      body: SafeArea(
-        child: Column(
+      body: Column(
+        children: [
+          CurvedHeader(
+            title: _selectionMode
+                ? '${_selectedMessageIds.length} محددة'
+                : 'الدعم الفني',
+            subtitle: 'فريق MERAJ3I',
+            gradient: isDark ? AppTheme.deepBlueGradient : AppTheme.brandGradient,
+          ),
+          Expanded(
+            child: SafeArea(
+              top: false,
+              child: Column(
           children: [
             // Welcome Banner - only show when not in selection mode
             if (!_selectionMode)
@@ -303,61 +341,11 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
             else
               _buildInputBar(isDark),
           ],
-        ),
+              ),
+            ),
+          ),
+        ],
       ),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar(bool isDark) {
-    return AppBar(
-      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-      elevation: 0,
-      centerTitle: true,
-      title: _selectionMode
-          ? Text(
-              '${_selectedMessageIds.length} محددة',
-              style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
-            )
-          : Column(
-              children: [
-                Text(
-                  'الدعم الفني',
-                  style: GoogleFonts.tajawal(
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : AppTheme.primaryColor,
-                    fontSize: 17,
-                  ),
-                ),
-                Text(
-                  'فريق MERAJ3I',
-                  style: GoogleFonts.tajawal(fontSize: 11, color: Colors.grey[500]),
-                ),
-              ],
-            ),
-      leading: _selectionMode
-          ? IconButton(
-              icon: const Icon(Icons.close_rounded),
-              onPressed: _clearMessageSelection,
-              tooltip: 'إلغاء التحديد',
-            )
-          : IconButton(
-              icon: const Icon(Icons.arrow_back_ios_rounded),
-              onPressed: () => Navigator.pop(context),
-            ),
-      actions: _selectionMode
-          ? [
-              IconButton(
-                tooltip: _allOwnSelected ? 'إلغاء تحديد الكل' : 'تحديد الكل',
-                icon: Icon(_allOwnSelected ? Icons.deselect_rounded : Icons.select_all_rounded),
-                onPressed: _allOwnSelected ? _clearMessageSelection : _selectAllOwnMessages,
-              ),
-              IconButton(
-                tooltip: 'حذف المحدد',
-                icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
-                onPressed: _deleteSelectedMessages,
-              ),
-            ]
-          : null,
     );
   }
 

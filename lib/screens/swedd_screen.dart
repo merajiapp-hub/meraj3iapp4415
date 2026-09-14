@@ -4,6 +4,7 @@ import '../data/books_data.dart';
 import '../models/book.dart';
 import 'pdf_viewer_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../widgets/curved_header.dart';
 
 class SweddScreen extends StatelessWidget {
   const SweddScreen({super.key});
@@ -22,14 +23,14 @@ class SweddScreen extends StatelessWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'مشروع SWEDD',
-          style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-      ),
-      body: sweddBooks.isEmpty
+      body: Column(
+        children: [
+          const CurvedHeader(
+            title: 'مشروع SWEDD',
+            gradient: LinearGradient(colors: [Color(0xFFEC4899), Color(0xFFBE185D)]),
+            leadingIcon: Icons.health_and_safety_rounded,
+          ),
+          Expanded(child: sweddBooks.isEmpty
           ? _buildEmptyState(context)
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
@@ -269,6 +270,9 @@ class SweddScreen extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+        ],
+      ),
     );
   }
 

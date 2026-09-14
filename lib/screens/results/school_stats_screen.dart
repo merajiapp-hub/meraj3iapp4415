@@ -4,7 +4,6 @@ import '../../services/results_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/top_students_section.dart';
 import 'student_detail_screen.dart';
-import 'pdf_preview_screen.dart';
 
 class SchoolStatsScreen extends StatefulWidget {
   final String schoolName;
@@ -347,82 +346,6 @@ class _SchoolStatsScreenState extends State<SchoolStatsScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-
-                  // ── أزرار تصدير PDF ────────────────────────────────────
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            final passed = _schoolStudents.where((s) => s.isPassed).toList();
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => PdfPreviewScreen(
-                                  students: passed,
-                                  listTitle: 'قائمة الناجحين',
-                                  listType: 'passed',
-                                  competitionTitle: widget.examType.name.toUpperCase(),
-                                  examType: widget.examType,
-                                  maxScore: widget.maxScore,
-                                  passScore: widget.passScore,
-                                  totalCount: _total,
-                                  passedCount: _passed,
-                                  failedCount: _failed,
-                                  absentCount: _absent,
-                                  expelledCount: _expelled,
-                                  complementaryCount: _complementary,
-                                  filterSchool: widget.schoolName,
-                                ),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.picture_as_pdf_rounded, size: 18, color: Color(0xFF16A34A)),
-                          label: Text('قائمة الناجحين', style: GoogleFonts.tajawal(color: const Color(0xFF16A34A), fontSize: 13)),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFF16A34A)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            final failed = _schoolStudents.where((s) => !s.isPassed && !s.isAbsent).toList();
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => PdfPreviewScreen(
-                                  students: failed,
-                                  listTitle: 'قائمة الراسبين',
-                                  listType: 'failed',
-                                  competitionTitle: widget.examType.name.toUpperCase(),
-                                  examType: widget.examType,
-                                  maxScore: widget.maxScore,
-                                  passScore: widget.passScore,
-                                  totalCount: _total,
-                                  passedCount: _passed,
-                                  failedCount: _failed,
-                                  absentCount: _absent,
-                                  expelledCount: _expelled,
-                                  complementaryCount: _complementary,
-                                  filterSchool: widget.schoolName,
-                                ),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.picture_as_pdf_rounded, size: 18, color: Colors.red),
-                          label: Text('قائمة الراسبين', style: GoogleFonts.tajawal(color: Colors.red, fontSize: 13)),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.red),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
 
                   // أوائل المدرسة
                   if (_schoolStudents.isNotEmpty) ...[

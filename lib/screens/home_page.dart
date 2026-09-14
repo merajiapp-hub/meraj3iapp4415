@@ -398,7 +398,7 @@ class _HomePageState extends State<HomePage>
                             child: Column(
                               children: [
                                 Text(
-                                  'Développé par Mohamed Mahmoud Abderrahmane',
+                                  'Développé par Mohamed Mahmoud Abderrahmane & Abdellahi SMD',
                                   textAlign: TextAlign.center,
                                   style: GoogleFonts.tajawal(
                                     fontSize: 10,
@@ -442,11 +442,7 @@ class _HomePageState extends State<HomePage>
       _ServiceItem(
         title: 'المراحل الدراسية',
         icon: Icons.school_rounded,
-        gradient: const LinearGradient(
-          colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: AppTheme.primaryGradient,
         badge: null,
         onTap: () => Navigator.push(
           context,
@@ -456,7 +452,7 @@ class _HomePageState extends State<HomePage>
       _ServiceItem(
         title: 'الامتحانات الوطنية',
         icon: Icons.menu_book_rounded,
-        gradient: AppTheme.goldGradient,
+        gradient: AppTheme.primaryGradient,
         badge: null,
         onTap: () => Navigator.push(
           context,
@@ -467,11 +463,7 @@ class _HomePageState extends State<HomePage>
         title: 'الحاسبة العلمية',
         icon: Icons.calculate_rounded,
         imagePath: 'assets/Calculator/Calculator.png',
-        gradient: const LinearGradient(
-          colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: AppTheme.primaryGradient,
         badge: 'جديد',
         onTap: () {
           final isEnabled = context.read<AppConfigProvider>().isFeatureEnabled(
@@ -502,11 +494,7 @@ class _HomePageState extends State<HomePage>
       _ServiceItem(
         title: 'المزيد من الخدمات',
         icon: Icons.grid_view_rounded,
-        gradient: const LinearGradient(
-          colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: AppTheme.primaryGradient,
         badge: null,
         onTap: () => Navigator.push(
           context,

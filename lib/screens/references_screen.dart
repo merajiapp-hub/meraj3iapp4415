@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/reference_category.dart';
 import '../theme/app_theme.dart';
 import 'category_detail_screen.dart';
+import '../widgets/curved_header.dart';
 
 class ReferencesScreen extends StatelessWidget {
   const ReferencesScreen({super.key});
@@ -17,52 +18,16 @@ class ReferencesScreen extends StatelessWidget {
       backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
       body: Column(
         children: [
-          _buildHeader(isDark, context),
+          CurvedHeader(
+            title: 'مراجع أخرى',
+            gradient: AppTheme.brandGradient,
+            trailing: IconButton(
+              onPressed: () {},
+              icon: const Icon(Icons.search_rounded, color: Colors.white),
+            ),
+          ),
           Expanded(child: _buildRootCategories(isDark)),
         ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(bool isDark, BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: AppTheme.brandGradient,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(32),
-          bottomRight: Radius.circular(32),
-        ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 4, 16, 20),
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 22),
-                onPressed: () => Navigator.pop(context),
-              ),
-              Expanded(
-                child: Text(
-                  'مراجع أخرى',
-                  style: GoogleFonts.cairo(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    height: 1.2,
-                  ),
-                ),
-              ),
-              IconButton(
-                onPressed: () {
-                  // Search functionality placeholder
-                },
-                icon: const Icon(Icons.search_rounded, color: Colors.white),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -73,7 +38,6 @@ class ReferencesScreen extends StatelessWidget {
           .collection('reference_categories')
           .where('parentId', isNull: true)
           .where('isActive', isEqualTo: true)
-          .orderBy('order')
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -83,7 +47,12 @@ class ReferencesScreen extends StatelessWidget {
           return Center(child: Text('خطأ: ${snapshot.error}'));
         }
 
-        final docs = snapshot.data?.docs ?? [];
+        final docs = snapshot.data?.docs.toList() ?? [];
+        docs.sort((a, b) {
+          final aOrder = (a.data() as Map<String, dynamic>)['order'] as num? ?? 0;
+          final bOrder = (b.data() as Map<String, dynamic>)['order'] as num? ?? 0;
+          return aOrder.compareTo(bOrder);
+        });
         if (docs.isEmpty) {
           return _buildEmptyState(isDark);
         }

@@ -5,6 +5,7 @@ import '../../services/remote_config_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/results_skeleton.dart';
 import '../../widgets/top_students_section.dart';
+import '../../widgets/geometric_sliver_app_bar.dart';
 import 'student_detail_screen.dart';
 import 'competition_stats_screen.dart';
 
@@ -216,6 +217,9 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
   }
 
   Set<String> get _availableStatuses {
+    if (widget.examType == ExamType.concours) {
+      return {'ناجح', 'راسب'};
+    }
     final statuses = _allResults.map((r) => r.status).where((s) {
       if (s.isEmpty) return false;
       // لا تعرض "مؤهل للتكميلية" إلا للبكالوريا الدورة العادية (ExamType.bac)
@@ -226,11 +230,6 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
       return true;
     }).toSet();
     
-    // إجبار الفلتر على عرض "ناجح" و "راسب" إذا لم تكن موجودة في البيانات المفلترة للكونكور
-    if (widget.examType == ExamType.concours) {
-      statuses.add('ناجح');
-      statuses.add('راسب');
-    }
     return statuses;
   }
 
@@ -246,23 +245,10 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             // App Bar
-            SliverAppBar(
-              expandedHeight: 150,
-              pinned: true,
-              elevation: 0,
-              flexibleSpace: FlexibleSpaceBar(
-                title: Text(
-                  widget.title,
-                  style: GoogleFonts.tajawal(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontSize: 16,
-                  ),
-                ),
-                background: Container(
-                  decoration: BoxDecoration(gradient: widget.gradient),
-                ),
-              ),
+            GeometricSliverAppBar(
+              title: widget.title,
+              icon: Icons.emoji_events_rounded,
+              gradient: widget.gradient,
               actions: [
                 if (_backgroundUpdating)
                   const Padding(
@@ -272,8 +258,7 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
                       height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.white70),
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
                       ),
                     ),
                   ),

@@ -865,7 +865,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         ),
         const SizedBox(height: 4),
         Text(
-          'Développé par Mohamed Mahmoud Abderrahmane',
+          'Développé par Mohamed Mahmoud Abderrahmane & Abdellahi SMD',
           style: GoogleFonts.tajawal(fontSize: 10, color: Colors.grey[400]),
         ),
       ],

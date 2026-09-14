@@ -15,7 +15,6 @@ import '../../services/results_service.dart';
 import '../../providers/favorite_results_provider.dart';
 import '../../theme/app_theme.dart';
 import 'school_stats_screen.dart';
-import 'pdf_preview_screen.dart';
 
 class StudentDetailScreen extends StatefulWidget {
   final StudentResult student;
@@ -225,37 +224,10 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('تصدير النتيجة',
+            Text('مشاركة النتيجة',
                 style: GoogleFonts.tajawal(
                     fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
-            ListTile(
-              leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
-              title: Text('تحميل كملف PDF', style: GoogleFonts.tajawal()),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PdfPreviewScreen(
-                      students: const [], // قائمة فارغة لأننا نمرر طالباً واحداً
-                      listTitle: 'بطاقة نتيجة الطالب',
-                      listType: 'student',
-                      competitionTitle: widget.title,
-                      examType: widget.examType,
-                      maxScore: widget.maxScore,
-                      passScore: widget.passScore,
-                      singleStudent: widget.student,
-                      scoreLabel: widget.scoreLabel,
-                      rankNational: _rankNational,
-                      rankWilaya: _rankWilaya,
-                      rankCenter: _rankCenter,
-                      rankSchool: _rankSchool,
-                    ),
-                  ),
-                );
-              },
-            ),
             ListTile(
               leading: const Icon(Icons.image, color: Colors.green),
               title: Text('مشاركة كصورة', style: GoogleFonts.tajawal()),
@@ -345,9 +317,9 @@ ${_rankNational != null ? '🏆 الترتيب الوطني: $_rankNational' : '
                 actions: [
                   // تصدير
                   IconButton(
-                    icon: const Icon(Icons.file_download_outlined),
+                    icon: const Icon(Icons.share_rounded),
                     onPressed: _showExportOptions,
-                    tooltip: 'تصدير النتيجة',
+                    tooltip: 'مشاركة النتيجة',
                   ),
                   // نسخ
                   IconButton(

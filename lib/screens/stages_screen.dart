@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/books_data.dart';
+import '../theme/app_theme.dart';
 import '../widgets/geometric_sliver_app_bar.dart';
 import 'stage_detail_screen.dart';
 
@@ -13,42 +14,42 @@ class StagesScreen extends StatelessWidget {
       'subtitle': 'السنوات 1 إلى 6',
       'icon': Icons.child_care_rounded,
       'section': BooksData.sPrimary,
-      'colors': [Color(0xFF14B8A6), Color(0xFF0D9488)],
+      'colors': [AppTheme.primaryColor, AppTheme.lightGreen],
     },
     {
       'title': 'المرحلة الإعدادية',
       'subtitle': 'السنوات 1 إلى 4',
       'icon': Icons.school_rounded,
       'section': BooksData.sMiddle,
-      'colors': [Color(0xFFF59E0B), Color(0xFFD97706)],
+      'colors': [AppTheme.primaryColor, AppTheme.lightGreen],
     },
     {
       'title': 'الثانوية - العلوم',
       'subtitle': 'السنوات 5 و 6 و 7',
       'icon': Icons.science_rounded,
       'section': BooksData.sHighSc,
-      'colors': [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+      'colors': [AppTheme.primaryColor, AppTheme.lightGreen],
     },
     {
       'title': 'الثانوية - رياضيات',
       'subtitle': 'السنة 7',
       'icon': Icons.calculate_rounded,
       'section': BooksData.sHighMath,
-      'colors': [Color(0xFF10B981), Color(0xFF059669)],
+      'colors': [AppTheme.primaryColor, AppTheme.lightGreen],
     },
     {
       'title': 'الثانوية - آداب عصرية',
       'subtitle': 'السنوات 5 و 6 و 7',
       'icon': Icons.menu_book_rounded,
       'section': BooksData.sHighLit,
-      'colors': [Color(0xFFEF4444), Color(0xFFB91C1C)],
+      'colors': [AppTheme.primaryColor, AppTheme.lightGreen],
     },
     {
       'title': 'الثانوية - آداب أصلية',
       'subtitle': 'السنوات 5 و 6 و 7',
       'icon': Icons.history_edu_rounded,
       'section': BooksData.sHighOrig,
-      'colors': [Color(0xFF0EA5E9), Color(0xFF0284C7)],
+      'colors': [AppTheme.primaryColor, AppTheme.lightGreen],
     },
   ];
 

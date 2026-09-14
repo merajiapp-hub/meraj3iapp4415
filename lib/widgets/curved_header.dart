@@ -27,7 +27,7 @@ class CurvedHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipPath(
-      clipper: _CurvedHeaderClipper(),
+      clipper: MerajHeaderClipper(),
       child: Container(
         height: height,
         decoration: BoxDecoration(gradient: gradient),
@@ -149,28 +149,27 @@ class CurvedHeader extends StatelessWidget {
 }
 
 // ─── منحنى الحافة السفلية ──────────────────────────────────────────────────
-class _CurvedHeaderClipper extends CustomClipper<Path> {
+class MerajHeaderClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
-    final path = Path();
-    path.lineTo(0, size.height - 50);
-    path.quadraticBezierTo(
-      size.width * 0.25,
-      size.height + 10,
-      size.width * 0.5,
-      size.height - 20,
-    );
-    path.quadraticBezierTo(
-      size.width * 0.75,
-      size.height - 50,
-      size.width,
-      size.height - 30,
-    );
-    path.lineTo(size.width, 0);
-    path.close();
-    return path;
+    return Path()
+      ..lineTo(0, size.height - 12)
+      ..quadraticBezierTo(
+        size.width * 0.25,
+        size.height + 8,
+        size.width * 0.5,
+        size.height - 2,
+      )
+      ..quadraticBezierTo(
+        size.width * 0.75,
+        size.height - 18,
+        size.width,
+        size.height - 10,
+      )
+      ..lineTo(size.width, 0)
+      ..close();
   }
 
   @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+  bool shouldReclip(covariant MerajHeaderClipper oldClipper) => false;
 }

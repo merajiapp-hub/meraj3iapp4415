@@ -179,24 +179,52 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // محاولات الاختبارات: يقرأ الطالب محاولاته فقط وينشئ محاولته بنفسه.
+    match /exam_attempts/{attemptId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
     // التقييمات العامة: القراءة متاحة، والكتابة محصورة في صاحب التقييم.
     // لا يعتمد التطبيق على البريد الإلكتروني في العرض أو التخزين.
     match /reviews/{reviewId} {
+      // Reviews are public content; administrators can still moderate them.
       allow read: if true;
       allow create: if isAuthenticated() &&
         request.resource.data.userId == request.auth.uid &&
         request.resource.data.keys().hasOnly([
-          'rating', 'text', 'userId', 'userName', 'createdAt', 'userEmail', 'userPhone', 'uid'
-        ]);
-      allow update: if isAdmin() || (isAuthenticated() &&
+          'rating', 'text', 'userId', 'userName', 'photoUrl', 'status',
+          'moderation', 'createdAt', 'updatedAt'
+        ]) &&
+        request.resource.data.rating is number &&
+        request.resource.data.rating >= 1 && request.resource.data.rating <= 5 &&
+        request.resource.data.text is string &&
+        request.resource.data.status == 'published' &&
+        request.resource.data.moderation == 'none';
+      allow update: if isAppAdmin() || (isAuthenticated() &&
         resource.data.userId == request.auth.uid &&
         request.resource.data.userId == request.auth.uid &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'text', 'createdAt']));
-      allow delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'text', 'updatedAt']) &&
+        request.resource.data.rating is number &&
+        request.resource.data.rating >= 1 && request.resource.data.rating <= 5);
+      allow delete: if isAppAdmin();
+    }
+
+    // قائمة المراجعة لا تُكشف للمستخدمين؛ الفحص النهائي يجب أن يتم في الإدارة.
+    match /bad_words/{wordId} {
+      allow read, write: if isAppAdmin();
     }
 
     match /chats/{chatId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAppAdmin());
+      // The client checks whether its chat exists before creating the first
+      // message. A missing document must be readable as a non-existent chat,
+      // while existing chats remain restricted to their owner or admins.
+      allow read: if isAuthenticated() &&
+        (!exists(/databases/$(database)/documents/chats/$(chatId)) ||
+         resource.data.userId == request.auth.uid || isAppAdmin());
       allow create: if isAuthenticated() &&
         request.resource.data.userId == request.auth.uid &&
         request.resource.data.keys().hasAny(['userId', 'lastMessage']);

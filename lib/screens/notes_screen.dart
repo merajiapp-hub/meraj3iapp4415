@@ -20,6 +20,7 @@ class NotesScreen extends StatefulWidget {
 
 class _NotesScreenState extends State<NotesScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _notesScrollController = ScrollController();
   bool _isGridView = true;
   String _activeCategory = 'الكل';
   bool _showFavoritesOnly = false;
@@ -59,6 +60,7 @@ class _NotesScreenState extends State<NotesScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _notesScrollController.dispose();
     super.dispose();
   }
 
@@ -187,7 +189,10 @@ class _NotesScreenState extends State<NotesScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              _buildHeader(isDark, themeColor),
+              ClipPath(
+                clipper: _NotesHeaderClipper(),
+                child: _buildHeader(isDark, themeColor),
+              ),
               _buildFilters(isDark),
 
               Expanded(
@@ -598,35 +603,49 @@ class _NotesScreenState extends State<NotesScreen> {
       );
     }
 
-    if (_isGridView) {
-      return MasonryGridView.count(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
-        crossAxisCount: 2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        itemCount: notes.length,
-        itemBuilder: (context, index) =>
-            _buildNoteCard(notes[index], isDark, provider, isTrash: isTrash),
-      );
-    } else {
-      return ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
-        itemCount: notes.length,
-        itemBuilder: (context, index) => Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: _buildNoteCard(
-            notes[index],
-            isDark,
-            provider,
-            isTrash: isTrash,
-          ),
-        ),
-      );
-    }
+    final content = _isGridView
+        ? MasonryGridView.count(
+            controller: _notesScrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
+            crossAxisCount: 2,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            itemCount: notes.length,
+            itemBuilder: (context, index) => _buildNoteCard(
+              notes[index],
+              isDark,
+              provider,
+              isTrash: isTrash,
+            ),
+          )
+        : ListView.builder(
+            controller: _notesScrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
+            itemCount: notes.length,
+            itemBuilder: (context, index) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildNoteCard(
+                notes[index],
+                isDark,
+                provider,
+                isTrash: isTrash,
+              ),
+            ),
+          );
+
+    return Scrollbar(
+      controller: _notesScrollController,
+      thumbVisibility: true,
+      child: content,
+    );
   }
 
   Widget _buildLiteraryIntro(bool isDark) {
     return SingleChildScrollView(
+      controller: _notesScrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(24, 10, 24, 100),
       child: Container(
         padding: const EdgeInsets.all(28),
@@ -1115,5 +1134,30 @@ class _NotesScreenState extends State<NotesScreen> {
       ),
     );
   }
+}
+
+class _NotesHeaderClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    return Path()
+      ..lineTo(0, size.height - 18)
+      ..quadraticBezierTo(
+        size.width * 0.28,
+        size.height + 12,
+        size.width * 0.52,
+        size.height - 8,
+      )
+      ..quadraticBezierTo(
+        size.width * 0.78,
+        size.height - 28,
+        size.width,
+        size.height - 14,
+      )
+      ..lineTo(size.width, 0)
+      ..close();
+  }
+
+  @override
+  bool shouldReclip(covariant _NotesHeaderClipper oldClipper) => false;
 }
 

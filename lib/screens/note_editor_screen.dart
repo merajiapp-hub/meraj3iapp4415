@@ -614,17 +614,33 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
             ),
             const SizedBox(height: 4),
             Expanded(
-              child: GestureDetector(
-                onTap: _readMode ? null : () => _editorFocusNode.requestFocus(),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Directionality(
-                    textDirection: TextDirection.rtl,
-                    child: quill.QuillEditor(
-                      controller: _quillController,
-                      focusNode: _editorFocusNode,
-                      scrollController: _scrollController,
-                      config: quill.QuillEditorConfig(
+              child: ColoredBox(
+                color: bgColor,
+                child: GestureDetector(
+                  onTap: _readMode ? null : () => _editorFocusNode.requestFocus(),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Directionality(
+                      textDirection: TextDirection.rtl,
+                      child: Material(
+                        color: bgColor,
+                        child: Theme(
+                          data: Theme.of(context).copyWith(
+                            canvasColor: bgColor,
+                            scaffoldBackgroundColor: bgColor,
+                            cardColor: bgColor,
+                            colorScheme: Theme.of(context).colorScheme.copyWith(
+                              surface: bgColor,
+                            ),
+                          ),
+                          child: ClipRect(
+                            child: ColoredBox(
+                              color: bgColor,
+                              child: quill.QuillEditor(
+                                controller: _quillController,
+                                focusNode: _editorFocusNode,
+                                scrollController: _scrollController,
+                                config: quill.QuillEditorConfig(
                         autoFocus: !_readMode,
                         expands: true,
                         scrollable: true,
@@ -669,13 +685,18 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                             const quill.VerticalSpacing(0, 0),
                             const quill.VerticalSpacing(0, 0), null, null,
                           ),
+                            ),
+                        ),
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
           ]),
         ),
         bottomNavigationBar: _readMode

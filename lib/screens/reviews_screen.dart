@@ -5,6 +5,7 @@ import 'package:intl/intl.dart' as intl;
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/curved_header.dart';
 
 
 class ReviewsScreen extends StatefulWidget {
@@ -34,10 +35,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'يرجى تسجيل الدخول أولاً',
-            style: GoogleFonts.tajawal(),
-          ),
+          content: Text('يرجى تسجيل الدخول أولاً', style: GoogleFonts.tajawal()),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -47,38 +45,43 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      // By using user.uid as the document ID, we enforce one review per user.
+      final reviewText = _reviewController.text.trim();
+      final profile = await _firestore.collection('users').doc(user.uid).get();
+      final profileData = profile.data() ?? <String, dynamic>{};
+      // Reviews are visible immediately; moderation can still be applied by
+      // the admin dashboard without hiding a newly submitted review.
+      const reviewStatus = 'published';
+
       await _firestore.collection('reviews').doc(user.uid).set({
         'rating': _currentRating,
-        'text': _reviewController.text.trim(),
+        'text': reviewText,
         'userId': user.uid,
-        'userName': user.displayName ?? 'مستخدم',
+        'userName': (profileData['fullName'] ?? profileData['name'] ?? user.displayName ?? 'مستخدم').toString(),
+        'photoUrl': profileData['profileImageUrl'] ?? profileData['photoUrl'] ?? user.photoURL,
+        'status': reviewStatus,
+        'moderation': 'none',
         'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
       _reviewController.clear();
       setState(() => _currentRating = 5.0);
 
       if (mounted) {
+        const msg = 'تم إرسال تقييمك بنجاح. شكراً لك!';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'تم إرسال تقييمك بنجاح. شكراً لك!',
-              style: GoogleFonts.tajawal(),
-            ),
+            content: Text(msg, style: GoogleFonts.tajawal()),
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context); // Close bottom sheet
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'حدث خطأ أثناء إرسال التقييم.',
-              style: GoogleFonts.tajawal(),
-            ),
+            content: Text('حدث خطأ أثناء إرسال التقييم.', style: GoogleFonts.tajawal()),
             backgroundColor: Colors.red,
           ),
         );
@@ -542,25 +545,20 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
 
     return Scaffold(
       backgroundColor: bg,
-      appBar: AppBar(
-        backgroundColor: bg,
-        elevation: 0,
-        iconTheme: IconThemeData(color: textCol),
-        title: Text(
-          'التقييمات والمراجعات',
-          style: GoogleFonts.tajawal(
-            fontWeight: FontWeight.bold,
-            color: textCol,
+      body: Column(
+        children: [
+          CurvedHeader(
+            title: 'التقييمات والمراجعات',
+            gradient: AppTheme.brandGradient,
+            trailing: Icon(Icons.star_rounded, color: Colors.amber.shade300),
           ),
-        ),
-        centerTitle: true,
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        // لا نفرض orderBy على Firestore حتى لا تفشل المستندات القديمة أو ينقص index.
-        stream: _firestore
-            .collection('reviews')
-            .snapshots(includeMetadataChanges: true),
-        builder: (context, snapshot) {
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              // لا نفرض orderBy حتى لا نحتاج فهرسًا مركبًا في الخطة المجانية.
+                stream: _firestore
+                  .collection('reviews')
+                  .snapshots(includeMetadataChanges: true),
+              builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(
               child: Padding(
@@ -596,7 +594,12 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
             return _buildReviewsSkeleton(isDark);
           }
 
-          final docs = [...?snapshot.data?.docs];
+          // Show only published reviews (or old reviews with no status field = published by default)
+          final docs = (snapshot.data?.docs ?? []).where((d) {
+            final data = d.data() as Map<String, dynamic>;
+            final status = data['status'] as String?;
+            return status == null || status == 'published';
+          }).toList();
           docs.sort((a, b) {
             final aData = a.data() as Map<String, dynamic>;
             final bData = b.data() as Map<String, dynamic>;
@@ -716,23 +719,23 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                             }
 
                             return Container(
-                              margin: const EdgeInsets.only(bottom: 14),
-                              padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
                                 color: surface,
-                                borderRadius: BorderRadius.circular(24),
+                                borderRadius: BorderRadius.circular(18),
                                 boxShadow: [
                                   BoxShadow(
                                     color: AppTheme.primaryColor.withValues(alpha: isDark ? 0.05 : 0.08),
-                                    blurRadius: 14,
-                                    offset: const Offset(0, 6),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
                                   ),
                                 ],
                                 // The green edge is the visual anchor used by the ratings design.
                                 border: Border(
                                   left: BorderSide(
                                     color: AppTheme.primaryColor,
-                                    width: 7,
+                                    width: 5,
                                   ),
                                   top: BorderSide(color: AppTheme.primaryColor.withValues(alpha: isDark ? 0.3 : 0.14)),
                                   right: BorderSide(color: AppTheme.primaryColor.withValues(alpha: isDark ? 0.3 : 0.14)),
@@ -745,7 +748,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                   Row(
                                     children: [
                                       CircleAvatar(
-                                        radius: 20,
+                                        radius: 14,
                                         backgroundColor: AppTheme.primaryColor
                                             .withValues(alpha: 0.15),
                                         child: Text(
@@ -757,10 +760,11 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                           style: GoogleFonts.tajawal(
                                             color: AppTheme.primaryColor,
                                             fontWeight: FontWeight.bold,
+                                            fontSize: 13,
                                           ),
                                         ),
                                       ),
-                                      const SizedBox(width: 12),
+                                      const SizedBox(width: 8),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment:
@@ -770,7 +774,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                               userName,
                                               style: GoogleFonts.tajawal(
                                                 fontWeight: FontWeight.bold,
-                                                fontSize: 16,
+                                                fontSize: 13,
                                                 color: textCol,
                                               ),
                                             ),
@@ -781,7 +785,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                                   'ar',
                                                 ).format(date),
                                                 style: GoogleFonts.tajawal(
-                                                  fontSize: 11,
+                                                  fontSize: 10,
                                                   color: isDark
                                                       ? Colors.white54
                                                       : Colors.black54,
@@ -798,28 +802,28 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                             children: List.generate(5, (starIndex) => Icon(
                                               starIndex < rating.round() ? Icons.star_rounded : Icons.star_outline_rounded,
                                               color: starIndex < rating.round() ? const Color(0xFFF6C945) : Colors.grey.shade300,
-                                              size: 17,
+                                              size: 14,
                                             )),
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
                                             rating.toStringAsFixed(1),
-                                            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.primaryColor),
+                                            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 11, color: AppTheme.primaryColor),
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(width: 12),
+                                      const SizedBox(width: 6),
                                       Container(
-                                        width: 72,
-                                        height: 72,
+                                        width: 32,
+                                        height: 32,
                                         decoration: BoxDecoration(
                                           color: AppTheme.primaryColor,
                                           shape: BoxShape.circle,
                                           boxShadow: [
                                             BoxShadow(
                                               color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                                              blurRadius: 8,
-                                              offset: const Offset(0, 3),
+                                              blurRadius: 6,
+                                              offset: const Offset(0, 2),
                                             ),
                                           ],
                                         ),
@@ -828,7 +832,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                           rating.round().toString(),
                                           style: GoogleFonts.outfit(
                                             color: Colors.white,
-                                            fontSize: 26,
+                                            fontSize: 14,
                                             fontWeight: FontWeight.w800,
                                           ),
                                         ),
@@ -836,13 +840,13 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                     ],
                                   ),
                                   if (text.isNotEmpty) ...[
-                                    const SizedBox(height: 16),
+                                    const SizedBox(height: 6),
                                     Container(
                                       width: double.infinity,
-                                      padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+                                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
                                       decoration: BoxDecoration(
                                         color: isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFF7F9FC),
-                                        borderRadius: BorderRadius.circular(16),
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -855,7 +859,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                               maxLines: _expandedReviews.contains(reviewId) ? null : 4,
                                               overflow: _expandedReviews.contains(reviewId) ? TextOverflow.visible : TextOverflow.ellipsis,
                                               textDirection: TextDirection.rtl,
-                                              style: GoogleFonts.tajawal(fontSize: 15, color: textCol.withValues(alpha: 0.85), height: 1.6),
+                                              style: GoogleFonts.tajawal(fontSize: 13, color: textCol.withValues(alpha: 0.85), height: 1.55),
                                             ),
                                           ),
                                           if (text.length > 180)
@@ -865,7 +869,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                                 onPressed: () => setState(() {
                                                   if (!_expandedReviews.add(reviewId)) _expandedReviews.remove(reviewId);
                                                 }),
-                                                child: Text(_expandedReviews.contains(reviewId) ? 'عرض أقل' : 'عرض المزيد', style: GoogleFonts.tajawal(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
+                                                child: Text(_expandedReviews.contains(reviewId) ? 'عرض أقل' : 'عرض المزيد', style: GoogleFonts.tajawal(color: AppTheme.primaryColor, fontWeight: FontWeight.bold, fontSize: 12)),
                                               ),
                                             ),
                                         ],
@@ -883,7 +887,10 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
               ),
             ],
           );
-        },
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: isGuest
           ? null

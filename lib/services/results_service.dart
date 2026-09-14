@@ -47,6 +47,31 @@ class StudentResult {
     required this.rawData,
   });
 
+  /// Converts Firestore/CSV values such as int, double, "85" or "85,5"
+  /// into one safe numeric value for result classification.
+  static double? parseTotalValue(Object? value) {
+    if (value is num) return value.toDouble();
+    if (value == null) return null;
+    final cleaned = value
+        .toString()
+        .trim()
+        .replaceAll(',', '.')
+        .replaceAll('٫', '.')
+        .replaceAll('\u00a0', '')
+        .replaceAll(' ', '');
+    if (cleaned.isEmpty) return null;
+    final match = RegExp(r'-?\d+(?:\.\d+)?').firstMatch(cleaned);
+    return match == null ? null : double.tryParse(match.group(0)!);
+  }
+
+  /// Central concours rule: TOTAL 85..200 passes, TOTAL 0..84 fails.
+  static String concoursStatusFromTotal(Object? total) {
+    final value = parseTotalValue(total);
+    if (value == null) return 'راسب';
+    if (value > 200 || value < 0) return 'بيانات غير صالحة';
+    return value >= 85 ? 'ناجح' : 'راسب';
+  }
+
   // ─── Flexible column mapping ───────────────────────────────────────────────
 
   /// ابحث عن أول قيمة غير فارغة تطابق أحد المفاتيح (case‑insensitive partial match)
@@ -140,8 +165,7 @@ class StudentResult {
     } else if (type == ExamType.concours) {
       // Concours: المجموع موجود في TOTAL أو غيره
       score = _findNumericField(row, ['total', 'المجموع', 'مجموع', 'score', 'note']);
-      score ??= _findNumericField(row, ['moyenne', 'moy', 'average', 'avg', 'معدل', 'moyg']);
-      // لا نستبدل TOTAL بمعدل أو حقل آخر؛ غياب TOTAL يعني أن النتيجة غير صالحة للتصنيف.
+      // لا نستبدل TOTAL بالمعدل؛ غياب TOTAL يعني أن النتيجة غير صالحة للتصنيف.
       averageScore = score != null ? (score / 200.0 * 20.0) : null;
     } else if (type == ExamType.brevet) {
       // Brevet: المعدل موجود في Moyg
@@ -194,17 +218,7 @@ class StudentResult {
     if (type == ExamType.concours) {
       // Concours classification is score-driven: 85..200 is successful.
       // Values above the documented maximum are invalid data, not failures.
-      if (!['غائب', 'مطرود'].contains(status)) {
-        if (score != null) {
-          if (score > 200.0) {
-            status = 'بيانات غير صالحة';
-          } else {
-            status = score >= 85.0 ? 'ناجح' : 'راسب';
-          }
-        } else if (status.isEmpty) {
-          status = 'راسب';
-        }
-      }
+      status = concoursStatusFromTotal(score);
     } else if (type == ExamType.excellence) {
       if (status.isEmpty) {
         status = (score != null && score >= 10.0) ? 'ناجح' : 'راسب';
@@ -386,7 +400,7 @@ class _CacheMeta {
 
 class ResultsService {
   // نستخدم ملفات على القرص لـ Cache البيانات الكبيرة بدل SharedPreferences
-  static const _metaPrefix = 'rc_meta_v6_'; // v6 = corrected concours score classification
+  static const _metaPrefix = 'rc_meta_v7_'; // v7 = invalidate stale status classifications
 
   /// 30 دقيقة: Soft Expiry
   static const _cacheSoftMs = 30 * 60 * 1000;
@@ -418,7 +432,7 @@ class ResultsService {
   }) async {
     if (url.isEmpty) return [];
 
-    final cacheKey = '${type.name}_${url.hashCode}_v2';
+    final cacheKey = '${type.name}_${url.hashCode}_v3';
 
     try {
       // طلب مماثل قيد التنفيذ
@@ -483,7 +497,7 @@ class ResultsService {
 
   static Future<void> clearCacheForUrl(ExamType type, String url) async {
     if (url.isEmpty) return;
-    final cacheKey = '${type.name}_${url.hashCode}_v2';
+    final cacheKey = '${type.name}_${url.hashCode}_v3';
     _memCache.remove(cacheKey);
     try {
       _deleteCacheFileQuietly(cacheKey);
@@ -1086,14 +1100,14 @@ class ResultsService {
 
   static Future<bool> isCacheStale(ExamType type, String url) async {
     if (url.isEmpty) return false;
-    final cacheKey = '${type.name}_${url.hashCode}_v2';
+    final cacheKey = '${type.name}_${url.hashCode}_v3';
     return _checkSoftExpiry(cacheKey);
   }
 
   static Future<DateTime?> lastUpdated(ExamType type, String url) async {
     if (url.isEmpty) return null;
     try {
-      final cacheKey = '${type.name}_${url.hashCode}_v2';
+      final cacheKey = '${type.name}_${url.hashCode}_v3';
       final prefs = await SharedPreferences.getInstance();
       final metaStr = prefs.getString(_metaPrefix + cacheKey);
       if (metaStr == null) return null;

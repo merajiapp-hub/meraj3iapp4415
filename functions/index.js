@@ -282,3 +282,40 @@ exports.sendAdminNotification = functions.https.onCall(async (data, context) => 
     storedCount,
   };
 });
+
+// Server-side moderation keeps the configurable word list private.
+exports.moderateReview = functions.firestore
+    .document("reviews/{reviewId}")
+    .onCreate(async (snapshot) => {
+      const review = snapshot.data() || {};
+      const text = typeof review.text === "string" ? review.text.trim() : "";
+      if (!text) return null;
+
+      const normalize = (value) => value
+          .normalize("NFKC")
+          .replace(/[\u064B-\u065F\u0670]/g, "")
+          .replace(/[إأآ]/g, "ا")
+          .replace(/ى/g, "ي")
+          .toLowerCase()
+          .trim();
+      const normalizedText = normalize(text);
+      const wordsSnapshot = await admin.firestore()
+          .collection("bad_words")
+          .where("isActive", "==", true)
+          .get();
+      const matchedWord = wordsSnapshot.docs
+          .map((doc) => normalize(doc.data().word || ""))
+          .filter((word) => word.length >= 2)
+          .find((word) => {
+            const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            return new RegExp(`(^|[\\s\\p{P}\\p{S}])${escaped}($|[\\s\\p{P}\\p{S}])`, "iu")
+                .test(normalizedText);
+          });
+
+      await snapshot.ref.update({
+        moderation: matchedWord ? "flagged" : "checked",
+        moderationReason: matchedWord ? "matched_configured_word" : null,
+        moderationCheckedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      return null;
+    });

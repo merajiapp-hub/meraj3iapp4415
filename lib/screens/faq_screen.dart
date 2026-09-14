@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../widgets/geometric_sliver_app_bar.dart';
+import '../theme/app_theme.dart';
 
 class FaqScreen extends StatelessWidget {
   const FaqScreen({super.key});
@@ -90,38 +92,10 @@ class FaqScreen extends StatelessWidget {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          SliverAppBar(
-            expandedHeight: 130,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                'الأسئلة الشائعة',
-                style: GoogleFonts.tajawal(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF7C3AED), Color(0xFF4F46E5)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: Align(
-                  alignment: Alignment.bottomRight,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Icon(
-                      Icons.quiz_rounded,
-                      size: 60,
-                      color: Colors.white.withValues(alpha: 0.12),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+          const GeometricSliverAppBar(
+            title: 'الأسئلة الشائعة',
+            icon: Icons.quiz_rounded,
+            gradient: AppTheme.brandGradient,
           ),
           SliverPadding(
             padding: const EdgeInsets.all(16),
