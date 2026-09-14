@@ -199,7 +199,8 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen>
               const SizedBox(width: 8),
               Container(
                 height: 40,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                width: 80,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF2A2A2A) : Colors.grey[50],
                   borderRadius: BorderRadius.circular(10),
@@ -210,10 +211,9 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen>
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<int>(
                     value: rows,
+                    isExpanded: true,
                     isDense: true,
                     menuMaxHeight: 220,
-                    menuWidth: 120,
-                    alignment: Alignment.center,
                     items: [2, 3, 4]
                         .map(
                           (e) => DropdownMenuItem(
@@ -232,7 +232,8 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen>
                 const SizedBox(width: 8),
                 Container(
                   height: 40,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  width: 80,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF2A2A2A) : Colors.grey[50],
                     borderRadius: BorderRadius.circular(10),
@@ -243,10 +244,9 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen>
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<int>(
                       value: cols,
+                      isExpanded: true,
                       isDense: true,
                       menuMaxHeight: 220,
-                      menuWidth: 120,
-                      alignment: Alignment.center,
                       items: [2, 3, 4]
                           .map(
                             (e) => DropdownMenuItem(

@@ -70,7 +70,6 @@ class _ScientificCalculatorScreenState
             children: [
               // ── Display Section ──
               Expanded(
-                flex: 3,
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
@@ -205,7 +204,7 @@ class _ScientificCalculatorScreenState
               ),
 
               // ── Keypad Section ──
-              const Expanded(flex: 7, child: SmartKeyboard()),
+              const SmartKeyboard(),
             ],
           ),
           ),

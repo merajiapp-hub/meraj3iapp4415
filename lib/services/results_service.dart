@@ -106,7 +106,7 @@ class StudentResult {
     ]);
 
     // ─── المدرسة والمركز والولاية ─────────────────────────────────────────
-    final school = _findField(row, [
+    String school = _findField(row, [
       'école',
       'ecole',
       'etablissement',
@@ -115,6 +115,9 @@ class StudentResult {
       'school',
     ]);
     final center = _findField(row, ['centre', 'مركز', 'center']);
+    if (school.isEmpty) {
+      school = center.isNotEmpty ? center : 'غير محدد';
+    }
     final wilaya = _findField(row, ['wilaya', 'ولاية']);
     final branch = _findField(row, [
       'filière',
@@ -135,8 +138,8 @@ class StudentResult {
       score = _findNumericField(row, ['mgex']);
       averageScore = score;
     } else if (type == ExamType.concours) {
-      // Concours: المجموع موجود في TOTAL
-      score = _findNumericField(row, ['total']);
+      // Concours: المجموع موجود في TOTAL أو غيره
+      score = _findNumericField(row, ['total', 'المجموع', 'مجموع', 'score', 'note']);
       // لا نستبدل TOTAL بمعدل أو حقل آخر؛ غياب TOTAL يعني أن النتيجة غير صالحة للتصنيف.
       averageScore = score != null ? (score / 200.0 * 20.0) : null;
     } else if (type == ExamType.brevet) {
@@ -191,10 +194,12 @@ class StudentResult {
       // Concours classification is score-driven: 85..200 is successful.
       // Values above the documented maximum are invalid data, not failures.
       if (!['غائب', 'مطرود'].contains(status)) {
-        if (score != null && score > 200.0) {
+        if (score == null) {
+          status = 'راسب';
+        } else if (score > 200.0) {
           status = 'بيانات غير صالحة';
         } else {
-          status = score != null && score >= 85.0 ? 'ناجح' : 'راسب';
+          status = score >= 85.0 ? 'ناجح' : 'راسب';
         }
       }
     } else if (type == ExamType.excellence) {
@@ -298,6 +303,7 @@ class StudentResult {
     }
 
     // الدورة التكميلية — حصرياً للبكالوريا الدورة العادية فقط!
+    // Note: Usually 'bac' is normal session and 'complementary' is the other one.
     if (type == ExamType.bac) {
       if (lower.contains('complémentaire') ||
           lower.contains('complementaire') ||
@@ -409,7 +415,7 @@ class ResultsService {
   }) async {
     if (url.isEmpty) return [];
 
-    final cacheKey = '${type.name}_${url.hashCode}';
+    final cacheKey = '${type.name}_${url.hashCode}_v2';
 
     try {
       // طلب مماثل قيد التنفيذ
@@ -474,7 +480,7 @@ class ResultsService {
 
   static Future<void> clearCacheForUrl(ExamType type, String url) async {
     if (url.isEmpty) return;
-    final cacheKey = '${type.name}_${url.hashCode}';
+    final cacheKey = '${type.name}_${url.hashCode}_v2';
     _memCache.remove(cacheKey);
     try {
       _deleteCacheFileQuietly(cacheKey);
@@ -770,13 +776,10 @@ class ResultsService {
         }
       }
 
-      final unique = <String, StudentResult>{};
-      for (final result in results) {
-        final identity =
-            '${result.id.trim().toLowerCase()}|${result.name.trim().toLowerCase()}|${result.school.trim().toLowerCase()}';
-        unique.putIfAbsent(identity, () => result);
-      }
-      return _assignRanks(unique.values.toList(), type);
+      // Remove deduplication by ID, since IDs can be empty for many students.
+      // Simply use the raw results list, CSVs shouldn't have exact duplicates,
+      // and if they do, we'd rather show them than drop legitimate identical names.
+      return _assignRanks(results, type);
     } catch (_) {
       return [];
     }
@@ -1080,14 +1083,14 @@ class ResultsService {
 
   static Future<bool> isCacheStale(ExamType type, String url) async {
     if (url.isEmpty) return false;
-    final cacheKey = '${type.name}_${url.hashCode}';
+    final cacheKey = '${type.name}_${url.hashCode}_v2';
     return _checkSoftExpiry(cacheKey);
   }
 
   static Future<DateTime?> lastUpdated(ExamType type, String url) async {
     if (url.isEmpty) return null;
     try {
-      final cacheKey = '${type.name}_${url.hashCode}';
+      final cacheKey = '${type.name}_${url.hashCode}_v2';
       final prefs = await SharedPreferences.getInstance();
       final metaStr = prefs.getString(_metaPrefix + cacheKey);
       if (metaStr == null) return null;
@@ -1100,3 +1103,4 @@ class ResultsService {
     }
   }
 }
+

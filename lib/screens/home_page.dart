@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -18,13 +18,14 @@ import '../theme/app_theme.dart';
 import 'search_screen.dart';
 
 import 'settings_screen.dart';
-import 'added_books_screen.dart';
+
 import 'profile_screen.dart';
 import 'reviews_screen.dart';
 
 import 'info_screen.dart';
 import 'login_screen.dart';
 import 'stages_screen.dart';
+import 'references_screen.dart';
 import 'contact_screen.dart';
 import 'faq_screen.dart';
 import 'privacy_policy_screen.dart';
@@ -37,7 +38,7 @@ import 'student/reading_history_screen.dart';
 import '../widgets/banner_ad_widget.dart';
 import '../features/smart_calculator/ui/screens/smart_calculator_screen.dart';
 import 'services_screen.dart';
-import 'add_book_screen.dart';
+
 
 class HomePage extends StatefulWidget {
   final bool isGuest;
@@ -187,7 +188,6 @@ class _HomePageState extends State<HomePage>
       },
       child: Scaffold(
         drawer: _buildDrawer(),
-        floatingActionButton: _buildFloatingActionButton(),
         body: Column(
           children: [
             // ══════════════════════════════════════════
@@ -432,57 +432,7 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  // ══════════════════════════════════════════════════════
-  //  زر إضافة كتاب (FAB)
-  // ══════════════════════════════════════════════════════
-  Widget _buildFloatingActionButton() {
-    return Container(
-      margin: const EdgeInsets.only(
-        bottom: 90,
-      ), // مرفوع قليلاً لكي لا يصطدم بالشريط السفلي
-      decoration: BoxDecoration(
-        gradient: AppTheme.brandGradient,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryColor.withValues(alpha: 0.4),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: FloatingActionButton(
-        onPressed: () {
-          final isEnabled = context.read<AppConfigProvider>().isFeatureEnabled(
-            'books_upload_enabled',
-          );
-          if (!isEnabled) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'خدمة رفع الكتب قيد الصيانة حالياً',
-                  style: GoogleFonts.tajawal(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                backgroundColor: Colors.orange,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-            return;
-          }
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AddBookScreen()),
-          );
-        },
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        child: const Icon(Icons.add_rounded, size: 30, color: Colors.white),
-      ),
-    );
-  }
+
 
   // ══════════════════════════════════════════════════════
   //  Grid الأزرار الرئيسية الست
@@ -492,11 +442,25 @@ class _HomePageState extends State<HomePage>
       _ServiceItem(
         title: 'المراحل الدراسية',
         icon: Icons.school_rounded,
-        gradient: AppTheme.blueGradient,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         badge: null,
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const StagesScreen()),
+        ),
+      ),
+      _ServiceItem(
+        title: 'مراجع أخرى',
+        icon: Icons.menu_book_rounded,
+        gradient: AppTheme.blueGradient,
+        badge: null,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ReferencesScreen()),
         ),
       ),
       _ServiceItem(
@@ -633,10 +597,10 @@ class _HomePageState extends State<HomePage>
                 children: [
                   // الأيقونة
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       gradient: service.gradient,
-                      borderRadius: BorderRadius.circular(11),
+                      borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
                           color: (service.gradient as LinearGradient)
@@ -650,15 +614,15 @@ class _HomePageState extends State<HomePage>
                     ),
                     child: service.imagePath != null
                         ? ClipRRect(
-                            borderRadius: BorderRadius.circular(7),
+                            borderRadius: BorderRadius.circular(8),
                             child: Image.asset(
                               service.imagePath!,
-                              width: 20,
-                              height: 20,
+                              width: 36,
+                              height: 36,
                               fit: BoxFit.contain,
                             ),
                           )
-                        : Icon(service.icon, color: Colors.white, size: 18),
+                        : Icon(service.icon, color: Colors.white, size: 34),
                   ),
 
                   // النص
@@ -1086,13 +1050,13 @@ class _HomePageState extends State<HomePage>
               children: [
                 _buildDrawerItem(
                   Icons.library_books_rounded,
-                  'الكتب المضافة',
+                  'مراجع أخرى',
                   () {
                     Navigator.pop(context);
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const AddedBooksScreen(),
+                        builder: (_) => const ReferencesScreen(),
                       ),
                     );
                   },
@@ -1439,3 +1403,4 @@ class _AnimatedCardState extends State<_AnimatedCard>
     );
   }
 }
+

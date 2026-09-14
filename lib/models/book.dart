@@ -19,6 +19,11 @@ class Book {
   final String? linkStatus;
   final bool isActive;
   final DateTime? addedAt;
+  
+  // New fields for hierarchical categories
+  final String? categoryId;
+  final List<String>? categoryPath;
+  final List<String> categoryIds;
 
   const Book({
     required this.id,
@@ -37,6 +42,9 @@ class Book {
     this.linkStatus,
     this.isActive = true,
     this.addedAt,
+    this.categoryId,
+    this.categoryPath,
+    this.categoryIds = const [],
   });
 
   /// مفتاح فريد يجمع كل خصائص الكتاب لتجنب التكرار
@@ -111,6 +119,15 @@ class Book {
     final rawCategory = value('category', value('type', value('bookType')));
     final rawSubject = value('subject', value('material'));
     final rawUrl = value('url', value('drive_link', value('pdfUrl', value('fileUrl', value('downloadUrl')))));
+    
+    List<String>? parsedCategoryPath;
+    if (map['categoryPath'] != null) {
+      if (map['categoryPath'] is List) {
+        parsedCategoryPath = List<String>.from(map['categoryPath']);
+      } else if (map['categoryPath'] is String) {
+        parsedCategoryPath = (map['categoryPath'] as String).split(',').map((e) => e.trim()).toList();
+      }
+    }
 
     return Book(
       id: documentId.isNotEmpty ? documentId : value('id'),
@@ -133,6 +150,11 @@ class Book {
       linkStatus: value('linkStatus').isEmpty ? null : value('linkStatus'),
       isActive: map['is_active'] ?? map['isActive'] ?? true,
       addedAt: addedAt,
+      categoryId: map['categoryId'] as String?,
+      categoryPath: parsedCategoryPath,
+      categoryIds: map['categoryIds'] != null
+          ? List<String>.from(map['categoryIds'])
+          : (map['categoryId'] != null ? [map['categoryId'].toString()] : []),
     );
   }
 
@@ -154,6 +176,8 @@ class Book {
       'linkStatus': linkStatus,
       'is_active': isActive,
       'isActive': isActive,
+      if (categoryId != null) 'categoryId': categoryId,
+      if (categoryPath != null) 'categoryPath': categoryPath,
     };
   }
 
@@ -166,6 +190,8 @@ class Book {
     String? extractedFileId,
     String? category,
     String? grade,
+    String? categoryId,
+    List<String>? categoryPath,
   }) {
     return Book(
       id: id, // ← id لا يتغير أبداً
@@ -184,6 +210,8 @@ class Book {
       linkStatus: linkStatus ?? this.linkStatus,
       isActive: isActive,
       addedAt: addedAt,
+      categoryId: categoryId ?? this.categoryId,
+      categoryPath: categoryPath ?? this.categoryPath,
     );
   }
 

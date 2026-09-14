@@ -9,7 +9,8 @@ class AppConfigProvider extends ChangeNotifier {
   SharedPreferences? _prefs;
 
   bool _maintenanceMode = false;
-  String _maintenanceMessage = 'نعمل الآن على إجراء بعض التحسينات الهامة.\nسيعود التطبيق للعمل بشكل طبيعي قريباً.';
+  String _maintenanceMessage =
+      'نعمل الآن على إجراء بعض التحسينات الهامة.\nسيعود التطبيق للعمل بشكل طبيعي قريباً.';
   bool _registrationOpen = true;
   bool _allowGuestView = false;
 
@@ -45,7 +46,8 @@ class AppConfigProvider extends ChangeNotifier {
     if (_prefs == null) return;
 
     _maintenanceMode = _prefs!.getBool('maintenance_mode') ?? false;
-    _maintenanceMessage = _prefs!.getString('maintenance_message') ?? _maintenanceMessage;
+    _maintenanceMessage =
+        _prefs!.getString('maintenance_message') ?? _maintenanceMessage;
     _registrationOpen = _prefs!.getBool('registration_open') ?? true;
     _allowGuestView = _prefs!.getBool('allow_guest_view') ?? false;
 
@@ -64,8 +66,14 @@ class AppConfigProvider extends ChangeNotifier {
   Future<void> _saveFlagsToCache(Map<String, dynamic> data) async {
     if (_prefs == null) return;
     await _prefs!.setBool('ai_enabled', data['ai_enabled'] == true);
-    await _prefs!.setBool('competition_enabled', data['competition_enabled'] == true);
-    await _prefs!.setBool('books_upload_enabled', data['books_upload_enabled'] == true);
+    await _prefs!.setBool(
+      'competition_enabled',
+      data['competition_enabled'] == true,
+    );
+    await _prefs!.setBool(
+      'books_upload_enabled',
+      data['books_upload_enabled'] == true,
+    );
     await _prefs!.setBool('quizzes_enabled', data['quizzes_enabled'] == true);
     await _prefs!.setBool('results_enabled', data['results_enabled'] == true);
   }
@@ -83,25 +91,28 @@ class AppConfigProvider extends ChangeNotifier {
         .collection('admin_settings')
         .doc('feature_flags')
         .snapshots()
-        .listen((snapshot) {
-      if (snapshot.exists && snapshot.data() != null) {
-        final data = snapshot.data()!;
-        _featureFlags = {
-          'ai_enabled': data['ai_enabled'] ?? true,
-          'competition_enabled': data['competition_enabled'] ?? true,
-          'books_upload_enabled': data['books_upload_enabled'] ?? true,
-          'quizzes_enabled': data['quizzes_enabled'] ?? true,
-          'results_enabled': data['results_enabled'] ?? true,
-        };
-        _saveFlagsToCache(data);
-      }
-      _initialized = true;
-      notifyListeners();
-    }, onError: (error) {
-      debugPrint('[AppConfig] Error listening to feature flags: $error');
-      _initialized = true;
-      notifyListeners();
-    });
+        .listen(
+          (snapshot) {
+            if (snapshot.exists && snapshot.data() != null) {
+              final data = snapshot.data()!;
+              _featureFlags = {
+                'ai_enabled': data['ai_enabled'] ?? true,
+                'competition_enabled': data['competition_enabled'] ?? true,
+                'books_upload_enabled': data['books_upload_enabled'] ?? true,
+                'quizzes_enabled': data['quizzes_enabled'] ?? true,
+                'results_enabled': data['results_enabled'] ?? true,
+              };
+              _saveFlagsToCache(data);
+            }
+            _initialized = true;
+            notifyListeners();
+          },
+          onError: (error) {
+            debugPrint('[AppConfig] Error listening to feature flags: $error');
+            _initialized = true;
+            notifyListeners();
+          },
+        );
   }
 
   void _listenToMaintenanceMode() {
@@ -109,16 +120,21 @@ class AppConfigProvider extends ChangeNotifier {
         .collection('app_settings')
         .doc('maintenance')
         .snapshots()
-        .listen((snapshot) {
-      final settings = AppSettings.fromFirestore(snapshot.data());
-      _maintenanceMode = settings.maintenanceMode;
-      _maintenanceMessage = settings.maintenanceMessage;
-      _saveAppSettingsToCache(settings);
-      notifyListeners();
-    }, onError: (error) {
-      debugPrint('[AppConfig] Error listening to maintenance mode: $error');
-      notifyListeners();
-    });
+        .listen(
+          (snapshot) {
+            final settings = AppSettings.fromFirestore(snapshot.data());
+            _maintenanceMode = settings.maintenanceMode;
+            _maintenanceMessage = settings.maintenanceMessage;
+            _saveAppSettingsToCache(settings);
+            notifyListeners();
+          },
+          onError: (error) {
+            debugPrint(
+              '[AppConfig] Error listening to maintenance mode: $error',
+            );
+            notifyListeners();
+          },
+        );
   }
 
   void _listenToAppSettings() {
@@ -126,22 +142,28 @@ class AppConfigProvider extends ChangeNotifier {
         .collection('app_config')
         .doc('settings')
         .snapshots()
-        .listen((snapshot) {
-      final settings = AppSettings.fromFirestore(snapshot.data());
-      _registrationOpen = settings.registrationOpen;
-      _allowGuestView = settings.allowGuestView;
-      _saveAppSettingsToCache(settings);
-      notifyListeners();
-    }, onError: (error) {
-      debugPrint('[AppConfig] Error listening to app settings: $error');
-      notifyListeners();
-    });
+        .listen(
+          (snapshot) {
+            final settings = AppSettings.fromFirestore(snapshot.data());
+            _registrationOpen = settings.registrationOpen;
+            _allowGuestView = settings.allowGuestView;
+            _saveAppSettingsToCache(settings);
+            notifyListeners();
+          },
+          onError: (error) {
+            debugPrint('[AppConfig] Error listening to app settings: $error');
+            notifyListeners();
+          },
+        );
   }
 
   /// يمكن استدعاء هذه الدالة للتحقق اليدوي (مثلاً عند الضغط على زر إعادة المحاولة)
   Future<void> checkMaintenanceStatus() async {
     try {
-      final doc = await _firestore.collection('app_settings').doc('maintenance').get();
+      final doc = await _firestore
+          .collection('app_settings')
+          .doc('maintenance')
+          .get();
       final settings = AppSettings.fromFirestore(doc.data());
       _maintenanceMode = settings.maintenanceMode;
       _maintenanceMessage = settings.maintenanceMessage;
@@ -155,7 +177,10 @@ class AppConfigProvider extends ChangeNotifier {
 
   Future<void> checkAppSettings() async {
     try {
-      final doc = await _firestore.collection('app_config').doc('settings').get();
+      final doc = await _firestore
+          .collection('app_config')
+          .doc('settings')
+          .get();
       final settings = AppSettings.fromFirestore(doc.data());
       _registrationOpen = settings.registrationOpen;
       _allowGuestView = settings.allowGuestView;
@@ -165,11 +190,6 @@ class AppConfigProvider extends ChangeNotifier {
       debugPrint('[AppConfig] Error checking app settings: $e');
       notifyListeners();
     }
-  }
-
-  Future<void> _saveMaintenanceToCache() async {
-    await _prefs?.setBool('maintenance_mode', _maintenanceMode);
-    await _prefs?.setString('maintenance_message', _maintenanceMessage);
   }
 
   bool isFeatureEnabled(String featureKey) {

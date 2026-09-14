@@ -53,51 +53,6 @@ class ServicesScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    gradient: AppTheme.brandGradient,
-                    borderRadius: BorderRadius.circular(26),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Image.asset('assets/images/logo.png'),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Text(
-                          'اختر الخدمة التي تناسبك',
-                          style: GoogleFonts.tajawal(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        color: Colors.white70,
-                        size: 18,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 22),
                 _buildAllServicesGrid(context, size, isDark),
               ],
             ),

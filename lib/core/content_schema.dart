@@ -6,9 +6,11 @@ String _normalizeDriveUrl(String? rawUrl) {
   final value = (rawUrl ?? '').trim();
   if (value.isEmpty) return '';
 
-  final fileId = RegExp(r'/file/d/([a-zA-Z0-9_-]+)|[?&]id=([a-zA-Z0-9_-]+)')
-      .firstMatch(value)
-      ?.group(1 ?? 2);
+  final match = RegExp(
+    r'/file/d/([a-zA-Z0-9_-]+)|[?&]id=([a-zA-Z0-9_-]+)',
+  ).firstMatch(value);
+  // الإصلاح: فحص المجموعة الأولى، وإذا كانت null نفحص المجموعة الثانية
+  final fileId = match?.group(1) ?? match?.group(2);
 
   if (fileId != null && fileId.isNotEmpty) {
     return 'https://drive.google.com/file/d/$fileId/view';
@@ -35,9 +37,12 @@ Map<String, dynamic> normalizeBookData({
   final normalizedSubject = _normalizeText(subject);
   final normalizedTitle = _normalizeText(title);
   final normalizedUrl = _normalizeDriveUrl(url);
-  final fileId = RegExp(r'/file/d/([a-zA-Z0-9_-]+)|[?&]id=([a-zA-Z0-9_-]+)')
-      .firstMatch(normalizedUrl)
-      ?.group(1 ?? 2);
+
+  final match = RegExp(
+    r'/file/d/([a-zA-Z0-9_-]+)|[?&]id=([a-zA-Z0-9_-]+)',
+  ).firstMatch(normalizedUrl);
+  // الإصلاح: تطبيق نفس التعديل هنا لاستخراج الـ fileId بشكل صحيح
+  final fileId = match?.group(1) ?? match?.group(2);
 
   return {
     'title': normalizedTitle,
@@ -126,6 +131,12 @@ Map<String, dynamic> normalizeExamData({
   final normalizedStage = _normalizeText(stage);
   final normalizedGrade = _normalizeText(grade);
 
+  // التحسين: تنظيف القائمة مرة واحدة فقط لتقليل العمليات
+  final cleanQuestionIds = (questionIds ?? [])
+      .map((e) => e.trim())
+      .where((e) => e.isNotEmpty)
+      .toList();
+
   return {
     'title': normalizedTitle,
     'subject': normalizedSubject,
@@ -135,8 +146,8 @@ Map<String, dynamic> normalizeExamData({
     'grade': normalizedGrade,
     'year': normalizedGrade,
     'duration': duration,
-    'questionIds': (questionIds ?? []).map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
-    'questionCount': (questionIds ?? []).map((e) => e.trim()).where((e) => e.isNotEmpty).length,
+    'questionIds': cleanQuestionIds,
+    'questionCount': cleanQuestionIds.length,
     'isActive': isActive,
     'is_active': isActive,
     'isPublished': isPublished,

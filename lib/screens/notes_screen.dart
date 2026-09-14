@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart' as intl;
@@ -7,7 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../providers/notes_provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
-import '../widgets/geometric_header_card.dart';
+
 import '../services/note_export_service.dart';
 import 'note_editor_screen.dart';
 
@@ -188,11 +188,6 @@ class _NotesScreenState extends State<NotesScreen> {
           child: Column(
             children: [
               _buildHeader(isDark, themeColor),
-              const GeometricHeaderCard(
-                title: 'مساحتك الذكية',
-                subtitle: 'رتّب أفكارك واحتفظ بملاحظاتك في مكان واحد.',
-                icon: Icons.auto_awesome_rounded,
-              ),
               _buildFilters(isDark),
 
               Expanded(
@@ -362,16 +357,20 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   Widget _buildFilters(bool isDark) {
+    final provider = Provider.of<NotesProvider>(context, listen: false);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Favorites Toggle
+        // Favorites & Trash Toggle
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           child: Row(
             children: [
               GestureDetector(
-                onTap: () => setState(() => _showFavoritesOnly = false),
+                onTap: () {
+                  setState(() => _showFavoritesOnly = false);
+                  provider.setTab('all');
+                },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(
@@ -379,7 +378,7 @@ class _NotesScreenState extends State<NotesScreen> {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: !_showFavoritesOnly
+                    color: !_showFavoritesOnly && provider.currentTab != 'trash'
                         ? AppTheme.primaryColor
                         : (isDark ? Colors.white12 : Colors.grey[200]),
                     borderRadius: BorderRadius.circular(20),
@@ -387,7 +386,8 @@ class _NotesScreenState extends State<NotesScreen> {
                   child: Text(
                     'الكل',
                     style: GoogleFonts.tajawal(
-                      color: !_showFavoritesOnly
+                      color:
+                          !_showFavoritesOnly && provider.currentTab != 'trash'
                           ? Colors.white
                           : (isDark ? Colors.white70 : Colors.black87),
                       fontWeight: FontWeight.bold,
@@ -397,7 +397,10 @@ class _NotesScreenState extends State<NotesScreen> {
               ),
               const SizedBox(width: 8),
               GestureDetector(
-                onTap: () => setState(() => _showFavoritesOnly = true),
+                onTap: () {
+                  setState(() => _showFavoritesOnly = true);
+                  provider.setTab('favorites');
+                },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(
@@ -405,7 +408,7 @@ class _NotesScreenState extends State<NotesScreen> {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: _showFavoritesOnly
+                    color: _showFavoritesOnly && provider.currentTab != 'trash'
                         ? AppTheme.secondaryColor
                         : (isDark ? Colors.white12 : Colors.grey[200]),
                     borderRadius: BorderRadius.circular(20),
@@ -415,7 +418,8 @@ class _NotesScreenState extends State<NotesScreen> {
                       Icon(
                         Icons.star_rounded,
                         size: 16,
-                        color: _showFavoritesOnly
+                        color:
+                            _showFavoritesOnly && provider.currentTab != 'trash'
                             ? Colors.white
                             : (isDark ? Colors.white70 : Colors.black54),
                       ),
@@ -423,7 +427,51 @@ class _NotesScreenState extends State<NotesScreen> {
                       Text(
                         'المفضلة',
                         style: GoogleFonts.tajawal(
-                          color: _showFavoritesOnly
+                          color:
+                              _showFavoritesOnly &&
+                                  provider.currentTab != 'trash'
+                              ? Colors.white
+                              : (isDark ? Colors.white70 : Colors.black87),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const Spacer(),
+              // Trash Tab
+              GestureDetector(
+                onTap: () {
+                  setState(() => _showFavoritesOnly = false);
+                  provider.setTab('trash');
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: provider.currentTab == 'trash'
+                        ? Colors.red[400]
+                        : (isDark ? Colors.white12 : Colors.grey[200]),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.delete_sweep_rounded,
+                        size: 16,
+                        color: provider.currentTab == 'trash'
+                            ? Colors.white
+                            : (isDark ? Colors.white70 : Colors.black54),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'المهملات',
+                        style: GoogleFonts.tajawal(
+                          color: provider.currentTab == 'trash'
                               ? Colors.white
                               : (isDark ? Colors.white70 : Colors.black87),
                           fontWeight: FontWeight.bold,
@@ -438,51 +486,52 @@ class _NotesScreenState extends State<NotesScreen> {
         ),
 
         // Categories
-        SizedBox(
-          height: 40,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: _categories.length,
-            itemBuilder: (context, index) {
-              final cat = _categories[index];
-              final isSelected = _activeCategory == cat;
-              return GestureDetector(
-                onTap: () => setState(() => _activeCategory = cat),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  margin: const EdgeInsets.only(left: 8),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? (isDark ? Colors.white : Colors.black87)
-                        : Colors.transparent,
-                    border: Border.all(
-                      color: isSelected
-                          ? Colors.transparent
-                          : (isDark ? Colors.white30 : Colors.black26),
+        if (provider.currentTab != 'trash')
+          SizedBox(
+            height: 40,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              itemCount: _categories.length,
+              itemBuilder: (context, index) {
+                final cat = _categories[index];
+                final isSelected = _activeCategory == cat;
+                return GestureDetector(
+                  onTap: () => setState(() => _activeCategory = cat),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.only(left: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
                     ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    cat,
-                    style: GoogleFonts.tajawal(
+                    decoration: BoxDecoration(
                       color: isSelected
-                          ? (isDark ? Colors.black : Colors.white)
-                          : (isDark ? Colors.white : Colors.black87),
-                      fontWeight: isSelected
-                          ? FontWeight.bold
-                          : FontWeight.normal,
+                          ? (isDark ? Colors.white : Colors.black87)
+                          : Colors.transparent,
+                      border: Border.all(
+                        color: isSelected
+                            ? Colors.transparent
+                            : (isDark ? Colors.white30 : Colors.black26),
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      cat,
+                      style: GoogleFonts.tajawal(
+                        color: isSelected
+                            ? (isDark ? Colors.black : Colors.white)
+                            : (isDark ? Colors.white : Colors.black87),
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
                     ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
-        ),
         const SizedBox(height: 12),
       ],
     );
@@ -490,15 +539,18 @@ class _NotesScreenState extends State<NotesScreen> {
 
   Widget _buildContent(NotesProvider provider, bool isDark) {
     // Basic pre-filtered notes from provider
-    var notes = provider.notes;
+    final isTrash = provider.currentTab == 'trash';
+    var notes = isTrash ? provider.trashedNotes : provider.notes;
 
-    // Apply local filters (Favorites, Categories, Search)
-    if (_showFavoritesOnly) {
-      notes = notes.where((n) => n.isFavorite).toList();
-    }
+    // Apply local filters (Favorites, Categories, Search) if not in trash
+    if (!isTrash) {
+      if (_showFavoritesOnly) {
+        notes = notes.where((n) => n.isFavorite).toList();
+      }
 
-    if (_activeCategory != 'الكل') {
-      notes = notes.where((n) => n.tags.contains(_activeCategory)).toList();
+      if (_activeCategory != 'الكل') {
+        notes = notes.where((n) => n.tags.contains(_activeCategory)).toList();
+      }
     }
 
     final query = _searchController.text.toLowerCase().trim();
@@ -511,8 +563,10 @@ class _NotesScreenState extends State<NotesScreen> {
     }
 
     if (provider.notes.isEmpty &&
+        provider.trashedNotes.isEmpty &&
         query.isEmpty &&
         !_showFavoritesOnly &&
+        !isTrash &&
         _activeCategory == 'الكل') {
       return _buildLiteraryIntro(isDark);
     }
@@ -523,7 +577,7 @@ class _NotesScreenState extends State<NotesScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.search_off_rounded,
+              isTrash ? Icons.delete_outline_rounded : Icons.search_off_rounded,
               size: 80,
               color: (isDark ? Colors.white : Colors.black).withValues(
                 alpha: 0.2,
@@ -531,7 +585,7 @@ class _NotesScreenState extends State<NotesScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'لا توجد ملاحظات مطابقة',
+              isTrash ? 'سلة المهملات فارغة' : 'لا توجد ملاحظات مطابقة',
               style: GoogleFonts.tajawal(
                 fontSize: 18,
                 color: (isDark ? Colors.white : Colors.black).withValues(
@@ -552,7 +606,7 @@ class _NotesScreenState extends State<NotesScreen> {
         crossAxisSpacing: 12,
         itemCount: notes.length,
         itemBuilder: (context, index) =>
-            _buildNoteCard(notes[index], isDark, provider),
+            _buildNoteCard(notes[index], isDark, provider, isTrash: isTrash),
       );
     } else {
       return ListView.builder(
@@ -560,7 +614,12 @@ class _NotesScreenState extends State<NotesScreen> {
         itemCount: notes.length,
         itemBuilder: (context, index) => Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: _buildNoteCard(notes[index], isDark, provider),
+          child: _buildNoteCard(
+            notes[index],
+            isDark,
+            provider,
+            isTrash: isTrash,
+          ),
         ),
       );
     }
@@ -721,7 +780,12 @@ class _NotesScreenState extends State<NotesScreen> {
     }
   }
 
-  Widget _buildNoteCard(Note note, bool isDark, NotesProvider provider) {
+  Widget _buildNoteCard(
+    Note note,
+    bool isDark,
+    NotesProvider provider, {
+    bool isTrash = false,
+  }) {
     final hasColor =
         note.color != null && note.color != Colors.white.toARGB32();
     final cardColor = hasColor
@@ -783,47 +847,72 @@ class _NotesScreenState extends State<NotesScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                GestureDetector(
-                  onTap: () {
-                    provider.updateNote(
-                      note.id,
-                      note.title,
-                      note.content,
-                      isFavorite: !note.isFavorite,
-                      tags: note.tags,
-                      color: note.color,
-                    );
-                  },
-                  child: Icon(
-                    note.isFavorite
-                        ? Icons.star_rounded
-                        : Icons.star_border_rounded,
-                    color: note.isFavorite ? Colors.orange : secondaryTextColor,
-                    size: 22,
-                  ),
-                ),
-                PopupMenuButton<String>(
-                  icon: Icon(
-                    Icons.ios_share_rounded,
-                    size: 20,
-                    color: secondaryTextColor,
-                  ),
-                  tooltip: 'تصدير الملاحظة',
-                  onSelected: (value) => _exportNote(note, pdf: value == 'pdf'),
-                  itemBuilder: (_) => [
-                    PopupMenuItem(
-                      value: 'pdf',
-                      child: Text('تصدير PDF', style: GoogleFonts.tajawal()),
+                if (isTrash)
+                  GestureDetector(
+                    onTap: () {
+                      provider.restoreFromTrash(note.id);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'تم استعادة الملاحظة.',
+                            style: GoogleFonts.tajawal(),
+                          ),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    },
+                    child: Icon(
+                      Icons.restore_rounded,
+                      color: Colors.green,
+                      size: 24,
                     ),
-                    PopupMenuItem(
-                      value: 'txt',
-                      child: Text(
-                        'تصدير ملف نصي',
-                        style: GoogleFonts.tajawal(),
+                  )
+                else ...[
+                  GestureDetector(
+                    onTap: () {
+                      provider.updateNote(
+                        note.id,
+                        note.title,
+                        note.content,
+                        isFavorite: !note.isFavorite,
+                        tags: note.tags,
+                        color: note.color,
+                      );
+                    },
+                    child: Icon(
+                      note.isFavorite
+                          ? Icons.star_rounded
+                          : Icons.star_border_rounded,
+                      color: note.isFavorite
+                          ? Colors.orange
+                          : secondaryTextColor,
+                      size: 22,
+                    ),
+                  ),
+                  PopupMenuButton<String>(
+                    icon: Icon(
+                      Icons.ios_share_rounded,
+                      size: 20,
+                      color: secondaryTextColor,
+                    ),
+                    tooltip: 'تصدير الملاحظة',
+                    onSelected: (value) =>
+                        _exportNote(note, pdf: value == 'pdf'),
+                    itemBuilder: (_) => [
+                      PopupMenuItem(
+                        value: 'pdf',
+                        child: Text('تصدير PDF', style: GoogleFonts.tajawal()),
                       ),
-                    ),
-                  ],
-                ),
+                      PopupMenuItem(
+                        value: 'txt',
+                        child: Text(
+                          'تصدير ملف نصي',
+                          style: GoogleFonts.tajawal(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 8),
@@ -871,14 +960,25 @@ class _NotesScreenState extends State<NotesScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () => _confirmDelete(context, note, provider),
-                  child: Icon(
-                    Icons.delete_outline_rounded,
-                    size: 18,
-                    color: Colors.red[300],
+                if (isTrash)
+                  GestureDetector(
+                    onTap: () =>
+                        _confirmPermanentDelete(context, note, provider),
+                    child: Icon(
+                      Icons.delete_forever_rounded,
+                      size: 18,
+                      color: Colors.red[600],
+                    ),
+                  )
+                else
+                  GestureDetector(
+                    onTap: () => _confirmDelete(context, note, provider),
+                    child: Icon(
+                      Icons.delete_outline_rounded,
+                      size: 18,
+                      color: Colors.red[300],
+                    ),
                   ),
-                ),
               ],
             ),
           ],
@@ -887,7 +987,11 @@ class _NotesScreenState extends State<NotesScreen> {
     );
   }
 
-  void _confirmDelete(BuildContext context, Note note, NotesProvider provider) {
+  void _confirmPermanentDelete(
+    BuildContext context,
+    Note note,
+    NotesProvider provider,
+  ) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -897,13 +1001,13 @@ class _NotesScreenState extends State<NotesScreen> {
             const Icon(Icons.warning_amber_rounded, color: Colors.red),
             const SizedBox(width: 8),
             Text(
-              'حذف الملاحظة؟',
+              'حذف نهائي؟',
               style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
             ),
           ],
         ),
         content: Text(
-          'هل أنت متأكد من حذف هذه الملاحظة نهائياً؟',
+          'لا يمكن التراجع عن هذا الإجراء.',
           style: GoogleFonts.tajawal(fontSize: 15),
         ),
         actions: [
@@ -921,7 +1025,7 @@ class _NotesScreenState extends State<NotesScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    'تم حذف الملاحظة.',
+                    'تم الحذف نهائياً.',
                     style: GoogleFonts.tajawal(),
                   ),
                   backgroundColor: Colors.black87,
@@ -935,7 +1039,72 @@ class _NotesScreenState extends State<NotesScreen> {
               ),
             ),
             child: Text(
-              'حذف',
+              'حذف نهائي',
+              style: GoogleFonts.tajawal(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context, Note note, NotesProvider provider) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.delete_sweep_rounded, color: Colors.orange),
+            const SizedBox(width: 8),
+            Text(
+              'نقل إلى المهملات؟',
+              style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Text(
+          'سيتم نقل الملاحظة إلى سلة المهملات. يمكنك استعادتها لاحقاً.',
+          style: GoogleFonts.tajawal(fontSize: 15),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'إلغاء',
+              style: GoogleFonts.tajawal(color: Colors.grey),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              provider.moveToTrash(note.id);
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'تم نقل الملاحظة إلى المهملات.',
+                    style: GoogleFonts.tajawal(),
+                  ),
+                  backgroundColor: Colors.black87,
+                  action: SnackBarAction(
+                    label: 'تراجع',
+                    textColor: AppTheme.primaryColor,
+                    onPressed: () => provider.restoreFromTrash(note.id),
+                  ),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(
+              'نقل',
               style: GoogleFonts.tajawal(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -947,3 +1116,4 @@ class _NotesScreenState extends State<NotesScreen> {
     );
   }
 }
+

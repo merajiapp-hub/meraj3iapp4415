@@ -130,6 +130,16 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    //  فئات المراجع (نظام القوائم الهرمي الجديد)
+    // ═══════════════════════════════════════════════════════════════
+    match /reference_categories/{categoryId} {
+      // القراءة: كل المستخدمين المسجلين (مطلوب لعرضها في التطبيق)
+      allow read: if isAuthenticated();
+      // الكتابة (إنشاء، تعديل، حذف): المسؤول فقط
+      allow create, update, delete: if isAdmin();
+    }
+
     // نسخة التوافق القديمة التي ما زالت تستخدمها بعض شاشات التطبيق.
     match /uploaded_books/{bookId} {
       allow read: if isAuthenticated();

@@ -5,7 +5,7 @@ import 'package:intl/intl.dart' as intl;
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
-import '../widgets/geometric_header_card.dart';
+
 
 class ReviewsScreen extends StatefulWidget {
   const ReviewsScreen({super.key});
@@ -646,14 +646,6 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
               Expanded(
                 child: CustomScrollView(
                   slivers: [
-                    const SliverToBoxAdapter(
-                      child: GeometricHeaderCard(
-                        title: 'آراء مجتمع MERAJ3I',
-                        subtitle:
-                            'تجارب الطلاب تساعدنا على تطوير التطبيق باستمرار.',
-                        icon: Icons.auto_awesome_rounded,
-                      ),
-                    ),
                     SliverToBoxAdapter(child: _buildStatsHeader(docs, isDark)),
                     if (docs.isEmpty)
                       SliverFillRemaining(

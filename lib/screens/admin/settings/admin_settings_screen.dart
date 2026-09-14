@@ -167,7 +167,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
     if (value) {
       showDialog(
         context: context,
-        builder: (_) => AlertDialog(
+        builder: (dialogCtx) => AlertDialog(
           backgroundColor: const Color(0xFF1E1E1E),
           title: const Text('⚠️ تفعيل وضع الصيانة',
               style: TextStyle(color: Colors.white)),
@@ -176,12 +176,12 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
               style: TextStyle(color: Colors.grey)),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(dialogCtx),
                 child: const Text('إلغاء',
                     style: TextStyle(color: Colors.grey))),
             TextButton(
                 onPressed: () {
-                  Navigator.pop(context);
+                  Navigator.pop(dialogCtx);
                   setState(() => _maintenanceMode = true);
                 },
                 child: const Text('تفعيل',

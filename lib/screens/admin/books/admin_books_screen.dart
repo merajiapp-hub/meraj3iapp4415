@@ -25,7 +25,7 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
   Future<void> _deleteBook(String docId, String title) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E1E),
         title: const Text('⚠️ حذف كتاب',
             style: TextStyle(color: Colors.white)),
@@ -33,11 +33,11 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
             style: const TextStyle(color: Colors.grey)),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(dialogCtx, false),
               child: const Text('إلغاء',
                   style: TextStyle(color: Colors.grey))),
           TextButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () => Navigator.pop(dialogCtx, true),
               child: const Text('حذف',
                   style: TextStyle(color: Colors.red))),
         ],

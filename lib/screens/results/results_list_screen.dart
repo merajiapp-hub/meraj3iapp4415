@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/results_service.dart';
 import '../../services/remote_config_service.dart';
@@ -218,12 +218,15 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
   Set<String> get _availableStatuses {
     final statuses = _allResults.map((r) => r.status).where((s) {
       if (s.isEmpty) return false;
+      // لا تعرض "مؤهل للتكميلية" إلا للبكالوريا الدورة العادية (ExamType.bac)
       if (widget.examType != ExamType.bac &&
-          (s == 'الدورة التكميلية' || s == 'تكميلي' || s == 'مؤهل للدورة التكميلية')) {
+          (s == 'الدورة التكميلية' || s == 'تكميلي' || s == 'مؤهل للدورة التكميلية' || s.contains('تكميل'))) {
         return false;
       }
       return true;
     }).toSet();
+    
+    // إجبار الفلتر على عرض "ناجح" و "راسب" إذا لم تكن موجودة في البيانات المفلترة للكونكور
     if (widget.examType == ExamType.concours) {
       statuses.add('ناجح');
       statuses.add('راسب');
@@ -703,26 +706,44 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
         ),
       ),
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        padding: const EdgeInsets.all(10),
+        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E293B) : Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.05)
                 : const Color(0xFFF1F5F9),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: statusColor.withValues(alpha: isDark ? 0.05 : 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           children: [
             // Status circle
             Container(
-              width: 42,
-              height: 42,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.12),
+                gradient: LinearGradient(
+                  colors: [
+                    statusColor.withValues(alpha: 0.15),
+                    statusColor.withValues(alpha: 0.05),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 shape: BoxShape.circle,
+                border: Border.all(
+                  color: statusColor.withValues(alpha: 0.3),
+                  width: 1,
+                ),
               ),
               child: Center(
                 child: Text(

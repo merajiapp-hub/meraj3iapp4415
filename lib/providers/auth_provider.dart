@@ -638,9 +638,26 @@ class AuthProvider extends ChangeNotifier {
       if (user == null) return 'فشل تسجيل الدخول بـ Google';
 
       // لا نعلن نجاح تسجيل Google قبل إنشاء profile والتأكد من وجوده.
-      final doc = await _firestore.collection('users').doc(user.uid).get();
-      final isNewProfile = !doc.exists;
-      final savedProfile = await ensureUserDocument(user);
+      bool isNewProfile = false;
+      DocumentSnapshot<Map<String, dynamic>>? savedProfile;
+
+      try {
+        final doc = await _firestore.collection('users').doc(user.uid).get();
+        isNewProfile = !doc.exists;
+        savedProfile = await ensureUserDocument(user);
+      } on FirebaseException catch (e) {
+        if (e.code == 'permission-denied') {
+          debugPrint('[Google] Token propagation delay — retrying in 1s...');
+          await Future.delayed(const Duration(seconds: 1));
+          await user.getIdToken(true);
+          final doc = await _firestore.collection('users').doc(user.uid).get();
+          isNewProfile = !doc.exists;
+          savedProfile = await ensureUserDocument(user);
+        } else {
+          rethrow;
+        }
+      }
+
       final snapshot = normalizeAccountStatus(savedProfile.data());
       _user = user;
       _userData = savedProfile.data();
@@ -749,7 +766,8 @@ class AuthProvider extends ChangeNotifier {
       if (!data.containsKey('authProvider') && !data.containsKey('provider')) {
         update['authProvider'] = provider;
         update['provider'] = provider;
-      }      if (!data.containsKey('accountStatus')) {
+      }
+      if (!data.containsKey('accountStatus')) {
         update['accountStatus'] = 'active';
       }
       if (!data.containsKey('isSuspended')) {
@@ -769,7 +787,11 @@ class AuthProvider extends ChangeNotifier {
       }
       if (!data.containsKey('suspendedBy')) {
         update['suspendedBy'] = null;
-      }    }
+      }
+      if (!data.containsKey('createdAt')) {
+        update['createdAt'] = FieldValue.serverTimestamp();
+      }
+    }
 
     await ref.set(update, SetOptions(merge: true)).timeout(const Duration(seconds: 10));
     final saved = await ref.get().timeout(const Duration(seconds: 10));

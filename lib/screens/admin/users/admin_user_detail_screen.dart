@@ -97,18 +97,18 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
       String title, String body, VoidCallback onConfirm) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E1E),
         title:
             Text(title, style: const TextStyle(color: Colors.white)),
         content: Text(body, style: const TextStyle(color: Colors.grey)),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogCtx),
               child: const Text('إلغاء', style: TextStyle(color: Colors.grey))),
           TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(dialogCtx);
                 onConfirm();
               },
               child: const Text('تأكيد',

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../smart_calculator_provider.dart';
@@ -38,14 +38,11 @@ class _SmartKeyboardState extends State<SmartKeyboard> {
             ],
           ),
           padding: const EdgeInsets.all(16),
-          child: LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              physics: const ClampingScrollPhysics(),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
               // Toggle Advanced Mode
               GestureDetector(
                 onTap: () => setState(() => _isAdvanced = !_isAdvanced),
@@ -108,9 +105,7 @@ class _SmartKeyboardState extends State<SmartKeyboard> {
                     SizedBox(height: 52, child: _buildRow(['0', '.', '=', '+'], isDark, provider)),
                   ],
                 ),
-                  ],
-                ),
-              ),
+              ],
             ),
           ),
         );
