@@ -22,32 +22,38 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   final List<_OnboardingSlide> _slides = [
     _OnboardingSlide(
-      title: '',
-      subtitle: 'رفيقك للنجاح الدراسي',
-      description: 'تطبيق تعليمي متكامل يجمع كل ما تحتاجه للدراسة والتفوق في مكان واحد.',
+      title: 'رفيقك للنجاح الدراسي',
+      subtitle: 'كل ما تحتاجه في مكان واحد',
+      description:
+          'تطبيق تعليمي متكامل يجمع كل ما تحتاجه للدراسة والتفوق في مكان واحد.',
+      icon: Icons.school_rounded,
     ),
     _OnboardingSlide(
       title: 'ملاحظات ذكية',
       subtitle: 'نظّم أفكارك بأسلوبك',
-      description: 'محرر نصوص غني، رسم يدوي، ومزامنة سحابية فورية. ملاحظاتك دائماً بين يديك.',
+      description:
+          'محرر نصوص غني، رسم يدوي، ومزامنة سحابية فورية. ملاحظاتك دائماً بين يديك.',
       icon: Icons.edit_note_rounded,
     ),
     _OnboardingSlide(
-      title: 'الامتحانات',
+      title: 'اختبر مستواك',
       subtitle: 'استعد وتفوق على نفسك',
-      description: 'اختبارات وطنية، مسابقات، وتقارير مفصلة لمتابعة مستواك في كل مادة.',
+      description:
+          'اختبارات وطنية، مسابقات، وتقارير مفصلة لمتابعة مستواك في كل مادة.',
       icon: Icons.emoji_events_rounded,
     ),
     _OnboardingSlide(
-      title: 'المكتبة الرقمية',
+      title: 'مكتبتك الرقمية',
       subtitle: 'آلاف الكتب والمراجع',
-      description: 'تصفّح وحمّل الكتب المدرسية والمراجع العلمية مجاناً وبدون إعلانات.',
+      description:
+          'تصفّح وحمّل الكتب المدرسية والمراجع العلمية مجاناً وبدون إعلانات.',
       icon: Icons.menu_book_rounded,
     ),
     _OnboardingSlide(
-      title: 'انضم الآن',
-      subtitle: 'ابدأ رحلة التفوق اليوم',
-      description: 'سجّل حسابك المجاني وانضم لآلاف الطلاب الذين اختاروا مراجعي طريقاً للنجاح.',
+      title: 'ابدأ رحلتك الآن',
+      subtitle: 'خطوة واحدة نحو التفوق',
+      description:
+          'سجّل حسابك المجاني وانضم لآلاف الطلاب الذين اختاروا مراجعي طريقاً للنجاح.',
       icon: Icons.rocket_launch_rounded,
     ),
   ];
@@ -188,36 +194,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     ),
                   ),
 
-                  // مؤشرات الصفحات
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 20),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(_slides.length, (i) {
-                        final isActive = i == _currentIndex;
-                        return AnimatedContainer(
-                          duration: const Duration(milliseconds: 400),
-                          curve: Curves.easeOut,
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          width: isActive ? 30 : 7,
-                          height: 7,
-                          decoration: BoxDecoration(
-                            color: isActive
-                                ? AppTheme.primaryColor
-                                : Colors.grey.shade300,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        );
-                      }),
-                    ),
-                  ),
-
-                  // الأزرار
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(28, 0, 28, isSmall ? 18 : 30),
-                    child: _currentIndex < _slides.length - 1
-                        ? _buildNextButton(isSmall)
-                        : _buildFinalButtons(isSmall),
+                    padding: EdgeInsets.fromLTRB(28, 0, 28, isSmall ? 18 : 26),
+                    child: _buildBottomNavigation(isSmall),
                   ),
                 ],
               ),
@@ -244,34 +223,31 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
               Expanded(
                 flex: isSmall ? 5 : 6,
-                child: Center(
-                  child: slide.icon == null
-                      ? Image.asset('assets/images/logo.png', fit: BoxFit.contain)
-                      : const SizedBox.shrink(),
-                ),
+                child: Center(child: _buildVisual(slide, isSmall)),
               ),
 
               SizedBox(height: isSmall ? 20 : 32),
 
               // ── النصوص ──
-              if (slide.title.isNotEmpty)
-                Text(
-                  slide.title,
-                  style: GoogleFonts.cairo(
-                    fontSize: isSmall ? 34 : 42,
-                    fontWeight: FontWeight.w900,
-                    color: AppTheme.primaryColor,
-                    height: 1.1,
-                  ),
-                  textAlign: TextAlign.center,
+              Text(
+                slide.title,
+                style: GoogleFonts.cairo(
+                  fontSize: isSmall ? 28 : 32,
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFF202124),
+                  height: 1.15,
                 ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
 
               const SizedBox(height: 6),
 
               Text(
                 slide.subtitle,
                 style: GoogleFonts.tajawal(
-                  fontSize: isSmall ? 16 : 19,
+                  fontSize: isSmall ? 16 : 18,
                   fontWeight: FontWeight.w700,
                   color: const Color(0xFF1A1A1A),
                 ),
@@ -283,9 +259,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               Text(
                 slide.description,
                 style: GoogleFonts.tajawal(
-                  fontSize: isSmall ? 13 : 15,
-                  color: Colors.grey.shade500,
-                  height: 1.7,
+                  fontSize: isSmall ? 14 : 16,
+                  color: const Color(0xFF4D4D4D),
+                  height: 1.65,
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 3,
@@ -300,69 +276,154 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  Widget _buildNextButton(bool isSmall) {
-    return SizedBox(
-      width: double.infinity,
-      height: isSmall ? 52 : 58,
-      child: ElevatedButton(
-        onPressed: _goNext,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.primaryColor,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+  Widget _buildVisual(_OnboardingSlide slide, bool isSmall) {
+    final icon = slide.icon ?? Icons.school_rounded;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = (constraints.maxWidth * 0.72).clamp(190.0, 300.0);
+        return SizedBox(
+          width: size,
+          height: size,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: size * 0.9,
+                height: size * 0.9,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.055),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              Positioned(
+                top: size * 0.02,
+                right: size * 0.08,
+                child: Container(
+                  width: size * 0.16,
+                  height: size * 0.16,
+                  decoration: BoxDecoration(
+                    color: AppTheme.lightGreen.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: size * 0.08,
+                left: size * 0.03,
+                child: Icon(
+                  Icons.auto_awesome_rounded,
+                  color: AppTheme.secondaryColor.withValues(alpha: 0.55),
+                  size: size * 0.13,
+                ),
+              ),
+              if (slide == _slides.first)
+                Image.asset(
+                  'assets/images/logo.png',
+                  width: size * 0.55,
+                  height: size * 0.55,
+                  fit: BoxFit.contain,
+                )
+              else
+                Container(
+                  width: size * 0.46,
+                  height: size * 0.46,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(size * 0.14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.18),
+                        blurRadius: 24,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    icon,
+                    color: AppTheme.primaryColor,
+                    size: size * 0.24,
+                  ),
+                ),
+            ],
           ),
-        ),
-        child: Text(
-          'التالي',
-          style: GoogleFonts.tajawal(
-            fontSize: 17,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildFinalButtons(bool isSmall) {
+  Widget _buildBottomNavigation(bool isSmall) {
+    final isLast = _currentIndex == _slides.length - 1;
     return Column(
       children: [
-        SizedBox(
-          width: double.infinity,
-          height: isSmall ? 52 : 58,
-          child: ElevatedButton(
-            onPressed: _goToSignup,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SizedBox(width: 64),
+            Row(
+              children: List.generate(_slides.length, (i) {
+                final isActive = i == _currentIndex;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: isActive ? 28 : 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? AppTheme.primaryColor
+                        : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                );
+              }),
             ),
+            _buildRoundNavigationButton(
+              icon: isLast ? Icons.check_rounded : Icons.arrow_forward_rounded,
+              onPressed: isLast ? _goToSignup : _goNext,
+              size: isSmall ? 62 : 70,
+            ),
+          ],
+        ),
+        if (isLast) ...[
+          const SizedBox(height: 10),
+          GestureDetector(
+            onTap: _goToLogin,
             child: Text(
-              'إنشاء حساب مجاني',
+              'لديّ حساب — تسجيل الدخول',
               style: GoogleFonts.tajawal(
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
+                color: AppTheme.primaryColor,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 14),
-        GestureDetector(
-          onTap: _goToLogin,
-          child: Text(
-            'لديّ حساب — تسجيل الدخول',
-            style: GoogleFonts.tajawal(
-              color: AppTheme.primaryColor,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
+        ],
       ],
+    );
+  }
+
+  Widget _buildRoundNavigationButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+    required double size,
+  }) {
+    return Container(
+      width: size,
+      height: size,
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: AppTheme.primaryColor, width: 2),
+      ),
+      child: Material(
+        color: AppTheme.primaryColor,
+        shape: const CircleBorder(),
+        child: InkWell(
+          onTap: onPressed,
+          customBorder: const CircleBorder(),
+          child: Icon(icon, color: Colors.white, size: size * 0.4),
+        ),
+      ),
     );
   }
 }

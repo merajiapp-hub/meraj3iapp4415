@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart' as intl;
@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../providers/notes_provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/curved_header.dart';
 
 import '../services/note_export_service.dart';
 import 'note_editor_screen.dart';
@@ -189,10 +190,7 @@ class _NotesScreenState extends State<NotesScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              ClipPath(
-                clipper: _NotesHeaderClipper(),
-                child: _buildHeader(isDark, themeColor),
-              ),
+              _buildHeader(isDark, themeColor),
               _buildFilters(isDark),
 
               Expanded(
@@ -257,107 +255,68 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   Widget _buildHeader(bool isDark, Color themeColor) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Column(
+      children: [
+        const CurvedHeader(
+          title: 'ملاحظاتي',
+          gradient: AppTheme.brandGradient,
+          showBackButton: true,
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+          child: Row(
             children: [
-              if (Navigator.canPop(context))
-                IconButton(
-                  icon: Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              const SizedBox(width: 8),
-              Text(
-                'ملاحظاتي',
-                style: GoogleFonts.tajawal(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
-              ),
-              const Spacer(),
               IconButton(
-                icon: Icon(
-                  Icons.color_lens_rounded,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
                 tooltip: 'تغيير الثيم',
                 onPressed: _showThemeSelector,
+                icon: Icon(Icons.color_lens_rounded, color: themeColor),
               ),
               IconButton(
+                tooltip: 'تغيير العرض',
+                onPressed: () => setState(() => _isGridView = !_isGridView),
                 icon: Icon(
                   _isGridView
                       ? Icons.view_list_rounded
                       : Icons.grid_view_rounded,
-                  color: isDark ? Colors.white : Colors.black87,
+                  color: themeColor,
                 ),
-                onPressed: () => setState(() => _isGridView = !_isGridView),
+              ),
+              const Spacer(),
+              Flexible(
+                child: Text(
+                  'اكتب ما تتعلمه، واحفظ ما يهمك، وراجع ما كتبته.',
+                  textAlign: TextAlign.right,
+                  style: GoogleFonts.tajawal(
+                    fontSize: 12,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                  ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'اكتب ما تتعلمه، واحفظ ما يهمك، وراجع ما كتبته.',
-              style: GoogleFonts.tajawal(
-                fontSize: 14,
-                color: isDark ? Colors.white70 : Colors.black54,
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+          child: TextField(
+            controller: _searchController,
+            onChanged: (val) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: 'ابحث في العنوان أو المحتوى...',
+              hintStyle: GoogleFonts.tajawal(color: Colors.grey),
+              prefixIcon: Icon(Icons.search_rounded, color: themeColor),
+              filled: true,
+              fillColor: isDark ? AppTheme.surfaceDark : Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: BorderSide.none,
               ),
+            ),
+            style: GoogleFonts.tajawal(
+              color: isDark ? Colors.white : Colors.black87,
             ),
           ),
-          const SizedBox(height: 20),
-          // Search Bar
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.1)
-                  : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isDark ? Colors.white24 : Colors.transparent,
-              ),
-              boxShadow: [
-                if (!isDark)
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-              ],
-            ),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (val) => setState(() {}),
-              decoration: InputDecoration(
-                hintText: 'ابحث في العنوان أو المحتوى...',
-                hintStyle: GoogleFonts.tajawal(
-                  color: isDark ? Colors.white54 : Colors.grey,
-                ),
-                prefixIcon: Icon(
-                  Icons.search_rounded,
-                  color: isDark ? Colors.white70 : AppTheme.primaryColor,
-                ),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-              ),
-              style: GoogleFonts.tajawal(
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1135,29 +1094,3 @@ class _NotesScreenState extends State<NotesScreen> {
     );
   }
 }
-
-class _NotesHeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    return Path()
-      ..lineTo(0, size.height - 18)
-      ..quadraticBezierTo(
-        size.width * 0.28,
-        size.height + 12,
-        size.width * 0.52,
-        size.height - 8,
-      )
-      ..quadraticBezierTo(
-        size.width * 0.78,
-        size.height - 28,
-        size.width,
-        size.height - 14,
-      )
-      ..lineTo(size.width, 0)
-      ..close();
-  }
-
-  @override
-  bool shouldReclip(covariant _NotesHeaderClipper oldClipper) => false;
-}
-

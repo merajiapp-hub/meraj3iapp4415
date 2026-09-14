@@ -39,7 +39,6 @@ import '../widgets/banner_ad_widget.dart';
 import '../features/smart_calculator/ui/screens/smart_calculator_screen.dart';
 import 'services_screen.dart';
 
-
 class HomePage extends StatefulWidget {
   final bool isGuest;
   const HomePage({super.key, this.isGuest = false});
@@ -190,6 +189,7 @@ class _HomePageState extends State<HomePage>
         drawer: _buildDrawer(),
         body: Column(
           children: [
+            _buildHomeToolbar(isDark),
             // ══════════════════════════════════════════
             //  Header Fixed Section (AppBar + Carousel)
             // ══════════════════════════════════════════
@@ -208,10 +208,7 @@ class _HomePageState extends State<HomePage>
                   ),
                 ],
               ),
-              padding: EdgeInsets.only(
-                top: MediaQuery.of(context).padding.top + 10,
-                bottom: 20,
-              ),
+              padding: const EdgeInsets.only(bottom: 20),
               child: Stack(
                 children: [
                   // دوائر زخرفية
@@ -239,127 +236,7 @@ class _HomePageState extends State<HomePage>
                       ),
                     ),
                   ),
-                  Column(
-                    children: [
-                      // AppBar Row (Icons only)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Builder(
-                              builder: (ctx) => IconButton(
-                                icon: const Icon(
-                                  Icons.menu_rounded,
-                                  color: Colors.white,
-                                  size: 28,
-                                ),
-                                onPressed: () => Scaffold.of(ctx).openDrawer(),
-                              ),
-                            ),
-                            // Actions
-                            Row(
-                              children: [
-                                // زر تبديل الوضع الليلي/العادي
-                                Consumer<ThemeProvider>(
-                                  builder: (context, themeProvider, _) =>
-                                      IconButton(
-                                        icon: Container(
-                                          padding: const EdgeInsets.all(8),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.15,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                          child: Icon(
-                                            themeProvider.isDarkMode
-                                                ? Icons.wb_sunny_rounded
-                                                : Icons.nights_stay_rounded,
-                                            color: Colors.white,
-                                            size: 20,
-                                          ),
-                                        ),
-                                        onPressed: () =>
-                                            themeProvider.toggleTheme(
-                                              !themeProvider.isDarkMode,
-                                            ),
-                                      ),
-                                ),
-                                const SizedBox(width: 4),
-                                // زر الإشعارات
-                                Consumer<NotificationsProvider>(
-                                  builder: (context, notifProvider, _) => Stack(
-                                    children: [
-                                      IconButton(
-                                        icon: Container(
-                                          padding: const EdgeInsets.all(8),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.15,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                          child: const Icon(
-                                            Icons.notifications_rounded,
-                                            color: Colors.white,
-                                            size: 20,
-                                          ),
-                                        ),
-                                        onPressed: () => Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                const NotificationsScreen(),
-                                          ),
-                                        ),
-                                      ),
-                                      if (notifProvider.unreadCount > 0)
-                                        Positioned(
-                                          right: 8,
-                                          top: 8,
-                                          child: Container(
-                                            width: 16,
-                                            height: 16,
-                                            decoration: BoxDecoration(
-                                              color: Colors.redAccent,
-                                              shape: BoxShape.circle,
-                                              border: Border.all(
-                                                color: Colors.white,
-                                                width: 1.5,
-                                              ),
-                                            ),
-                                            child: Center(
-                                              child: Text(
-                                                notifProvider.unreadCount > 9
-                                                    ? '9+'
-                                                    : '${notifProvider.unreadCount}',
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 8,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Carousel in the fixed header
-                      _buildTopCarousel(isDark),
-                    ],
-                  ),
+                  _buildTopCarousel(isDark),
                 ],
               ),
             ),
@@ -378,10 +255,6 @@ class _HomePageState extends State<HomePage>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ── شريط البحث ──
-                          _buildSearchBar(isDark),
-                          const SizedBox(height: 24),
-
                           // ── عنوان القسم الرئيسي ──
                           _buildSectionHeader('الخدمات الرئيسية', isDark),
                           const SizedBox(height: 14),
@@ -431,8 +304,6 @@ class _HomePageState extends State<HomePage>
       ),
     );
   }
-
-
 
   // ══════════════════════════════════════════════════════
   //  Grid الأزرار الرئيسية الست
@@ -653,6 +524,106 @@ class _HomePageState extends State<HomePage>
   // ══════════════════════════════════════════════════════
   //  شريط البحث
   // ══════════════════════════════════════════════════════
+  Widget _buildHomeToolbar(bool isDark) {
+    return Material(
+      color: isDark ? AppTheme.surfaceDark : Colors.white,
+      elevation: 3,
+      shadowColor: Colors.black.withValues(alpha: 0.12),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+          child: Row(
+            children: [
+              Builder(
+                builder: (ctx) => _homeToolbarButton(
+                  icon: Icons.menu_rounded,
+                  color: isDark ? Colors.white : AppTheme.primaryColor,
+                  tooltip: 'القائمة الجانبية',
+                  onPressed: () => Scaffold.of(ctx).openDrawer(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(child: _buildSearchBar(isDark)),
+              const SizedBox(width: 8),
+              Consumer<ThemeProvider>(
+                builder: (context, themeProvider, _) => _homeToolbarButton(
+                  icon: themeProvider.isDarkMode
+                      ? Icons.wb_sunny_rounded
+                      : Icons.nights_stay_rounded,
+                  color: isDark ? Colors.white : AppTheme.primaryColor,
+                  tooltip: 'تبديل الوضع',
+                  onPressed: () =>
+                      themeProvider.toggleTheme(!themeProvider.isDarkMode),
+                ),
+              ),
+              Consumer<NotificationsProvider>(
+                builder: (context, notifProvider, _) => Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    _homeToolbarButton(
+                      icon: Icons.notifications_rounded,
+                      color: isDark ? Colors.white : AppTheme.primaryColor,
+                      tooltip: 'الإشعارات',
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationsScreen(),
+                        ),
+                      ),
+                    ),
+                    if (notifProvider.unreadCount > 0)
+                      Positioned(
+                        top: 1,
+                        right: 1,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          constraints: const BoxConstraints(minWidth: 16),
+                          height: 16,
+                          alignment: Alignment.center,
+                          decoration: const BoxDecoration(
+                            color: Colors.redAccent,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            notifProvider.unreadCount > 9
+                                ? '9+'
+                                : '${notifProvider.unreadCount}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _homeToolbarButton({
+    required IconData icon,
+    required Color color,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      icon: Icon(icon, color: color, size: 24),
+      style: IconButton.styleFrom(
+        backgroundColor: color.withValues(alpha: 0.1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
   Widget _buildSearchBar(bool isDark) {
     return GestureDetector(
       onTap: () => Navigator.push(
@@ -1026,19 +997,13 @@ class _HomePageState extends State<HomePage>
             child: ListView(
               padding: const EdgeInsets.only(top: 10),
               children: [
-                _buildDrawerItem(
-                  Icons.library_books_rounded,
-                  'مراجع أخرى',
-                  () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ReferencesScreen(),
-                      ),
-                    );
-                  },
-                ),
+                _buildDrawerItem(Icons.library_books_rounded, 'مراجع أخرى', () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ReferencesScreen()),
+                  );
+                }),
                 _buildDrawerItem(Icons.history_edu_rounded, 'سجل القراءة', () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -1210,7 +1175,7 @@ class _HomePageState extends State<HomePage>
                                   listen: false,
                                 );
                                 await authProvider.signOut();
-                                
+
                                 if (context.mounted) {
                                   Provider.of<FavoritesProvider>(
                                     context,
@@ -1379,5 +1344,3 @@ class _AnimatedCardState extends State<_AnimatedCard>
     );
   }
 }
-
-

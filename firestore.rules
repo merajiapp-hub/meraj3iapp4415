@@ -113,6 +113,12 @@ service cloud.firestore {
       allow write: if isAppAdmin();
     }
 
+    // General application settings used by the admin web panel.
+    match /app_config/{document} {
+      allow read: if true;
+      allow write: if isAppAdmin();
+    }
+
     match /maintenance/{docId} {
       allow read: if true;
       allow write: if isAppAdmin();
@@ -207,9 +213,13 @@ service cloud.firestore {
       allow update: if isAppAdmin() || (isAuthenticated() &&
         resource.data.userId == request.auth.uid &&
         request.resource.data.userId == request.auth.uid &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'text', 'updatedAt']) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'rating', 'text', 'status', 'moderation', 'updatedAt'
+        ]) &&
         request.resource.data.rating is number &&
-        request.resource.data.rating >= 1 && request.resource.data.rating <= 5);
+        request.resource.data.rating >= 1 && request.resource.data.rating <= 5 &&
+        request.resource.data.status == 'published' &&
+        request.resource.data.moderation == 'none');
       allow delete: if isAppAdmin();
     }
 

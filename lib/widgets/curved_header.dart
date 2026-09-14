@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// رأس منحنٍ احترافي قابل لإعادة الاستخدام في جميع صفحات التطبيق
+/// رأس موحد على نمط البطاقة المقطوعة/المقصوصة، مشابه للتصميم المطلوب.
 class CurvedHeader extends StatelessWidget {
   final String title;
   final String? subtitle;
@@ -20,156 +20,99 @@ class CurvedHeader extends StatelessWidget {
     this.leadingIcon,
     this.trailing,
     this.decorations,
-    this.height = 170,
+    this.height = 90,
     this.showBackButton = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ClipPath(
-      clipper: MerajHeaderClipper(),
-      child: Container(
-        height: height,
-        decoration: BoxDecoration(gradient: gradient),
-        child: Stack(
-          children: [
-            // زخارف الخلفية
-            Positioned(
-              top: -40,
-              left: -40,
-              child: Container(
-                width: 200,
-                height: 200,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.05),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      child: Column(
+        children: [
+          if (showBackButton || trailing != null)
+            SizedBox(
+              height: 40,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (showBackButton)
+                    _buildExternalButton(
+                      context,
+                      Icons.arrow_forward_rounded,
+                      () => Navigator.maybePop(context),
+                    )
+                  else
+                    const SizedBox(width: 40),
+                  if (trailing != null)
+                    trailing!
+                  else
+                    const SizedBox(width: 40),
+                ],
+              ),
+            ),
+          ClipPath(
+            clipper: _CutHeaderClipper(),
+            child: Container(
+              height: height,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                gradient: gradient,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.12),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  style: GoogleFonts.tajawal(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ),
             ),
-            Positioned(
-              bottom: 10,
-              right: -30,
-              child: Container(
-                width: 130,
-                height: 130,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.06),
-                ),
-              ),
-            ),
-            // زخارف إضافية مخصصة
-            ...?decorations,
-            // المحتوى
-            SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    if (showBackButton)
-                      _buildBackButton(context)
-                    else if (leadingIcon != null)
-                      _buildLeadingIcon(leadingIcon!)
-                    else
-                      const SizedBox(width: 48),
-                    // العنوان في المنتصف
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            title,
-                            style: GoogleFonts.tajawal(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          if (subtitle != null) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              subtitle!,
-                              style: GoogleFonts.tajawal(
-                                color: Colors.white.withValues(alpha: 0.7),
-                                fontSize: 13,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    // عنصر اليمين
-                    trailing ?? const SizedBox(width: 48),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildBackButton(BuildContext context) {
+  Widget _buildExternalButton(
+    BuildContext context,
+    IconData icon,
+    VoidCallback onPressed,
+  ) {
     return IconButton(
-      onPressed: () => Navigator.pop(context),
-      icon: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-        ),
-        child: const Icon(
-          Icons.arrow_back_ios_rounded,
-          color: Colors.white,
-          size: 16,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLeadingIcon(IconData icon) {
-    return Container(
-      width: 48,
-      height: 48,
-      margin: const EdgeInsets.only(right: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Icon(icon, color: Colors.white, size: 24),
+      onPressed: onPressed,
+      tooltip: 'رجوع',
+      icon: Icon(icon, color: Colors.black54, size: 28),
     );
   }
 }
 
-// ─── منحنى الحافة السفلية ──────────────────────────────────────────────────
-class MerajHeaderClipper extends CustomClipper<Path> {
+class _CutHeaderClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
-    return Path()
-      ..lineTo(0, size.height - 12)
-      ..quadraticBezierTo(
-        size.width * 0.25,
-        size.height + 8,
-        size.width * 0.5,
-        size.height - 2,
-      )
-      ..quadraticBezierTo(
-        size.width * 0.75,
-        size.height - 18,
-        size.width,
-        size.height - 10,
-      )
-      ..lineTo(size.width, 0)
-      ..close();
+    final path = Path();
+    path.moveTo(0, 0);
+    path.lineTo(size.width - 58, 0);
+    path.lineTo(size.width, size.height * 0.34);
+    path.lineTo(size.width, size.height);
+    path.lineTo(0, size.height);
+    path.close();
+    return path;
   }
 
   @override
-  bool shouldReclip(covariant MerajHeaderClipper oldClipper) => false;
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }

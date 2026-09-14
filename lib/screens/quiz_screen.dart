@@ -13,17 +13,14 @@ import '../providers/quiz_provider.dart';
 import '../data/quiz_models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/statistics_provider.dart';
+import '../widgets/curved_header.dart';
 import 'ai_search_screen.dart';
 
 class QuizScreen extends StatefulWidget {
   final bool examMode;
   final int timerSeconds;
 
-  const QuizScreen({
-    super.key,
-    this.examMode = false,
-    this.timerSeconds = 30,
-  });
+  const QuizScreen({super.key, this.examMode = false, this.timerSeconds = 30});
 
   @override
   State<QuizScreen> createState() => _QuizScreenState();
@@ -159,7 +156,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
     }
 
     provider.answerQuestion(question.id, isCorrect);
-    
+
     if (widget.examMode) {
       // في وضع الامتحان: انتقل مباشرة للسؤال التالي بدون عرض الإجابة
       _nextQuestion(provider);
@@ -198,7 +195,9 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
             showDialog(
               context: context,
               barrierDismissible: false,
-              builder: (_) => const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor)),
+              builder: (_) => const Center(
+                child: CircularProgressIndicator(color: AppTheme.primaryColor),
+              ),
             );
             final navigator = Navigator.of(context);
             await provider.regenerateQuiz();
@@ -357,150 +356,75 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
     required double timerPct,
     required Color timerColor,
   }) {
-    return ClipPath(
-      clipper: _HeaderClipper(),
-      child: Container(
-        height: 200,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF0F172A), Color(0xFF1E3A5F)],
-            begin: Alignment.topRight,
-            end: Alignment.bottomLeft,
-          ),
+    return Column(
+      children: [
+        const CurvedHeader(
+          title: 'اختبار المعلومات',
+          gradient: AppTheme.deepBlueGradient,
+          showBackButton: true,
         ),
-        child: SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-            child: Column(
-              children: [
-                // شريط العنوان
-                Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.arrow_back_ios_rounded,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        'اختبار المعلومات',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.tajawal(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    // المؤقت
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: timerColor, width: 2),
-                      ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          SizedBox(
-                            width: 40,
-                            height: 40,
-                            child: CircularProgressIndicator(
-                              value: timerPct,
-                              strokeWidth: 2,
-                              color: timerColor,
-                              backgroundColor: Colors.white.withValues(
-                                alpha: 0.1,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            '$_secondsLeft',
-                            style: GoogleFonts.outfit(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // إحصائيات مصغرة
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildHeaderStat(
-                      Icons.bolt,
-                      '${provider.xp} XP',
-                      Colors.amber,
-                    ),
-                    _buildHeaderStat(
-                      Icons.local_fire_department,
-                      '${provider.streak} يوم',
-                      Colors.orange,
-                    ),
-                    _buildHeaderStat(
-                      Icons.check_circle_outline_rounded,
-                      '$current/$total',
-                      Colors.white,
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: diffColor.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: diffColor.withValues(alpha: 0.5),
-                        ),
-                      ),
-                      child: Text(
-                        diffLabel,
-                        style: GoogleFonts.tajawal(
-                          color: diffColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                // شريط التقدم
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    backgroundColor: Colors.white.withValues(alpha: 0.2),
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      AppTheme.primaryColor,
-                    ),
-                    minHeight: 6,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildHeaderStat(
+                    Icons.bolt,
+                    '${provider.xp} XP',
+                    Colors.amber,
                   ),
-                ),
-              ],
-            ),
+                  _buildHeaderStat(
+                    Icons.local_fire_department,
+                    '${provider.streak} يوم',
+                    Colors.orange,
+                  ),
+                  _buildHeaderStat(
+                    Icons.check_circle_outline_rounded,
+                    '$current/$total',
+                    AppTheme.primaryColor,
+                  ),
+                  Text(
+                    '$_secondsLeft ث',
+                    style: GoogleFonts.outfit(
+                      color: timerColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 7,
+                        backgroundColor: Colors.grey.withValues(alpha: 0.2),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppTheme.primaryColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    diffLabel,
+                    style: GoogleFonts.tajawal(
+                      color: diffColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
-      ),
+      ],
     );
   }
 
@@ -816,8 +740,8 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
                     widget.examMode
                         ? (isLast ? 'إنهاء الامتحان' : 'التالي')
                         : (_isAnswered
-                            ? (isLast ? 'عرض النتيجة' : 'السؤال التالي')
-                            : 'تحقق من الإجابة'),
+                              ? (isLast ? 'عرض النتيجة' : 'السؤال التالي')
+                              : 'تحقق من الإجابة'),
                     style: GoogleFonts.tajawal(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -952,502 +876,546 @@ class _QuizResultScreenState extends State<_QuizResultScreen>
               child: Screenshot(
                 controller: _screenshotController,
                 child: Container(
-                  color: isDark ? AppTheme.backgroundDark : AppTheme.backgroundLight,
+                  color: isDark
+                      ? AppTheme.backgroundDark
+                      : AppTheme.backgroundLight,
                   child: Column(
                     children: [
                       // ─── الرأس ───────────────────────────────────────
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      resultColor.withValues(alpha: 0.9),
-                      resultColor.withValues(alpha: 0.6),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    ScaleTransition(
-                      scale: _scaleAnim,
-                      child: Container(
-                        width: 120,
-                        height: 120,
                         decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.2),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.5),
-                            width: 3,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            '${widget.percentage}%',
-                            style: GoogleFonts.outfit(
-                              fontSize: 32,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      _getResultMessage(),
-                      style: GoogleFonts.tajawal(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    // ─── إحصائيات ──────────────────────────────────
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildStatCard(
-                            isDark: isDark,
-                            icon: Icons.check_circle_rounded,
-                            label: 'صحيحة',
-                            value: '${widget.correctAnswers}',
-                            color: const Color(0xFF10B981),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildStatCard(
-                            isDark: isDark,
-                            icon: Icons.cancel_rounded,
-                            label: 'خاطئة',
-                            value: '${widget.wrongAnswers}',
-                            color: const Color(0xFFEF4444),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildStatCard(
-                            isDark: isDark,
-                            icon: Icons.timer_rounded,
-                            label: 'الوقت',
-                            value: widget.timeStr,
-                            color: const Color(0xFF8B5CF6),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-
-                    // ─── شريط التقدم ────────────────────────────────
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppTheme.surfaceDark : Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(
-                              alpha: isDark ? 0.2 : 0.05,
-                            ),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'معدل النجاح',
-                                style: GoogleFonts.tajawal(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              Text(
-                                '${widget.percentage}%',
-                                style: GoogleFonts.outfit(
-                                  fontWeight: FontWeight.w800,
-                                  color: resultColor,
-                                  fontSize: 18,
-                                ),
-                              ),
+                          gradient: LinearGradient(
+                            colors: [
+                              resultColor.withValues(alpha: 0.9),
+                              resultColor.withValues(alpha: 0.6),
                             ],
-                          ),
-                          const SizedBox(height: 12),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: LinearProgressIndicator(
-                              value: widget.percentage / 100,
-                              backgroundColor: isDark
-                                  ? Colors.white.withValues(alpha: 0.1)
-                                  : const Color(0xFFF1F5F9),
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                resultColor,
-                              ),
-                              minHeight: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // ─── مراجعة الإجابات ────────────────────────────
-                    GestureDetector(
-                      onTap: () => setState(() => _showReview = !_showReview),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: isDark ? AppTheme.surfaceDark : Colors.white,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: isDark
-                                ? Colors.white.withValues(alpha: 0.07)
-                                : const Color(0xFFE2E8F0),
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
                         ),
-                        child: Row(
+                        child: Column(
                           children: [
-                            const Icon(
-                              Icons.rate_review_rounded,
-                              color: AppTheme.primaryColor,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'مراجعة الإجابات',
-                                style: GoogleFonts.tajawal(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
+                            ScaleTransition(
+                              scale: _scaleAnim,
+                              child: Container(
+                                width: 120,
+                                height: 120,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.5),
+                                    width: 3,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '${widget.percentage}%',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                            Icon(
-                              _showReview
-                                  ? Icons.keyboard_arrow_up_rounded
-                                  : Icons.keyboard_arrow_down_rounded,
-                              color: AppTheme.primaryColor,
+                            const SizedBox(height: 20),
+                            Text(
+                              _getResultMessage(),
+                              style: GoogleFonts.tajawal(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
                           ],
                         ),
                       ),
-                    ),
-                    if (_showReview) ...[
-                      const SizedBox(height: 12),
-                      ...widget.answerHistory.map((item) {
-                        final q = item['question'] as QuizQuestion;
-                        final isCorrect = item['isCorrect'] as bool;
-                        final isTimeout = item['timeout'] as bool;
-                        final selected = item['selected'] as int;
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: isDark ? AppTheme.surfaceDark : Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: isCorrect
-                                  ? const Color(
-                                      0xFF10B981,
-                                    ).withValues(alpha: 0.4)
-                                  : const Color(
-                                      0xFFEF4444,
-                                    ).withValues(alpha: 0.4),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    isCorrect
-                                        ? Icons.check_circle_rounded
-                                        : Icons.cancel_rounded,
-                                    color: isCorrect
-                                        ? const Color(0xFF10B981)
-                                        : const Color(0xFFEF4444),
-                                    size: 18,
+
+                      Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          children: [
+                            // ─── إحصائيات ──────────────────────────────────
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildStatCard(
+                                    isDark: isDark,
+                                    icon: Icons.check_circle_rounded,
+                                    label: 'صحيحة',
+                                    value: '${widget.correctAnswers}',
+                                    color: const Color(0xFF10B981),
                                   ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      q.question,
-                                      style: GoogleFonts.tajawal(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildStatCard(
+                                    isDark: isDark,
+                                    icon: Icons.cancel_rounded,
+                                    label: 'خاطئة',
+                                    value: '${widget.wrongAnswers}',
+                                    color: const Color(0xFFEF4444),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildStatCard(
+                                    isDark: isDark,
+                                    icon: Icons.timer_rounded,
+                                    label: 'الوقت',
+                                    value: widget.timeStr,
+                                    color: const Color(0xFF8B5CF6),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+
+                            // ─── شريط التقدم ────────────────────────────────
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? AppTheme.surfaceDark
+                                    : Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(
+                                      alpha: isDark ? 0.2 : 0.05,
+                                    ),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'معدل النجاح',
+                                        style: GoogleFonts.tajawal(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                        ),
                                       ),
+                                      Text(
+                                        '${widget.percentage}%',
+                                        style: GoogleFonts.outfit(
+                                          fontWeight: FontWeight.w800,
+                                          color: resultColor,
+                                          fontSize: 18,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: LinearProgressIndicator(
+                                      value: widget.percentage / 100,
+                                      backgroundColor: isDark
+                                          ? Colors.white.withValues(alpha: 0.1)
+                                          : const Color(0xFFF1F5F9),
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        resultColor,
+                                      ),
+                                      minHeight: 12,
                                     ),
                                   ),
                                 ],
                               ),
-                              if (isTimeout)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Text(
-                                    '⏰ انتهى الوقت',
-                                    style: GoogleFonts.tajawal(
-                                      color: Colors.orange,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                )
-                              else ...[
-                                const SizedBox(height: 8),
-                                Text(
-                                  'إجابتك: ${q.options[selected]}',
-                                  style: GoogleFonts.tajawal(
-                                    color: isCorrect
-                                        ? const Color(0xFF10B981)
-                                        : const Color(0xFFEF4444),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                if (!isCorrect)
-                                  Text(
-                                    'الصحيحة: ${q.options[q.correctIndex]}',
-                                    style: GoogleFonts.tajawal(
-                                      color: const Color(0xFF10B981),
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                              ],
-                              if (q.explanation != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 6),
-                                  child: Text(
-                                    '💡 ${q.explanation}',
-                                    style: GoogleFonts.tajawal(
-                                      color: isDark
-                                          ? Colors.white60
-                                          : Colors.grey[600],
-                                      fontSize: 12,
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        );
-                      }),
-                    ],
-                    const SizedBox(height: 20),
-
-                    // ─── تحليل الأخطاء بالذكاء الاصطناعي ────────────────
-                    if (widget.wrongAnswers > 0) ...[
-                      GestureDetector(
-                        onTap: () {
-                          // جمع الأسئلة الخاطئة وتمريرها للذكاء الاصطناعي
-                          final wrongQs = widget.answerHistory
-                              .where((item) => !(item['isCorrect'] as bool))
-                              .map((item) {
-                            final q = item['question'] as QuizQuestion;
-                            final selected = item['selected'] as int;
-                            final selectedAns = selected >= 0 && selected < q.options.length ? q.options[selected] : "بدون إجابة";
-                            return "- السؤال: ${q.question}\n  إجابتي: $selectedAns\n  الإجابة الصحيحة: ${q.options[q.correctIndex]}";
-                          }).join("\n\n");
-
-                          final query = "لقد أخطأت في هذه الأسئلة، هل يمكنك تحليل أخطائي وشرح المفاهيم التي أحتاج مراجعتها بطريقة مبسطة؟\n\n$wrongQs";
-                          
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => AiSearchScreen(initialQuery: query),
                             ),
-                          );
-                        },
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 20),
-                              const SizedBox(width: 8),
-                              Text(
-                                'تحليل الأخطاء بالذكاء الاصطناعي',
-                                style: GoogleFonts.tajawal(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
+                            const SizedBox(height: 20),
 
-                    // ─── أزرار ────────────────────────────────────────
-                    if (_isSaving)
-                      const Center(child: CircularProgressIndicator())
-                    else
-                      Column(
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildActionButton(
-                                  isDark: isDark,
-                                  icon: Icons.image_rounded,
-                                  label: 'مشاركة كصورة',
-                                  color: Colors.blue,
-                                  onTap: _shareImage,
+                            // ─── مراجعة الإجابات ────────────────────────────
+                            GestureDetector(
+                              onTap: () =>
+                                  setState(() => _showReview = !_showReview),
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? AppTheme.surfaceDark
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                    color: isDark
+                                        ? Colors.white.withValues(alpha: 0.07)
+                                        : const Color(0xFFE2E8F0),
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _buildActionButton(
-                                  isDark: isDark,
-                                  icon: Icons.picture_as_pdf_rounded,
-                                  label: 'حفظ كـ PDF',
-                                  color: Colors.red,
-                                  onTap: _savePdf,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () => Navigator.pop(context),
-                                  child: Container(
-                                    height: 52,
-                                    decoration: BoxDecoration(
-                                      color: isDark
-                                          ? Colors.white.withValues(alpha: 0.08)
-                                          : const Color(0xFFF1F5F9),
-                                      borderRadius: BorderRadius.circular(16),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.rate_review_rounded,
+                                      color: AppTheme.primaryColor,
                                     ),
-                                    child: Center(
+                                    const SizedBox(width: 12),
+                                    Expanded(
                                       child: Text(
-                                        'الرئيسية',
+                                        'مراجعة الإجابات',
                                         style: GoogleFonts.tajawal(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 15,
                                         ),
                                       ),
                                     ),
-                                  ),
+                                    Icon(
+                                      _showReview
+                                          ? Icons.keyboard_arrow_up_rounded
+                                          : Icons.keyboard_arrow_down_rounded,
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                flex: 2,
-                                child: GestureDetector(
-                                  onTap: () {
-                                    final provider = Provider.of<QuizProvider>(
-                                      context,
-                                      listen: false,
-                                    );
-                                    provider.generateNewQuiz();
-                                    // إصلاح: استخدام pushAndRemoveUntil لضمان صحة الـ context
-                                    Navigator.pushAndRemoveUntil(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => const QuizScreen(),
-                                      ),
-                                      (route) => route.isFirst,
-                                    );
-                                  },
-                                  child: Container(
-                                    height: 52,
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          AppTheme.primaryColor,
-                                          Color(0xFF0891B2),
-                                        ],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
-                                      borderRadius: BorderRadius.circular(16),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: AppTheme.primaryColor.withValues(
-                                            alpha: 0.35,
-                                          ),
-                                          blurRadius: 12,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
+                            ),
+                            if (_showReview) ...[
+                              const SizedBox(height: 12),
+                              ...widget.answerHistory.map((item) {
+                                final q = item['question'] as QuizQuestion;
+                                final isCorrect = item['isCorrect'] as bool;
+                                final isTimeout = item['timeout'] as bool;
+                                final selected = item['selected'] as int;
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 10),
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? AppTheme.surfaceDark
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: isCorrect
+                                          ? const Color(
+                                              0xFF10B981,
+                                            ).withValues(alpha: 0.4)
+                                          : const Color(
+                                              0xFFEF4444,
+                                            ).withValues(alpha: 0.4),
                                     ),
-                                    child: Center(
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
                                         children: [
-                                          const Icon(
-                                            Icons.refresh_rounded,
-                                            color: Colors.white,
+                                          Icon(
+                                            isCorrect
+                                                ? Icons.check_circle_rounded
+                                                : Icons.cancel_rounded,
+                                            color: isCorrect
+                                                ? const Color(0xFF10B981)
+                                                : const Color(0xFFEF4444),
                                             size: 18,
                                           ),
                                           const SizedBox(width: 8),
-                                          Text(
-                                            'اختبار جديد',
-                                            style: GoogleFonts.tajawal(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 15,
-                                              color: Colors.white,
+                                          Expanded(
+                                            child: Text(
+                                              q.question,
+                                              style: GoogleFonts.tajawal(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 13,
+                                              ),
                                             ),
                                           ),
                                         ],
                                       ),
+                                      if (isTimeout)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 8,
+                                          ),
+                                          child: Text(
+                                            '⏰ انتهى الوقت',
+                                            style: GoogleFonts.tajawal(
+                                              color: Colors.orange,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        )
+                                      else ...[
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'إجابتك: ${q.options[selected]}',
+                                          style: GoogleFonts.tajawal(
+                                            color: isCorrect
+                                                ? const Color(0xFF10B981)
+                                                : const Color(0xFFEF4444),
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        if (!isCorrect)
+                                          Text(
+                                            'الصحيحة: ${q.options[q.correctIndex]}',
+                                            style: GoogleFonts.tajawal(
+                                              color: const Color(0xFF10B981),
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                      ],
+                                      if (q.explanation != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 6,
+                                          ),
+                                          child: Text(
+                                            '💡 ${q.explanation}',
+                                            style: GoogleFonts.tajawal(
+                                              color: isDark
+                                                  ? Colors.white60
+                                                  : Colors.grey[600],
+                                              fontSize: 12,
+                                              fontStyle: FontStyle.italic,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
+                            const SizedBox(height: 20),
+
+                            // ─── تحليل الأخطاء بالذكاء الاصطناعي ────────────────
+                            if (widget.wrongAnswers > 0) ...[
+                              GestureDetector(
+                                onTap: () {
+                                  // جمع الأسئلة الخاطئة وتمريرها للذكاء الاصطناعي
+                                  final wrongQs = widget.answerHistory
+                                      .where(
+                                        (item) => !(item['isCorrect'] as bool),
+                                      )
+                                      .map((item) {
+                                        final q =
+                                            item['question'] as QuizQuestion;
+                                        final selected =
+                                            item['selected'] as int;
+                                        final selectedAns =
+                                            selected >= 0 &&
+                                                selected < q.options.length
+                                            ? q.options[selected]
+                                            : "بدون إجابة";
+                                        return "- السؤال: ${q.question}\n  إجابتي: $selectedAns\n  الإجابة الصحيحة: ${q.options[q.correctIndex]}";
+                                      })
+                                      .join("\n\n");
+
+                                  final query =
+                                      "لقد أخطأت في هذه الأسئلة، هل يمكنك تحليل أخطائي وشرح المفاهيم التي أحتاج مراجعتها بطريقة مبسطة؟\n\n$wrongQs";
+
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          AiSearchScreen(initialQuery: query),
                                     ),
+                                  );
+                                },
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFF8B5CF6),
+                                        Color(0xFF6D28D9),
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(
+                                          0xFF8B5CF6,
+                                        ).withValues(alpha: 0.3),
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.auto_awesome_rounded,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'تحليل الأخطاء بالذكاء الاصطناعي',
+                                        style: GoogleFonts.tajawal(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
-                              ], // يغلق children الخاص بـ Row
-                            ), // يغلق Row
-                          ], // يغلق children الخاص بـ Column
+                              const SizedBox(height: 16),
+                            ],
+
+                            // ─── أزرار ────────────────────────────────────────
+                            if (_isSaving)
+                              const Center(child: CircularProgressIndicator())
+                            else
+                              Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _buildActionButton(
+                                          isDark: isDark,
+                                          icon: Icons.image_rounded,
+                                          label: 'مشاركة كصورة',
+                                          color: Colors.blue,
+                                          onTap: _shareImage,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: _buildActionButton(
+                                          isDark: isDark,
+                                          icon: Icons.picture_as_pdf_rounded,
+                                          label: 'حفظ كـ PDF',
+                                          color: Colors.red,
+                                          onTap: _savePdf,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: GestureDetector(
+                                          onTap: () => Navigator.pop(context),
+                                          child: Container(
+                                            height: 52,
+                                            decoration: BoxDecoration(
+                                              color: isDark
+                                                  ? Colors.white.withValues(
+                                                      alpha: 0.08,
+                                                    )
+                                                  : const Color(0xFFF1F5F9),
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                'الرئيسية',
+                                                style: GoogleFonts.tajawal(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 15,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        flex: 2,
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            final provider =
+                                                Provider.of<QuizProvider>(
+                                                  context,
+                                                  listen: false,
+                                                );
+                                            provider.generateNewQuiz();
+                                            // إصلاح: استخدام pushAndRemoveUntil لضمان صحة الـ context
+                                            Navigator.pushAndRemoveUntil(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) =>
+                                                    const QuizScreen(),
+                                              ),
+                                              (route) => route.isFirst,
+                                            );
+                                          },
+                                          child: Container(
+                                            height: 52,
+                                            decoration: BoxDecoration(
+                                              gradient: const LinearGradient(
+                                                colors: [
+                                                  AppTheme.primaryColor,
+                                                  Color(0xFF0891B2),
+                                                ],
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: AppTheme.primaryColor
+                                                      .withValues(alpha: 0.35),
+                                                  blurRadius: 12,
+                                                  offset: const Offset(0, 4),
+                                                ),
+                                              ],
+                                            ),
+                                            child: Center(
+                                              child: Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  const Icon(
+                                                    Icons.refresh_rounded,
+                                                    color: Colors.white,
+                                                    size: 18,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    'اختبار جديد',
+                                                    style: GoogleFonts.tajawal(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 15,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ], // يغلق children الخاص بـ Row
+                                  ), // يغلق Row
+                                ], // يغلق children الخاص بـ Column
+                              ), // يغلق Column
+                            const SizedBox(height: 12),
+                          ], // يغلق Column داخل Padding
                         ), // يغلق Column
-                      const SizedBox(height: 12),
-                    ], // يغلق Column داخل Padding
-                  ), // يغلق Column
-                ), // يغلق Padding
-              ], // يغلق children الخاص بالـ Column الرئيسي
-            ), // يغلق الـ Column الرئيسي
-          ), // يغلق Container
-        ), // يغلق Screenshot
-      ), // يغلق SingleChildScrollView
-    ), // يغلق SafeArea
-  ], // يغلق children الخاص بالـ Stack
-), // يغلق Stack
-); // يغلق Scaffold
-}
+                      ), // يغلق Padding
+                    ], // يغلق children الخاص بالـ Column الرئيسي
+                  ), // يغلق الـ Column الرئيسي
+                ), // يغلق Container
+              ), // يغلق Screenshot
+            ), // يغلق SingleChildScrollView
+          ), // يغلق SafeArea
+        ], // يغلق children الخاص بالـ Stack
+      ), // يغلق Stack
+    ); // يغلق Scaffold
+  }
 
   Widget _buildStatCard({
     required bool isDark,
@@ -1529,9 +1497,12 @@ class _QuizResultScreenState extends State<_QuizResultScreen>
   /// يبني كرت النتيجة الجذاب المنفصل (يُستخدم للمشاركة فقط)
   Widget _buildShareCard() {
     final resultColor = _getResultColor();
-    final emoji = widget.percentage >= 90 ? '🏆'
-        : widget.percentage >= 80 ? '🌟'
-        : widget.percentage >= 60 ? '💪'
+    final emoji = widget.percentage >= 90
+        ? '🏆'
+        : widget.percentage >= 80
+        ? '🌟'
+        : widget.percentage >= 60
+        ? '💪'
         : '📚';
 
     return Container(
@@ -1590,11 +1561,16 @@ class _QuizResultScreenState extends State<_QuizResultScreen>
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: resultColor.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: resultColor.withValues(alpha: 0.5)),
+                        border: Border.all(
+                          color: resultColor.withValues(alpha: 0.5),
+                        ),
                       ),
                       child: Text(
                         'نتيجة الاختبار',
@@ -1619,7 +1595,9 @@ class _QuizResultScreenState extends State<_QuizResultScreen>
                           : null,
                       child: _studentPhotoUrl == null
                           ? Text(
-                              _studentName.isNotEmpty ? _studentName[0].toUpperCase() : 'ط',
+                              _studentName.isNotEmpty
+                                  ? _studentName[0].toUpperCase()
+                                  : 'ط',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 24,
@@ -1661,14 +1639,13 @@ class _QuizResultScreenState extends State<_QuizResultScreen>
                   decoration: BoxDecoration(
                     color: resultColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: resultColor.withValues(alpha: 0.3)),
+                    border: Border.all(
+                      color: resultColor.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Column(
                     children: [
-                      Text(
-                        emoji,
-                        style: const TextStyle(fontSize: 40),
-                      ),
+                      Text(emoji, style: const TextStyle(fontSize: 40)),
                       const SizedBox(height: 8),
                       Text(
                         '${widget.percentage}%',
@@ -1681,7 +1658,12 @@ class _QuizResultScreenState extends State<_QuizResultScreen>
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        _getResultMessage().replaceAll(RegExp(r'[\u{1F300}-\u{1FFFF}]', unicode: true), '').trim(),
+                        _getResultMessage()
+                            .replaceAll(
+                              RegExp(r'[\u{1F300}-\u{1FFFF}]', unicode: true),
+                              '',
+                            )
+                            .trim(),
                         style: GoogleFonts.tajawal(
                           fontSize: 16,
                           color: Colors.white70,
@@ -1740,7 +1722,12 @@ class _QuizResultScreenState extends State<_QuizResultScreen>
     );
   }
 
-  Widget _buildShareStat(String value, String label, Color color, IconData icon) {
+  Widget _buildShareStat(
+    String value,
+    String label,
+    Color color,
+    IconData icon,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
@@ -1776,22 +1763,26 @@ class _QuizResultScreenState extends State<_QuizResultScreen>
       final imageBytes = await _cardController.capture(pixelRatio: 3.0);
       if (imageBytes != null) {
         final directory = await getApplicationDocumentsDirectory();
-        final path = '${directory.path}/meraj3i_result_${DateTime.now().millisecondsSinceEpoch}.png';
+        final path =
+            '${directory.path}/meraj3i_result_${DateTime.now().millisecondsSinceEpoch}.png';
         final file = File(path);
         await file.writeAsBytes(imageBytes, flush: true);
         // ignore: deprecated_member_use
         await Share.shareXFiles(
           [XFile(path)],
-          text: 'حصلت على ${widget.percentage}% في اختبار MERAJ3I! ${
-            widget.percentage >= 90 ? '🏆' : widget.percentage >= 80 ? '🌟' : '💪'
-          } حمّل التطبيق الآن!',
+          text:
+              'حصلت على ${widget.percentage}% في اختبار MERAJ3I! ${widget.percentage >= 90
+                  ? '🏆'
+                  : widget.percentage >= 80
+                  ? '🌟'
+                  : '💪'} حمّل التطبيق الآن!',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('حدث خطأ أثناء المشاركة: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('حدث خطأ أثناء المشاركة: $e')));
       }
     }
     setState(() => _isSaving = false);
@@ -1805,20 +1796,26 @@ class _QuizResultScreenState extends State<_QuizResultScreen>
         final PdfDocument document = PdfDocument();
         final PdfPage page = document.pages.add();
         final PdfBitmap bitmap = PdfBitmap(imageBytes);
-        
+
         page.graphics.drawImage(
           bitmap,
-          Rect.fromLTWH(0, 0, page.getClientSize().width, page.getClientSize().height),
+          Rect.fromLTWH(
+            0,
+            0,
+            page.getClientSize().width,
+            page.getClientSize().height,
+          ),
         );
-        
+
         final List<int> bytes = await document.save();
         document.dispose();
-        
+
         final directory = await getApplicationDocumentsDirectory();
-        final path = '${directory.path}/meraj3i_result_${DateTime.now().millisecondsSinceEpoch}.pdf';
+        final path =
+            '${directory.path}/meraj3i_result_${DateTime.now().millisecondsSinceEpoch}.pdf';
         final file = File(path);
         await file.writeAsBytes(bytes, flush: true);
-        
+
         OpenFilex.open(path);
       }
     } catch (e) {
@@ -1830,25 +1827,4 @@ class _QuizResultScreenState extends State<_QuizResultScreen>
     }
     setState(() => _isSaving = false);
   }
-}
-
-// ─── Header Clipper ──────────────────────────────────────────────────────────
-class _HeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-    path.lineTo(0, size.height - 40);
-    path.quadraticBezierTo(
-      size.width / 2,
-      size.height + 10,
-      size.width,
-      size.height - 40,
-    );
-    path.lineTo(size.width, 0);
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }

@@ -7,6 +7,7 @@ import '../../models/competition_model.dart';
 import '../../providers/favorite_results_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/results_skeleton.dart';
+import '../../widgets/geometric_sliver_app_bar.dart';
 import 'results_list_screen.dart';
 import 'global_search_screen.dart';
 
@@ -158,13 +159,13 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            // ── Header ──
-            SliverAppBar(
-              expandedHeight: 130,
-              pinned: true,
-              elevation: 0,
+            GeometricSliverAppBar(
+              title: 'نتائج المسابقات الوطنية',
+              icon: Icons.emoji_events_rounded,
+              gradient: AppTheme.brandGradient,
               actions: [
                 IconButton(
+                  tooltip: 'بحث',
                   icon: const Icon(Icons.search_rounded, color: Colors.white),
                   onPressed: () => Navigator.push(
                     context,
@@ -175,52 +176,6 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                   ),
                 ),
               ],
-              flexibleSpace: FlexibleSpaceBar(
-                title: Text(
-                  '🏆 نتائج المسابقات الوطنية',
-                  style: GoogleFonts.tajawal(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontSize: 17,
-                  ),
-                ),
-                background: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF0F172A), Color(0xFF0D9488)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: Stack(
-                    children: [
-                      Positioned(
-                        right: -30,
-                        top: -30,
-                        child: Container(
-                          width: 160,
-                          height: 160,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withValues(alpha: 0.05),
-                          ),
-                        ),
-                      ),
-                      const Align(
-                        alignment: Alignment.centerRight,
-                        child: Padding(
-                          padding: EdgeInsets.only(right: 24),
-                          child: Icon(
-                            Icons.emoji_events_rounded,
-                            size: 48,
-                            color: Colors.white12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ),
 
             SliverToBoxAdapter(

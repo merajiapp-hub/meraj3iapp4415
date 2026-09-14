@@ -17,8 +17,9 @@ class MyExamsScreen extends StatelessWidget {
     final uid = auth.user?.uid;
 
     return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+      backgroundColor: isDark
+          ? const Color(0xFF0F172A)
+          : const Color(0xFFF1F5F9),
       body: Column(
         children: [
           const CurvedHeader(
@@ -41,8 +42,11 @@ class MyExamsScreen extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.lock_outline_rounded,
-              size: 72, color: isDark ? Colors.white24 : Colors.black12),
+          Icon(
+            Icons.lock_outline_rounded,
+            size: 72,
+            color: isDark ? Colors.white24 : Colors.black12,
+          ),
           const SizedBox(height: 16),
           Text(
             'يجب تسجيل الدخول أولاً',
@@ -69,15 +73,44 @@ class MyExamsScreen extends StatelessWidget {
         }
         if (snapshot.hasError) {
           return Center(
-            child: Text('خطأ: ${snapshot.error}',
-                style: GoogleFonts.cairo(color: Colors.red)),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.cloud_off_rounded,
+                    size: 64,
+                    color: isDark ? Colors.white24 : Colors.black12,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'تعذر تحميل نتائج اختباراتك حالياً.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.cairo(
+                      color: isDark ? Colors.white70 : Colors.black54,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton.icon(
+                    onPressed: () => Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MyExamsScreen()),
+                    ),
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: Text('إعادة المحاولة', style: GoogleFonts.cairo()),
+                  ),
+                ],
+              ),
+            ),
           );
         }
 
         final docs = snapshot.data?.docs.toList() ?? [];
         docs.sort((a, b) {
-          final aTime = (a.data()['submittedAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
-          final bTime = (b.data()['submittedAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+          final aTime = _timestampMillis(a.data()['submittedAt']);
+          final bTime = _timestampMillis(b.data()['submittedAt']);
           return bTime.compareTo(aTime);
         });
         if (docs.isEmpty) {
@@ -89,17 +122,19 @@ class MyExamsScreen extends StatelessWidget {
         final avgScore = attempts.isEmpty
             ? 0
             : (attempts.fold<int>(
-                    0, (acc, a) => acc + ((a['score'] as num?)?.toInt() ?? 0)) /
-                attempts.length)
-            .round();
+                        0,
+                        (acc, a) => acc + ((a['score'] as num?)?.toInt() ?? 0),
+                      ) /
+                      attempts.length)
+                  .round();
         final bestScore = attempts.isEmpty
             ? 0
             : attempts.fold<int>(
                 0,
-                (best, a) =>
-                    ((a['score'] as num?)?.toInt() ?? 0) > best
-                        ? (a['score'] as num).toInt()
-                        : best);
+                (best, a) => ((a['score'] as num?)?.toInt() ?? 0) > best
+                    ? (a['score'] as num).toInt()
+                    : best,
+              );
 
         return Column(
           children: [
@@ -142,7 +177,8 @@ class MyExamsScreen extends StatelessWidget {
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                 itemCount: docs.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 10),
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 10),
                 itemBuilder: (context, index) {
                   final data = docs[index].data();
                   return _buildAttemptCard(data, isDark);
@@ -153,6 +189,12 @@ class MyExamsScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  int _timestampMillis(Object? value) {
+    if (value is Timestamp) return value.millisecondsSinceEpoch;
+    if (value is DateTime) return value.millisecondsSinceEpoch;
+    return 0;
   }
 
   Widget _buildAttemptCard(Map<String, dynamic> data, bool isDark) {
@@ -189,9 +231,7 @@ class MyExamsScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: scoreColor.withValues(alpha: 0.2),
-        ),
+        border: Border.all(color: scoreColor.withValues(alpha: 0.2)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.05),
@@ -259,8 +299,11 @@ class MyExamsScreen extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(Icons.timer_outlined,
-                        size: 12, color: isDark ? Colors.white38 : Colors.black38),
+                    Icon(
+                      Icons.timer_outlined,
+                      size: 12,
+                      color: isDark ? Colors.white38 : Colors.black38,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       timeStr,
@@ -271,9 +314,11 @@ class MyExamsScreen extends StatelessWidget {
                     ),
                     if (dateStr.isNotEmpty) ...[
                       const SizedBox(width: 10),
-                      Icon(Icons.calendar_today_outlined,
-                          size: 11,
-                          color: isDark ? Colors.white38 : Colors.black38),
+                      Icon(
+                        Icons.calendar_today_outlined,
+                        size: 11,
+                        color: isDark ? Colors.white38 : Colors.black38,
+                      ),
                       const SizedBox(width: 3),
                       Text(
                         dateStr,
@@ -298,8 +343,11 @@ class MyExamsScreen extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.quiz_outlined,
-              size: 80, color: isDark ? Colors.white24 : Colors.black12),
+          Icon(
+            Icons.quiz_outlined,
+            size: 80,
+            color: isDark ? Colors.white24 : Colors.black12,
+          ),
           const SizedBox(height: 16),
           Text(
             'لم تخض أي اختبار بعد',
@@ -385,4 +433,3 @@ class _MiniChip extends StatelessWidget {
     );
   }
 }
-

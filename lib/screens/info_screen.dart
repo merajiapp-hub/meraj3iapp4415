@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
+import '../widgets/geometric_sliver_app_bar.dart';
 import 'faq_screen.dart';
 
 class InfoScreen extends StatelessWidget {
   const InfoScreen({super.key});
-
-  final String _appVersion = 'الإصدار 6.9.1';
 
   @override
   Widget build(BuildContext context) {
@@ -16,39 +15,10 @@ class InfoScreen extends StatelessWidget {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          SliverAppBar(
-            expandedHeight: 220,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: AppTheme.deepBlueGradient,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const SizedBox(height: 50),
-                    // شعار التطبيق فقط - بدون إطار ولا بطاقة
-                    Image.asset(
-                      'assets/images/logo.png',
-                      width: 130,
-                      height: 130,
-                      color: Colors.white,
-                      colorBlendMode: BlendMode.srcIn,
-                      filterQuality: FilterQuality.high,
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      _appVersion,
-                      style: GoogleFonts.tajawal(
-                        fontSize: 13,
-                        color: Colors.white.withValues(alpha: 0.6),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          const GeometricSliverAppBar(
+            title: 'دعم التطبيق',
+            icon: Icons.info_outline_rounded,
+            gradient: AppTheme.deepBlueGradient,
           ),
           SliverPadding(
             padding: const EdgeInsets.all(20),

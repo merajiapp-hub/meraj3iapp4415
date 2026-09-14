@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/notifications_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/curved_header.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -125,7 +126,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               },
             ),
           ),
-
         ],
       ),
     );
@@ -137,81 +137,21 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       position: _headerSlide,
       child: FadeTransition(
         opacity: _headerFade,
-        child: ClipPath(
-          clipper: _CurvedClipper(),
-          child: Container(
-            height: 180,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF0A1A15), AppTheme.primaryColor],
-                begin: Alignment.topRight,
-                end: Alignment.bottomLeft,
-              ),
-            ),
-            child: Stack(
-              children: [
-                // المحتوى
-                SafeArea(
-                  bottom: false,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          onPressed: () => Navigator.pop(context),
-                          icon: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.arrow_back_ios_rounded,
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                          ),
-                        ),
-                        const Expanded(child: SizedBox()),
-                        Text(
-                          'الإشعارات',
-                          style: GoogleFonts.tajawal(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Expanded(child: SizedBox()),
-                        Consumer<NotificationsProvider>(
-                          builder: (context, provider, _) =>
-                              provider.notifications.isEmpty
-                              ? const SizedBox(width: 48)
-                              : IconButton(
-                                  onPressed: () =>
-                                      _showDeleteAllDialog(provider),
-                                  icon: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Icon(
-                                      Icons.delete_sweep_rounded,
-                                      color: Colors.redAccent,
-                                      size: 20,
-                                    ),
-                                  ),
-                                ),
-                        ),
-                      ],
+        child: Consumer<NotificationsProvider>(
+          builder: (context, provider, _) => CurvedHeader(
+            title: 'الإشعارات',
+            gradient: AppTheme.brandGradient,
+            trailing: provider.notifications.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: 'حذف الكل',
+                    onPressed: () => _showDeleteAllDialog(provider),
+                    icon: const Icon(
+                      Icons.delete_sweep_rounded,
+                      color: Colors.redAccent,
+                      size: 24,
                     ),
                   ),
-                ),
-              ],
-            ),
           ),
         ),
       ),
@@ -298,7 +238,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               ),
               const SizedBox(height: 20),
               Text(
-                _searchQuery.isNotEmpty ? 'لا توجد نتائج للبحث' : 'لا توجد إشعارات',
+                _searchQuery.isNotEmpty
+                    ? 'لا توجد نتائج للبحث'
+                    : 'لا توجد إشعارات',
                 style: GoogleFonts.tajawal(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -310,7 +252,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                 _searchQuery.isNotEmpty
                     ? 'حاول البحث بكلمات أخرى'
                     : 'ستظهر هنا إشعاراتك الجديدة',
-                style: GoogleFonts.tajawal(fontSize: 14, color: Colors.grey[500]),
+                style: GoogleFonts.tajawal(
+                  fontSize: 14,
+                  color: Colors.grey[500],
+                ),
               ),
             ],
           ),
@@ -415,7 +360,10 @@ class _NotificationCardState extends State<_NotificationCard>
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            Icon(widget.notification.typeIcon, color: widget.notification.typeColor),
+            Icon(
+              widget.notification.typeIcon,
+              color: widget.notification.typeColor,
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -428,10 +376,7 @@ class _NotificationCardState extends State<_NotificationCard>
         content: SingleChildScrollView(
           child: Text(
             widget.notification.body,
-            style: GoogleFonts.tajawal(
-              fontSize: 16,
-              height: 1.5,
-            ),
+            style: GoogleFonts.tajawal(fontSize: 16, height: 1.5),
           ),
         ),
         actions: [
@@ -653,25 +598,4 @@ class _NotificationCardState extends State<_NotificationCard>
       ),
     );
   }
-}
-
-// ─── منحنى الرأس ─────────────────────────────────────────────────────────────
-class _CurvedClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-    path.lineTo(0, size.height - 40);
-    path.quadraticBezierTo(
-      size.width / 2,
-      size.height + 20,
-      size.width,
-      size.height - 40,
-    );
-    path.lineTo(size.width, 0);
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }

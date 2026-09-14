@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
-import 'curved_header.dart';
 
 class GeometricSliverAppBar extends StatelessWidget {
   final String title;
@@ -9,6 +8,7 @@ class GeometricSliverAppBar extends StatelessWidget {
   final IconData? icon;
   final Gradient? gradient;
   final List<Widget>? actions;
+  final bool showBackButton;
 
   const GeometricSliverAppBar({
     super.key,
@@ -17,96 +17,86 @@ class GeometricSliverAppBar extends StatelessWidget {
     this.icon,
     this.gradient,
     this.actions,
+    this.showBackButton = true,
   });
 
   @override
   Widget build(BuildContext context) {
     return SliverAppBar(
-      expandedHeight: 140,
+      expandedHeight: 110,
       pinned: true,
       elevation: 0,
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      leading: showBackButton
+          ? IconButton(
+              tooltip: 'رجوع',
+              onPressed: () => Navigator.maybePop(context),
+              icon: const Icon(
+                Icons.arrow_forward_rounded,
+                color: Colors.black54,
+                size: 28,
+              ),
+            )
+          : null,
+      leadingWidth: showBackButton ? 54 : 0,
       actions: actions,
       flexibleSpace: FlexibleSpaceBar(
-        titlePadding: const EdgeInsets.only(left: 20, right: 48, bottom: 16),
-        title: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: GoogleFonts.tajawal(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                fontSize: 18,
+        background: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+          child: ClipPath(
+            clipper: _CutSliverHeaderClipper(),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: gradient ?? AppTheme.brandGradient,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.14),
+                    blurRadius: 16,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
-            ),
-            if (subtitle != null)
-              Text(
-                subtitle!,
-                style: GoogleFonts.tajawal(color: Colors.white70, fontSize: 10),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      style: GoogleFonts.tajawal(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: 17,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
               ),
-          ],
-        ),
-        background: ClipPath(
-          clipper: MerajHeaderClipper(),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: gradient ?? AppTheme.deepBlueGradient,
-            ),
-            child: Stack(
-              children: [
-                Positioned(
-                  right: -30,
-                  top: -30,
-                  child: Container(
-                    width: 150,
-                    height: 150,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.05),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: -50,
-                  bottom: -40,
-                  child: Container(
-                    width: 180,
-                    height: 180,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.08),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: 80,
-                  bottom: -20,
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.03),
-                    ),
-                  ),
-                ),
-                if (icon != null)
-                  Positioned(
-                    left: 18,
-                    bottom: 8,
-                    child: Icon(
-                      icon,
-                      size: 66,
-                      color: Colors.white.withValues(alpha: 0.1),
-                    ),
-                  ),
-              ],
             ),
           ),
         ),
       ),
+      title: null,
     );
   }
 }
 
+class _CutSliverHeaderClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.moveTo(0, 0);
+    path.lineTo(size.width - 52, 0);
+    path.lineTo(size.width, size.height * 0.34);
+    path.lineTo(size.width, size.height);
+    path.lineTo(0, size.height);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}

@@ -11,6 +11,7 @@ import '../providers/task_provider.dart';
 import '../providers/reading_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_notification.dart';
+import '../widgets/curved_header.dart';
 import 'login_screen.dart';
 import 'statistics_screen.dart';
 import 'student/reading_history_screen.dart';
@@ -186,7 +187,9 @@ class _ProfileScreenState extends State<ProfileScreen>
       builder: (context) {
         return AlertDialog(
           backgroundColor: isDark ? AppTheme.surfaceDark : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: Column(
             children: [
               Image.asset('assets/images/logo.png', height: 60),
@@ -246,7 +249,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   void _logout() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     await authProvider.signOut();
-    
+
     if (mounted) {
       Provider.of<FavoritesProvider>(context, listen: false).clearAll();
       Provider.of<DownloadsProvider>(context, listen: false).clearAll();
@@ -354,181 +357,114 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   // ─── الرأس المنحني مع صورة الحساب ─────────────────────────────────────────
   Widget _buildCurvedHeader(bool isDark, String name, String email) {
-    return Stack(
-      clipBehavior: Clip.none,
+    return Column(
       children: [
-        // الخلفية المنحنية
-        ClipPath(
-          clipper: _ProfileHeaderClipper(),
-          child: Container(
-            height: 220,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF0F172A), Color(0xFF14B8A6)],
-                begin: Alignment.topRight,
-                end: Alignment.bottomLeft,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            IconButton(
+              tooltip: 'رجوع',
+              onPressed: () => Navigator.maybePop(context),
+              icon: const Icon(
+                Icons.arrow_forward_rounded,
+                color: Colors.black54,
               ),
             ),
-            child: Stack(
-              children: [
-                Positioned(
-                  top: -50,
-                  left: -50,
-                  child: Container(
-                    width: 200,
-                    height: 200,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.05),
-                    ),
-                  ),
-                ),
-                SafeArea(
-                  bottom: false,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          onPressed: () => Navigator.pop(context),
-                          icon: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.arrow_back_ios_rounded,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                          ),
-                        ),
-                        const Expanded(child: SizedBox()),
-                        Text(
-                          'حسابي',
-                          style: GoogleFonts.tajawal(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Expanded(child: SizedBox()),
-                        IconButton(
-                          onPressed: _isLoading
-                              ? null
-                              : (_isEditing
-                                    ? _saveProfile
-                                    : () => setState(() => _isEditing = true)),
-                          icon: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: _isEditing
-                                  ? AppTheme.primaryColor
-                                  : Colors.white.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              _isEditing
-                                  ? Icons.check_rounded
-                                  : Icons.edit_rounded,
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+            IconButton(
+              tooltip: _isEditing ? 'حفظ' : 'تعديل',
+              onPressed: _isLoading
+                  ? null
+                  : (_isEditing
+                        ? _saveProfile
+                        : () => setState(() => _isEditing = true)),
+              icon: Icon(
+                _isEditing ? Icons.check_rounded : Icons.edit_rounded,
+                color: AppTheme.primaryColor,
+              ),
             ),
-          ),
+          ],
         ),
-        // صورة الحساب فوق الرأس
-        Positioned(
-          bottom: -60,
-          left: 0,
-          right: 0,
-          child: Center(
-            child: Stack(
-              alignment: Alignment.bottomRight,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isDark
-                        ? AppTheme.backgroundDark
-                        : const Color(0xFFF0F4F8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                        blurRadius: 20,
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
-                  child: GestureDetector(
-                    onTap: (_isEditing && !_isLoading)
-                        ? _showImageSourceDialog
+        const CurvedHeader(
+          title: 'حسابي',
+          gradient: AppTheme.brandGradient,
+          showBackButton: false,
+        ),
+        Transform.translate(
+          offset: const Offset(0, -8),
+          child: Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isDark
+                      ? AppTheme.backgroundDark
+                      : const Color(0xFFF0F4F8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: GestureDetector(
+                  onTap: (_isEditing && !_isLoading)
+                      ? _showImageSourceDialog
+                      : null,
+                  child: CircleAvatar(
+                    radius: 56,
+                    backgroundColor: AppTheme.primaryColor.withValues(
+                      alpha: 0.1,
+                    ),
+                    backgroundImage: _getProfileImage(),
+                    child: _getProfileImage() == null
+                        ? Text(
+                            name.isNotEmpty ? name[0].toUpperCase() : 'م',
+                            style: GoogleFonts.outfit(
+                              fontSize: 40,
+                              fontWeight: FontWeight.w900,
+                              color: AppTheme.primaryColor,
+                            ),
+                          )
                         : null,
-                    child: CircleAvatar(
-                      radius: 56,
-                      backgroundColor: AppTheme.primaryColor.withValues(
-                        alpha: 0.1,
-                      ),
-                      backgroundImage: _getProfileImage(),
-                      child: _getProfileImage() == null
-                          ? Text(
-                              name.isNotEmpty ? name[0].toUpperCase() : 'م',
-                              style: GoogleFonts.outfit(
-                                fontSize: 40,
-                                fontWeight: FontWeight.w900,
-                                color: AppTheme.primaryColor,
-                              ),
-                            )
-                          : null,
+                  ),
+                ),
+              ),
+              if (_isEditing && !_isLoading)
+                GestureDetector(
+                  onTap: _showImageSourceDialog,
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: const BoxDecoration(
+                      color: AppTheme.primaryColor,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt_rounded,
+                      size: 16,
+                      color: Colors.white,
                     ),
                   ),
                 ),
-                if (_isEditing && !_isLoading)
-                  GestureDetector(
-                    onTap: _showImageSourceDialog,
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: const BoxDecoration(
-                        color: AppTheme.primaryColor,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.camera_alt_rounded,
-                        size: 16,
+              if (_isLoading)
+                Positioned.fill(
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black45,
+                    ),
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
                         color: Colors.white,
                       ),
                     ),
                   ),
-                if (_isLoading)
-                  Positioned.fill(
-                    child: Container(
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.black45,
-                      ),
-                      child: const Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+                ),
+            ],
           ),
         ),
       ],
@@ -820,7 +756,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   Widget _buildActionsCard(bool isDark) {
     return Column(
       children: [
-
         _buildActionButton(
           label: 'سجل القراءة',
           icon: Icons.history_rounded,
@@ -853,7 +788,12 @@ class _ProfileScreenState extends State<ProfileScreen>
         const SizedBox(height: 12),
         _buildActionButton(
           label: 'تسجيل الخروج',
-          icon: Image.asset('assets/images/logo.png', width: 20, height: 20, color: Colors.redAccent),
+          icon: Image.asset(
+            'assets/images/logo.png',
+            width: 20,
+            height: 20,
+            color: Colors.redAccent,
+          ),
           color: Colors.redAccent,
           isDark: isDark,
           onTap: _showLogoutConfirmDialog,
@@ -879,7 +819,9 @@ class _ProfileScreenState extends State<ProfileScreen>
     required bool isDark,
     required VoidCallback onTap,
   }) {
-    final iconWidget = icon is IconData ? Icon(icon, color: color, size: 20) : (icon as Widget);
+    final iconWidget = icon is IconData
+        ? Icon(icon, color: color, size: 20)
+        : (icon as Widget);
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -929,26 +871,3 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 }
-
-// ─── منحنى رأس صفحة الحساب ──────────────────────────────────────────────────
-class _ProfileHeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-    path.lineTo(0, size.height - 60);
-    path.quadraticBezierTo(
-      size.width / 2,
-      size.height + 20,
-      size.width,
-      size.height - 60,
-    );
-    path.lineTo(size.width, 0);
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
-
-
