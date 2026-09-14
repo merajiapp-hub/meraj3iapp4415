@@ -1,10 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../core/account_status.dart';
@@ -13,8 +11,6 @@ import '../services/admin_activity_service.dart';
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  late final GoogleSignIn _googleSignIn;
-
   User? _user;
   Map<String, dynamic>? _userData;
   bool _isGuest = false;
@@ -26,9 +22,6 @@ class AuthProvider extends ChangeNotifier {
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _accountStatusSubscription;
 
   AuthProvider() {
-    if (!kIsWeb) {
-      _googleSignIn = GoogleSignIn();
-    }
     // قراءة الحالة المحلية الأولية بشكل متزامن دون انتظار
     _user = _auth.currentUser;
     _isGuest = false; // سيُحدَّث من SharedPreferences لاحقاً
@@ -611,111 +604,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // ─── تسجيل الدخول بـ Google ─────────────────────────────────────────────
-  Future<String?> signInWithGoogle() async {
-    try {
-      late final UserCredential userCredential;
-      if (kIsWeb) {
-        userCredential = await _auth
-            .signInWithPopup(GoogleAuthProvider())
-            .timeout(const Duration(seconds: 45));
-      } else {
-        final googleUser = await _googleSignIn.signIn().timeout(
-          const Duration(seconds: 30),
-        );
-        if (googleUser == null) return 'تم إلغاء تسجيل الدخول بـ Google';
-
-        final googleAuth = await googleUser.authentication;
-        final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
-        userCredential = await _auth
-            .signInWithCredential(credential)
-            .timeout(const Duration(seconds: 15));
-      }
-      final user = userCredential.user;
-      if (user == null) return 'فشل تسجيل الدخول بـ Google';
-
-      // لا نعلن نجاح تسجيل Google قبل إنشاء profile والتأكد من وجوده.
-      bool isNewProfile = false;
-      DocumentSnapshot<Map<String, dynamic>>? savedProfile;
-
-      try {
-        final doc = await _firestore.collection('users').doc(user.uid).get();
-        isNewProfile = !doc.exists;
-        savedProfile = await ensureUserDocument(user);
-      } on FirebaseException catch (e) {
-        if (e.code == 'permission-denied') {
-          debugPrint('[Google] Token propagation delay — retrying in 1s...');
-          await Future.delayed(const Duration(seconds: 1));
-          await user.getIdToken(true);
-          final doc = await _firestore.collection('users').doc(user.uid).get();
-          isNewProfile = !doc.exists;
-          savedProfile = await ensureUserDocument(user);
-        } else {
-          rethrow;
-        }
-      }
-
-      final snapshot = normalizeAccountStatus(savedProfile.data());
-      _user = user;
-      _userData = savedProfile.data();
-      _isAccountSuspended = snapshot.isSuspended;
-      _profileReady = true;
-      if (snapshot.isSuspended) {
-        _isAccountSuspended = true;
-        _userData = savedProfile.data();
-        _profileReady = true;
-        notifyListeners();
-        return 'suspended';
-      }
-
-      try {
-        if (isNewProfile) {
-          // تسجيل نشاط مستخدم جديد
-          await AdminActivityService.log(
-            type: AdminActivityType.userRegistered,
-            title: 'تسجيل مستخدم جديد',
-            description: 'سجل مستخدم جديد باسم: ${user.displayName} (Google)',
-            targetUserId: user.uid,
-            targetUserName: user.displayName,
-            metadata: {'email': user.email, 'provider': 'google'},
-          );
-        } else {
-          // تسجيل دخول
-          await AdminActivityService.log(
-            type: AdminActivityType.userLoggedIn,
-            title: 'تسجيل دخول مستخدم',
-            description: 'قام المستخدم ${user.email} بتسجيل الدخول (Google)',
-            targetUserId: user.uid,
-            metadata: {'email': user.email, 'provider': 'google'},
-          );
-        }
-      } catch (e) {
-        debugPrint('[Google] Activity logging warning: $e');
-      }
-
-      _user = user;
-      _userData = savedProfile.data();
-      _profileReady = true;
-      notifyListeners();
-      return null;
-    } on FirebaseAuthException catch (e) {
-      debugPrint('[Google] Authentication failed: ${e.code} ${e.message}');
-      return _googleAuthErrorMessage(e);
-    } on FirebaseException catch (e) {
-      debugPrint('[Google] Firestore stage failed: ${e.code} ${e.message}');
-      await _auth.signOut();
-      return _googleErrorMessage(e);
-    } catch (e) {
-      await _auth.signOut();
-      if (e.toString().contains('timeout')) {
-        return 'انتهت مهلة الاتصال. أعد المحاولة.';
-      }
-      return 'خطأ في تسجيل الدخول بـ Google: $e';
-    }
-  }
 
   /// Ensures users/{uid} exists without overwriting profile fields edited in-app.
   Future<DocumentSnapshot<Map<String, dynamic>>> ensureUserDocument(
@@ -804,37 +692,6 @@ class AuthProvider extends ChangeNotifier {
     return saved;
   }
 
-  String _googleErrorMessage(FirebaseException error) {
-    switch (error.code) {
-      case 'permission-denied':
-        return 'تم تسجيل Google، لكن لا يمكن حفظ ملفك. تحقق من اتصالك ثم أعد المحاولة.';
-      case 'unavailable':
-      case 'network-request-failed':
-        return 'تعذر الاتصال بقاعدة البيانات. أعد المحاولة عند توفر الإنترنت.';
-      case 'profile-not-created':
-        return 'تعذر تجهيز ملف المستخدم. أعد المحاولة.';
-      default:
-        return 'تعذر إكمال تسجيل الدخول بـ Google. أعد المحاولة.';
-    }
-  }
-
-  String _googleAuthErrorMessage(FirebaseAuthException error) {
-    switch (error.code) {
-      case 'popup-closed-by-user':
-      case 'cancelled-popup-request':
-        return 'تم إلغاء تسجيل الدخول بـ Google.';
-      case 'popup-blocked':
-        return 'تم حظر نافذة Google. اسمح بالنوافذ المنبثقة ثم أعد المحاولة.';
-      case 'unauthorized-domain':
-        return 'النطاق الحالي غير مضاف إلى Authorized domains في Firebase Authentication.';
-      case 'account-exists-with-different-credential':
-        return 'هذا البريد مرتبط بطريقة دخول أخرى. استخدم البريد وكلمة المرور.';
-      case 'network-request-failed':
-        return 'تعذر الاتصال بخدمة Google. تحقق من الإنترنت وأعد المحاولة.';
-      default:
-        return 'تعذر تسجيل الدخول بـ Google (${error.code}). أعد المحاولة.';
-    }
-  }
 
   Future<String?> deleteAccount() async {
     try {
@@ -858,10 +715,5 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> signOutGoogle() async {
-    if (kIsWeb) return;
-    try {
-      await _googleSignIn.signOut();
-    } catch (_) {}
-  }
+
 }

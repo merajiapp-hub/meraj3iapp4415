@@ -246,9 +246,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   void _logout() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     await authProvider.signOut();
-    try {
-      await authProvider.signOutGoogle();
-    } catch (_) {}
+    
     if (mounted) {
       Provider.of<FavoritesProvider>(context, listen: false).clearAll();
       Provider.of<DownloadsProvider>(context, listen: false).clearAll();
@@ -952,3 +950,5 @@ class _ProfileHeaderClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
+
+

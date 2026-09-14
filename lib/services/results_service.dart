@@ -140,6 +140,7 @@ class StudentResult {
     } else if (type == ExamType.concours) {
       // Concours: المجموع موجود في TOTAL أو غيره
       score = _findNumericField(row, ['total', 'المجموع', 'مجموع', 'score', 'note']);
+      score ??= _findNumericField(row, ['moyenne', 'moy', 'average', 'avg', 'معدل', 'moyg']);
       // لا نستبدل TOTAL بمعدل أو حقل آخر؛ غياب TOTAL يعني أن النتيجة غير صالحة للتصنيف.
       averageScore = score != null ? (score / 200.0 * 20.0) : null;
     } else if (type == ExamType.brevet) {
@@ -194,12 +195,14 @@ class StudentResult {
       // Concours classification is score-driven: 85..200 is successful.
       // Values above the documented maximum are invalid data, not failures.
       if (!['غائب', 'مطرود'].contains(status)) {
-        if (score == null) {
+        if (score != null) {
+          if (score > 200.0) {
+            status = 'بيانات غير صالحة';
+          } else {
+            status = score >= 85.0 ? 'ناجح' : 'راسب';
+          }
+        } else if (status.isEmpty) {
           status = 'راسب';
-        } else if (score > 200.0) {
-          status = 'بيانات غير صالحة';
-        } else {
-          status = score >= 85.0 ? 'ناجح' : 'راسب';
         }
       }
     } else if (type == ExamType.excellence) {

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -451,16 +451,6 @@ class _HomePageState extends State<HomePage>
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const StagesScreen()),
-        ),
-      ),
-      _ServiceItem(
-        title: 'مراجع أخرى',
-        icon: Icons.menu_book_rounded,
-        gradient: AppTheme.blueGradient,
-        badge: null,
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ReferencesScreen()),
         ),
       ),
       _ServiceItem(
@@ -1232,9 +1222,7 @@ class _HomePageState extends State<HomePage>
                                   listen: false,
                                 );
                                 await authProvider.signOut();
-                                try {
-                                  await authProvider.signOutGoogle();
-                                } catch (_) {}
+                                
                                 if (context.mounted) {
                                   Provider.of<FavoritesProvider>(
                                     context,
@@ -1403,4 +1391,5 @@ class _AnimatedCardState extends State<_AnimatedCard>
     );
   }
 }
+
 

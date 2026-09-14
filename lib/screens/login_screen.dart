@@ -233,26 +233,6 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  void _loginWithGoogle() async {
-    setState(() => _isLoading = true);
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final error = await authProvider.signInWithGoogle();
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-    if (error == null) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const MainScreen()),
-      );
-    } else if (error == 'suspended') {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const AccountSuspendedScreen()),
-      );
-    } else {
-      AppNotification.show(context, error, isError: true);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -517,59 +497,6 @@ class _LoginScreenState extends State<LoginScreen>
             const SizedBox(height: 12), // تقليل المسافة
           ],
 
-          // ─── Google Sign-In ───────────────────────────────────────────
-          Row(
-            children: [
-              Expanded(
-                child: Divider(color: Colors.white.withValues(alpha: 0.2)),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  'أو',
-                  style: GoogleFonts.tajawal(
-                    color: Colors.white.withValues(alpha: 0.5),
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Divider(color: Colors.white.withValues(alpha: 0.2)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12), // تقليل المسافة
-          SizedBox(
-            width: double.infinity,
-            height: 48, // تصغير الزر
-            child: OutlinedButton.icon(
-              onPressed: _isLoading ? null : _loginWithGoogle,
-              icon: Padding(
-                padding: const EdgeInsets.only(left: 4),
-                child: Image.asset(
-                  'assets/images/logo.png',
-                  width: 20, // تصغير الشعار
-                  height: 20, // تصغير الشعار
-                  color: Colors.white,
-                  colorBlendMode: BlendMode.srcIn,
-                  errorBuilder: (context, error, stackTrace) => const Icon(
-                    Icons.g_mobiledata_rounded,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-              ),
-              label: Text(
-                'تسجيل الدخول بـ Google',
-                style: GoogleFonts.tajawal(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14, // تصغير الخط
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16), // تقليل المسافة
 
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
