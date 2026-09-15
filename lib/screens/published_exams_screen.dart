@@ -152,9 +152,7 @@ class _ExamCard extends StatelessWidget {
             Container(
               height: 4,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF1E40AF), Color(0xFF7C3AED)],
-                ),
+                gradient: AppTheme.primaryGradient,
                 borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(20)),
               ),
@@ -169,9 +167,7 @@ class _ExamCard extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF1E40AF), Color(0xFF7C3AED)],
-                          ),
+                          gradient: AppTheme.primaryGradient,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(Icons.quiz_rounded,

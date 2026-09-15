@@ -140,33 +140,29 @@ class MyExamsScreen extends StatelessWidget {
           children: [
             // Summary bar
             Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF1E40AF), Color(0xFF7C3AED)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
+                gradient: AppTheme.primaryGradient,
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _SummaryItem(
-                    label: 'إجمالي المحاولات',
+                    label: 'المحاولات',
                     value: '${attempts.length}',
                     icon: Icons.assignment_turned_in_rounded,
                   ),
-                  Container(width: 1, height: 40, color: Colors.white24),
+                  Container(width: 1, height: 30, color: Colors.white24),
                   _SummaryItem(
-                    label: 'متوسط النتيجة',
+                    label: 'المتوسط',
                     value: '$avgScore%',
                     icon: Icons.bar_chart_rounded,
                   ),
-                  Container(width: 1, height: 40, color: Colors.white24),
+                  Container(width: 1, height: 30, color: Colors.white24),
                   _SummaryItem(
-                    label: 'أفضل نتيجة',
+                    label: 'الأفضل',
                     value: '$bestScore%',
                     icon: Icons.emoji_events_rounded,
                   ),
@@ -387,19 +383,19 @@ class _SummaryItem extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, color: Colors.white70, size: 20),
-        const SizedBox(height: 4),
+        Icon(icon, color: Colors.white70, size: 16),
+        const SizedBox(height: 2),
         Text(
           value,
           style: GoogleFonts.outfit(
             color: Colors.white,
             fontWeight: FontWeight.w800,
-            fontSize: 20,
+            fontSize: 16,
           ),
         ),
         Text(
           label,
-          style: GoogleFonts.cairo(color: Colors.white70, fontSize: 11),
+          style: GoogleFonts.cairo(color: Colors.white70, fontSize: 10),
           textAlign: TextAlign.center,
         ),
       ],

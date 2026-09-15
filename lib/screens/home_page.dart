@@ -245,55 +245,25 @@ class _HomePageState extends State<HomePage>
             //  Body Content (Scrollable)
             // ══════════════════════════════════════════
             Expanded(
-              child: SingleChildScrollView(
-                child: FadeTransition(
-                  opacity: _fadeAnim,
-                  child: SlideTransition(
-                    position: _slideAnim,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // ── عنوان القسم الرئيسي ──
-                          _buildSectionHeader('الخدمات الرئيسية', isDark),
-                          const SizedBox(height: 14),
+              child: FadeTransition(
+                opacity: _fadeAnim,
+                child: SlideTransition(
+                  position: _slideAnim,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ── عنوان القسم الرئيسي ──
+                        _buildSectionHeader('الخدمات الرئيسية', isDark),
+                        const SizedBox(height: 14),
 
-                          // ── Grid الأزرار الرئيسية ──
-                          _buildMainServicesGrid(size, isDark),
+                        // ── Grid الأزرار الرئيسية ──
+                        _buildMainServicesGrid(size, isDark),
 
-                          const SizedBox(height: 28),
-                          const BannerAdWidget(),
-                          const SizedBox(height: 28),
-
-                          // ── Footer ──
-                          Center(
-                            child: Column(
-                              children: [
-                                Text(
-                                  'Développé par Mohamed Mahmoud Abderrahmane & Abdellahi SMD',
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.tajawal(
-                                    fontSize: 10,
-                                    color: Colors.grey[500],
-                                    letterSpacing: 0.3,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '© 2026 MERAJ3I. جميع الحقوق محفوظة.',
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.tajawal(
-                                    fontSize: 10,
-                                    color: Colors.grey[500],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 120),
-                        ],
-                      ),
+                        const SizedBox(height: 28),
+                        const BannerAdWidget(),
+                      ],
                     ),
                   ),
                 ),
@@ -335,7 +305,7 @@ class _HomePageState extends State<HomePage>
         icon: Icons.calculate_rounded,
         imagePath: 'assets/Calculator/Calculator.png',
         gradient: AppTheme.primaryGradient,
-        badge: 'جديد',
+        badge: null,
         onTap: () {
           final isEnabled = context.read<AppConfigProvider>().isFeatureEnabled(
             'ai_enabled',
@@ -802,6 +772,7 @@ class _HomePageState extends State<HomePage>
       _buildUserCard(isDark),
       _buildCarouselImageCard('assets/IM/IM1.jpg'),
       _buildCarouselImageCard('assets/IM/IM2.jpg'),
+      _buildCarouselImageCard('assets/IM/IM3.jpg'),
     ];
 
     return Column(

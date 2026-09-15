@@ -16,7 +16,7 @@ class InfoScreen extends StatelessWidget {
       body: CustomScrollView(
         slivers: [
           const GeometricSliverAppBar(
-            title: 'دعم التطبيق',
+            title: 'عن التطبيق',
             icon: Icons.info_outline_rounded,
             gradient: AppTheme.deepBlueGradient,
           ),

@@ -67,11 +67,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
           CurvedHeader(
             title: 'الإحصائيات',
             subtitle: 'تتبع نشاطك ومراجعاتك',
-            gradient: const LinearGradient(
-              colors: [Color(0xFF0F172A), Color(0xFF8B5CF6)],
-              begin: Alignment.topRight,
-              end: Alignment.bottomLeft,
-            ),
+            gradient: AppTheme.brandGradient,
           ),
           Expanded(
             child: FadeTransition(

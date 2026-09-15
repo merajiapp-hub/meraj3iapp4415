@@ -12,37 +12,11 @@ class NationalExamsScreen extends StatelessWidget {
 
   // لون حسب نوع المسابقة
   static Color _typeColor(String grade) {
-    final g = grade.toLowerCase();
-    if (g.contains('concours') || g.contains('ابتدائية')) {
-      return const Color(0xFF14B8A6); // Teal
-    }
-    if (g.contains('brevet') || g.contains('إعدادية')) {
-      return const Color(0xFFF59E0B); // Amber
-    }
-    if (g.contains('bac') || g.contains('baccalauréat') || g.contains('ثانوية')) {
-      return const Color(0xFF8B5CF6); // Purple
-    }
     return AppTheme.primaryColor;
   }
 
   static LinearGradient _typeGradient(String grade) {
-    final g = grade.toLowerCase();
-    if (g.contains('concours') || g.contains('ابتدائية')) {
-      return const LinearGradient(
-        colors: [Color(0xFF14B8A6), Color(0xFF0D9488)],
-        begin: Alignment.topLeft, end: Alignment.bottomRight,
-      );
-    }
-    if (g.contains('brevet') || g.contains('إعدادية')) {
-      return const LinearGradient(
-        colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
-        begin: Alignment.topLeft, end: Alignment.bottomRight,
-      );
-    }
-    return const LinearGradient(
-      colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
-      begin: Alignment.topLeft, end: Alignment.bottomRight,
-    );
+    return AppTheme.primaryGradient;
   }
 
   @override

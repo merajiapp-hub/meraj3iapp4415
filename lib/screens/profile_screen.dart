@@ -11,7 +11,7 @@ import '../providers/task_provider.dart';
 import '../providers/reading_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_notification.dart';
-import '../widgets/curved_header.dart';
+
 import 'login_screen.dart';
 import 'statistics_screen.dart';
 import 'student/reading_history_screen.dart';
@@ -488,6 +488,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           const SizedBox(height: 16),
           Text(
             name,
+            textAlign: TextAlign.center,
             style: GoogleFonts.tajawal(
               color: Colors.white,
               fontSize: 22,
@@ -497,6 +498,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           if (email.isNotEmpty)
             Text(
               email,
+              textAlign: TextAlign.center,
               style: GoogleFonts.tajawal(
                 color: Colors.white.withValues(alpha: 0.85),
                 fontSize: 14,
@@ -933,6 +935,3 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 }
-
-}
-

@@ -109,7 +109,7 @@ class ServicesScreen extends StatelessWidget {
         title: 'التنافس بين الطلاب',
         icon: Icons.emoji_events_rounded,
         gradient: AppTheme.primaryGradient,
-        badge: 'جديد',
+        badge: null,
         onTap: () => _checkFeatureAndNavigate(
           context,
           'competition_enabled',
@@ -142,7 +142,7 @@ class ServicesScreen extends StatelessWidget {
         title: 'المراسلة',
         icon: Icons.chat_rounded,
         gradient: AppTheme.primaryGradient,
-        badge: 'جديد',
+        badge: null,
         onTap: () =>
             _checkFeatureAndNavigate(context, null, const DirectChatScreen()),
       ),
@@ -285,7 +285,8 @@ class ServicesScreen extends StatelessWidget {
                 ],
               ),
             ),
-            if (service.badge != null)
+          ),
+          if (service.badge != null)
               Positioned(
                 top: 8,
                 left: 8,

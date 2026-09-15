@@ -79,8 +79,8 @@ class _ReferencesSearchScreenState extends State<ReferencesSearchScreen>
       _searchResults = _allBooks.where((book) {
         return book.title.toLowerCase().contains(searchLower) ||
                book.category.toLowerCase().contains(searchLower) ||
-               book.description.toLowerCase().contains(searchLower) ||
-               book.author.toLowerCase().contains(searchLower);
+               (book.subtitle?.toLowerCase().contains(searchLower) ?? false) ||
+               book.subject.toLowerCase().contains(searchLower);
       }).toList();
     });
   }
@@ -97,7 +97,6 @@ class _ReferencesSearchScreenState extends State<ReferencesSearchScreen>
           GeometricSliverAppBar(
             title: 'البحث في المراجع',
             gradient: AppTheme.brandGradient,
-            isDark: isDark,
           ),
           SliverToBoxAdapter(
             child: Padding(

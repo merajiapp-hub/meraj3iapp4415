@@ -5,6 +5,7 @@ import '../models/book.dart';
 import 'pdf_viewer_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../widgets/curved_header.dart';
+import '../theme/app_theme.dart';
 
 class SweddScreen extends StatelessWidget {
   const SweddScreen({super.key});
@@ -27,7 +28,7 @@ class SweddScreen extends StatelessWidget {
         children: [
           const CurvedHeader(
             title: 'مشروع SWEDD',
-            gradient: LinearGradient(colors: [Color(0xFFEC4899), Color(0xFFBE185D)]),
+            gradient: AppTheme.brandGradient,
             leadingIcon: Icons.health_and_safety_rounded,
           ),
           Expanded(child: sweddBooks.isEmpty
@@ -42,15 +43,11 @@ class SweddScreen extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFEC4899), Color(0xFFBE185D)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                      gradient: AppTheme.primaryGradient,
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFEC4899).withValues(alpha: 0.3),
+                          color: AppTheme.primaryColor.withValues(alpha: 0.3),
                           blurRadius: 15,
                           offset: const Offset(0, 8),
                         ),
@@ -110,20 +107,16 @@ class SweddScreen extends StatelessWidget {
                                   vertical: 8,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(
-                                    0xFFEC4899,
-                                  ).withValues(alpha: 0.1),
+                                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                    color: const Color(
-                                      0xFFEC4899,
-                                    ).withValues(alpha: 0.3),
+                                    color: AppTheme.primaryColor.withValues(alpha: 0.3),
                                   ),
                                 ),
                                 child: Text(
                                   gradeName,
                                   style: GoogleFonts.tajawal(
-                                    color: const Color(0xFFEC4899),
+                                    color: AppTheme.primaryColor,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
                                   ),
