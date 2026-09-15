@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -1089,18 +1089,16 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Directionality(
                         textDirection: TextDirection.rtl,
-                        child: Material(
-                          color: bgColor,
-                          child: Theme(
-                            data: Theme.of(context).copyWith(
-                              canvasColor: bgColor,
-                              scaffoldBackgroundColor: bgColor,
-                              cardColor: bgColor,
-                              colorScheme: Theme.of(
-                                context,
-                              ).colorScheme.copyWith(surface: bgColor),
-                            ),
-                            child: quill.QuillEditor(
+                        child: Theme(
+                          data: Theme.of(context).copyWith(
+                            canvasColor: bgColor,
+                            scaffoldBackgroundColor: bgColor,
+                            cardColor: bgColor,
+                            colorScheme: Theme.of(
+                              context,
+                            ).colorScheme.copyWith(surface: bgColor),
+                          ),
+                          child: quill.QuillEditor(
                               controller: _quillController,
                               focusNode: _editorFocusNode,
                               scrollController: _scrollController,
@@ -1194,7 +1192,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ),

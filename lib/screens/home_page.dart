@@ -197,27 +197,27 @@ class _HomePageState extends State<HomePage>
               decoration: const BoxDecoration(
                 gradient: AppTheme.brandGradient,
                 borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(40),
-                  bottomRight: Radius.circular(40),
+                  bottomLeft: Radius.circular(28),
+                  bottomRight: Radius.circular(28),
                 ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black26,
-                    blurRadius: 10,
-                    offset: Offset(0, 5),
+                    blurRadius: 8,
+                    offset: Offset(0, 4),
                   ),
                 ],
               ),
-              padding: const EdgeInsets.only(bottom: 20),
+              padding: const EdgeInsets.only(bottom: 16),
               child: Stack(
                 children: [
                   // دوائر زخرفية
                   Positioned(
-                    right: -40,
-                    top: -40,
+                    right: -30,
+                    top: -30,
                     child: Container(
-                      width: 180,
-                      height: 180,
+                      width: 130,
+                      height: 130,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: Colors.white.withValues(alpha: 0.06),
@@ -225,11 +225,11 @@ class _HomePageState extends State<HomePage>
                     ),
                   ),
                   Positioned(
-                    left: -60,
-                    bottom: -50,
+                    left: -40,
+                    bottom: -40,
                     child: Container(
-                      width: 200,
-                      height: 200,
+                      width: 150,
+                      height: 150,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: Colors.white.withValues(alpha: 0.04),
@@ -381,7 +381,7 @@ class _HomePageState extends State<HomePage>
         crossAxisCount: 2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 1.3,
+        childAspectRatio: 1.15,
       ),
       itemCount: services.length,
       itemBuilder: (context, index) {
@@ -440,53 +440,57 @@ class _HomePageState extends State<HomePage>
             // المحتوى الرئيسي
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 14, 10, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // الأيقونة
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      gradient: service.gradient,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: (service.gradient as LinearGradient)
-                              .colors
-                              .first
-                              .withValues(alpha: 0.30),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+              child: SizedBox(
+                width: double.infinity,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // الأيقونة
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        gradient: service.gradient,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: (service.gradient as LinearGradient)
+                                .colors
+                                .first
+                                .withValues(alpha: 0.30),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: service.imagePath != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.asset(
+                                service.imagePath!,
+                                width: 36,
+                                height: 36,
+                                fit: BoxFit.contain,
+                              ),
+                            )
+                          : Icon(service.icon, color: Colors.white, size: 34),
                     ),
-                    child: service.imagePath != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.asset(
-                              service.imagePath!,
-                              width: 36,
-                              height: 36,
-                              fit: BoxFit.contain,
-                            ),
-                          )
-                        : Icon(service.icon, color: Colors.white, size: 34),
-                  ),
-
-                  // النص
-                  Text(
-                    service.title,
-                    style: GoogleFonts.tajawal(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11.5,
-                      color: isDark ? Colors.white : const Color(0xFF0A1A15),
-                      height: 1.25,
+                    const SizedBox(height: 12),
+                    // النص
+                    Text(
+                      service.title,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.tajawal(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: isDark ? Colors.white : const Color(0xFF0A1A15),
+                        height: 1.25,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
 
@@ -631,10 +635,10 @@ class _HomePageState extends State<HomePage>
         MaterialPageRoute(builder: (_) => const SearchScreen()),
       ),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: isDark ? AppTheme.surfaceDark : Colors.white,
-          borderRadius: BorderRadius.circular(32),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.07)
@@ -645,46 +649,46 @@ class _HomePageState extends State<HomePage>
               color: isDark
                   ? Colors.black.withValues(alpha: 0.2)
                   : AppTheme.primaryColor.withValues(alpha: 0.07),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
                 gradient: AppTheme.primaryGradient,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
                 Icons.search_rounded,
                 color: Colors.white,
-                size: 18,
+                size: 16,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
                 'ابحث عن الكتب والمذكرات...',
                 style: GoogleFonts.tajawal(
                   color: isDark ? Colors.white38 : Colors.grey[400],
-                  fontSize: 14,
+                  fontSize: 12,
                 ),
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
               decoration: BoxDecoration(
                 color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
                 'بحث',
                 style: GoogleFonts.tajawal(
                   color: AppTheme.primaryColor,
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -709,33 +713,40 @@ class _HomePageState extends State<HomePage>
               MaterialPageRoute(builder: (_) => const ProfileScreen()),
             ),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : Colors.white,
-          borderRadius: BorderRadius.circular(24),
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : Colors.white.withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.25),
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
+              color: Colors.black.withValues(alpha: 0.10),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Row(
           children: [
             CircleAvatar(
-              radius: 35,
+              radius: 28,
               backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.15),
               backgroundImage: auth.profileImageProvider,
               child: auth.profileImageProvider == null
                   ? const Icon(
                       Icons.person_rounded,
                       color: AppTheme.primaryColor,
-                      size: 35,
+                      size: 28,
                     )
                   : null,
             ),
-            const SizedBox(width: 20),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -744,18 +755,18 @@ class _HomePageState extends State<HomePage>
                   Text(
                     'مرحباً بك،',
                     style: GoogleFonts.tajawal(
-                      fontSize: 14,
-                      color: isDark ? Colors.white54 : Colors.black54,
+                      fontSize: 12,
+                      color: isDark ? Colors.white60 : Colors.black54,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerRight,
                     child: Text(
                       name,
                       style: GoogleFonts.tajawal(
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: isDark ? Colors.white : Colors.black87,
                       ),
@@ -765,10 +776,17 @@ class _HomePageState extends State<HomePage>
               ),
             ),
             if (!widget.isGuest)
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 20,
-                color: isDark ? Colors.white38 : Colors.black26,
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 14,
+                  color: isDark ? Colors.white70 : AppTheme.primaryColor,
+                ),
               ),
           ],
         ),
@@ -789,7 +807,7 @@ class _HomePageState extends State<HomePage>
     return Column(
       children: [
         SizedBox(
-          height: 160,
+          height: 155,
           child: PageView.builder(
             controller: _pageController,
             onPageChanged: (index) {
@@ -803,7 +821,7 @@ class _HomePageState extends State<HomePage>
             },
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         // Dots Indicator
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -812,8 +830,8 @@ class _HomePageState extends State<HomePage>
             return AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               margin: const EdgeInsets.symmetric(horizontal: 4),
-              width: isActive ? 20 : 8,
-              height: 8,
+              width: isActive ? 18 : 7,
+              height: 7,
               decoration: BoxDecoration(
                 color: isActive
                     ? Colors.white
@@ -826,6 +844,7 @@ class _HomePageState extends State<HomePage>
       ],
     );
   }
+
 
   Widget _buildCarouselImageCard(String imagePath) {
     return _AnimatedCard(
@@ -844,7 +863,7 @@ class _HomePageState extends State<HomePage>
                 maxScale: 4,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(24),
-                  child: Image.asset(imagePath, fit: BoxFit.contain),
+                  child: Image.asset(imagePath, fit: BoxFit.cover),
                 ),
               ),
             ),

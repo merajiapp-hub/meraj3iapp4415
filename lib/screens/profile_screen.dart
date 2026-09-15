@@ -322,15 +322,16 @@ class _ProfileScreenState extends State<ProfileScreen>
           position: _slideAnim,
           child: CustomScrollView(
             slivers: [
-              // ─── الرأس المنحني ────────────────────────────────────────────
+              // ─── بطاقة الرأس الاحترافية ────────────────────────────────────────────
               SliverToBoxAdapter(
-                child: _buildCurvedHeader(isDark, userName, userEmail),
+                child: _buildHeaderCard(isDark, userName, userEmail),
               ),
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    const SizedBox(height: 80), // مسافة لصورة الحساب
+                    const SizedBox(height: 30),
+
                     // ─── بطاقة الإحصائيات ─────────────────────────────────
                     _buildStatsCard(
                       isDark,
@@ -355,59 +356,72 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  // ─── الرأس المنحني مع صورة الحساب ─────────────────────────────────────────
-  Widget _buildCurvedHeader(bool isDark, String name, String email) {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            IconButton(
-              tooltip: 'رجوع',
-              onPressed: () => Navigator.maybePop(context),
-              icon: const Icon(
-                Icons.arrow_forward_rounded,
-                color: Colors.black54,
+  // ─── بطاقة الرأس الاحترافية مع صورة الحساب ──────────────────────────────
+  Widget _buildHeaderCard(bool isDark, String name, String email) {
+    return Container(
+      padding: const EdgeInsets.only(top: 60, bottom: 40, left: 20, right: 20),
+      decoration: BoxDecoration(
+        gradient: AppTheme.brandGradient,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(40),
+          bottomRight: Radius.circular(40),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryColor.withValues(alpha: 0.4),
+            blurRadius: 30,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(
+                tooltip: 'رجوع',
+                onPressed: () => Navigator.maybePop(context),
+                icon: const Icon(
+                  Icons.arrow_forward_rounded,
+                  color: Colors.white,
+                ),
               ),
-            ),
-            IconButton(
-              tooltip: _isEditing ? 'حفظ' : 'تعديل',
-              onPressed: _isLoading
-                  ? null
-                  : (_isEditing
+              Text(
+                'الملف الشخصي',
+                style: GoogleFonts.tajawal(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              IconButton(
+                tooltip: _isEditing ? 'حفظ' : 'تعديل',
+                onPressed: _isLoading
+                    ? null
+                    : (_isEditing
                         ? _saveProfile
                         : () => setState(() => _isEditing = true)),
-              icon: Icon(
-                _isEditing ? Icons.check_rounded : Icons.edit_rounded,
-                color: AppTheme.primaryColor,
+                icon: Icon(
+                  _isEditing ? Icons.check_rounded : Icons.edit_rounded,
+                  color: Colors.white,
+                ),
               ),
-            ),
-          ],
-        ),
-        const CurvedHeader(
-          title: 'حسابي',
-          gradient: AppTheme.brandGradient,
-          showBackButton: false,
-        ),
-        Transform.translate(
-          offset: const Offset(0, -8),
-          child: Stack(
+            ],
+          ),
+          const SizedBox(height: 24),
+          Stack(
             alignment: Alignment.bottomRight,
             children: [
               Container(
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isDark
-                      ? AppTheme.backgroundDark
-                      : const Color(0xFFF0F4F8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                      blurRadius: 20,
-                      spreadRadius: 2,
-                    ),
-                  ],
+                  color: Colors.white.withValues(alpha: 0.2),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    width: 2,
+                  ),
                 ),
                 child: GestureDetector(
                   onTap: (_isEditing && !_isLoading)
@@ -415,9 +429,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                       : null,
                   child: CircleAvatar(
                     radius: 56,
-                    backgroundColor: AppTheme.primaryColor.withValues(
-                      alpha: 0.1,
-                    ),
+                    backgroundColor: Colors.white,
                     backgroundImage: _getProfileImage(),
                     child: _getProfileImage() == null
                         ? Text(
@@ -436,16 +448,23 @@ class _ProfileScreenState extends State<ProfileScreen>
                 GestureDetector(
                   onTap: _showImageSourceDialog,
                   child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: const BoxDecoration(
-                      color: AppTheme.primaryColor,
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
                       shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: const Icon(
                       Icons.camera_alt_rounded,
-                      size: 16,
-                      color: Colors.white,
+                      size: 20,
+                      color: AppTheme.primaryColor,
                     ),
                   ),
                 ),
@@ -466,8 +485,25 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ),
             ],
           ),
-        ),
-      ],
+          const SizedBox(height: 16),
+          Text(
+            name,
+            style: GoogleFonts.tajawal(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          if (email.isNotEmpty)
+            Text(
+              email,
+              style: GoogleFonts.tajawal(
+                color: Colors.white.withValues(alpha: 0.85),
+                fontSize: 14,
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -479,15 +515,28 @@ class _ProfileScreenState extends State<ProfileScreen>
     int readCount,
   ) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
       decoration: BoxDecoration(
-        color: isDark ? AppTheme.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(
+          colors: isDark
+              ? [AppTheme.surfaceDark, AppTheme.surfaceDark.withValues(alpha: 0.7)]
+              : [Colors.white, const Color(0xFFF4F7FB)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.05)
+              : Colors.grey.withValues(alpha: 0.1),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.4)
+                : Colors.black.withValues(alpha: 0.06),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -574,15 +623,28 @@ class _ProfileScreenState extends State<ProfileScreen>
     final lastSignInTime = auth.user?.metadata.lastSignInTime;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: isDark ? AppTheme.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(
+          colors: isDark
+              ? [AppTheme.surfaceDark, AppTheme.surfaceDark.withValues(alpha: 0.7)]
+              : [Colors.white, const Color(0xFFF4F7FB)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.05)
+              : Colors.grey.withValues(alpha: 0.1),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.4)
+                : Colors.black.withValues(alpha: 0.06),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -825,10 +887,10 @@ class _ProfileScreenState extends State<ProfileScreen>
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         decoration: BoxDecoration(
           color: isDark ? AppTheme.surfaceDark : Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(28),
           border: Border.all(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.06)
@@ -836,9 +898,9 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
+              color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.05),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -871,3 +933,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 }
+
+}
+

@@ -6,6 +6,7 @@ import '../models/reference_category.dart';
 import '../theme/app_theme.dart';
 import 'category_detail_screen.dart';
 import '../widgets/curved_header.dart';
+import 'references_search_screen.dart';
 
 class ReferencesScreen extends StatelessWidget {
   const ReferencesScreen({super.key});
@@ -22,7 +23,12 @@ class ReferencesScreen extends StatelessWidget {
             title: 'مراجع أخرى',
             gradient: AppTheme.brandGradient,
             trailing: IconButton(
-              onPressed: () {},
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ReferencesSearchScreen()),
+                );
+              },
               icon: const Icon(Icons.search_rounded, color: Colors.white),
             ),
           ),
