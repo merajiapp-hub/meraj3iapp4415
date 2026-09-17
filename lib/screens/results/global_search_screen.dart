@@ -301,9 +301,10 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
   }
 
   Widget _buildHintTile(FavoriteResultItem item, bool isDark) {
+    final displayStatus = item.result.isComplementary ? 'مؤهل' : item.result.status;
     final statusColor = item.result.isPassed
         ? const Color(0xFF16A34A)
-        : item.result.status == 'الدورة التكميلية' ? Colors.blue : Colors.red;
+      : item.result.isComplementary ? Colors.blue : Colors.red;
     return ListTile(
       onTap: () {
         final comp = widget.competitions.firstWhere(
@@ -341,7 +342,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
       trailing: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
-        child: Text(item.result.status, style: GoogleFonts.tajawal(fontSize: 11, color: statusColor, fontWeight: FontWeight.bold)),
+        child: Text(displayStatus, style: GoogleFonts.tajawal(fontSize: 11, color: statusColor, fontWeight: FontWeight.bold)),
       ),
     );
   }
@@ -349,9 +350,10 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
   Widget _buildResultTile(_SearchResult r, bool isDark) {
     final s = r.student;
     final comp = r.competition;
+    final displayStatus = s.isComplementary ? 'مؤهل' : s.status;
     final statusColor = s.isPassed
         ? const Color(0xFF16A34A)
-        : s.isAbsent ? Colors.orange : s.status == 'الدورة التكميلية' ? Colors.blue : Colors.red;
+      : s.isAbsent ? Colors.orange : s.isComplementary ? Colors.blue : Colors.red;
     final favProvider = context.read<FavoriteResultsProvider>();
     final isFav = favProvider.isFavorite(s.id, _examFor(comp.type));
 
@@ -388,7 +390,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
               ),
               child: Center(
                 child: Text(
-                  s.isPassed ? '✓' : s.isAbsent ? '?' : s.status == 'الدورة التكميلية' ? '🔄' : '✗',
+                  s.isPassed ? '✓' : s.isAbsent ? '?' : s.isComplementary ? '🔄' : '✗',
                   style: TextStyle(color: statusColor, fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -445,7 +447,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
                         color: statusColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(5),
                       ),
-                      child: Text(s.status, style: GoogleFonts.tajawal(fontSize: 9, color: statusColor, fontWeight: FontWeight.bold)),
+                      child: Text(displayStatus, style: GoogleFonts.tajawal(fontSize: 9, color: statusColor, fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),

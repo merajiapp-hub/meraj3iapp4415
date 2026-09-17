@@ -67,7 +67,7 @@ class StudentResult {
   /// Central concours rule: TOTAL 85..200 passes, TOTAL 0..84 fails.
   static String concoursStatusFromTotal(Object? total) {
     final value = parseTotalValue(total);
-    if (value == null) return 'راسب';
+    if (value == null) return 'بيانات غير صالحة';
     if (value > 200 || value < 0) return 'بيانات غير صالحة';
     return value >= 85 ? 'ناجح' : 'راسب';
   }
@@ -164,7 +164,18 @@ class StudentResult {
       averageScore = score;
     } else if (type == ExamType.concours) {
       // Concours: المجموع موجود في TOTAL أو غيره
-      score = _findNumericField(row, ['total', 'المجموع', 'مجموع', 'score', 'note']);
+      score = _findNumericField(row, [
+        'total_general',
+        'total général',
+        'totalgeneral',
+        'المجموع العام',
+        'المجموع النهائي',
+        'total',
+        'المجموع',
+        'مجموع',
+        'score',
+        'note',
+      ]);
       // لا نستبدل TOTAL بالمعدل؛ غياب TOTAL يعني أن النتيجة غير صالحة للتصنيف.
       averageScore = score != null ? (score / 200.0 * 20.0) : null;
     } else if (type == ExamType.brevet) {
@@ -216,9 +227,14 @@ class StudentResult {
     String status = _normalizeStatus(rawStatus, type);
 
     if (type == ExamType.concours) {
-      // Concours classification is score-driven: 85..200 is successful.
-      // Values above the documented maximum are invalid data, not failures.
-      status = concoursStatusFromTotal(score);
+      // TOTAL is authoritative when available; some published files contain
+      // stale text decisions alongside a successful total. If TOTAL is absent,
+      // preserve an explicit official decision instead of inventing a failure.
+      if (score != null) {
+        status = concoursStatusFromTotal(score);
+      } else if (status.isEmpty) {
+        status = 'بيانات غير صالحة';
+      }
     } else if (type == ExamType.excellence) {
       if (status.isEmpty) {
         status = (score != null && score >= 10.0) ? 'ناجح' : 'راسب';
@@ -400,7 +416,7 @@ class _CacheMeta {
 
 class ResultsService {
   // نستخدم ملفات على القرص لـ Cache البيانات الكبيرة بدل SharedPreferences
-  static const _metaPrefix = 'rc_meta_v7_'; // v7 = invalidate stale status classifications
+  static const _metaPrefix = 'rc_meta_v8_'; // v8 = invalidate stale result classifications
 
   /// 30 دقيقة: Soft Expiry
   static const _cacheSoftMs = 30 * 60 * 1000;
@@ -432,7 +448,7 @@ class ResultsService {
   }) async {
     if (url.isEmpty) return [];
 
-    final cacheKey = '${type.name}_${url.hashCode}_v3';
+    final cacheKey = '${type.name}_${url.hashCode}_v4';
 
     try {
       // طلب مماثل قيد التنفيذ
@@ -497,7 +513,7 @@ class ResultsService {
 
   static Future<void> clearCacheForUrl(ExamType type, String url) async {
     if (url.isEmpty) return;
-    final cacheKey = '${type.name}_${url.hashCode}_v3';
+    final cacheKey = '${type.name}_${url.hashCode}_v4';
     _memCache.remove(cacheKey);
     try {
       _deleteCacheFileQuietly(cacheKey);

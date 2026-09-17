@@ -93,15 +93,16 @@ class TaskProvider extends ChangeNotifier {
     await _saveTasks();
     notifyListeners();
 
-    // جدولة إشعار عند انتهاء وقت المهمة
+    // جدولة إشعار قبل انتهاء وقت المهمة بعشر دقائق
     final studyReminders = await _areStudyRemindersEnabled();
-    if (studyReminders && task.endTime.isAfter(DateTime.now())) {
+    final reminderTime = task.endTime.subtract(const Duration(minutes: 10));
+    if (studyReminders && reminderTime.isAfter(DateTime.now())) {
       await NotificationService().scheduleNotification(
         id: task.notificationId,
-        title: '⏰ انتهى وقت المهمة',
-        body: '${task.title} — ${task.subject}',
-        scheduledDate: task.endTime,
-        payload: 'task-end-${task.id}',
+        title: '🔔 اقترب انتهاء المهمة',
+        body: 'تبقى 10 دقائق على انتهاء ${task.title} — ${task.subject}',
+        scheduledDate: reminderTime,
+        payload: 'task-ending-${task.id}',
       );
     }
   }

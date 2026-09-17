@@ -282,21 +282,10 @@ class _SectionCardState extends State<_SectionCard>
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               child: Row(
                 children: [
-                  Container(
+                  SizedBox(
                     width: 52,
                     height: 52,
-                    decoration: BoxDecoration(
-                      gradient: widget.gradient,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: accentColor.withValues(alpha: 0.30),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Icon(widget.icon, color: Colors.white, size: 26),
+                    child: Icon(widget.icon, color: accentColor, size: 38),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -378,22 +367,11 @@ class _SectionCardState extends State<_SectionCard>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // أيقونة مع تدرج
-              Container(
+              // أيقونة القسم بدون بطاقة أو حواف
+              SizedBox(
                 width: 52,
                 height: 52,
-                decoration: BoxDecoration(
-                  gradient: widget.gradient,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: accentColor.withValues(alpha: 0.28),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Icon(widget.icon, color: Colors.white, size: 26),
+                child: Icon(widget.icon, color: accentColor, size: 38),
               ),
               const SizedBox(height: 10),
 

@@ -213,7 +213,9 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen>
                     value: rows,
                     isExpanded: true,
                     isDense: true,
-                    menuMaxHeight: 220,
+                    itemHeight: 40,
+                    menuMaxHeight: 144,
+                    borderRadius: BorderRadius.circular(10),
                     items: [2, 3, 4]
                         .map(
                           (e) => DropdownMenuItem(
@@ -246,7 +248,9 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen>
                       value: cols,
                       isExpanded: true,
                       isDense: true,
-                      menuMaxHeight: 220,
+                      itemHeight: 40,
+                      menuMaxHeight: 144,
+                      borderRadius: BorderRadius.circular(10),
                       items: [2, 3, 4]
                           .map(
                             (e) => DropdownMenuItem(

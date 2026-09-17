@@ -213,38 +213,29 @@ class _BookCardState extends State<BookCard> {
 
                     String? finalCoverUrl = widget.book.thumbnailUrl;
 
-                    final iconWidget = Container(
+                    final iconWidget = SizedBox(
                       width: isNarrow ? 40 : 48,
                       height: isNarrow ? 40 : 48,
-                      decoration: BoxDecoration(
-                        gradient: finalCoverUrl == null ? widget.gradient : null,
-                        color: finalCoverUrl != null ? (widget.isDark ? Colors.grey[800] : Colors.grey[200]) : null,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: accentColor.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
                       child: finalCoverUrl != null
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(14),
-                              child: CachedNetworkImage(
-                                imageUrl: finalCoverUrl,
-                                fit: BoxFit.cover,
-                                placeholder: (context, url) => Container(
-                                  decoration: BoxDecoration(gradient: widget.gradient),
-                                  child: Icon(_subjectIcon, color: Colors.white70, size: isNarrow ? 20 : 22),
-                                ),
-                                errorWidget: (context, url, error) => Container(
-                                  decoration: BoxDecoration(gradient: widget.gradient),
-                                  child: Icon(_subjectIcon, color: Colors.white, size: isNarrow ? 20 : 22),
-                                ),
+                          ? CachedNetworkImage(
+                              imageUrl: finalCoverUrl,
+                              fit: BoxFit.contain,
+                              placeholder: (context, url) => Icon(
+                                _subjectIcon,
+                                color: accentColor,
+                                size: isNarrow ? 27 : 32,
+                              ),
+                              errorWidget: (context, url, error) => Icon(
+                                _subjectIcon,
+                                color: accentColor,
+                                size: isNarrow ? 27 : 32,
                               ),
                             )
-                          : Icon(_subjectIcon, color: Colors.white, size: isNarrow ? 20 : 22),
+                          : Icon(
+                              _subjectIcon,
+                              color: accentColor,
+                              size: isNarrow ? 27 : 32,
+                            ),
                     );
 
                     final textContent = Column(

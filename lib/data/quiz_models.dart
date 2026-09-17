@@ -56,13 +56,16 @@ class QuizQuestion {
       if (correctIndex < 0) correctIndex = int.tryParse(answer ?? '') ?? 0;
     }
 
+    final subjectValue = (data['subject'] ?? data['category'] ?? data['subjectName'] ?? 'عام').toString();
+    final chapterValue = (data['chapter'] ?? data['section'] ?? data['chapterName'] ?? data['chapterId'] ?? '').toString();
+
     return QuizQuestion(
       id: documentId,
       question: data['question'] ?? data['text'] ?? '',
       options: options,
       correctIndex: correctIndex.clamp(0, options.isEmpty ? 0 : options.length - 1),
-      category: data['category'] ?? data['subject'] ?? 'عام',
-      chapter: (data['chapter'] ?? data['section'] ?? data['chapterName'])?.toString(),
+      category: subjectValue,
+      chapter: chapterValue.isEmpty ? null : chapterValue,
       explanation: data['explanation'],
       difficulty: diff,
     );

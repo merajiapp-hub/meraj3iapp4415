@@ -295,10 +295,8 @@ service cloud.firestore {
           request.resource.data.senderId == request.auth.uid &&
           request.resource.data.keys().hasOnly(['text', 'senderId', 'senderName', 'isAdmin', 'createdAt', 'isRead']) &&
           request.resource.data.text is string &&
-          request.resource.data.isAdmin == isAppAdmin() ||
-          (request.resource.data.isAdmin == true && request.auth.token.email in [
-            'mma831770@gmail.com', 'abdellahismd@gmail.com'
-          ]);
+          ((request.resource.data.isAdmin == false) ||
+           (request.resource.data.isAdmin == true && isAppAdmin()));
         allow update: if isAppAdmin() || (isAuthenticated() &&
           resource.data.senderId == request.auth.uid &&
           request.resource.data.senderId == resource.data.senderId &&

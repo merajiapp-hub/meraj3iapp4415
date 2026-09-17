@@ -278,10 +278,13 @@ class NotificationService {
       item.weekday,
       item.startTime,
     );
-    final nextEnd = _nextInstanceOfWeekdayAndTime(item.weekday, item.endTime);
+    var nextEnd = _nextInstanceOfWeekdayAndTime(item.weekday, item.endTime);
+    if (!nextEnd.isAfter(nextStart)) {
+      nextEnd = nextEnd.add(const Duration(days: 1));
+    }
 
-    // 1. إشعار التذكير قبل الموعد بـ 10 دقائق (أو حسب الإعداد)
-    DateTime prepTime = nextStart.subtract(
+    // 1. إشعار التذكير قبل انتهاء المهمة بـ 10 دقائق (أو حسب الإعداد)
+    DateTime prepTime = nextEnd.subtract(
       Duration(minutes: item.notifyMinutesBefore),
     );
     if (prepTime.isBefore(DateTime.now())) {
@@ -324,9 +327,9 @@ class NotificationService {
       if (item.notifyMinutesBefore > 0) {
         await _plugin.zonedSchedule(
           id: baseId,
-          title: '🔔 تذكير بالحصة',
+            title: '🔔 اقترب انتهاء المهمة',
           body:
-              'ستبدأ حصة "${item.title}" بعد ${item.notifyMinutesBefore} دقيقة',
+              'تبقى ${item.notifyMinutesBefore} دقائق على انتهاء مهمة "${item.title}"',
           scheduledDate: tz.TZDateTime.from(prepTime, tz.local),
           notificationDetails: details,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,

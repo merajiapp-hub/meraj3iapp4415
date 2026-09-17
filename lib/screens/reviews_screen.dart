@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/curved_header.dart';
+import 'review_statistics_screen.dart';
 
 class ReviewsScreen extends StatefulWidget {
   const ReviewsScreen({super.key});
@@ -357,7 +358,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(20),
@@ -433,69 +434,28 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
               },
             ),
           ),
-          const SizedBox(height: 14),
-          Text(
-            'توزيع النجوم',
-            textAlign: TextAlign.right,
-            style: GoogleFonts.tajawal(
-              fontSize: 17,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : const Color(0xFF172B4D),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const ReviewStatisticsScreen(),
+              ),
+            ),
+            icon: const Icon(Icons.insights_rounded, size: 18),
+            label: Text(
+              'عرض الإحصائيات',
+              style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: logoColor,
+              side: BorderSide(color: logoColor.withValues(alpha: 0.35)),
+              padding: const EdgeInsets.symmetric(vertical: 9),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-          ...List.generate(5, (index) {
-            final starNum = 5 - index;
-            final count = starCounts[starNum - 1];
-            final percentage = count / docs.length;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 24,
-                    child: Text(
-                      '$starNum',
-                      style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.bold,
-                        color: logoColor,
-                      ),
-                    ),
-                  ),
-                  const Icon(
-                    Icons.star_rounded,
-                    size: 16,
-                    color: Color(0xFFF6C945),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: LinearProgressIndicator(
-                        value: percentage,
-                        minHeight: 9,
-                        backgroundColor: isDark
-                            ? Colors.white12
-                            : const Color(0xFFE6EDF1),
-                        valueColor: AlwaysStoppedAnimation<Color>(logoColor),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  SizedBox(
-                    width: 26,
-                    child: Text(
-                      '$count',
-                      textAlign: TextAlign.end,
-                      style: GoogleFonts.outfit(
-                        color: isDark ? Colors.white70 : Colors.black54,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
         ],
       ),
     );
@@ -514,26 +474,26 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
       child: Column(
         children: [
           Container(
-            width: 58,
-            height: 58,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
               color: isDark
                   ? Colors.white.withValues(alpha: 0.08)
                   : Colors.white,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: color, size: 30),
+            child: Icon(icon, color: color, size: 21),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Text(
             '$value$suffix',
             style: GoogleFonts.outfit(
-              fontSize: 25,
+              fontSize: 19,
               fontWeight: FontWeight.bold,
               color: AppTheme.primaryColor,
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 1),
           Text(
             label,
             textAlign: TextAlign.center,

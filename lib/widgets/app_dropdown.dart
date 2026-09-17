@@ -20,14 +20,17 @@ class AppDropdown<T> extends StatelessWidget {
     this.icon,
     this.hint,
     this.isExpanded = true,
-    this.menuMaxHeight = 400,
+    this.menuMaxHeight = 216,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    final safeMenuHeight = menuMaxHeight.clamp(180.0, MediaQuery.sizeOf(context).height * 0.42);
+    final safeMenuHeight = menuMaxHeight.clamp(
+      144.0,
+      MediaQuery.sizeOf(context).height * 0.34,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -53,6 +56,7 @@ class AppDropdown<T> extends StatelessWidget {
           child: DropdownButtonFormField<T>(
             initialValue: value, // نستخدم initialValue (غير مُهمل)
             isExpanded: isExpanded,
+            itemHeight: 48,
             menuMaxHeight: safeMenuHeight,
             hint: hint != null
                 ? Text(
@@ -98,7 +102,7 @@ class AppDropdown<T> extends StatelessWidget {
               ),
             ),
             dropdownColor: isDark ? const Color(0xFF333333) : Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             style: GoogleFonts.tajawal(
               fontSize: 14,
               fontWeight: FontWeight.w600,

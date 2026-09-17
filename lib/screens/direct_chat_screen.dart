@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -38,18 +39,43 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-      final auth = Provider.of<AuthProvider>(context, listen: false);
-      setState(() {
-        _uid = auth.user?.uid ?? '';
-        _userName = auth.user?.displayName ?? auth.user?.email ?? 'مستخدم';
-        _chatId = 'chat_$_uid';
-      });
-      if (_uid.isNotEmpty) {
-        await _ensureChatReady();
-      }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initializeChat());
+  }
+
+  Future<void> _initializeChat() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    var attempts = 0;
+    while (mounted && !auth.initialized && attempts < 80) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      attempts++;
+    }
+    if (!mounted) return;
+
+    final user = auth.user ?? FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    setState(() {
+      _uid = user.uid;
+      _userName = user.displayName ?? user.email ?? 'مستخدم';
+      _chatId = 'chat_${user.uid}';
     });
+
+    try {
+      await _ensureChatReady();
+    } catch (error) {
+      debugPrint('[Chat] Failed to initialize conversation: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'تعذر فتح المحادثة. تحقق من تسجيل الدخول وحاول مرة أخرى.',
+              style: GoogleFonts.tajawal(),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -189,7 +215,11 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   }
 
   Future<void> _sendMessage() async {
-    if (_uid.isEmpty || _chatClosed) return;
+    if (_uid.isEmpty) {
+      await _initializeChat();
+      if (_uid.isEmpty) return;
+    }
+    if (_chatClosed) return;
     if (!_chatReady) {
       await _ensureChatReady();
       if (!_chatReady || _chatClosed) return;
@@ -222,11 +252,24 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
           curve: Curves.easeOut,
         );
       }
+    } on FirebaseException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'تعذر إرسال الرسالة (${e.code}). أعد المحاولة.',
+              style: GoogleFonts.tajawal(),
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تعذر إرسال الرسالة. تحقق من اتصالك وحاول مرة أخرى.', style: GoogleFonts.tajawal()),
+            content: Text('تعذر إرسال الرسالة: $e', style: GoogleFonts.tajawal()),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),

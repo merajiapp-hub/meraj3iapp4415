@@ -9,10 +9,28 @@ void main() {
     expect(StudentResult.fromCsv({'NAME': 'D', 'TOTAL': '200.5'}, ExamType.concours).status, 'بيانات غير صالحة');
   });
 
-  test('concours does not use another numeric field when TOTAL is missing', () {
+  test('concours does not mark an unreadable total as failed', () {
     final result = StudentResult.fromCsv({'NAME': 'E', 'MOYENNE': '19', 'RANK': '150'}, ExamType.concours);
     expect(result.score, isNull);
-    expect(result.status, 'راسب');
+    expect(result.status, 'بيانات غير صالحة');
+  });
+
+  test('concours preserves an official admitted decision', () {
+    final result = StudentResult.fromCsv({
+      'NAME': 'E2',
+      'TOTAL_GENERAL': '',
+      'DECISION': 'Admis',
+    }, ExamType.concours);
+    expect(result.status, 'ناجح');
+  });
+
+  test('concours reads general total columns', () {
+    final result = StudentResult.fromCsv({
+      'NAME': 'E3',
+      'TOTAL GENERAL': '165',
+    }, ExamType.concours);
+    expect(result.score, 165);
+    expect(result.status, 'ناجح');
   });
 
   test('concours parses decimal and string TOTAL values', () {

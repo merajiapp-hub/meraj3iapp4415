@@ -48,16 +48,13 @@ class SelectStageScreen extends StatelessWidget {
                 horizontal: 20,
                 vertical: 12,
               ),
-              leading: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
+              leading: const SizedBox(
+                width: 44,
+                height: 44,
+                child: Icon(
                   Icons.school_rounded,
                   color: AppTheme.primaryColor,
-                  size: 28,
+                  size: 36,
                 ),
               ),
               title: Text(

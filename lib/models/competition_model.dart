@@ -118,7 +118,7 @@ class CompetitionModel {
       case CompetitionType.bac:
         return 'الباكلوريا – الدورة العادية';
       case CompetitionType.complementary:
-        return 'الباكلوريا – الدورة التكميلية';
+        return 'نتائج الباكلوريا';
       case CompetitionType.excellence:
         return 'نتائج الامتياز';
       case CompetitionType.generic:
@@ -168,7 +168,7 @@ class CompetitionModel {
       case CompetitionType.bac:
         return 'الباكلوريا – الدورة العادية';
       case CompetitionType.complementary:
-        return 'الباكلوريا – الدورة التكميلية';
+        return 'نتائج الباكلوريا';
       case CompetitionType.excellence:
         return "نتائج الامتياز الوطنية";
       case CompetitionType.generic:

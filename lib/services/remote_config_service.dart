@@ -48,7 +48,7 @@ class RemoteConfigService {
       'order': 2,
     },
     'complementary': {
-      'title': 'الباكلوريا – الدورة التكميلية',
+      'title': 'نتائج الباكلوريا',
       'link': '',
       'is_published': false,
       'order': 3,

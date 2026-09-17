@@ -24,6 +24,8 @@ class _SplashScreenState extends State<SplashScreen>
 
   late Animation<double> _logoScale;
   late Animation<double> _logoFade;
+  late Animation<double> _taglineFade;
+  late Animation<Offset> _taglineSlide;
   late Animation<double> _pulse;
 
   bool _showBiometricRetry = false;
@@ -39,7 +41,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(seconds: 6),
     )..repeat(reverse: true);
 
     _logoScale = Tween<double>(begin: 0.6, end: 1.0).animate(
@@ -51,14 +53,29 @@ class _SplashScreenState extends State<SplashScreen>
         curve: const Interval(0.0, 0.5, curve: Curves.easeIn),
       ),
     );
+    _taglineFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _logoController,
+        curve: const Interval(0.35, 0.9, curve: Curves.easeOut),
+      ),
+    );
+    _taglineSlide = Tween<Offset>(
+      begin: const Offset(0, 0.16),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _logoController,
+        curve: const Interval(0.35, 1.0, curve: Curves.easeOutCubic),
+      ),
+    );
     _pulse = Tween<double>(begin: 0.85, end: 1.1).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
     _logoController.forward();
 
-    // ننتقل بعد 1.5 ثانية — أسرع بكثير من السابق (كان 1800ms)
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    // إبقاء شاشة التحميل ظاهرة مدة كافية لظهور الهوية البصرية بوضوح.
+    Future.delayed(const Duration(seconds: 10), () {
       if (mounted) _proceed();
     });
   }
@@ -166,54 +183,23 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF0F172A), Color(0xFF1E3A5F), Color(0xFF0D9488)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            stops: [0.0, 0.5, 1.0],
-          ),
-        ),
+        color: Colors.white,
         child: Stack(
           children: [
-            // دوائر زخرفية
-            Positioned(
-              top: -80,
-              right: -80,
+            Positioned.fill(
               child: AnimatedBuilder(
                 animation: _pulse,
-                builder: (context, child) => Transform.scale(
-                  scale: _pulse.value,
-                  child: Container(
-                    width: 300,
-                    height: 300,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppTheme.primaryColor.withValues(alpha: 0.08),
-                    ),
-                  ),
+                builder: (context, child) => CustomPaint(
+                  painter: _SplashCurvesPainter(phase: _pulse.value),
                 ),
               ),
             ),
-            Positioned(
-              bottom: -100,
-              left: -60,
-              child: Container(
-                width: 350,
-                height: 350,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppTheme.secondaryColor.withValues(alpha: 0.06),
-                ),
-              ),
-            ),
-            // المحتوى الرئيسي
             Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // الشعار
                   AnimatedBuilder(
                     animation: _logoController,
                     builder: (context, child) => FadeTransition(
@@ -222,24 +208,60 @@ class _SplashScreenState extends State<SplashScreen>
                         scale: _logoScale,
                         child: Image.asset(
                           'assets/images/logo.png',
-                          width: 220,
-                          height: 220,
+                          width: 230,
+                          height: 230,
                           filterQuality: FilterQuality.high,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            width: 220,
-                            height: 220,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                            ),
-                            child: const Icon(Icons.school_rounded,
-                                size: 80, color: Colors.white),
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(
+                            Icons.school_rounded,
+                            size: 100,
+                            color: AppTheme.primaryColor,
                           ),
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 60),
+                  Transform.translate(
+                    offset: const Offset(0, -10),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 22),
+                        FadeTransition(
+                          opacity: _taglineFade,
+                          child: SlideTransition(
+                            position: _taglineSlide,
+                            child: Text(
+                              'تعلّم • راجع • أتقن',
+                              style: GoogleFonts.cairo(
+                                color: AppTheme.primaryColor,
+                                fontSize: 21,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.2,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        FadeTransition(
+                          opacity: _taglineFade,
+                          child: SlideTransition(
+                            position: _taglineSlide,
+                            child: Text(
+                              'وقل رب زدني علمًا',
+                              style: GoogleFonts.amiri(
+                                color: AppTheme.accentColor.withValues(alpha: 0.82),
+                                fontSize: 19,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+                      ],
+                    ),
+                  ),
 
                   if (_showBiometricRetry) ...[
                     Container(
@@ -247,17 +269,20 @@ class _SplashScreenState extends State<SplashScreen>
                       margin: const EdgeInsets.symmetric(horizontal: 40),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(20),
-                        color: Colors.white.withValues(alpha: 0.08),
+                        color: AppTheme.backgroundLight,
+                        border: Border.all(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.14),
+                        ),
                       ),
                       child: Column(
                         children: [
                           const Icon(Icons.fingerprint,
-                              size: 52, color: Colors.white),
+                              size: 52, color: AppTheme.primaryColor),
                           const SizedBox(height: 12),
                           Text(
                             'التحقق البيومتري مطلوب',
                             style: GoogleFonts.tajawal(
-                              color: Colors.white,
+                              color: AppTheme.accentColor,
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
@@ -276,8 +301,8 @@ class _SplashScreenState extends State<SplashScreen>
                                 style: GoogleFonts.tajawal(
                                     fontWeight: FontWeight.bold)),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: AppTheme.primaryColor,
+                              backgroundColor: AppTheme.primaryColor,
+                              foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 28, vertical: 14),
                               shape: RoundedRectangleBorder(
@@ -288,31 +313,110 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                     ),
                   ] else ...[
+                  ],
+                ],
+              ),
+            ),
+            if (!_showBiometricRetry)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 174,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     SizedBox(
                       width: 32,
                       height: 32,
                       child: CircularProgressIndicator(
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          Colors.white.withValues(alpha: 0.7),
+                          AppTheme.primaryColor.withValues(alpha: 0.78),
                         ),
                         strokeWidth: 2.5,
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
                     Text(
                       'جارٍ التحميل...',
                       style: GoogleFonts.tajawal(
-                        color: Colors.white.withValues(alpha: 0.5),
+                        color: AppTheme.primaryColor.withValues(alpha: 0.68),
                         fontSize: 13,
                       ),
                     ),
                   ],
-                ],
+                ),
               ),
-            ),
           ],
         ),
       ),
     );
   }
 }
+
+class _SplashCurvesPainter extends CustomPainter {
+  final double phase;
+
+  const _SplashCurvesPainter({required this.phase});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final motion = (phase - 0.975) * size.width * 0.08;
+    _drawWave(
+      canvas,
+      size,
+      top: size.height * 0.79 + motion,
+      depth: size.height * 0.15,
+      color: AppTheme.primaryColor.withValues(alpha: 0.16),
+    );
+    _drawWave(
+      canvas,
+      size,
+      top: size.height * 0.87 - motion * 0.7,
+      depth: size.height * 0.11,
+      color: AppTheme.lightGreen.withValues(alpha: 0.22),
+    );
+    _drawWave(
+      canvas,
+      size,
+      top: size.height * 0.95 + motion * 0.45,
+      depth: size.height * 0.08,
+      color: AppTheme.secondaryColor.withValues(alpha: 0.30),
+    );
+  }
+
+  void _drawWave(
+    Canvas canvas,
+    Size size, {
+    required double top,
+    required double depth,
+    required Color color,
+  }) {
+    final path = Path()..moveTo(-size.width * 0.2, size.height);
+    path.lineTo(-size.width * 0.2, top);
+    path.cubicTo(
+      size.width * 0.08,
+      top - depth,
+      size.width * 0.30,
+      top + depth * 0.8,
+      size.width * 0.53,
+      top,
+    );
+    path.cubicTo(
+      size.width * 0.76,
+      top - depth * 0.85,
+      size.width * 0.98,
+      top + depth * 0.7,
+      size.width * 1.2,
+      top - depth * 0.05,
+    );
+    path.lineTo(size.width * 1.2, size.height);
+    path.close();
+    canvas.drawPath(path, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(covariant _SplashCurvesPainter oldDelegate) {
+    return oldDelegate.phase != phase;
+  }
+}
+

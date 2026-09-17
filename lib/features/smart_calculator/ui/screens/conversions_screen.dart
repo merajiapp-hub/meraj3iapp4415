@@ -124,8 +124,10 @@ class _ConversionsScreenState extends State<ConversionsScreen> {
         child: DropdownButton<String>(
           value: value,
           isExpanded: true,
-          menuMaxHeight: 240,
+          itemHeight: 44,
+          menuMaxHeight: 192,
           menuWidth: null,
+          borderRadius: BorderRadius.circular(12),
           dropdownColor: isDark ? const Color(0xFF2A2A2A) : Colors.white,
           icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
           items: units.map((unit) {
@@ -158,11 +160,19 @@ class _ConversionsScreenState extends State<ConversionsScreen> {
           DropdownButtonFormField<String>(
             initialValue: _selectedCategory,
             isExpanded: true,
-            menuMaxHeight: 280,
+            itemHeight: 48,
+            menuMaxHeight: 216,
+            dropdownColor: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
             items: _conversionRates.keys.map((cat) {
               return DropdownMenuItem(
                 value: cat,
-                child: Text(_categoryLabel(cat), style: GoogleFonts.tajawal()),
+                child: Text(
+                  _categoryLabel(cat),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.tajawal(),
+                ),
               );
             }).toList(),
             onChanged: _onCategoryChanged,

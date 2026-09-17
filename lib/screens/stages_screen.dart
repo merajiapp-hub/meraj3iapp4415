@@ -184,24 +184,15 @@ class _StageCardState extends State<_StageCard>
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                // Icon container
-                Container(
+                // أيقونة المرحلة بدون بطاقة أو حواف
+                SizedBox(
                   width: 58,
                   height: 58,
-                  decoration: BoxDecoration(
-                    gradient: widget.gradient,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: widget.gradient.colors.first.withValues(
-                          alpha: 0.35,
-                        ),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                  child: Icon(
+                    widget.icon,
+                    color: widget.gradient.colors.first,
+                    size: 42,
                   ),
-                  child: Icon(widget.icon, color: Colors.white, size: 28),
                 ),
                 const SizedBox(width: 16),
                 // Text

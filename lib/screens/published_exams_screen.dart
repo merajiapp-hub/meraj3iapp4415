@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../data/exam_selection_utils.dart';
 import '../data/quiz_models.dart';
 import '../theme/app_theme.dart';
 import '../widgets/curved_header.dart';
@@ -30,7 +31,7 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
           CurvedHeader(
             title: 'الاختبارات',
             subtitle: 'اختر المادة والشابيتر والمدة قبل البدء',
-            gradient: AppTheme.purpleGradient,
+            gradient: AppTheme.primaryGradient,
             trailing: IconButton(
               icon: const Icon(Icons.history_rounded, color: Colors.white),
               onPressed: () => Navigator.push(
@@ -60,10 +61,29 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
 
         final docs = [...snapshot.data!.docs]
           ..sort((a, b) => ((a.data()['order'] ?? 0) as num).compareTo((b.data()['order'] ?? 0) as num));
-        final subjects = docs.map((doc) => (doc.data()['subject'] ?? '').toString()).where((value) => value.isNotEmpty).toSet().toList()..sort();
-        final subjectDocs = _subject == null ? <QueryDocumentSnapshot<Map<String, dynamic>>>[] : docs.where((doc) => doc.data()['subject'] == _subject).toList();
-        final chapters = subjectDocs.map((doc) => (doc.data()['chapter'] ?? doc.data()['section'] ?? 'عام').toString()).where((value) => value.isNotEmpty).toSet().toList()..sort();
-        final selectedDocs = _chapter == null ? <QueryDocumentSnapshot<Map<String, dynamic>>>[] : subjectDocs.where((doc) => (doc.data()['chapter'] ?? doc.data()['section'] ?? 'عام') == _chapter).toList();
+
+        final docMaps = docs.map((doc) => doc.data()).toList();
+        final subjects = ExamSelectionUtils.subjectsFromDocs(docMaps);
+
+        final subjectDocs = _subject == null || _subject!.trim().isEmpty
+            ? <QueryDocumentSnapshot<Map<String, dynamic>>>[]
+            : docs.where((doc) => (doc.data()['subject'] ?? '').toString() == _subject).toList();
+
+        final chapters = _subject == null || _subject!.trim().isEmpty
+            ? <String>[]
+            : ExamSelectionUtils.chaptersForSubject(docMaps, _subject!);
+
+        if (_subject != null && _subject!.isNotEmpty && !subjects.contains(_subject)) {
+          _subject = null;
+        }
+
+        if (_subject != null && _subject!.isNotEmpty && _chapter != null && !chapters.contains(_chapter)) {
+          _chapter = null;
+        }
+
+        final selectedDocs = (_subject == null || _subject!.isEmpty || _chapter == null || _chapter!.isEmpty)
+            ? <QueryDocumentSnapshot<Map<String, dynamic>>>[]
+            : subjectDocs.where((doc) => ((doc.data()['chapter'] ?? doc.data()['section'] ?? 'عام') ?? '').toString() == _chapter).toList();
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -75,12 +95,15 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
               subject: _subject,
               chapter: _chapter,
               duration: _duration,
-              onSubjectChanged: (value) => setState(() { _subject = value; _chapter = null; }),
+              onSubjectChanged: (value) => setState(() {
+                _subject = value;
+                _chapter = null;
+              }),
               onChapterChanged: (value) => setState(() => _chapter = value),
               onDurationChanged: (value) => setState(() => _duration = value),
             ),
             const SizedBox(height: 18),
-            if (_subject == null || _chapter == null)
+            if (_subject == null || _subject!.isEmpty || _chapter == null || _chapter!.isEmpty)
               const _SelectionHint(text: 'اختر المادة ثم الشابيتر لعرض الاختبارات المتاحة.')
             else if (selectedDocs.isEmpty)
               const _SelectionHint(text: 'لا توجد اختبارات منشورة لهذا الاختيار.')
@@ -111,39 +134,73 @@ class _SelectionPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final chapterItems = chapters.map((value) => DropdownMenuItem(value: value, child: Text(value, overflow: TextOverflow.ellipsis))).toList();
     return Container(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(color: surface, borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.25))),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.25)),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryColor.withValues(alpha: 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Text('اختر الاختبار', style: GoogleFonts.cairo(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+        Text('اختر الاختبار', style: GoogleFonts.cairo(fontSize: 22, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
         const SizedBox(height: 14),
         DropdownButtonFormField<String>(
           initialValue: subject,
           isExpanded: true,
+          itemHeight: 48,
+          menuMaxHeight: 216,
+          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: BorderRadius.circular(14),
           decoration: const InputDecoration(labelText: 'المادة', prefixIcon: Icon(Icons.menu_book_rounded)),
-          items: subjects.map((value) => DropdownMenuItem(value: value, child: Text(value, overflow: TextOverflow.ellipsis))).toList(),
+          items: subjects.map((value) => DropdownMenuItem(value: value, child: Text(value, overflow: TextOverflow.ellipsis, textAlign: TextAlign.right, maxLines: 1))).toList(),
           onChanged: onSubjectChanged,
+          hint: const Text('اختر المادة'),
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
           initialValue: chapter,
           isExpanded: true,
+          itemHeight: 48,
+          menuMaxHeight: 216,
+          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: BorderRadius.circular(14),
           decoration: const InputDecoration(labelText: 'الشابيتر / الفصل', prefixIcon: Icon(Icons.folder_open_rounded)),
-          items: chapters.map((value) => DropdownMenuItem(value: value, child: Text(value, overflow: TextOverflow.ellipsis))).toList(),
-          onChanged: subject == null ? null : onChapterChanged,
+          items: chapterItems,
+          onChanged: (subject == null || subject!.trim().isEmpty) ? null : onChapterChanged,
+          hint: const Text('اختر الشابيتر'),
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<int>(
           initialValue: duration,
           isExpanded: true,
+          itemHeight: 48,
+          menuMaxHeight: 216,
+          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: BorderRadius.circular(14),
           decoration: const InputDecoration(labelText: 'مدة الاختبار بالدقائق', prefixIcon: Icon(Icons.timer_outlined)),
-          items: [5, 10, 15, 20, 30, 45, 60].map((value) => DropdownMenuItem(value: value, child: Text('$value دقيقة'))).toList(),
-          onChanged: (value) { if (value != null) onDurationChanged(value); },
+          items: [5, 10, 15, 20, 30, 45, 60].map((value) => DropdownMenuItem(value: value, child: Text('$value دقيقة', textAlign: TextAlign.right))).toList(),
+          onChanged: (value) {
+            if (value != null) onDurationChanged(value);
+          },
         ),
-        if (subject != null && chapter != null) ...[
+        if (subject != null && subject!.isNotEmpty && chapter != null && chapter!.isNotEmpty) ...[
           const SizedBox(height: 14),
-          Text('المادة: $subject  •  الشابيتر: $chapter  •  المدة: $duration دقيقة', textAlign: TextAlign.center, style: GoogleFonts.cairo(color: const Color(0xFF7C3AED), fontWeight: FontWeight.bold)),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text('المادة: $subject  •  الشابيتر: $chapter  •  المدة: $duration دقيقة', textAlign: TextAlign.center, style: GoogleFonts.cairo(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
+          ),
         ],
       ]),
     );
@@ -175,7 +232,7 @@ class _ExamCard extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: isDark ? const Color(0xFF1E293B) : Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.2))),
+      decoration: BoxDecoration(color: isDark ? const Color(0xFF1E293B) : Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.2))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Text(title, textAlign: TextAlign.right, style: GoogleFonts.cairo(fontSize: 17, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
         const SizedBox(height: 8),
@@ -185,7 +242,7 @@ class _ExamCard extends StatelessWidget {
           onPressed: () => _openExam(context, duration),
           icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
           label: Text('ابدأ الاختبار', style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold)),
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF7C3AED), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
         ),
       ]),
     );

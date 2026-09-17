@@ -1068,7 +1068,7 @@ ${_rankNational != null ? '🏆 الترتيب الوطني: $_rankNational' : '
     } else if (s.isComplementary) {
       emoji = '⏳';
       title = 'فرصة جديدة!';
-      body = 'استغل الدورة التكميلية. منصة مراجعي تتمنى لك التوفيق.';
+      body = 'استغل الفرصة القادمة. منصة مراجعي تتمنى لك التوفيق.';
       colors = const [Color(0xFFF59E0B), Color(0xFFD97706)]; // Orange
     } else if (s.isExpelled) {
       emoji = '⚠️';

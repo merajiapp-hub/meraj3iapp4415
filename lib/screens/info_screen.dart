@@ -32,19 +32,6 @@ class InfoScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
-                _buildSectionTitle('✨ ما الجديد في الإصدار 6.9.1'),
-                _buildListCard(
-                  isDark: isDark,
-                  items: [
-                    'دعم مزامنة الإعدادات اللحظية ووضع الصيانة',
-                    'تحسينات على الواجهات ودعم أفضل للوضع الداكن',
-                    'إصلاح الأخطاء وتحديث التوافقية لضمان استقرار التطبيق',
-                    'تحسين مزامنة المهام وجدول المراجعة الدراسي',
-                  ],
-                  iconColor: const Color(0xFF8B5CF6),
-                ),
-                const SizedBox(height: 24),
-
                 _buildSectionTitle('أهداف التطبيق'),
                 _buildListCard(
                   isDark: isDark,

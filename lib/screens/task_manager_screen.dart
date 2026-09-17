@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -1294,6 +1295,7 @@ class _TaskTimeRingState extends State<_TaskTimeRing>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
+  Timer? _clock;
 
   double _computeProgress() {
     if (widget.isCompleted) return 1.0;
@@ -1302,10 +1304,11 @@ class _TaskTimeRingState extends State<_TaskTimeRing>
     final start = today.add(
       Duration(hours: widget.startTime.hour, minutes: widget.startTime.minute),
     );
-    final end = today.add(
+    var end = today.add(
       Duration(hours: widget.endTime.hour, minutes: widget.endTime.minute),
     );
     if (now.isBefore(start)) return 0.0;
+    if (!end.isAfter(start)) end = end.add(const Duration(days: 1));
     if (now.isAfter(end)) return 1.0;
     final total = end.difference(start).inSeconds;
     if (total <= 0) return 1.0;
@@ -1324,6 +1327,28 @@ class _TaskTimeRingState extends State<_TaskTimeRing>
     return m == 0 ? '$h س' : '$h س\n$m د';
   }
 
+  String _remainingLabel() {
+    if (widget.isCompleted) return 'تمت';
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final start = today.add(
+      Duration(hours: widget.startTime.hour, minutes: widget.startTime.minute),
+    );
+    var end = today.add(
+      Duration(hours: widget.endTime.hour, minutes: widget.endTime.minute),
+    );
+    if (!end.isAfter(start)) end = end.add(const Duration(days: 1));
+    if (now.isBefore(start)) return _durationLabel();
+    if (!now.isBefore(end)) return 'انتهى';
+    final remaining = end.difference(now);
+    final minutes = remaining.inMinutes;
+    if (minutes < 1) return '${remaining.inSeconds} ث';
+    final hours = minutes ~/ 60;
+    final mins = minutes % 60;
+    if (hours > 0) return mins == 0 ? '$hours س' : '$hours س\n$mins د';
+    return '$minutes د';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1337,10 +1362,26 @@ class _TaskTimeRingState extends State<_TaskTimeRing>
       end: progress,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
     _controller.forward();
+    _clock = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _TaskTimeRing oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.startTime != widget.startTime ||
+        oldWidget.endTime != widget.endTime ||
+        oldWidget.isCompleted != widget.isCompleted) {
+      _controller
+        ..reset()
+        ..forward();
+    }
   }
 
   @override
   void dispose() {
+    _clock?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -1348,7 +1389,7 @@ class _TaskTimeRingState extends State<_TaskTimeRing>
   @override
   Widget build(BuildContext context) {
     final progress = _computeProgress();
-    final label = _durationLabel();
+    final label = _remainingLabel();
 
     final ringColor = widget.isCompleted
         ? Colors.green
@@ -1383,7 +1424,7 @@ class _TaskTimeRingState extends State<_TaskTimeRing>
                 height: 58,
                 child: CustomPaint(
                   painter: _RingPainter(
-                    progress: _animation.value,
+                    progress: progress,
                     color: ringColor,
                     trackColor: ringColor.withValues(
                       alpha: widget.isDark ? 0.15 : 0.12,

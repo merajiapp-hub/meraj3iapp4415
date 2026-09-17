@@ -85,9 +85,9 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
 
   Color get _timerColor {
     final pct = _secondsLeft / (widget.durationMinutes * 60);
-    if (pct > 0.5) return const Color(0xFF8B5CF6);
-    if (pct > 0.25) return const Color(0xFFA855F7);
-    return const Color(0xFFDB2777);
+    if (pct > 0.5) return AppTheme.primaryColor;
+    if (pct > 0.25) return AppTheme.lightGreen;
+    return AppTheme.accentColor;
   }
 
   void _selectAnswer(int questionIndex, int optionIndex) {
@@ -244,7 +244,7 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
                   onPressed: () => Navigator.pop(ctx, false),
                   child: Text('متابعة', style: GoogleFonts.cairo())),
               ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF7C3AED)),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
                   onPressed: () => Navigator.pop(ctx, true),
                   child: Text('خروج',
                       style: GoogleFonts.cairo(color: Colors.white))),
@@ -275,11 +275,7 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
   Widget _buildHeader(bool isDark, double progress) {
     return Container(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF6D28D9), Color(0xFFA855F7)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: AppTheme.primaryGradient,
         boxShadow: [
           BoxShadow(
             color: Colors.blue.withValues(alpha: 0.3),
@@ -299,7 +295,7 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: _timerColor.withValues(alpha: 0.2),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: _timerColor.withValues(alpha: 0.5)),
                   ),
@@ -404,9 +400,9 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isCurrent
-                    ? const Color(0xFF7C3AED)
+                    ? AppTheme.primaryColor
                     : isAnswered
-                        ? const Color(0xFF10B981)
+                        ? AppTheme.primaryColor.withValues(alpha: 0.8)
                         : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                 border: isCurrent
                     ? Border.all(color: Colors.white, width: 2)
@@ -472,9 +468,7 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF6D28D9), Color(0xFFA855F7)],
-                        ),
+                        gradient: AppTheme.primaryGradient,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -523,14 +517,14 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: isSelected
-                        ? const Color(0xFF7C3AED)
+                        ? AppTheme.primaryColor
                         : (isDark ? Colors.white12 : Colors.black12),
                     width: isSelected ? 2 : 1,
                   ),
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color: const Color(0xFF7C3AED).withValues(alpha: 0.15),
+                            color: AppTheme.primaryColor.withValues(alpha: 0.15),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -546,7 +540,7 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: isSelected
-                            ? const Color(0xFF7C3AED)
+                            ? AppTheme.primaryColor
                             : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                       ),
                       child: Center(
@@ -573,8 +567,8 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
                       ),
                     ),
                     if (isSelected)
-                      const Icon(Icons.check_circle_rounded,
-                          color: Color(0xFF7C3AED), size: 20),
+                      Icon(Icons.check_circle_rounded,
+                          color: AppTheme.primaryColor, size: 20),
                   ],
                 ),
               ),
@@ -624,7 +618,7 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
               label: const Icon(Icons.arrow_back_ios_rounded,
                   size: 16, color: Colors.white),
               style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF7C3AED),
+                      backgroundColor: AppTheme.primaryColor,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -647,7 +641,7 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
                     color: Colors.white, fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF8B5CF6),
+                      backgroundColor: AppTheme.primaryColor,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),

@@ -74,7 +74,24 @@ class UnitConverterScreenState extends State<UnitConverterScreen> {
           value: value,
           isExpanded: true,
           isDense: true,
-          items: items.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
+          itemHeight: 44,
+          menuMaxHeight: 192,
+          dropdownColor: Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xFF2A2A2A)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          items: items
+              .map(
+                (u) => DropdownMenuItem(
+                  value: u,
+                  child: Text(
+                    u,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              )
+              .toList(),
           onChanged: onChanged,
         ),
       ),

@@ -469,9 +469,10 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
         separatorBuilder: (context, index) => const SizedBox(width: 8),
         itemBuilder: (_, i) {
           final item = favorites[i];
+          final displayStatus = item.result.isComplementary ? 'مؤهل' : item.result.status;
           final statusColor = item.result.isPassed
               ? const Color(0xFF16A34A)
-              : item.result.status == 'الدورة التكميلية'
+              : item.result.isComplementary
               ? Colors.blue
               : Colors.red;
           return GestureDetector(
@@ -557,7 +558,7 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    item.result.status,
+                    displayStatus,
                     style: GoogleFonts.tajawal(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,

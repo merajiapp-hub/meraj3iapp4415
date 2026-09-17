@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../theme/app_theme.dart';
 
 class ExamResultScreen extends StatefulWidget {
   final String quizTitle;
@@ -55,9 +56,9 @@ class _ExamResultScreenState extends State<ExamResultScreen>
       widget.total == 0 ? 0 : (widget.correct / widget.total * 100).round();
 
   Color get scoreColor {
-    if (score >= 80) return const Color(0xFF10B981);
-    if (score >= 60) return const Color(0xFFF59E0B);
-    return const Color(0xFFEF4444);
+    if (score >= 80) return AppTheme.primaryColor;
+    if (score >= 60) return AppTheme.lightGreen;
+    return AppTheme.accentColor;
   }
 
   String get scoreLabel {
@@ -185,7 +186,7 @@ class _ExamResultScreenState extends State<ExamResultScreen>
                           label: 'صحيحة',
                           value: widget.correct,
                           icon: Icons.check_circle_rounded,
-                          color: const Color(0xFF10B981),
+                          color: AppTheme.lightGreen,
                           isDark: isDark,
                         ),
                       ),
@@ -195,7 +196,7 @@ class _ExamResultScreenState extends State<ExamResultScreen>
                           label: 'خاطئة',
                           value: widget.wrong,
                           icon: Icons.cancel_rounded,
-                          color: const Color(0xFFEF4444),
+                          color: AppTheme.secondaryColor,
                           isDark: isDark,
                         ),
                       ),
@@ -205,7 +206,7 @@ class _ExamResultScreenState extends State<ExamResultScreen>
                           label: 'متروكة',
                           value: widget.unanswered,
                           icon: Icons.remove_circle_rounded,
-                          color: const Color(0xFF94A3B8),
+                          color: AppTheme.primaryColor.withValues(alpha: 0.7),
                           isDark: isDark,
                         ),
                       ),
@@ -225,7 +226,7 @@ class _ExamResultScreenState extends State<ExamResultScreen>
                     child: Row(
                       children: [
                         const Icon(Icons.timer_outlined,
-                            color: Color(0xFF6366F1)),
+                          color: AppTheme.primaryColor),
                         const SizedBox(width: 10),
                         Text('الوقت المستغرق',
                             style: GoogleFonts.cairo(
@@ -260,7 +261,7 @@ class _ExamResultScreenState extends State<ExamResultScreen>
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6366F1),
+                        backgroundColor: AppTheme.primaryColor,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16)),
@@ -373,10 +374,10 @@ class _ExamResultScreenState extends State<ExamResultScreen>
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: selected == null
-              ? Colors.grey.withValues(alpha: 0.3)
+              ? AppTheme.primaryColor.withValues(alpha: 0.3)
               : isCorrect
-                  ? const Color(0xFF10B981).withValues(alpha: 0.4)
-                  : const Color(0xFFEF4444).withValues(alpha: 0.4),
+                  ? AppTheme.lightGreen.withValues(alpha: 0.4)
+                  : AppTheme.secondaryColor.withValues(alpha: 0.45),
           width: 1.5,
         ),
       ),
@@ -392,10 +393,10 @@ class _ExamResultScreenState extends State<ExamResultScreen>
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: selected == null
-                        ? Colors.grey.withValues(alpha: 0.15)
+                        ? AppTheme.primaryColor.withValues(alpha: 0.12)
                         : isCorrect
-                            ? const Color(0xFF10B981).withValues(alpha: 0.15)
-                            : const Color(0xFFEF4444).withValues(alpha: 0.15),
+                            ? AppTheme.lightGreen.withValues(alpha: 0.15)
+                            : AppTheme.secondaryColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -409,10 +410,10 @@ class _ExamResultScreenState extends State<ExamResultScreen>
                                 : Icons.cancel_outlined,
                         size: 14,
                         color: selected == null
-                            ? Colors.grey
+                          ? AppTheme.primaryColor.withValues(alpha: 0.7)
                             : isCorrect
-                                ? const Color(0xFF10B981)
-                                : const Color(0xFFEF4444),
+                            ? AppTheme.lightGreen
+                            : AppTheme.secondaryColor,
                       ),
                       const SizedBox(width: 4),
                       Text(
@@ -425,10 +426,10 @@ class _ExamResultScreenState extends State<ExamResultScreen>
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
                           color: selected == null
-                              ? Colors.grey
+                              ? AppTheme.primaryColor.withValues(alpha: 0.7)
                               : isCorrect
-                                  ? const Color(0xFF10B981)
-                                  : const Color(0xFFEF4444),
+                                ? AppTheme.lightGreen
+                                : AppTheme.secondaryColor,
                         ),
                       ),
                     ],
@@ -464,11 +465,11 @@ class _ExamResultScreenState extends State<ExamResultScreen>
               Color? bg;
               Color? border;
               if (isCorrectOpt) {
-                bg = const Color(0xFF10B981).withValues(alpha: 0.1);
-                border = const Color(0xFF10B981);
+                bg = AppTheme.lightGreen.withValues(alpha: 0.1);
+                border = AppTheme.primaryColor;
               } else if (isSelected && !isCorrectOpt) {
-                bg = const Color(0xFFEF4444).withValues(alpha: 0.1);
-                border = const Color(0xFFEF4444);
+                bg = AppTheme.secondaryColor.withValues(alpha: 0.12);
+                border = AppTheme.secondaryColor;
               }
 
               return Container(
@@ -490,8 +491,8 @@ class _ExamResultScreenState extends State<ExamResultScreen>
                           : (isSelected ? Icons.cancel_rounded : Icons.circle_outlined),
                       size: 18,
                       color: isCorrectOpt
-                          ? const Color(0xFF10B981)
-                          : (isSelected ? const Color(0xFFEF4444) : Colors.grey),
+                          ? AppTheme.lightGreen
+                          : (isSelected ? AppTheme.secondaryColor : AppTheme.primaryColor.withValues(alpha: 0.7)),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -516,16 +517,16 @@ class _ExamResultScreenState extends State<ExamResultScreen>
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withValues(alpha: 0.08),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                      color: const Color(0xFF6366F1).withValues(alpha: 0.2)),
+                      color: AppTheme.primaryColor.withValues(alpha: 0.2)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.lightbulb_outline_rounded,
-                        color: Color(0xFF6366F1), size: 18),
+                    Icon(Icons.lightbulb_outline_rounded,
+                        color: AppTheme.primaryColor, size: 18),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -533,8 +534,8 @@ class _ExamResultScreenState extends State<ExamResultScreen>
                         style: GoogleFonts.cairo(
                           fontSize: 13,
                           color: isDark
-                              ? const Color(0xFFA5B4FC)
-                              : const Color(0xFF4338CA),
+                              ? const Color(0xFFE4F7F1)
+                              : AppTheme.primaryColor,
                           height: 1.5,
                         ),
                         textDirection: TextDirection.rtl,
