@@ -267,8 +267,8 @@ class _NavItem extends StatelessWidget {
                 icon,
                 size: isSelected ? 26 : 22,
                 color: isDark
-                  ? Colors.white
-                  : (isSelected ? primaryColor : Colors.black38),
+                    ? Colors.white
+                    : (isSelected ? primaryColor : Colors.black38),
               ),
             ),
             const SizedBox(height: 4),

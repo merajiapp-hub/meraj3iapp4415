@@ -190,7 +190,9 @@ class _StageCardState extends State<_StageCard>
                   height: 58,
                   child: Icon(
                     widget.icon,
-                    color: widget.isDark ? Colors.white : widget.gradient.colors.first,
+                    color: widget.isDark
+                        ? Colors.white
+                        : widget.gradient.colors.first,
                     size: 42,
                   ),
                 ),

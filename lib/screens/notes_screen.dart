@@ -1078,7 +1078,7 @@ class _NotesScreenState extends State<NotesScreen> {
                   margin: EdgeInsets.only(
                     left: 16,
                     right: 16,
-                    bottom: MediaQuery.of(context).size.height - 150,
+                    top: MediaQuery.of(context).padding.top + 12,
                   ),
                   action: SnackBarAction(
                     label: 'تراجع',

@@ -183,25 +183,14 @@ class _BooksListScreenState extends State<BooksListScreen> {
                           ),
 
                           // رمز المستوى الدراسي
-                          leading: Container(
+                          leading: SizedBox(
                             width: 42,
                             height: 42,
-                            decoration: BoxDecoration(
-                              gradient: isExpanded
-                                  ? widget.gradient
-                                  : LinearGradient(
-                                      colors: [
-                                        accentColor.withValues(alpha: 0.15),
-                                        accentColor.withValues(alpha: 0.25),
-                                      ],
-                                    ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
                             child: Icon(
                               _gradeIcon(grade),
-                              color: isExpanded
+                              color: isDark
                                   ? Colors.white
-                                  : accentColor,
+                                  : (isExpanded ? Colors.white : accentColor),
                               size: 22,
                             ),
                           ),

@@ -1204,7 +1204,11 @@ class _HomePageState extends State<HomePage>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final iconColor = isDark ? Colors.white : (color ?? AppTheme.primaryColor);
     final leadingWidget = iconOrWidget is IconData
-        ? Icon(iconOrWidget, color: iconColor, size: 22)
+        ? Icon(
+            iconOrWidget,
+            color: iconColor,
+            size: 22,
+          )
         : (iconOrWidget as Widget);
 
     return ListTile(
@@ -1214,12 +1218,15 @@ class _HomePageState extends State<HomePage>
         style: GoogleFonts.tajawal(
           fontSize: 15,
           fontWeight: FontWeight.bold,
-          color: isDark ? Colors.white : color,
+          color: isDark ? Colors.white : (color ?? AppTheme.primaryColor),
         ),
       ),
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+      minLeadingWidth: 24,
+      horizontalTitleGap: 8,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      tileColor: Colors.transparent,
     );
   }
 }
