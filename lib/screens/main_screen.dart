@@ -266,9 +266,9 @@ class _NavItem extends StatelessWidget {
               child: Icon(
                 icon,
                 size: isSelected ? 26 : 22,
-                color: isSelected
-                    ? primaryColor
-                    : (isDark ? Colors.white38 : Colors.black38),
+                color: isDark
+                  ? Colors.white
+                  : (isSelected ? primaryColor : Colors.black38),
               ),
             ),
             const SizedBox(height: 4),
@@ -277,9 +277,9 @@ class _NavItem extends StatelessWidget {
               style: GoogleFonts.tajawal(
                 fontSize: 10,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected
-                    ? primaryColor
-                    : (isDark ? Colors.white38 : Colors.black38),
+                color: isDark
+                  ? Colors.white
+                  : (isSelected ? primaryColor : Colors.black38),
               ),
             ),
           ],

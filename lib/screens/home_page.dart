@@ -1201,25 +1201,20 @@ class _HomePageState extends State<HomePage>
     VoidCallback onTap, {
     Color? color,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final iconColor = isDark ? Colors.white : (color ?? AppTheme.primaryColor);
     final leadingWidget = iconOrWidget is IconData
-        ? Icon(iconOrWidget, color: color ?? AppTheme.primaryColor, size: 20)
+        ? Icon(iconOrWidget, color: iconColor, size: 22)
         : (iconOrWidget as Widget);
 
     return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: (color ?? AppTheme.primaryColor).withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: leadingWidget,
-      ),
+      leading: leadingWidget,
       title: Text(
         title,
         style: GoogleFonts.tajawal(
           fontSize: 15,
           fontWeight: FontWeight.bold,
-          color: color,
+          color: isDark ? Colors.white : color,
         ),
       ),
       onTap: onTap,

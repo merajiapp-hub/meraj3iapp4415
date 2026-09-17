@@ -220,13 +220,8 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
     if (widget.examType == ExamType.concours) {
       return {'ناجح', 'راسب'};
     }
-    final statuses = _allResults.map((r) => r.status).where((s) {
+    final statuses = _allResults.where((r) => !r.isComplementary).map((r) => r.status).where((s) {
       if (s.isEmpty) return false;
-      // لا تعرض "مؤهل للتكميلية" إلا للبكالوريا الدورة العادية (ExamType.bac)
-      if (widget.examType != ExamType.bac &&
-          (s == 'الدورة التكميلية' || s == 'تكميلي' || s == 'مؤهل للدورة التكميلية' || s.contains('تكميل'))) {
-        return false;
-      }
       return true;
     }).toSet();
     

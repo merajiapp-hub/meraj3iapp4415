@@ -137,8 +137,7 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
           (c) =>
               c.type == CompetitionType.concours ||
               c.type == CompetitionType.brevet ||
-              c.type == CompetitionType.bac ||
-              c.type == CompetitionType.complementary,
+              c.type == CompetitionType.bac,
         )
         .toList();
 
@@ -171,7 +170,11 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                     context,
                     MaterialPageRoute(
                       builder: (_) =>
-                          GlobalSearchScreen(competitions: _competitions),
+                          GlobalSearchScreen(
+                            competitions: _competitions
+                                .where((c) => c.type != CompetitionType.complementary)
+                                .toList(),
+                          ),
                     ),
                   ),
                 ),

@@ -210,6 +210,7 @@ class _BookCardState extends State<BookCard> {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final isNarrow = constraints.maxWidth < 250;
+                    final iconColor = widget.isDark ? Colors.white : accentColor;
 
                     String? finalCoverUrl = widget.book.thumbnailUrl;
 
@@ -222,18 +223,18 @@ class _BookCardState extends State<BookCard> {
                               fit: BoxFit.contain,
                               placeholder: (context, url) => Icon(
                                 _subjectIcon,
-                                color: accentColor,
+                                color: iconColor,
                                 size: isNarrow ? 27 : 32,
                               ),
                               errorWidget: (context, url, error) => Icon(
                                 _subjectIcon,
-                                color: accentColor,
+                                color: iconColor,
                                 size: isNarrow ? 27 : 32,
                               ),
                             )
                           : Icon(
                               _subjectIcon,
-                              color: accentColor,
+                              color: iconColor,
                               size: isNarrow ? 27 : 32,
                             ),
                     );

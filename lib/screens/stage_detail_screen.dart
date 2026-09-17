@@ -285,7 +285,11 @@ class _SectionCardState extends State<_SectionCard>
                   SizedBox(
                     width: 52,
                     height: 52,
-                    child: Icon(widget.icon, color: accentColor, size: 38),
+                    child: Icon(
+                      widget.icon,
+                      color: widget.isDark ? Colors.white : accentColor,
+                      size: 38,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -371,7 +375,11 @@ class _SectionCardState extends State<_SectionCard>
               SizedBox(
                 width: 52,
                 height: 52,
-                child: Icon(widget.icon, color: accentColor, size: 38),
+                child: Icon(
+                  widget.icon,
+                  color: widget.isDark ? Colors.white : accentColor,
+                  size: 38,
+                ),
               ),
               const SizedBox(height: 10),
 

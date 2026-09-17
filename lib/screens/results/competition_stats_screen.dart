@@ -152,7 +152,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
       sortedWilayas[i].rank = i + 1;
     }
 
-    // ─── الطلاب المؤهلون للدورة التكميلية (خاص بالبكالوريا العادية) ───
+    // ─── الطلاب المؤهلون: يظهر هذا القسم في ترتيب البكالوريا فقط ───
     final compStudents = widget.examType == ExamType.bac
         ? widget.allResults.where((r) => r.isComplementary).toList()
         : <StudentResult>[];
@@ -248,7 +248,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
             maxScore: maxScore,
           ),
 
-          // 4. الدورة التكميلية (للبكالوريا فقط)
+          // 4. ترتيب البكالوريا: المؤهلون فقط
           if (widget.examType == ExamType.bac)
             _buildComplementaryTab(
               isDark: isDark,
@@ -433,15 +433,6 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                   color: Colors.grey,
                   isDark: isDark,
                 ),
-              if (widget.examType == ExamType.bac && complementary > 0)
-                _buildMetricCard(
-                  title: 'المؤهلون للتكميلية',
-                  value: '$complementary',
-                  percent: '${complementaryRate.toStringAsFixed(1)}%',
-                  icon: Icons.refresh_rounded,
-                  color: Colors.orange,
-                  isDark: isDark,
-                ),
               if (expelled > 0)
                 _buildMetricCard(
                   title: 'المطرودون',
@@ -587,12 +578,6 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                           'راسب ($failed)',
                           Colors.red,
                           '${failRate.toStringAsFixed(1)}%',
-                        ),
-                      if (widget.examType == ExamType.bac && complementary > 0)
-                        _buildLegendItem(
-                          'تكميلي ($complementary)',
-                          Colors.orange,
-                          '${complementaryRate.toStringAsFixed(1)}%',
                         ),
                       if (absent > 0)
                         _buildLegendItem(
@@ -1487,13 +1472,6 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                         '${school.absent}',
                         Colors.grey,
                       ),
-                    if (widget.examType == ExamType.bac &&
-                        school.complementary > 0)
-                      _buildMiniBadge(
-                        'تكميلي',
-                        '${school.complementary}',
-                        Colors.orange,
-                      ),
                     if (school.averageScore != null)
                       _buildMiniBadge(
                         'المتوسط',
@@ -1696,7 +1674,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
 
     return Column(
       children: [
-        // بطاقة ملخصة للمؤهلين للدورة التكميلية
+        // بطاقة ملخصة للمؤهلين ضمن ترتيب البكالوريا
         Padding(
           padding: const EdgeInsets.all(16),
           child: Container(
@@ -1726,7 +1704,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'الطلاب المؤهلون للدورة التكميلية',
+                        'الطلاب المؤهلون في ترتيب البكالوريا',
                         style: GoogleFonts.tajawal(
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
@@ -1800,7 +1778,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
               ? Center(
                   child: Text(
                     compStudents.isEmpty
-                        ? 'لا يوجد طلاب مؤهلون للدورة التكميلية.'
+                        ? 'لا يوجد طلاب مؤهلون في ترتيب البكالوريا.'
                         : 'لا توجد نتائج مطابقة للبحث.',
                     style: GoogleFonts.tajawal(color: Colors.grey),
                   ),

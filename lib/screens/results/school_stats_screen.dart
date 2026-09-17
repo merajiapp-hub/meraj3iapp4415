@@ -41,7 +41,6 @@ class _SchoolStatsScreenState extends State<SchoolStatsScreen> {
   late int _failed;
   late int _absent;
   late int _expelled;
-  late int _complementary;
   late double _passRate;
   late double _topScore;
   late int _schoolRank;
@@ -94,7 +93,6 @@ class _SchoolStatsScreenState extends State<SchoolStatsScreen> {
     _failed = _schoolStudents.where((r) => r.isFailed).length;
     _absent = _schoolStudents.where((r) => r.isAbsent).length;
     _expelled = _schoolStudents.where((r) => r.isExpelled).length;
-    _complementary = _schoolStudents.where((r) => r.isComplementary).length;
 
     _passRate = _total > 0 ? (_passed / _total * 100) : 0.0;
 
@@ -333,8 +331,6 @@ class _SchoolStatsScreenState extends State<SchoolStatsScreen> {
                       _buildMetricTile('الراسبون', '$_failed', Colors.red, isDark),
                       if (_absent > 0)
                         _buildMetricTile('الغائبون', '$_absent', Colors.grey, isDark),
-                      if (widget.examType == ExamType.bac && _complementary > 0)
-                        _buildMetricTile('تكميلي', '$_complementary', Colors.orange, isDark),
                       if (_expelled > 0)
                         _buildMetricTile('المطرودون', '$_expelled', Colors.purple, isDark),
                       _buildMetricTile(

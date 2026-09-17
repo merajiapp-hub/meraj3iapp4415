@@ -1073,6 +1073,13 @@ class _NotesScreenState extends State<NotesScreen> {
                     style: GoogleFonts.tajawal(),
                   ),
                   backgroundColor: Colors.black87,
+                  duration: const Duration(seconds: 3),
+                  behavior: SnackBarBehavior.floating,
+                  margin: EdgeInsets.only(
+                    left: 16,
+                    right: 16,
+                    bottom: MediaQuery.of(context).size.height - 150,
+                  ),
                   action: SnackBarAction(
                     label: 'تراجع',
                     textColor: AppTheme.primaryColor,

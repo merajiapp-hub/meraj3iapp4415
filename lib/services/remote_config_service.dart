@@ -47,12 +47,6 @@ class RemoteConfigService {
       'is_published': true,
       'order': 2,
     },
-    'complementary': {
-      'title': 'نتائج الباكلوريا',
-      'link': '',
-      'is_published': false,
-      'order': 3,
-    },
     'concours_excellence': {
       'title': '⭐ امتياز Concours',
       'link': '',
