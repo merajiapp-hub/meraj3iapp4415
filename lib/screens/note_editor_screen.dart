@@ -329,6 +329,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.transparent,
+      useSafeArea: true,
       builder: (ctx) => Container(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
         decoration: BoxDecoration(
@@ -417,7 +419,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.transparent,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (ctx) => DraggableScrollableSheet(
         initialChildSize: 0.7,
         maxChildSize: 0.95,
@@ -1043,6 +1047,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
           ),
         ),
         body: Container(
+          key: const ValueKey('note_editor_host'),
           color: bgColor,
           child: Column(
             children: [
@@ -1108,8 +1113,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                                 scrollable: true,
                                 showCursor: !_readMode,
                                 padding: const EdgeInsets.only(bottom: 80),
-                                placeholder:
-                                    '«اكتب ما يستحق القراءة، أو افعل ما يستحق الكتابة»\nابدأ بتدوين أفكارك هنا...',
                                 customStyles: quill.DefaultStyles(
                                   placeHolder: quill.DefaultTextBlockStyle(
                                     GoogleFonts.getFont(

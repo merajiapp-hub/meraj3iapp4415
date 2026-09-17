@@ -21,6 +21,45 @@ class AuthProvider extends ChangeNotifier {
   bool _isAccountSuspended = false;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _accountStatusSubscription;
 
+  static const String _defaultPhoneCountryCode = '222';
+
+  String normalizePhone(String value) {
+    var digits = value.trim().replaceAll(RegExp(r'[^0-9+]'), '');
+    if (digits.startsWith('00')) digits = '+${digits.substring(2)}';
+    if (!digits.startsWith('+')) {
+      digits = digits.startsWith(_defaultPhoneCountryCode)
+          ? '+$digits'
+          : '+$_defaultPhoneCountryCode$digits';
+    }
+    return '+${digits.substring(1).replaceAll(RegExp(r'[^0-9]'), '')}';
+  }
+
+  String _phoneAuthEmail(String phone) {
+    final digits = normalizePhone(phone).substring(1);
+    return 'phone.$digits@auth.meraj3i.invalid';
+  }
+
+  String _providerForUser(User user) {
+    if (user.email?.endsWith('@auth.meraj3i.invalid') == true) {
+      return 'phone';
+    }
+    return 'email';
+  }
+
+  Future<void> _linkPhoneCredential(
+    User user,
+    String phone,
+    String password,
+  ) async {
+    final email = _phoneAuthEmail(phone);
+    if (user.providerData.any((info) => info.email == email)) return;
+    final credential = EmailAuthProvider.credential(
+      email: email,
+      password: password,
+    );
+    await user.linkWithCredential(credential);
+  }
+
   AuthProvider() {
     // قراءة الحالة المحلية الأولية بشكل متزامن دون انتظار
     _user = _auth.currentUser;
@@ -34,7 +73,7 @@ class AuthProvider extends ChangeNotifier {
         _profileReady = false;
         _isAccountSuspended = false;
         try {
-          await ensureUserDocument(user);
+          await ensureUserDocument(user, provider: _providerForUser(user));
           await _checkAdminStatus(user);
           await refreshAccountStatus();
         } catch (e) {
@@ -119,12 +158,11 @@ class AuthProvider extends ChangeNotifier {
       _user = user;
       if (user != null) {
         try {
-          await ensureUserDocument(user);
+          await ensureUserDocument(user, provider: _providerForUser(user));
           await refreshAccountStatus();
         } catch (e) {
           debugPrint('[Auth] Initial profile provisioning failed: $e');
-          _user = null;
-          await _auth.signOut();
+          debugPrint('[Auth] Profile is not ready yet; preserving Firebase session.');
         }
       }
       _initialized = true;
@@ -280,7 +318,12 @@ class AuthProvider extends ChangeNotifier {
             return 'suspended';
           }
         } on FirebaseException catch (e) {
-          await _auth.signOut();
+          if (e.code == 'permission-denied') {
+            debugPrint('[Auth] Permission denied while loading user doc for ${cred.user!.uid}.');
+            _user = cred.user;
+            return 'تم تسجيل الدخول، لكن تعذر تحميل ملف المستخدم. أعد المحاولة.';
+          }
+          _user = cred.user;
           return 'تعذر تحميل ملف المستخدم: ${e.message ?? e.code}';
         }
 
@@ -322,27 +365,89 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<String?> signInWithPhone(String phone, String password) async {
+    final normalizedPhone = normalizePhone(phone);
     try {
-      final userDoc = await _firestore
-          .collection('users')
-          .where('phone', isEqualTo: phone)
-          .limit(1)
-          .get()
-          .timeout(const Duration(seconds: 10));
-
-      if (userDoc.docs.isEmpty) {
-        return 'لا يوجد حساب مرتبط بهذا الرقم';
-      }
-
-      final email = userDoc.docs.first.data()['email'] as String;
-      return await signIn(email, password);
+      final credential = await _auth
+          .signInWithEmailAndPassword(
+            email: _phoneAuthEmail(normalizedPhone),
+            password: password,
+          )
+          .timeout(const Duration(seconds: 15));
+      final user = credential.user;
+      if (user == null) return 'تعذر تحميل الحساب. أعد المحاولة.';
+      await ensureUserDocument(user, provider: 'phone');
+      final snapshot = normalizeAccountStatus(_userData);
+      _user = user;
+      _isAccountSuspended = snapshot.isSuspended;
+      _profileReady = true;
+      notifyListeners();
+      return snapshot.isSuspended ? 'suspended' : null;
     } on FirebaseAuthException catch (e) {
-      return 'خطأ: ${e.message}';
+      if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
+        // الحسابات القديمة استخدمت البريد الحقيقي كهوية Auth. رقّعها عند أول دخول.
+        try {
+            final userDoc = await _firestore
+              .collection('users')
+              .where('phoneNormalized', isEqualTo: normalizedPhone)
+              .limit(1)
+              .get()
+              .timeout(const Duration(seconds: 10));
+              final legacyDocs = userDoc.docs.isNotEmpty
+                ? userDoc.docs
+                : (await _firestore
+                    .collection('users')
+                    .where('phone', isEqualTo: normalizedPhone)
+                    .limit(1)
+                    .get()
+                    .timeout(const Duration(seconds: 10)))
+                  .docs;
+              final legacyDoc = legacyDocs.isEmpty ? null : legacyDocs.first;
+            if (legacyDoc == null) return 'لا يوجد حساب مرتبط بهذا الرقم';
+            final data = legacyDoc.data();
+          final email = (data['email'] as String?)?.trim();
+          if (email == null || email.isEmpty) return 'لا يوجد حساب مرتبط بهذا الرقم';
+          final legacy = await _auth.signInWithEmailAndPassword(
+            email: email,
+            password: password,
+          );
+          final user = legacy.user;
+          if (user == null) return 'تعذر تحميل الحساب. أعد المحاولة.';
+          await _linkPhoneCredential(user, normalizedPhone, password);
+          await ensureUserDocument(user, provider: 'phone');
+          final snapshot = normalizeAccountStatus(_userData);
+          _user = user;
+          _isAccountSuspended = snapshot.isSuspended;
+          _profileReady = true;
+          notifyListeners();
+          return snapshot.isSuspended ? 'suspended' : null;
+        } on FirebaseAuthException catch (legacyError) {
+          return _authErrorMessage(legacyError, phoneLogin: true);
+        }
+      }
+      return _authErrorMessage(e, phoneLogin: true);
     } catch (e) {
       if (e.toString().contains('timeout')) {
         return 'انتهت مهلة الاتصال. أعد المحاولة.';
       }
-      return 'خطأ في تسجيل الدخول بالهاتف: $e';
+      return 'تعذر تسجيل الدخول بهذا الرقم. أعد المحاولة.';
+    }
+  }
+
+  String _authErrorMessage(FirebaseAuthException e, {bool phoneLogin = false}) {
+    switch (e.code) {
+      case 'user-not-found':
+      case 'invalid-credential':
+        return phoneLogin ? 'لا يوجد حساب مرتبط بهذا الرقم' : 'بيانات الدخول غير صحيحة';
+      case 'wrong-password':
+        return 'كلمة المرور غير صحيحة';
+      case 'user-disabled':
+        return 'هذا الحساب معطّل';
+      case 'network-request-failed':
+        return 'تعذر الاتصال بالإنترنت. تحقق من اتصالك وأعد المحاولة.';
+      case 'too-many-requests':
+        return 'محاولات كثيرة. انتظر قليلاً وأعد المحاولة.';
+      default:
+        return 'تعذر تسجيل الدخول. تحقق من البيانات وأعد المحاولة.';
     }
   }
 
@@ -357,24 +462,81 @@ class AuthProvider extends ChangeNotifier {
     String gender,
   ) async {
     UserCredential? cred;
+    final normalizedPhone = normalizePhone(phone);
+    final authEmail = email.trim().isNotEmpty
+        ? email.trim().toLowerCase()
+        : _phoneAuthEmail(normalizedPhone);
     try {
+      final existingUser = _auth.currentUser;
+      if (existingUser != null &&
+          (existingUser.email == authEmail ||
+              existingUser.providerData.any((info) => info.email == authEmail))) {
+        try {
+          await existingUser.updateDisplayName(name);
+          await ensureUserDocument(existingUser, provider: email.trim().isEmpty ? 'phone' : 'email');
+          await _firestore.collection('users').doc(existingUser.uid).set({
+            'name': name,
+            'fullName': name,
+            'email': email.trim().toLowerCase(),
+            'phone': normalizedPhone,
+            'phoneNumber': normalizedPhone,
+            'phoneNormalized': normalizedPhone,
+            'gender': gender,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+          _user = existingUser;
+          _userData = (await _firestore.collection('users').doc(existingUser.uid).get()).data();
+          _profileReady = _userData != null;
+          notifyListeners();
+          return null;
+        } catch (e) {
+          debugPrint('[SignUp] Existing Auth user profile recovery failed: $e');
+          return 'الحساب موجود، لكن تعذر إكمال ملفه الآن. أعد المحاولة.';
+        }
+      }
+      if (existingUser != null) {
+        return 'يوجد حساب مسجل الدخول حاليًا. سجّل الخروج أولًا لإنشاء حساب آخر.';
+      }
+
       // الخطوة 1: إنشاء حساب Firebase Auth أولاً (المستخدم الآن لديه uid)
       cred = await _auth
-          .createUserWithEmailAndPassword(email: email, password: password)
+          .createUserWithEmailAndPassword(email: authEmail, password: password)
           .timeout(const Duration(seconds: 15));
 
       // الخطوة 2: تحديث اسم العرض
       await cred.user?.updateDisplayName(name);
 
+      // ربط الهاتف كاعتماد ثانوي حتى يعمل phone + password على نفس UID.
+      if (email.trim().isNotEmpty) {
+        try {
+          await _linkPhoneCredential(cred.user!, normalizedPhone, password);
+        } on FirebaseAuthException catch (e) {
+          if (e.code == 'credential-already-in-use') {
+            await cred.user?.delete();
+            return 'رقم الهاتف مستخدم في حساب آخر';
+          }
+          rethrow;
+        }
+      }
+
       // الخطوة 3: التحقق من تفرد رقم الهاتف (المستخدم الآن مسجل → uid موجود)
       try {
         final phoneCheck = await _firestore
             .collection('users')
-            .where('phone', isEqualTo: phone)
+            .where('phoneNormalized', isEqualTo: normalizedPhone)
             .limit(1)
             .get()
             .timeout(const Duration(seconds: 10));
-        if (phoneCheck.docs.isNotEmpty) {
+          final legacyPhoneCheck = phoneCheck.docs.isEmpty
+            ? await _firestore
+              .collection('users')
+              .where('phone', isEqualTo: phone.trim())
+              .limit(1)
+              .get()
+              .timeout(const Duration(seconds: 10))
+            : null;
+          if (phoneCheck.docs.isNotEmpty ||
+            (legacyPhoneCheck?.docs.isNotEmpty ?? false)) {
           // rollback: نحذف حساب Auth لأن الهاتف مكرر
           await cred.user?.delete();
           return 'رقم الهاتف مستخدم في حساب آخر';
@@ -387,8 +549,10 @@ class AuthProvider extends ChangeNotifier {
       // الخطوة 4: كتابة مستند Firestore مع retry واحد
       final userData = {
         'name': name,
-        'email': email,
-        'phone': phone,
+        'email': email.trim().toLowerCase(),
+        'phone': normalizedPhone,
+        'phoneNumber': normalizedPhone,
+        'phoneNormalized': normalizedPhone,
         'gender': gender,
         'createdAt': FieldValue.serverTimestamp(),
         'lastActivity': FieldValue.serverTimestamp(),
@@ -446,14 +610,10 @@ class AuthProvider extends ChangeNotifier {
       }
 
       if (!firestoreSuccess) {
-        // Rollback: حذف حساب Auth لتجنب حالة غير متسقة
-        debugPrint(
-          '[SignUp] Firestore failed — rolling back Auth: $firestoreError',
-        );
-        try {
-          await cred.user?.delete();
-        } catch (_) {}
-        return 'حدث خطأ أثناء حفظ البيانات. أعد المحاولة. ($firestoreError)';
+        // لا نحذف Auth: الحساب حقيقي ويمكن استكمال ملفه بعد عودة الشبكة.
+        debugPrint('[SignUp] Profile write failed; preserving Auth user: $firestoreError');
+        _user = cred.user;
+        return 'تم إنشاء الحساب، لكن تعذر إكمال ملف المستخدم مؤقتًا. أعد المحاولة.';
       }
 
       // الخطوة 5: إشعار الإدارة بتسجيل مستخدم جديد (في الخلفية)
@@ -466,15 +626,17 @@ class AuthProvider extends ChangeNotifier {
         metadata: {'email': email, 'phone': phone},
       ).catchError((_) {});
 
-      // التسجيل يجهز الحساب فقط؛ تسجيل الدخول يتم من شاشة الدخول التالية.
-      await _auth.signOut();
-      _user = null;
-      _userData = null;
-      return null; // نجح التسجيل
+      _user = cred.user;
+      _userData = (await _firestore.collection('users').doc(cred.user!.uid).get()).data();
+      _profileReady = _userData != null;
+      notifyListeners();
+      return null;
     } on FirebaseAuthException catch (e) {
       switch (e.code) {
         case 'email-already-in-use':
-          return 'هذا البريد الإلكتروني مستخدم مسبقاً';
+          return email.trim().isEmpty
+              ? 'رقم الهاتف مستخدم في حساب آخر'
+              : 'هذا البريد الإلكتروني مستخدم مسبقاً';
         case 'weak-password':
           return 'كلمة المرور ضعيفة جداً (6 أحرف على الأقل)';
         case 'invalid-email':
@@ -618,7 +780,6 @@ class AuthProvider extends ChangeNotifier {
     final current = await ref.get().timeout(const Duration(seconds: 10));
     final data = current.data();
     final update = <String, dynamic>{
-      'uid': user.uid,
       'updatedAt': FieldValue.serverTimestamp(),
       'lastLoginAt': FieldValue.serverTimestamp(),
       'lastActivity': FieldValue.serverTimestamp(),
@@ -626,6 +787,7 @@ class AuthProvider extends ChangeNotifier {
 
     if (!current.exists) {
       update.addAll({
+        'uid': user.uid,
         'fullName': user.displayName ?? (provider == 'google' ? 'مستخدم Google' : 'مستخدم جديد'),
         'name': user.displayName ?? (provider == 'google' ? 'مستخدم Google' : 'مستخدم جديد'),
         'email': user.email ?? '',
@@ -638,13 +800,6 @@ class AuthProvider extends ChangeNotifier {
         'provider': provider,
         'role': 'user',
         'isActive': true,
-        'accountStatus': 'active',
-        'isSuspended': false,
-        'suspensionReason': '',
-        'suspensionStartAt': null,
-        'suspensionEndAt': null,
-        'suspendedAt': null,
-        'suspendedBy': null,
         'createdAt': FieldValue.serverTimestamp(),
       });
     } else if (data != null) {
@@ -655,33 +810,22 @@ class AuthProvider extends ChangeNotifier {
         update['authProvider'] = provider;
         update['provider'] = provider;
       }
-      if (!data.containsKey('accountStatus')) {
-        update['accountStatus'] = 'active';
-      }
-      if (!data.containsKey('isSuspended')) {
-        update['isSuspended'] = false;
-      }
-      if (!data.containsKey('suspensionReason')) {
-        update['suspensionReason'] = '';
-      }
-      if (!data.containsKey('suspensionStartAt')) {
-        update['suspensionStartAt'] = null;
-      }
-      if (!data.containsKey('suspensionEndAt')) {
-        update['suspensionEndAt'] = null;
-      }
-      if (!data.containsKey('suspendedAt')) {
-        update['suspendedAt'] = null;
-      }
-      if (!data.containsKey('suspendedBy')) {
-        update['suspendedBy'] = null;
-      }
       if (!data.containsKey('createdAt')) {
         update['createdAt'] = FieldValue.serverTimestamp();
       }
     }
 
-    await ref.set(update, SetOptions(merge: true)).timeout(const Duration(seconds: 10));
+    try {
+      await ref.set(update, SetOptions(merge: true)).timeout(const Duration(seconds: 10));
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        debugPrint('[Auth] ensureUserDocument permission denied for ${user.uid}; refreshing token and retrying once.');
+        await user.getIdToken(true);
+        await ref.set(update, SetOptions(merge: true)).timeout(const Duration(seconds: 10));
+      } else {
+        rethrow;
+      }
+    }
     final saved = await ref.get().timeout(const Duration(seconds: 10));
     if (!saved.exists || saved.data() == null) {
       throw FirebaseException(plugin: 'cloud_firestore', code: 'profile-not-created');

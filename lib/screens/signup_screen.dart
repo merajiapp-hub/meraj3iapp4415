@@ -7,6 +7,7 @@ import '../widgets/app_notification.dart';
 import 'terms_of_use_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'login_screen.dart';
+import 'main_screen.dart';
 import '../widgets/app_dropdown.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -74,13 +75,14 @@ class _SignupScreenState extends State<SignupScreen>
   }
 
   void _signup() async {
+    if (_isLoading) return;
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
     final phone = _phoneController.text.trim();
     final password = _passwordController.text.trim();
     final confirmPassword = _confirmPasswordController.text.trim();
 
-    if (name.isEmpty || email.isEmpty || phone.isEmpty || password.isEmpty) {
+    if (name.isEmpty || phone.isEmpty || password.isEmpty) {
       AppNotification.show(context, 'الرجاء تعبئة جميع الحقول', isError: true);
       return;
     }
@@ -114,11 +116,11 @@ class _SignupScreenState extends State<SignupScreen>
     if (error == null) {
       AppNotification.show(
         context,
-        'تم إنشاء الحساب بنجاح. يمكنك تسجيل الدخول الآن.',
+        'تم إنشاء الحساب والدخول بنجاح.',
       );
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        MaterialPageRoute(builder: (_) => const MainScreen()),
         (route) => false,
       );
     } else {
@@ -223,7 +225,7 @@ class _SignupScreenState extends State<SignupScreen>
           _buildTextField(
             controller: _emailController,
             icon: Icons.email_outlined,
-            hint: 'البريد الإلكتروني',
+            hint: 'البريد الإلكتروني (اختياري للهاتف)',
             keyboardType: TextInputType.emailAddress,
           ),
           const SizedBox(height: 10),

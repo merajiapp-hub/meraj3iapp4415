@@ -13,7 +13,9 @@ import '../services/note_export_service.dart';
 import 'note_editor_screen.dart';
 
 class NotesScreen extends StatefulWidget {
-  const NotesScreen({super.key});
+  final VoidCallback? onBackToHome;
+
+  const NotesScreen({super.key, this.onBackToHome});
 
   @override
   State<NotesScreen> createState() => _NotesScreenState();
@@ -65,6 +67,13 @@ class _NotesScreenState extends State<NotesScreen> {
     super.dispose();
   }
 
+  void _dismissBlockingModalIfNeeded() {
+    final navigator = Navigator.of(context, rootNavigator: true);
+    if (navigator.canPop()) {
+      navigator.pop();
+    }
+  }
+
   void _openEditor({Note? note}) {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     if (auth.isGuest || auth.user == null) {
@@ -80,6 +89,8 @@ class _NotesScreenState extends State<NotesScreen> {
       return;
     }
 
+    _dismissBlockingModalIfNeeded();
+
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => NoteEditorScreen(note: note)),
@@ -90,6 +101,8 @@ class _NotesScreenState extends State<NotesScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.transparent,
+      useSafeArea: true,
       builder: (ctx) => Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
@@ -257,10 +270,11 @@ class _NotesScreenState extends State<NotesScreen> {
   Widget _buildHeader(bool isDark, Color themeColor) {
     return Column(
       children: [
-        const CurvedHeader(
+        CurvedHeader(
           title: 'ملاحظاتي',
           gradient: AppTheme.brandGradient,
           showBackButton: true,
+          onBack: widget.onBackToHome,
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
@@ -526,15 +540,6 @@ class _NotesScreenState extends State<NotesScreen> {
       }).toList();
     }
 
-    if (provider.notes.isEmpty &&
-        provider.trashedNotes.isEmpty &&
-        query.isEmpty &&
-        !_showFavoritesOnly &&
-        !isTrash &&
-        _activeCategory == 'الكل') {
-      return _buildLiteraryIntro(isDark);
-    }
-
     if (notes.isEmpty) {
       return Center(
         child: Column(
@@ -601,6 +606,7 @@ class _NotesScreenState extends State<NotesScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildLiteraryIntro(bool isDark) {
     return SingleChildScrollView(
       controller: _notesScrollController,

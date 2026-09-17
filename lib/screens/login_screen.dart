@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:local_auth/local_auth.dart';
 import '../theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/app_config_provider.dart';
@@ -27,9 +26,7 @@ class _LoginScreenState extends State<LoginScreen>
   bool _isPasswordVisible = false;
 
   late TabController _tabController;
-  final LocalAuthentication _localAuth = LocalAuthentication();
   bool _rememberMe = false;
-  bool _canCheckBiometrics = false;
 
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
@@ -51,7 +48,6 @@ class _LoginScreenState extends State<LoginScreen>
 
     _animController.forward();
     _loadSavedCredentials();
-    _checkBiometrics();
   }
 
   @override
@@ -64,27 +60,14 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  Future<void> _checkBiometrics() async {
-    bool canCheck = false;
-    try {
-      canCheck =
-          await _localAuth.canCheckBiometrics ||
-          await _localAuth.isDeviceSupported();
-    } catch (e) {
-      // Ignored
-    }
-    setState(() => _canCheckBiometrics = canCheck);
-  }
-
   Future<void> _loadSavedCredentials() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('saved_password');
     final savedEmail = prefs.getString('saved_email');
     final savedPhone = prefs.getString('saved_phone');
-    final savedPassword = prefs.getString('saved_password');
-    if (savedPassword != null) {
+    if ((savedEmail?.isNotEmpty ?? false) || (savedPhone?.isNotEmpty ?? false)) {
       setState(() {
         _rememberMe = true;
-        _passwordController.text = savedPassword;
         if (savedEmail != null && savedEmail.isNotEmpty) {
           _emailController.text = savedEmail;
           _tabController.index = 0;
@@ -97,6 +80,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _login() async {
+    if (_isLoading) return;
     final isEmail = _tabController.index == 0;
     final id = isEmail
         ? _emailController.text.trim()
@@ -130,12 +114,10 @@ class _LoginScreenState extends State<LoginScreen>
           prefs.setString('saved_phone', id);
           prefs.remove('saved_email');
         }
-        prefs.setString('saved_password', pass);
       } else {
         final prefs = await SharedPreferences.getInstance();
         prefs.remove('saved_email');
         prefs.remove('saved_phone');
-        prefs.remove('saved_password');
       }
 
       if (!mounted) return;
@@ -152,62 +134,6 @@ class _LoginScreenState extends State<LoginScreen>
     } else {
       if (!mounted) return;
       AppNotification.show(context, error, isError: true);
-    }
-  }
-
-  void _loginWithBiometrics() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedEmail = prefs.getString('saved_email');
-    final savedPhone = prefs.getString('saved_phone');
-    final savedPassword = prefs.getString('saved_password');
-
-    if (savedPassword == null || (savedEmail == null && savedPhone == null)) {
-      if (!mounted) return;
-      AppNotification.show(
-        context,
-        'لم يتم العثور على بيانات محفوظة لاستخدام البصمة',
-        isError: true,
-      );
-      return;
-    }
-
-    bool authenticated = false;
-    try {
-      authenticated = await _localAuth.authenticate(
-        localizedReason: 'قم بالمصادقة لتسجيل الدخول',
-        options: const AuthenticationOptions(
-          stickyAuth: true,
-          biometricOnly: true,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      AppNotification.show(context, 'فشلت المصادقة البيومترية', isError: true);
-    }
-
-    if (!mounted) return;
-    if (authenticated) {
-      setState(() => _isLoading = true);
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final error = savedEmail != null && savedEmail.isNotEmpty
-          ? await authProvider.signIn(savedEmail, savedPassword)
-          : await authProvider.signInWithPhone(savedPhone!, savedPassword);
-
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      if (error == null) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const MainScreen()),
-        );
-      } else if (error == 'suspended') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const AccountSuspendedScreen()),
-        );
-      } else {
-        AppNotification.show(context, error, isError: true);
-      }
     }
   }
 
@@ -460,6 +386,7 @@ class _LoginScreenState extends State<LoginScreen>
                         strokeWidth: 2,
                       ),
                     )
+
                   : Text(
                       'تسجيل الدخول',
                       style: GoogleFonts.tajawal(
@@ -469,34 +396,6 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
             ),
           ),
-
-          // Biometrics
-          const SizedBox(height: 16), // تقليل المسافة
-          if (_canCheckBiometrics) ...[
-            GestureDetector(
-              onTap: _loginWithBiometrics,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.fingerprint_rounded,
-                    size: 24, // تصغير الأيقونة
-                    color: Colors.white.withValues(alpha: 0.8),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'تسجيل الدخول بالبصمة',
-                    style: GoogleFonts.tajawal(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      fontSize: 13, // تصغير الخط
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12), // تقليل المسافة
-          ],
-
 
           Row(
             mainAxisAlignment: MainAxisAlignment.center,

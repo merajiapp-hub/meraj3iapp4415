@@ -1,10 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 import '../providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:dio/dio.dart';
-import 'package:path_provider/path_provider.dart';
 import '../models/book.dart';
 import '../providers/favorites_provider.dart';
 import '../providers/downloads_provider.dart';
@@ -12,6 +11,7 @@ import '../providers/reading_provider.dart';
 import '../screens/pdf_viewer_screen.dart';
 import 'app_notification.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../services/book_download_service.dart';
 
 class BookCard extends StatefulWidget {
   final Book book;
@@ -34,6 +34,14 @@ class BookCard extends StatefulWidget {
 class _BookCardState extends State<BookCard> {
   bool _isDownloading = false;
   double _downloadProgress = 0;
+  final BookDownloadService _downloadService = BookDownloadService();
+  StreamSubscription<BookDownloadProgress>? _progressSubscription;
+
+  @override
+  void dispose() {
+    _progressSubscription?.cancel();
+    super.dispose();
+  }
 
   /// نوع أيقونة المادة بناءً على اسم الكتاب/المادة
   IconData get _subjectIcon {
@@ -50,14 +58,6 @@ class _BookCardState extends State<BookCard> {
     if (s.contains('فلسفة')) return Icons.psychology_rounded;
     if (s.contains('عربية') || s.contains('arabic')) return Icons.auto_stories_rounded;
     return Icons.menu_book_rounded;
-  }
-
-  String _getDirectLink(String url) {
-    if (url.contains('drive.google.com/file/d/')) {
-      final id = url.split('/d/')[1].split('/')[0].split('?')[0];
-      return 'https://docs.google.com/uc?export=download&id=$id';
-    }
-    return url;
   }
 
   Future<void> _downloadBook() async {
@@ -89,25 +89,16 @@ class _BookCardState extends State<BookCard> {
     });
 
     try {
-      final directory = await getApplicationDocumentsDirectory();
-      final fileName = '${widget.book.uniqueKey}.pdf';
-      final savePath = '${directory.path}/$fileName';
-      final processedUrl = _getDirectLink(widget.book.url);
+      _progressSubscription?.cancel();
+      _progressSubscription = _downloadService
+          .progressFor(widget.book.uniqueKey)
+          .listen((progress) {
+        if (mounted) setState(() => _downloadProgress = progress.value ?? 0);
+      });
+      final savePath = await _downloadService.getOrDownload(widget.book);
 
-      await Dio().download(
-        processedUrl,
-        savePath,
-        onReceiveProgress: (count, total) {
-          if (total != -1 && mounted) {
-            setState(() => _downloadProgress = count / total);
-          }
-        },
-      );
+      final fileSize = await File(savePath).length();
 
-      final file = File(savePath);
-      if (!await file.exists()) throw Exception('File not created');
-
-      final fileSize = await file.length();
       final fileSizeMb = fileSize / (1024 * 1024);
       final db = DownloadedBook.fromBook(widget.book, savePath, fileSizeMb);
 

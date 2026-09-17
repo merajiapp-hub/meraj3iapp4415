@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 
 
 import '../models/book.dart';
 import '../services/drive_url_service.dart';
 import '../theme/app_theme.dart';
 import 'pdf_viewer_screen.dart';
+import '../providers/auth_provider.dart';
+import '../services/book_prefetch_service.dart';
 
 class BooksLibraryScreen extends StatefulWidget {
   final String stage;
@@ -26,6 +29,15 @@ class _BooksLibraryScreenState extends State<BooksLibraryScreen> {
   String _searchQuery = '';
   String _selectedCategory = '';
   final TextEditingController _searchCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || context.read<AuthProvider>().isGuest) return;
+      BookPrefetchService().prefetch(widget.books);
+    });
+  }
 
   @override
   void dispose() {

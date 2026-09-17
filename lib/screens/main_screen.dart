@@ -27,7 +27,7 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     _pages = [
       HomePage(isGuest: widget.isGuest),
-      const NotesScreen(),
+      NotesScreen(onBackToHome: () => setState(() => _currentIndex = 0)),
       const TaskManagerScreen(),
       const DownloadsScreen(),
       const FavoritesScreen(),

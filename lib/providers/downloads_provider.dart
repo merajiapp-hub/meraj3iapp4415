@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'dart:io';
 import '../models/book.dart';
 
 class DownloadedBook {
@@ -117,8 +118,13 @@ class DownloadsProvider extends ChangeNotifier {
   }
 
   Future<void> removeDownload(String uniqueKey) async {
+    final removed = _downloads.where((d) => d.uniqueKey == uniqueKey).toList();
     _downloads.removeWhere((d) => d.uniqueKey == uniqueKey);
     notifyListeners();
+    for (final download in removed) {
+      final file = File(download.localPath);
+      if (await file.exists()) await file.delete();
+    }
     await _saveDownloads();
   }
 
@@ -140,9 +146,14 @@ class DownloadsProvider extends ChangeNotifier {
     await prefs.setString(_downloadsKey, jsonStr);
   }
 
-  void clearAll() {
+  Future<void> clearAll() async {
+    final files = _downloads.map((d) => File(d.localPath)).toList();
     _downloads.clear();
     notifyListeners();
+    for (final file in files) {
+      if (await file.exists()) await file.delete();
+    }
+    await _saveDownloads();
   }
 
 }

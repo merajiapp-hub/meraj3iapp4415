@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:dio/dio.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,6 +19,8 @@ import '../providers/auth_provider.dart';
 import '../widgets/banner_ad_widget.dart';
 import '../data/ad_manager.dart';
 import 'package:share_plus/share_plus.dart';
+import '../services/book_cache_service.dart';
+import '../services/book_download_service.dart';
 
 class PdfViewerScreen extends StatefulWidget {
   final String pdfUrl;
@@ -51,9 +52,6 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   bool _isNightMode = false;
   bool _isDownloading = false;
   double _downloadProgress = 0;
-  String _remainingTime = "";
-  DateTime? _lastTime;
-  int _lastBytes = 0;
   String? _localPath;
   late String _processedUrl;
 
@@ -76,6 +74,9 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   bool _toolbarVisible = true;
 
   Timer? _readingTimer;
+  final BookCacheService _cacheService = BookCacheService();
+  late final BookDownloadService _downloadService;
+  StreamSubscription<BookDownloadProgress>? _downloadProgressSubscription;
 
   String get _prefsKey =>
       'last_page_${widget.book?.uniqueKey ?? widget.localPath?.hashCode ?? widget.title.hashCode}';
@@ -86,6 +87,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   void initState() {
     super.initState();
     _localPath = widget.localPath;
+    _downloadService = BookDownloadService(cache: _cacheService);
     _processedUrl = _getDirectLink(widget.pdfUrl);
 
     _toolbarAnimController = AnimationController(
@@ -139,6 +141,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   @override
   void dispose() {
     _readingTimer?.cancel();
+    _downloadProgressSubscription?.cancel();
     _toolbarAnimController.dispose();
     _pageJumpController.dispose();
     AdManager.showInterstitialAd(chance: 0.3);
@@ -292,20 +295,35 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   }
 
   Future<void> _checkLocalFile() async {
+    final downloads = widget.book == null
+        ? null
+        : Provider.of<DownloadsProvider>(context, listen: false);
+
     if (widget.localPath != null) {
-      setState(() {
-        _localPath = widget.localPath;
-        _isCheckingLocalFile = false;
-      });
-      return;
+      final file = File(widget.localPath!);
+      if (await _cacheService.isValidPdf(file)) {
+        setState(() {
+          _localPath = widget.localPath;
+          _isCheckingLocalFile = false;
+        });
+        return;
+      }
     }
 
     if (widget.book != null) {
-      final downloads = Provider.of<DownloadsProvider>(context, listen: false);
-      final path = downloads.getLocalPath(widget.book!.uniqueKey);
+      final cachedFile = await _cacheService.getValidFile(widget.book!.uniqueKey);
+      if (cachedFile != null) {
+        setState(() {
+          _localPath = cachedFile.path;
+          _isCheckingLocalFile = false;
+        });
+        return;
+      }
+
+      final path = downloads!.getLocalPath(widget.book!.uniqueKey);
       if (path != null) {
         final file = File(path);
-        if (await file.exists()) {
+        if (await _cacheService.isValidPdf(file)) {
           setState(() {
             _localPath = file.path;
             _isCheckingLocalFile = false;
@@ -331,6 +349,10 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
     setState(() {
       _isCheckingLocalFile = false;
     });
+
+    if (widget.book != null && mounted) {
+      await _downloadPdf(askConfirmation: false);
+    }
   }
 
   String _generateFileName() {
@@ -346,7 +368,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
     return "$name.pdf";
   }
 
-  Future<void> _downloadPdf() async {
+  Future<void> _downloadPdf({bool askConfirmation = true}) async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     if (auth.isGuest) {
       AppNotification.show(context, 'يرجى تسجيل الدخول لتحميل الكتب', isError: true);
@@ -361,7 +383,8 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
       return;
     }
 
-    final bool? confirm = await showDialog<bool>(
+    final bool? confirm = askConfirmation
+      ? await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -416,51 +439,31 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
           ],
         );
       },
-    );
+    )
+      : true;
 
     if (confirm != true) return;
 
     setState(() {
       _isDownloading = true;
       _downloadProgress = 0;
-      _remainingTime = "";
-      _lastTime = DateTime.now();
-      _lastBytes = 0;
     });
 
     try {
-      final directory = await getApplicationDocumentsDirectory();
-      final fileName = _generateFileName();
-      final savePath = '${directory.path}/$fileName';
+      if (widget.book == null) {
+        throw const BookDownloadException('بيانات الكتاب غير متوفرة');
+      }
 
-      await Dio().download(
-        _processedUrl,
-        savePath,
-        onReceiveProgress: (count, total) {
-          if (total != -1) {
-            final now = DateTime.now();
-            final elapsedMs = now.difference(_lastTime!).inMilliseconds;
-            if (elapsedMs > 500) {
-              final bytesSinceLast = count - _lastBytes;
-              final speedBps = bytesSinceLast / (elapsedMs / 1000);
-              final remainingBytes = total - count;
-              final seconds = remainingBytes / speedBps;
-              setState(() {
-                _downloadProgress = count / total;
-                if (seconds.isFinite && seconds > 0) {
-                  _remainingTime = '${seconds.toStringAsFixed(0)} ث';
-                }
-                _lastTime = now;
-                _lastBytes = count;
-              });
-            } else {
-              setState(() {
-                _downloadProgress = count / total;
-              });
-            }
-          }
-        },
-      );
+      _downloadProgressSubscription?.cancel();
+      _downloadProgressSubscription = _downloadService
+          .progressFor(widget.book!.uniqueKey)
+          .listen((progress) {
+        if (!mounted) return;
+        setState(() {
+          _downloadProgress = progress.value ?? 0;
+        });
+      });
+      final savePath = await _downloadService.getOrDownload(widget.book!);
 
       if (widget.book != null) {
         final file = File(savePath);
@@ -500,11 +503,14 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
         AppNotification.show(context, 'تم تحميل الكتاب للقراءة بدون إنترنت ✅');
       }
     } catch (e) {
+      _downloadProgressSubscription?.cancel();
       setState(() => _isDownloading = false);
       if (mounted) {
         AppNotification.show(
           context,
-          'فشل التحميل، جرب فتح الرابط في المتصفح',
+          e is BookDownloadException
+              ? e.message
+              : 'تعذر تحميل الكتاب. تحقق من الاتصال وحاول مرة أخرى.',
           isError: true,
         );
       }
@@ -712,36 +718,12 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
           if (_localPath == null && !isFolder && !isLocalOnly)
             IconButton(
               icon: _isDownloading
-                  ? Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _remainingTime,
-                          style: GoogleFonts.tajawal(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: _isNightMode
-                                ? Colors.white
-                                : AppTheme.primaryColor,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            value: _downloadProgress,
-                            strokeWidth: 2,
-                            color: _isNightMode
-                                ? Colors.white
-                                : AppTheme.primaryColor,
-                          ),
-                        ),
-                      ],
-                    )
+                  ? const Icon(Icons.close_rounded)
                   : const Icon(Icons.download_rounded),
-              tooltip: 'تحميل للقراءة بدون إنترنت',
-              onPressed: _isDownloading ? null : _downloadPdf,
+              tooltip: _isDownloading ? 'إلغاء التحميل' : 'تحميل للقراءة بدون إنترنت',
+              onPressed: _isDownloading
+                  ? () => _downloadService.cancel(widget.book!.uniqueKey)
+                  : _downloadPdf,
             ),
           if (isFolder || (!isLocalOnly && widget.pdfUrl.isNotEmpty))
             IconButton(
@@ -1061,6 +1043,30 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
     if (_isCheckingLocalFile) {
       return const Center(
         child: CircularProgressIndicator(color: AppTheme.primaryColor),
+      );
+    }
+
+    if (_isDownloading) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.picture_as_pdf_rounded, size: 56, color: AppTheme.primaryColor),
+            const SizedBox(height: 16),
+            Text('جاري تحميل ${widget.title}', textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: 260,
+              child: LinearProgressIndicator(value: _downloadProgress > 0 ? _downloadProgress : null),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _downloadProgress > 0
+                  ? '${(_downloadProgress * 100).toStringAsFixed(0)}%'
+                  : 'يرجى الانتظار...',
+            ),
+          ],
+        ),
       );
     }
 

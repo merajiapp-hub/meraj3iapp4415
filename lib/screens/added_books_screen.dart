@@ -11,9 +11,8 @@ import '../theme/app_theme.dart';
 import '../widgets/app_notification.dart';
 import 'pdf_viewer_screen.dart';
 import 'package:provider/provider.dart';
-import 'package:dio/dio.dart';
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import '../services/book_download_service.dart';
 
 class AddedBooksScreen extends StatefulWidget {
   const AddedBooksScreen({super.key});
@@ -682,23 +681,10 @@ class _AddedBooksScreenState extends State<AddedBooksScreen> {
       return;
     }
     try {
-      final dir = await getApplicationDocumentsDirectory();
-      final fileName = '${book.uniqueKey}.pdf';
-      final savePath = '${dir.path}/$fileName';
-
-      String processedUrl = book.url;
-      if (book.url.contains('drive.google.com/file/d/')) {
-        final id = book.url.split('/d/')[1].split('/')[0].split('?')[0];
-        processedUrl = 'https://docs.google.com/uc?export=download&id=$id';
-      }
-
-      await Dio().download(processedUrl, savePath);
-      final file = File(savePath);
-      if (await file.exists()) {
-        final sizeMb = (await file.length()) / (1024 * 1024);
-        await downloads.addDownload(DownloadedBook.fromBook(book, savePath, sizeMb));
-        if (context.mounted) AppNotification.show(context, '✅ تم تنزيل "${book.title}" بنجاح');
-      }
+      final savePath = await BookDownloadService().getOrDownload(book);
+      final sizeMb = (await File(savePath).length()) / (1024 * 1024);
+      await downloads.addDownload(DownloadedBook.fromBook(book, savePath, sizeMb));
+      if (context.mounted) AppNotification.show(context, '✅ تم تنزيل "${book.title}" بنجاح');
     } catch (e) {
       if (context.mounted) AppNotification.show(context, 'فشل التنزيل، تحقق من الاتصال', isError: true);
     }

@@ -11,6 +11,7 @@ class CurvedHeader extends StatelessWidget {
   final List<Widget>? decorations;
   final double height;
   final bool showBackButton;
+  final VoidCallback? onBack;
 
   const CurvedHeader({
     super.key,
@@ -22,6 +23,7 @@ class CurvedHeader extends StatelessWidget {
     this.decorations,
     this.height = 70,
     this.showBackButton = true,
+    this.onBack,
   });
 
   @override
@@ -82,7 +84,7 @@ class CurvedHeader extends StatelessWidget {
             Positioned(
               right: 8,
               child: IconButton(
-                onPressed: () => Navigator.maybePop(context),
+                onPressed: onBack ?? () => Navigator.maybePop(context),
                 tooltip: 'رجوع',
                 icon: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 26),
               ),

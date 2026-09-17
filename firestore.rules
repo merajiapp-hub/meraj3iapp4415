@@ -36,10 +36,21 @@ service cloud.firestore {
 
     /// يتحقق من أن حقل البيانات المُرسَلة لا يحتوي على حقول حساسة
     function noSensitiveFields() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'name', 'fullName', 'gender', 'educationLevel',
+        'email', 'phone', 'phoneNumber', 'phoneNormalized',
+        'profileImageUrl', 'profileImageBase64',
+        'fcmToken', 'fcmTokens', 'lastTokenUpdate',
+        'provider', 'authProvider',
+        'updatedAt', 'lastLoginAt', 'lastActivity'
+      ]);
+    }
+
+    function noSensitiveCreateFields() {
       return !request.resource.data.keys().hasAny([
         'isAdmin', 'isSuspended', 'accountStatus', 'suspensionReason',
         'suspensionStartAt', 'suspensionEndAt', 'suspendedAt', 'suspendedBy',
-        'mustChangePassword', 'points', 'role', 'isActive'
+        'mustChangePassword', 'points'
       ]);
     }
 
@@ -48,28 +59,29 @@ service cloud.firestore {
     // ═══════════════════════════════════════════════════════════════
     match /users/{userId} {
       // القراءة المفردة: المالك أو المسؤول فقط
-      allow get: if isOwner(userId) || isAdmin();
+      allow get: if isOwner(userId) || isAppAdmin();
 
-      // list (استعلام): مسموح للمستخدمين المسجلين فقط بغرض التحقق من رقم الهاتف
-      // (يُستخدم في signUp للتحقق من تفرد الهاتف بعد إنشاء Auth)
-      allow list: if isAuthenticated();
+      // list (استعلام): الإدارة تحتاج قائمة المستخدمين كاملة، بينما يبقى
+      // المستخدم العادي محصوراً في استعلام تحقق صغير.
+      allow list: if isAppAdmin() ||
+        (isAuthenticated() && request.query.limit <= 1);
 
       // إنشاء مستند جديد: المستخدم ينشئ مستنده الخاص فقط عند التسجيل
       allow create: if isOwner(userId) &&
         request.resource.data.uid == userId &&
-        !request.resource.data.keys().hasAny(['isAdmin', 'isSuspended', 'mustChangePassword', 'points']) &&
+        noSensitiveCreateFields() &&
         (!request.resource.data.keys().hasAny(['role']) || request.resource.data.role == 'user') &&
         (!request.resource.data.keys().hasAny(['isActive']) || request.resource.data.isActive == true);
 
       // تعديل: المالك (بدون حقول حساسة) أو المسؤول بصلاحيات كاملة
-      allow update: if (isOwner(userId) && noSensitiveFields()) || isAdmin();
+      allow update: if (isOwner(userId) && noSensitiveFields()) || isAppAdmin();
 
       // حذف: المسؤول فقط
-      allow delete: if isAdmin();
+      allow delete: if isAppAdmin();
 
       // ── المجموعات الفرعية للمستخدم (إشعارات، ملاحظات، إلخ) ──
       match /{subcollection}/{docId} {
-        allow read, write: if isOwner(userId) || isAdmin();
+        allow read, write: if isOwner(userId) || isAppAdmin();
       }
     }
 
@@ -80,7 +92,7 @@ service cloud.firestore {
       // الكتابة: أي مستخدم مسجل (لتسجيل طلبه)، أو النظام (auth=null في Functions)
       allow create: if isAuthenticated() || request.auth == null;
       // القراءة والتعديل والحذف: المسؤول فقط
-      allow read, update, delete: if isAdmin();
+      allow read, update, delete: if isAppAdmin();
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -103,24 +115,24 @@ service cloud.firestore {
     //  إعدادات التطبيق والصيانة
     // ═══════════════════════════════════════════════════════════════
     match /app_settings/{settingId} {
-      // الجميع يقرأ (مطلوب لشاشة الصيانة)
-      allow read: if true;
+      // التطبيق العام لا يفتح بدون تسجيل الدخول، وتبقى إعدادات الإدارة محصورة بالإدارة فقط.
+      allow read: if isAuthenticated();
       allow write: if isAppAdmin();
     }
 
     match /admin_settings/{document} {
-      allow read: if true;
+      allow read: if isAppAdmin();
       allow write: if isAppAdmin();
     }
 
     // General application settings used by the admin web panel.
     match /app_config/{document} {
-      allow read: if true;
+      allow read: if isAppAdmin();
       allow write: if isAppAdmin();
     }
 
     match /maintenance/{docId} {
-      allow read: if true;
+      allow read: if isAuthenticated();
       allow write: if isAppAdmin();
     }
 
@@ -131,9 +143,9 @@ service cloud.firestore {
       // القراءة: المستخدمون المسجلون فقط
       allow read: if isAuthenticated();
       // المستخدم ينشئ كتابه فقط؛ التعديل والحذف للإدارة.
-      allow create: if isAdmin() ||
+      allow create: if isAppAdmin() ||
         (isAuthenticated() && request.resource.data.uploaderId == request.auth.uid);
-      allow update, delete: if isAdmin();
+      allow update, delete: if isAppAdmin();
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -143,31 +155,31 @@ service cloud.firestore {
       // القراءة: كل المستخدمين المسجلين (مطلوب لعرضها في التطبيق)
       allow read: if isAuthenticated();
       // الكتابة (إنشاء، تعديل، حذف): المسؤول فقط
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if isAppAdmin();
     }
 
     // نسخة التوافق القديمة التي ما زالت تستخدمها بعض شاشات التطبيق.
     match /uploaded_books/{bookId} {
       allow read: if isAuthenticated();
-      allow create: if isAdmin() ||
+      allow create: if isAppAdmin() ||
         (isAuthenticated() && request.resource.data.uploaderId == request.auth.uid);
-      allow update, delete: if isAdmin();
+      allow update, delete: if isAppAdmin();
     }
 
     // بنك الأسئلة: القراءة للتطبيق، والإدارة للكتابة.
     match /quizzes/{quizId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow write: if isAppAdmin();
 
       match /questions/{questionId} {
         allow read: if isAuthenticated();
-        allow write: if isAdmin();
+        allow write: if isAppAdmin();
       }
     }
 
     // إشعارات لوحة الإدارة.
     match /admin_notifications/{notificationId} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAppAdmin();
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -175,14 +187,14 @@ service cloud.firestore {
     // ═══════════════════════════════════════════════════════════════
     match /notifications/{notificationId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow write: if isAppAdmin();
     }
 
     // نتائج المسابقات المنشورة تُعرض داخل التطبيق للمستخدمين.
     // الكتابة محصورة بالإدارة حتى لا يتم العبث بالروابط أو الترتيب.
     match /competition_results/{competitionId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read: if isAuthenticated();
+      allow write: if isAppAdmin();
     }
 
     // محاولات الاختبارات: يقرأ الطالب محاولاته فقط وينشئ محاولته بنفسه.
@@ -197,8 +209,8 @@ service cloud.firestore {
     // التقييمات العامة: القراءة متاحة، والكتابة محصورة في صاحب التقييم.
     // لا يعتمد التطبيق على البريد الإلكتروني في العرض أو التخزين.
     match /reviews/{reviewId} {
-      // Reviews are public content; administrators can still moderate them.
-      allow read: if true;
+      // التطبيق العام لا يُفتح بدون تسجيل الدخول، ولكن تقييمات المحتوى تبقى للموظفين/الناس المسجلين فقط.
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated() &&
         request.resource.data.userId == request.auth.uid &&
         request.resource.data.keys().hasOnly([
@@ -268,7 +280,7 @@ service cloud.firestore {
     // ═══════════════════════════════════════════════════════════════
     match /statistics/{statId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow write: if isAppAdmin();
     }
 
     // ═══════════════════════════════════════════════════════════════
