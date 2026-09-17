@@ -6,7 +6,6 @@ import '../theme/app_theme.dart';
 import '../providers/app_config_provider.dart';
 import 'student_competition_screen.dart';
 import 'results/results_home_screen.dart';
-import 'ai_search_screen.dart';
 import 'direct_chat_screen.dart';
 import 'swedd_screen.dart';
 import 'published_exams_screen.dart';
@@ -128,17 +127,6 @@ class ServicesScreen extends StatelessWidget {
         ),
       ),
       _ServiceItem(
-        title: 'MERAJ3I AI',
-        icon: Icons.auto_awesome_rounded,
-        gradient: AppTheme.primaryGradient,
-        badge: 'AI',
-        onTap: () => _checkFeatureAndNavigate(
-          context,
-          'ai_enabled',
-          const AiSearchScreen(),
-        ),
-      ),
-      _ServiceItem(
         title: 'المراسلة',
         icon: Icons.chat_rounded,
         gradient: AppTheme.primaryGradient,
@@ -252,23 +240,10 @@ class ServicesScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      gradient: service.gradient,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: (service.gradient as LinearGradient)
-                              .colors
-                              .first
-                              .withValues(alpha: 0.30),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Icon(service.icon, color: Colors.white, size: 28),
+                  Icon(
+                    service.icon,
+                    color: isDark ? Colors.white : AppTheme.primaryColor,
+                    size: 40,
                   ),
                   const SizedBox(height: 12),
                   Text(

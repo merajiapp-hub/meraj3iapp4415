@@ -153,7 +153,7 @@ class SweddScreen extends StatelessWidget {
                               ),
                             ),
                             child: ExpansionTile(
-                              iconColor: const Color(0xFFEC4899),
+                              iconColor: AppTheme.primaryColor,
                               title: Text(
                                 categoryName,
                                 style: GoogleFonts.tajawal(
@@ -184,9 +184,7 @@ class SweddScreen extends StatelessWidget {
                                       height: 40,
                                       padding: book.thumbnailUrl != null ? EdgeInsets.zero : const EdgeInsets.all(8),
                                       decoration: BoxDecoration(
-                                        color: const Color(
-                                          0xFFEC4899,
-                                        ).withValues(alpha: 0.1),
+                                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: book.thumbnailUrl != null
@@ -197,14 +195,14 @@ class SweddScreen extends StatelessWidget {
                                                 fit: BoxFit.cover,
                                                 errorWidget: (context, url, error) => const Icon(
                                                   Icons.health_and_safety,
-                                                  color: Color(0xFFEC4899),
+                                                  color: AppTheme.primaryColor,
                                                   size: 18,
                                                 ),
                                               ),
                                             )
                                           : const Icon(
                                               Icons.health_and_safety,
-                                              color: Color(0xFFEC4899),
+                                              color: AppTheme.primaryColor,
                                               size: 18,
                                             ),
                                     ),
@@ -221,15 +219,13 @@ class SweddScreen extends StatelessWidget {
                                         vertical: 6,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: const Color(
-                                          0xFFEC4899,
-                                        ).withValues(alpha: 0.1),
+                                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
                                         'عرض الكتاب',
                                         style: GoogleFonts.tajawal(
-                                          color: const Color(0xFFEC4899),
+                                          color: AppTheme.primaryColor,
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -298,7 +294,7 @@ class SweddScreen extends StatelessWidget {
           const Icon(
             Icons.health_and_safety_outlined,
             size: 80,
-            color: Color(0xFFEC4899),
+            color: AppTheme.primaryColor,
           ),
           const SizedBox(height: 16),
           Text(

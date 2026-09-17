@@ -1,12 +1,9 @@
-import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import '../../../../theme/app_theme.dart';
-import '../../managers/gemini_math_assistant.dart';
 
 class EquationSolverScreen extends StatefulWidget {
   final String title;
@@ -90,41 +87,17 @@ class _EquationSolverScreenState extends State<EquationSolverScreen>
       return;
     }
 
-    try {
-      final prompt = '''
-أنت مساعد رياضي متخصص. المستخدم يريد حل: "$_input"
-
-قدّم الحل بالطريقة التالية بدقة تامة:
-- اكتب خطوة واحدة في كل سطر
-- ابدأ كل خطوة بأحد هذه البادئات:
-  "📌 " لتوضيح المعطيات أو التعريف
-  "▶ "  لكل خطوة حسابية
-  "✅ " للنتيجة النهائية
-  "📝 " للملاحظات والشرح النظري
-
-التزم بالعربية تمامًا في الشرح، واكتب المعادلات بالأرقام والرموز الرياضية.
-''';
-      final res = await GeminiMathAssistant.askMathQuestion(prompt);
-      setState(() {
-        _steps = _parseSteps(res);
-      });
-      _animCtrl.forward();
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (_scrollCtrl.hasClients) {
-          _scrollCtrl.animateTo(_scrollCtrl.position.maxScrollExtent,
-              duration: const Duration(milliseconds: 500),
-              curve: Curves.easeOut);
-        }
-      });
-    } catch (_) {
-      setState(() {
-        _steps = [
-          _SolutionStep('❌', 'تعذر الاتصال بالمساعد الذكي.', StepType.error)
-        ];
-      });
-    } finally {
-      setState(() => _isLoading = false);
-    }
+    setState(() {
+      _steps = [
+        _SolutionStep(
+          '📝',
+          'هذه المعادلة غير مدعومة للحل المحلي حاليًا. جرّب معادلة خطية أو تربيعية مدعومة.',
+          StepType.note,
+        ),
+      ];
+      _isLoading = false;
+    });
+    _animCtrl.forward();
   }
 
   List<_SolutionStep>? _solvePolynomialLocally(String raw) {
@@ -244,73 +217,6 @@ class _EquationSolverScreenState extends State<EquationSolverScreen>
       ? value.round().toString()
       : value.toStringAsFixed(4).replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
 
-  Future<void> _takePhoto() async {
-    final picker = ImagePicker();
-    final xFile = await picker.pickImage(source: ImageSource.camera);
-    if (xFile == null) return;
-    
-    HapticFeedback.mediumImpact();
-    setState(() {
-      _input = 'صورة ملتقطة بالكاميرا 📷';
-      _isLoading = true;
-      _steps = [];
-    });
-    _animCtrl.reset();
-
-    try {
-      final file = File(xFile.path);
-      final res = await GeminiMathAssistant.solveMathFromImage(file);
-      setState(() {
-        _steps = _parseSteps(res);
-      });
-      _animCtrl.forward();
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (_scrollCtrl.hasClients) {
-          _scrollCtrl.animateTo(_scrollCtrl.position.maxScrollExtent,
-              duration: const Duration(milliseconds: 500),
-              curve: Curves.easeOut);
-        }
-      });
-    } catch (_) {
-      setState(() {
-        _steps = [
-          _SolutionStep('❌', 'تعذر الاتصال أو فهم الصورة.', StepType.error)
-        ];
-      });
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  List<_SolutionStep> _parseSteps(String raw) {
-    final lines = raw.split('\n').where((l) => l.trim().isNotEmpty).toList();
-    List<_SolutionStep> steps = [];
-    for (final line in lines) {
-      final t = line.trim();
-      if (t.startsWith('📌')) {
-        steps.add(_SolutionStep(
-            '📌', t.replaceFirst('📌', '').trim(), StepType.info));
-      } else if (t.startsWith('▶')) {
-        steps.add(_SolutionStep(
-            '▶', t.replaceFirst('▶', '').trim(), StepType.step));
-      } else if (t.startsWith('✅')) {
-        steps.add(_SolutionStep(
-            '✅', t.replaceFirst('✅', '').trim(), StepType.result));
-      } else if (t.startsWith('📝')) {
-        steps.add(_SolutionStep(
-            '📝', t.replaceFirst('📝', '').trim(), StepType.note));
-      } else {
-        if (steps.isNotEmpty) {
-          final last = steps.removeLast();
-          steps.add(_SolutionStep(last.icon, '${last.text}\n$t', last.type));
-        } else {
-          steps.add(_SolutionStep('▶', t, StepType.step));
-        }
-      }
-    }
-    return steps;
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -332,14 +238,6 @@ class _EquationSolverScreenState extends State<EquationSolverScreen>
           style: GoogleFonts.tajawal(
               fontWeight: FontWeight.bold, color: textCol, fontSize: 18),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.camera_alt_outlined),
-            tooltip: 'حل بالكاميرا',
-            onPressed: _takePhoto,
-          ),
-          const SizedBox(width: 8),
-        ],
       ),
       body: Column(
         children: [

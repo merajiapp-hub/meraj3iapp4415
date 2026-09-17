@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../core/account_status.dart';
 import '../services/admin_activity_service.dart';
+import '../services/login_activity_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -315,6 +316,11 @@ class AuthProvider extends ChangeNotifier {
             _isAccountSuspended = true;
             _profileReady = true;
             notifyListeners();
+            LoginActivityService.record(
+              result: 'account_suspended',
+              method: 'email',
+              identifier: email,
+            );
             return 'suspended';
           }
         } on FirebaseException catch (e) {
@@ -334,9 +340,30 @@ class AuthProvider extends ChangeNotifier {
           targetUserId: cred.user!.uid,
           metadata: {'email': cred.user!.email, 'provider': 'email'},
         );
+        LoginActivityService.record(
+          result: 'success',
+          method: 'email',
+          identifier: email,
+        );
       }
       return null;
     } on FirebaseAuthException catch (e) {
+      final result = switch (e.code) {
+        'user-not-found' => 'account_not_found',
+        'wrong-password' => 'invalid_password',
+        'invalid-credential' => 'invalid_credential',
+        'invalid-email' => 'invalid_identifier',
+        'user-disabled' => 'account_disabled',
+        'too-many-requests' => 'repeated_failure',
+        'network-request-failed' => 'network_error',
+        _ => 'auth_error',
+      };
+      LoginActivityService.record(
+        result: result,
+        method: 'email',
+        authCode: e.code,
+        identifier: email,
+      );
       switch (e.code) {
         case 'user-not-found':
           return 'لا يوجد حساب بهذا البريد الإلكتروني';
@@ -358,8 +385,20 @@ class AuthProvider extends ChangeNotifier {
     } catch (e) {
       if (e.toString().contains('timeout') ||
           e.toString().contains('TimeoutException')) {
+        LoginActivityService.record(
+          result: 'network_error',
+          method: 'email',
+          authCode: 'timeout',
+          identifier: email,
+        );
         return 'انتهت مهلة الاتصال. تحقق من الإنترنت وأعد المحاولة.';
       }
+      LoginActivityService.record(
+        result: 'system_error',
+        method: 'email',
+        authCode: 'unexpected',
+        identifier: email,
+      );
       return 'خطأ غير متوقع: $e';
     }
   }
@@ -381,6 +420,11 @@ class AuthProvider extends ChangeNotifier {
       _isAccountSuspended = snapshot.isSuspended;
       _profileReady = true;
       notifyListeners();
+      LoginActivityService.record(
+        result: snapshot.isSuspended ? 'account_suspended' : 'success',
+        method: 'phone',
+        identifier: normalizedPhone,
+      );
       return snapshot.isSuspended ? 'suspended' : null;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
@@ -402,10 +446,26 @@ class AuthProvider extends ChangeNotifier {
                     .timeout(const Duration(seconds: 10)))
                   .docs;
               final legacyDoc = legacyDocs.isEmpty ? null : legacyDocs.first;
-            if (legacyDoc == null) return 'لا يوجد حساب مرتبط بهذا الرقم';
+            if (legacyDoc == null) {
+              LoginActivityService.record(
+                result: 'account_not_found',
+                method: 'phone',
+                authCode: e.code,
+                identifier: normalizedPhone,
+              );
+              return 'لا يوجد حساب مرتبط بهذا الرقم';
+            }
             final data = legacyDoc.data();
           final email = (data['email'] as String?)?.trim();
-          if (email == null || email.isEmpty) return 'لا يوجد حساب مرتبط بهذا الرقم';
+          if (email == null || email.isEmpty) {
+            LoginActivityService.record(
+              result: 'account_not_found',
+              method: 'phone',
+              authCode: e.code,
+              identifier: normalizedPhone,
+            );
+            return 'لا يوجد حساب مرتبط بهذا الرقم';
+          }
           final legacy = await _auth.signInWithEmailAndPassword(
             email: email,
             password: password,
@@ -419,17 +479,65 @@ class AuthProvider extends ChangeNotifier {
           _isAccountSuspended = snapshot.isSuspended;
           _profileReady = true;
           notifyListeners();
+          LoginActivityService.record(
+            result: snapshot.isSuspended ? 'account_suspended' : 'success',
+            method: 'phone',
+            identifier: normalizedPhone,
+          );
           return snapshot.isSuspended ? 'suspended' : null;
         } on FirebaseAuthException catch (legacyError) {
+          LoginActivityService.record(
+            result: _loginActivityResult(legacyError.code, phoneLogin: true),
+            method: 'phone',
+            authCode: legacyError.code,
+            identifier: normalizedPhone,
+          );
           return _authErrorMessage(legacyError, phoneLogin: true);
         }
       }
+      LoginActivityService.record(
+        result: _loginActivityResult(e.code, phoneLogin: true),
+        method: 'phone',
+        authCode: e.code,
+        identifier: normalizedPhone,
+      );
       return _authErrorMessage(e, phoneLogin: true);
     } catch (e) {
       if (e.toString().contains('timeout')) {
+        LoginActivityService.record(
+          result: 'network_error',
+          method: 'phone',
+          authCode: 'timeout',
+          identifier: normalizedPhone,
+        );
         return 'انتهت مهلة الاتصال. أعد المحاولة.';
       }
+      LoginActivityService.record(
+        result: 'system_error',
+        method: 'phone',
+        authCode: 'unexpected',
+        identifier: normalizedPhone,
+      );
       return 'تعذر تسجيل الدخول بهذا الرقم. أعد المحاولة.';
+    }
+  }
+
+  String _loginActivityResult(String code, {bool phoneLogin = false}) {
+    switch (code) {
+      case 'user-not-found':
+        return 'account_not_found';
+      case 'wrong-password':
+        return 'invalid_password';
+      case 'invalid-credential':
+        return phoneLogin ? 'account_not_found' : 'invalid_credential';
+      case 'user-disabled':
+        return 'account_disabled';
+      case 'too-many-requests':
+        return 'repeated_failure';
+      case 'network-request-failed':
+        return 'network_error';
+      default:
+        return 'auth_error';
     }
   }
 

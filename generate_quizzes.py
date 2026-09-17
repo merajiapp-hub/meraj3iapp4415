@@ -17,7 +17,6 @@ def generate_sample_questions(total_per_category=1000):
             diff = random.choice(DIFFICULTIES)
             doc_id = f"{category}_q{i}_{uuid.uuid4().hex[:8]}"
             
-            # مثال لبيانات عشوائية (في الواقع يمكنك استخدام ChatGPT/Gemini API هنا لتوليد أسئلة حقيقية)
             question = {
                 "id": doc_id,
                 "category": category,

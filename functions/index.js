@@ -1,5 +1,6 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const crypto = require("crypto");
 
 admin.initializeApp();
 
@@ -32,6 +33,184 @@ const logAdminAction = async (adminUid, adminName, action, targetUid, details) =
     timestamp: admin.firestore.FieldValue.serverTimestamp(),
   });
 };
+
+const LOGIN_RESULT_CODES = new Set([
+  "success",
+  "account_not_found",
+  "invalid_password",
+  "invalid_credential",
+  "invalid_identifier",
+  "account_suspended",
+  "account_disabled",
+  "network_error",
+  "service_unavailable",
+  "auth_error",
+  "system_error",
+  "repeated_failure",
+]);
+
+const LOGIN_METHODS = new Set(["email", "phone", "google", "apple", "unknown"]);
+
+const hashValue = (value) => crypto.createHash("sha256").update(value).digest("hex");
+
+const normalizeLoginIdentifier = (value, method) => {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (method === "phone") {
+    const digits = trimmed.replace(/[^0-9]/g, "");
+    return digits ? `phone.${digits}@auth.meraj3i.invalid` : "";
+  }
+  return trimmed.toLowerCase();
+};
+
+const maskLoginIdentifier = (value, method) => {
+  if (!value) return null;
+  if (method === "phone") return `••••${value.replace(/[^0-9]/g, "").slice(-4)}`;
+  const [local, domain] = value.split("@");
+  if (!domain) return "••••";
+  return `${(local || "").slice(0, 1)}•••@${domain}`;
+};
+
+const safeLoginDescription = (result) => ({
+  success: "تم تسجيل الدخول بنجاح",
+  account_not_found: "الحساب غير موجود أو غير مرتبط بالبيانات المستخدمة",
+  invalid_password: "كلمة المرور غير صحيحة",
+  invalid_credential: "بيانات تسجيل الدخول غير صحيحة",
+  invalid_identifier: "بيانات التعريف غير صحيحة",
+  account_suspended: "محاولة دخول لحساب موقوف",
+  account_disabled: "الحساب معطل",
+  network_error: "فشل مؤقت بسبب الشبكة",
+  service_unavailable: "الخدمة غير متاحة مؤقتًا",
+  auth_error: "فشل في خدمة المصادقة",
+  system_error: "فشل غير متوقع في النظام",
+  repeated_failure: "محاولات دخول فاشلة متكررة",
+}[result] || "فشل تسجيل الدخول");
+
+const containsSensitiveKey = (value) => {
+  if (!value || typeof value !== "object") return false;
+  return Object.entries(value).some(([key, nested]) => {
+    const normalized = key.toLowerCase();
+    return /password|token|secret|apikey|api_key|otp|authorization|privatekey/.test(normalized) ||
+      (typeof nested === "object" && containsSensitiveKey(nested));
+  });
+};
+
+/**
+ * Records a sanitized login outcome. Failed attempts are allowed before auth,
+ * but only this backend can write them, resolve a known UID, and update support flags.
+ */
+exports.recordLoginAttempt = functions.https.onCall(async (data, context) => {
+  if (!data || containsSensitiveKey(data)) {
+    throw new functions.https.HttpsError("invalid-argument", "Sensitive login fields are not accepted.");
+  }
+
+  const result = typeof data.result === "string" ? data.result : "";
+  const method = typeof data.method === "string" ? data.method : "unknown";
+  if (!LOGIN_RESULT_CODES.has(result) || !LOGIN_METHODS.has(method)) {
+    throw new functions.https.HttpsError("invalid-argument", "Invalid login event.");
+  }
+  if (result === "success" && !context.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "A successful event requires authentication.");
+  }
+
+  const db = admin.firestore();
+  const now = admin.firestore.Timestamp.now();
+  const identifier = normalizeLoginIdentifier(data.identifier, method);
+  const requestIp = context.rawRequest?.ip || "unknown";
+  const rateKey = hashValue(`${identifier || "anonymous"}:${requestIp}:${Math.floor(Date.now() / 60000)}`);
+  const rateRef = db.collection("login_rate_limits").doc(rateKey);
+  const rateSnap = await rateRef.get();
+  const rateCount = rateSnap.exists ? Number(rateSnap.data()?.count || 0) : 0;
+  if (rateCount >= 30) {
+    throw new functions.https.HttpsError("resource-exhausted", "Too many login events.");
+  }
+  await rateRef.set({count: rateCount + 1, expiresAt: new Date(Date.now() + 15 * 60 * 1000)}, {merge: true});
+
+  let uid = context.auth?.uid || null;
+  if (!uid && identifier) {
+    try {
+      uid = (await admin.auth().getUserByEmail(identifier)).uid;
+    } catch (error) {
+      if (method === "phone") {
+        const phoneSnapshot = await db.collection("users")
+            .where("phoneNormalized", "==", data.identifier)
+            .limit(1)
+            .get();
+        uid = phoneSnapshot.empty ? null : phoneSnapshot.docs[0].id;
+      }
+    }
+  }
+
+  const configSnap = await db.collection("admin_settings").doc("login_monitoring").get();
+  const config = configSnap.data() || {};
+  const supportThreshold = Math.max(2, Math.min(20, Number(config.supportThreshold || 3)));
+  const retentionDays = Math.max(7, Math.min(365, Number(config.retentionDays || 90)));
+  const event = {
+    userId: uid,
+    method,
+    result,
+    reason: safeLoginDescription(result),
+    authCode: typeof data.authCode === "string" ? data.authCode.slice(0, 80) : null,
+    identifierMasked: maskLoginIdentifier(data.identifier, method),
+    platform: typeof data.platform === "string" ? data.platform.slice(0, 30) : null,
+    deviceType: typeof data.deviceType === "string" ? data.deviceType.slice(0, 80) : null,
+    deviceModel: typeof data.deviceModel === "string" ? data.deviceModel.slice(0, 120) : null,
+    osVersion: typeof data.osVersion === "string" ? data.osVersion.slice(0, 40) : null,
+    appVersion: typeof data.appVersion === "string" ? data.appVersion.slice(0, 40) : null,
+    buildNumber: typeof data.buildNumber === "string" ? data.buildNumber.slice(0, 30) : null,
+    consecutiveFailedAttempts: 0,
+    needsSupport: false,
+    createdAt: now,
+    expiresAt: new Date(Date.now() + retentionDays * 24 * 60 * 60 * 1000),
+  };
+
+  if (!uid) {
+    await db.collection("unlinked_login_attempts").add(event);
+    return {linked: false};
+  }
+
+  const userRef = db.collection("users").doc(uid);
+  const userSnapshot = await userRef.get();
+  const userData = userSnapshot.data() || {};
+  const previousFailures = Number(userData.failedLoginAttempts || 0);
+  const failed = result !== "success";
+  const consecutiveFailures = failed ? previousFailures + 1 : 0;
+  const needsSupport = failed && consecutiveFailures >= supportThreshold;
+  event.consecutiveFailedAttempts = consecutiveFailures;
+  event.needsSupport = needsSupport;
+
+  await db.collection("login_attempts").add(event);
+  await userRef.set({
+    failedLoginAttempts: consecutiveFailures,
+    needsSupport,
+    lastLoginAttemptAt: now,
+    ...(failed ? {
+      lastLoginFailureAt: now,
+      lastLoginFailureReason: result,
+    } : {
+      lastLoginSuccessAt: now,
+      lastLoginFailureReason: admin.firestore.FieldValue.delete(),
+    }),
+    loginActivityUpdatedAt: now,
+  }, {merge: true});
+
+  if (needsSupport && previousFailures < supportThreshold) {
+    await db.collection("admin_notifications").add({
+      type: "login_support_needed",
+      title: "مستخدم يواجه مشكلة في تسجيل الدخول",
+      body: `${userData.name || userData.fullName || "مستخدم"} لديه ${consecutiveFailures} محاولات دخول فاشلة: ${safeLoginDescription(result)}.`,
+      userId: uid,
+      reason: result,
+      failedLoginAttempts: consecutiveFailures,
+      lastAttemptAt: now,
+      isRead: false,
+      createdAt: now,
+    });
+  }
+
+  return {linked: true, userId: uid, needsSupport, consecutiveFailedAttempts: consecutiveFailures};
+});
 
 /**
  * One-time script to set up the initial admins.

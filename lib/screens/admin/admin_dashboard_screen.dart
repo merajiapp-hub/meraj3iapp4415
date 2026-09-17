@@ -8,6 +8,7 @@ import 'settings/admin_settings_screen.dart';
 import 'monitoring/admin_health_screen.dart';
 import 'logs/admin_audit_logs_screen.dart';
 import 'admin_chat_dashboard_screen.dart';
+import 'admin_login_issues_screen.dart';
 import 'admin_guard.dart';
 // ignore_for_file: unused_import
 
@@ -105,6 +106,12 @@ class _DashboardBody extends StatelessWidget {
           title: 'إدارة المستخدمين',
           color: const Color(0xFF3B82F6), // Blue
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminUsersListScreen())),
+        ),
+        _ActionTile(
+          icon: Icons.warning_amber_rounded,
+          title: 'مشاكل تسجيل الدخول',
+          color: const Color(0xFFF97316),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminLoginIssuesScreen())),
         ),
         _ActionTile(
           icon: Icons.my_library_books_rounded,

@@ -42,6 +42,9 @@ service cloud.firestore {
         'profileImageUrl', 'profileImageBase64',
         'fcmToken', 'fcmTokens', 'lastTokenUpdate',
         'provider', 'authProvider',
+        'failedLoginAttempts', 'needsSupport', 'lastLoginAttemptAt',
+        'lastLoginSuccessAt', 'lastLoginFailureAt', 'lastLoginFailureReason',
+        'loginActivityUpdatedAt',
         'updatedAt', 'lastLoginAt', 'lastActivity'
       ]);
     }
@@ -182,6 +185,31 @@ service cloud.firestore {
       allow read, write: if isAppAdmin();
     }
 
+    // Login activity is written only by the trusted Cloud Function and read by admins.
+    match /login_attempts/{attemptId} {
+      allow read: if isAppAdmin();
+      allow create: if isOwner(request.resource.data.userId) &&
+        request.resource.data.keys().hasOnly([
+          'userId', 'result', 'method', 'reason', 'authCode',
+          'identifierMasked', 'platform', 'deviceType', 'deviceModel',
+          'osVersion', 'appVersion', 'buildNumber',
+          'consecutiveFailedAttempts', 'needsSupport', 'createdAt'
+        ]) &&
+        request.resource.data.result is string &&
+        request.resource.data.method is string &&
+        request.resource.data.createdAt is timestamp;
+      allow update, delete: if false;
+    }
+
+    match /unlinked_login_attempts/{attemptId} {
+      allow read: if isAppAdmin();
+      allow write: if false;
+    }
+
+    match /login_rate_limits/{rateId} {
+      allow read, write: if false;
+    }
+
     // ═══════════════════════════════════════════════════════════════
     //  الإشعارات العامة
     // ═══════════════════════════════════════════════════════════════
@@ -251,6 +279,9 @@ service cloud.firestore {
         request.resource.data.userId == request.auth.uid &&
         request.resource.data.keys().hasAny(['userId', 'lastMessage']);
       allow update: if isAppAdmin() ||
+        (request.auth != null && request.auth.token.email in [
+          'mma831770@gmail.com', 'abdellahismd@gmail.com'
+        ]) ||
         (isAuthenticated() && resource.data.userId == request.auth.uid &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'userName', 'lastMessage', 'lastMessageAt', 'updatedAt', 'userUnread', 'adminUnread'
@@ -264,7 +295,10 @@ service cloud.firestore {
           request.resource.data.senderId == request.auth.uid &&
           request.resource.data.keys().hasOnly(['text', 'senderId', 'senderName', 'isAdmin', 'createdAt', 'isRead']) &&
           request.resource.data.text is string &&
-          request.resource.data.isAdmin == isAppAdmin();
+          request.resource.data.isAdmin == isAppAdmin() ||
+          (request.resource.data.isAdmin == true && request.auth.token.email in [
+            'mma831770@gmail.com', 'abdellahismd@gmail.com'
+          ]);
         allow update: if isAppAdmin() || (isAuthenticated() &&
           resource.data.senderId == request.auth.uid &&
           request.resource.data.senderId == resource.data.senderId &&

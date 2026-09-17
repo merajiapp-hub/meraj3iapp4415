@@ -65,7 +65,7 @@ class AppTheme {
     end: Alignment.bottomRight,
   );
 
-  /// تدرج بنفسجي — الذكاء الاصطناعي
+  /// تدرج بنفسجي للعناصر المميزة
   static const purpleGradient = LinearGradient(
     colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
     begin: Alignment.topLeft,

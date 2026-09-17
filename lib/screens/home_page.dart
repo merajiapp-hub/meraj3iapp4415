@@ -11,7 +11,6 @@ import '../providers/downloads_provider.dart';
 import '../providers/task_provider.dart';
 import '../providers/reading_provider.dart';
 import '../providers/theme_provider.dart';
-import '../providers/app_config_provider.dart';
 import '../widgets/app_notification.dart';
 
 import '../theme/app_theme.dart';
@@ -306,31 +305,10 @@ class _HomePageState extends State<HomePage>
         imagePath: 'assets/Calculator/Calculator.png',
         gradient: AppTheme.primaryGradient,
         badge: null,
-        onTap: () {
-          final isEnabled = context.read<AppConfigProvider>().isFeatureEnabled(
-            'ai_enabled',
-          );
-          if (!isEnabled) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'هذه الخدمة قيد الصيانة حالياً',
-                  style: GoogleFonts.tajawal(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                backgroundColor: Colors.orange,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-            return;
-          }
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const SmartCalculatorScreen()),
-          );
-        },
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SmartCalculatorScreen()),
+        ),
       ),
       _ServiceItem(
         title: 'المزيد من الخدمات',
@@ -416,35 +394,7 @@ class _HomePageState extends State<HomePage>
                   crossAxisAlignment: CrossAxisAlignment.center,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // الأيقونة
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        gradient: service.gradient,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: (service.gradient as LinearGradient)
-                                .colors
-                                .first
-                                .withValues(alpha: 0.30),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: service.imagePath != null
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.asset(
-                                service.imagePath!,
-                                width: 36,
-                                height: 36,
-                                fit: BoxFit.contain,
-                              ),
-                            )
-                          : Icon(service.icon, color: Colors.white, size: 34),
-                    ),
+                    _buildServiceIcon(service, isDark, size: 40),
                     const SizedBox(height: 12),
                     // النص
                     Text(
@@ -492,6 +442,26 @@ class _HomePageState extends State<HomePage>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildServiceIcon(
+    _ServiceItem service,
+    bool isDark, {
+    required double size,
+  }) {
+    if (service.imagePath != null) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: Image.asset(service.imagePath!, fit: BoxFit.contain),
+      );
+    }
+
+    return Icon(
+      service.icon,
+      size: size,
+      color: isDark ? Colors.white : AppTheme.primaryColor,
     );
   }
 

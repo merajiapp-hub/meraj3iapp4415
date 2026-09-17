@@ -52,7 +52,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
         if (doc.exists) {
           final data = doc.data()!;
           _featureFlags = {
-            'ai_enabled': data['ai_enabled'] == true,
             'competition_enabled': data['competition_enabled'] == true,
             'books_upload_enabled': data['books_upload_enabled'] == true,
             'quizzes_enabled': data['quizzes_enabled'] == true,
@@ -60,7 +59,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
           };
         } else {
           _featureFlags = {
-            'ai_enabled': true, 'competition_enabled': true,
+            'competition_enabled': true,
             'books_upload_enabled': true, 'quizzes_enabled': true, 'results_enabled': true,
           };
         }
@@ -231,7 +230,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
 
   Widget _buildFeatureFlagsTab() {
     final flagLabels = {
-      'ai_enabled': {'label': 'MERAJ3I AI', 'icon': Icons.psychology},
       'competition_enabled': {'label': 'التنافس', 'icon': Icons.emoji_events},
       'books_upload_enabled': {'label': 'رفع الكتب', 'icon': Icons.upload_file},
       'quizzes_enabled': {'label': 'الاختبارات', 'icon': Icons.quiz},

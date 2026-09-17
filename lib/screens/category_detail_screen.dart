@@ -19,8 +19,6 @@ class CategoryDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final currentPath = [...breadcrumbs, category];
-
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
       body: Column(
@@ -30,7 +28,6 @@ class CategoryDetailScreen extends StatelessWidget {
             title: category.name,
             gradient: AppTheme.brandGradient,
           ),
-          _buildBreadcrumbs(context, currentPath, isDark),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -45,72 +42,6 @@ class CategoryDetailScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildBreadcrumbs(BuildContext context, List<ReferenceCategory> path, bool isDark) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            InkWell(
-              onTap: () => Navigator.popUntil(context, (route) => route.isFirst || route.settings.name == '/references'),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(Icons.home_rounded, size: 18, color: isDark ? Colors.blue[300] : AppTheme.primaryColor),
-              ),
-            ),
-            ...path.map((cat) {
-              final isLast = cat.id == category.id;
-              return Row(
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 6),
-                    child: Icon(Icons.chevron_left_rounded, size: 16, color: Colors.grey),
-                  ),
-                  InkWell(
-                    onTap: isLast
-                        ? null
-                        : () {
-                            int pops = path.length - path.indexOf(cat) - 1;
-                            for (int i = 0; i < pops; i++) {
-                              Navigator.pop(context);
-                            }
-                          },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: isLast 
-                            ? AppTheme.primaryColor.withValues(alpha: 0.1) 
-                            : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
-                        borderRadius: BorderRadius.circular(12),
-                        border: isLast ? Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)) : null,
-                      ),
-                      child: Text(
-                        cat.name,
-                        style: TextStyle(
-                          color: isLast
-                              ? AppTheme.primaryColor
-                              : (isDark ? Colors.white70 : Colors.black87),
-                          fontWeight: isLast ? FontWeight.bold : FontWeight.w500,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            }),
-          ],
-        ),
       ),
     );
   }

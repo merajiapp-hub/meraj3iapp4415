@@ -85,9 +85,9 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
 
   Color get _timerColor {
     final pct = _secondsLeft / (widget.durationMinutes * 60);
-    if (pct > 0.5) return Colors.green;
-    if (pct > 0.25) return Colors.orange;
-    return Colors.red;
+    if (pct > 0.5) return const Color(0xFF8B5CF6);
+    if (pct > 0.25) return const Color(0xFFA855F7);
+    return const Color(0xFFDB2777);
   }
 
   void _selectAnswer(int questionIndex, int optionIndex) {
@@ -244,7 +244,7 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
                   onPressed: () => Navigator.pop(ctx, false),
                   child: Text('متابعة', style: GoogleFonts.cairo())),
               ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF7C3AED)),
                   onPressed: () => Navigator.pop(ctx, true),
                   child: Text('خروج',
                       style: GoogleFonts.cairo(color: Colors.white))),
@@ -276,7 +276,7 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF1E40AF), Color(0xFF7C3AED)],
+          colors: [Color(0xFF6D28D9), Color(0xFFA855F7)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -404,7 +404,7 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isCurrent
-                    ? const Color(0xFF1E40AF)
+                    ? const Color(0xFF7C3AED)
                     : isAnswered
                         ? const Color(0xFF10B981)
                         : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
@@ -473,7 +473,7 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
                           horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [Color(0xFF1E40AF), Color(0xFF7C3AED)],
+                          colors: [Color(0xFF6D28D9), Color(0xFFA855F7)],
                         ),
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -523,14 +523,14 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: isSelected
-                        ? const Color(0xFF1E40AF)
+                        ? const Color(0xFF7C3AED)
                         : (isDark ? Colors.white12 : Colors.black12),
                     width: isSelected ? 2 : 1,
                   ),
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color: const Color(0xFF1E40AF).withValues(alpha: 0.15),
+                            color: const Color(0xFF7C3AED).withValues(alpha: 0.15),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -546,7 +546,7 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: isSelected
-                            ? const Color(0xFF1E40AF)
+                            ? const Color(0xFF7C3AED)
                             : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                       ),
                       child: Center(
@@ -574,7 +574,7 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
                     ),
                     if (isSelected)
                       const Icon(Icons.check_circle_rounded,
-                          color: Color(0xFF1E40AF), size: 20),
+                          color: Color(0xFF7C3AED), size: 20),
                   ],
                 ),
               ),
@@ -624,7 +624,7 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
               label: const Icon(Icons.arrow_back_ios_rounded,
                   size: 16, color: Colors.white),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1E40AF),
+                      backgroundColor: const Color(0xFF7C3AED),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -647,7 +647,7 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
                     color: Colors.white, fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981),
+                      backgroundColor: const Color(0xFF8B5CF6),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),

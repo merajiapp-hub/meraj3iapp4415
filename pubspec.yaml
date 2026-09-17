@@ -38,7 +38,6 @@ dependencies:
   fl_chart: ^0.69.0
   open_filex: ^4.5.0
   dio: ^5.4.3+1
-  google_generative_ai: ^0.4.5
   flutter_math_fork: ^0.7.2
   flutter_spinkit: ^5.2.1
 

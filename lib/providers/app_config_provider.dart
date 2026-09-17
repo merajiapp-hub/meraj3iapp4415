@@ -15,7 +15,6 @@ class AppConfigProvider extends ChangeNotifier {
   bool _allowGuestView = false;
 
   Map<String, bool> _featureFlags = {
-    'ai_enabled': true,
     'competition_enabled': true,
     'books_upload_enabled': true,
     'quizzes_enabled': true,
@@ -52,7 +51,6 @@ class AppConfigProvider extends ChangeNotifier {
     _allowGuestView = _prefs!.getBool('allow_guest_view') ?? false;
 
     _featureFlags = {
-      'ai_enabled': _prefs!.getBool('ai_enabled') ?? true,
       'competition_enabled': _prefs!.getBool('competition_enabled') ?? true,
       'books_upload_enabled': _prefs!.getBool('books_upload_enabled') ?? true,
       'quizzes_enabled': _prefs!.getBool('quizzes_enabled') ?? true,
@@ -65,7 +63,6 @@ class AppConfigProvider extends ChangeNotifier {
 
   Future<void> _saveFlagsToCache(Map<String, dynamic> data) async {
     if (_prefs == null) return;
-    await _prefs!.setBool('ai_enabled', data['ai_enabled'] == true);
     await _prefs!.setBool(
       'competition_enabled',
       data['competition_enabled'] == true,
@@ -96,7 +93,6 @@ class AppConfigProvider extends ChangeNotifier {
             if (snapshot.exists && snapshot.data() != null) {
               final data = snapshot.data()!;
               _featureFlags = {
-                'ai_enabled': data['ai_enabled'] ?? true,
                 'competition_enabled': data['competition_enabled'] ?? true,
                 'books_upload_enabled': data['books_upload_enabled'] ?? true,
                 'quizzes_enabled': data['quizzes_enabled'] ?? true,

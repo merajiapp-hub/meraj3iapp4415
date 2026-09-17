@@ -357,10 +357,10 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
       decoration: BoxDecoration(
         color: cardColor,
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: logoColor.withValues(alpha: isDark ? 0.25 : 0.12),
         ),
@@ -382,19 +382,19 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
               Text(
                 'إحصائيات التقييمات',
                 style: GoogleFonts.tajawal(
-                  fontSize: 22,
+                  fontSize: 19,
                   fontWeight: FontWeight.bold,
                   color: isDark ? Colors.white : const Color(0xFF172B4D),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 18),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
             decoration: BoxDecoration(
               color: softColor,
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -433,12 +433,12 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
               },
             ),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 14),
           Text(
             'توزيع النجوم',
             textAlign: TextAlign.right,
             style: GoogleFonts.tajawal(
-              fontSize: 19,
+              fontSize: 17,
               fontWeight: FontWeight.bold,
               color: isDark ? Colors.white : const Color(0xFF172B4D),
             ),
@@ -798,10 +798,10 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
 
                                   return Container(
                                     margin: const EdgeInsets.only(bottom: 8),
-                                    padding: const EdgeInsets.all(10),
+                                    padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
                                       color: surface,
-                                      borderRadius: BorderRadius.circular(18),
+                                      borderRadius: BorderRadius.circular(16),
                                       boxShadow: [
                                         BoxShadow(
                                           color: AppTheme.primaryColor
@@ -816,7 +816,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                       border: Border(
                                         left: BorderSide(
                                           color: AppTheme.primaryColor,
-                                          width: 5,
+                                          width: 4,
                                         ),
                                         top: BorderSide(
                                           color: AppTheme.primaryColor

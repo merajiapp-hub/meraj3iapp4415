@@ -8,6 +8,7 @@ class QuizQuestion {
   final List<String> options;
   final int correctIndex;
   final String category;
+  final String? chapter;
   final String? explanation;
   final QuestionDifficulty difficulty;
 
@@ -17,6 +18,7 @@ class QuizQuestion {
     required this.options,
     required this.correctIndex,
     required this.category,
+    this.chapter,
     this.explanation,
     this.difficulty = QuestionDifficulty.medium,
   });
@@ -60,6 +62,7 @@ class QuizQuestion {
       options: options,
       correctIndex: correctIndex.clamp(0, options.isEmpty ? 0 : options.length - 1),
       category: data['category'] ?? data['subject'] ?? 'عام',
+      chapter: (data['chapter'] ?? data['section'] ?? data['chapterName'])?.toString(),
       explanation: data['explanation'],
       difficulty: diff,
     );

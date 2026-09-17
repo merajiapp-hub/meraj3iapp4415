@@ -14,7 +14,6 @@ import '../data/quiz_models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/statistics_provider.dart';
 import '../widgets/curved_header.dart';
-import 'ai_search_screen.dart';
 
 class QuizScreen extends StatefulWidget {
   final bool examMode;
@@ -1187,89 +1186,6 @@ class _QuizResultScreenState extends State<_QuizResultScreen>
                               }),
                             ],
                             const SizedBox(height: 20),
-
-                            // ─── تحليل الأخطاء بالذكاء الاصطناعي ────────────────
-                            if (widget.wrongAnswers > 0) ...[
-                              GestureDetector(
-                                onTap: () {
-                                  // جمع الأسئلة الخاطئة وتمريرها للذكاء الاصطناعي
-                                  final wrongQs = widget.answerHistory
-                                      .where(
-                                        (item) => !(item['isCorrect'] as bool),
-                                      )
-                                      .map((item) {
-                                        final q =
-                                            item['question'] as QuizQuestion;
-                                        final selected =
-                                            item['selected'] as int;
-                                        final selectedAns =
-                                            selected >= 0 &&
-                                                selected < q.options.length
-                                            ? q.options[selected]
-                                            : "بدون إجابة";
-                                        return "- السؤال: ${q.question}\n  إجابتي: $selectedAns\n  الإجابة الصحيحة: ${q.options[q.correctIndex]}";
-                                      })
-                                      .join("\n\n");
-
-                                  final query =
-                                      "لقد أخطأت في هذه الأسئلة، هل يمكنك تحليل أخطائي وشرح المفاهيم التي أحتاج مراجعتها بطريقة مبسطة؟\n\n$wrongQs";
-
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          AiSearchScreen(initialQuery: query),
-                                    ),
-                                  );
-                                },
-                                child: Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [
-                                        Color(0xFF8B5CF6),
-                                        Color(0xFF6D28D9),
-                                      ],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                    borderRadius: BorderRadius.circular(16),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: const Color(
-                                          0xFF8B5CF6,
-                                        ).withValues(alpha: 0.3),
-                                        blurRadius: 12,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(
-                                        Icons.auto_awesome_rounded,
-                                        color: Colors.white,
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'تحليل الأخطاء بالذكاء الاصطناعي',
-                                        style: GoogleFonts.tajawal(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                            ],
 
                             // ─── أزرار ────────────────────────────────────────
                             if (_isSaving)

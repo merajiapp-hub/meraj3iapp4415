@@ -23,6 +23,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   String _uid = '';
   String _userName = 'مستخدم';
   String _chatId = '';
+  bool _chatReady = false;
   final Set<String> _seenMessageIds = <String>{};
   bool _messageStreamInitialized = false;
   bool _chatClosed = false;
@@ -46,23 +47,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
         _chatId = 'chat_$_uid';
       });
       if (_uid.isNotEmpty) {
-        final chatRef = _db.collection('chats').doc(_chatId);
-        final chat = await chatRef.get();
-        if (!chat.exists) {
-          await chatRef.set({
-            'userId': _uid,
-            'userName': _userName,
-            'status': 'open',
-            'userUnread': 0,
-            'adminUnread': 0,
-          });
-        } else {
-          await chatRef.update({'userUnread': 0});
-        }
-        _db.collection('chats').doc(_chatId).snapshots().listen((snapshot) {
-          if (!mounted) return;
-          setState(() => _chatClosed = snapshot.data()?['status'] == 'closed');
-        });
+        await _ensureChatReady();
       }
     });
   }
@@ -205,23 +190,14 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
 
   Future<void> _sendMessage() async {
     if (_uid.isEmpty || _chatClosed) return;
+    if (!_chatReady) {
+      await _ensureChatReady();
+      if (!_chatReady || _chatClosed) return;
+    }
     final text = _ctrl.text.trim();
     if (text.isEmpty) return;
     setState(() => _sending = true);
     try {
-      // The message rule reads the parent chat document. Ensure it exists
-      // before creating the first message.
-      final chatRef = _db.collection('chats').doc(_chatId);
-      final chatSnapshot = await chatRef.get();
-      if (!chatSnapshot.exists) {
-        await chatRef.set({
-          'userId': _uid,
-          'userName': _userName,
-          'status': 'open',
-          'userUnread': 0,
-          'adminUnread': 0,
-        });
-      }
       await _db.collection('chats').doc(_chatId).collection('messages').add({
         'text': text,
         'senderId': _uid,
@@ -250,7 +226,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('فشل الإرسال: $e', style: GoogleFonts.tajawal()),
+            content: Text('تعذر إرسال الرسالة. تحقق من اتصالك وحاول مرة أخرى.', style: GoogleFonts.tajawal()),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
@@ -259,6 +235,33 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  Future<void> _ensureChatReady() async {
+    final chatRef = _db.collection('chats').doc(_chatId);
+    final chat = await chatRef.get();
+    if (!chat.exists) {
+      await chatRef.set({
+        'userId': _uid,
+        'userName': _userName,
+        'status': 'open',
+        'userUnread': 0,
+        'adminUnread': 0,
+      });
+    } else if (chat.data()?['userId'] == _uid) {
+      await chatRef.update({'userUnread': 0});
+    } else {
+      throw StateError('لا يمكن الوصول إلى محادثة دعم مرتبطة بمستخدم آخر');
+    }
+    if (!mounted) return;
+    setState(() {
+      _chatClosed = chat.data()?['status'] == 'closed';
+      _chatReady = true;
+    });
+    chatRef.snapshots().listen((snapshot) {
+      if (!mounted) return;
+      setState(() => _chatClosed = snapshot.data()?['status'] == 'closed');
+    });
   }
 
   void _playIncomingSound(List<QueryDocumentSnapshot> docs) {
