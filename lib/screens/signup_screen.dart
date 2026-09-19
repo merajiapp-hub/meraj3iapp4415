@@ -20,6 +20,7 @@ class SignupScreen extends StatefulWidget {
 class _SignupScreenState extends State<SignupScreen>
     with SingleTickerProviderStateMixin {
   final _nameController = TextEditingController();
+  final _familyNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -66,6 +67,7 @@ class _SignupScreenState extends State<SignupScreen>
   @override
   void dispose() {
     _nameController.dispose();
+    _familyNameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
@@ -77,13 +79,14 @@ class _SignupScreenState extends State<SignupScreen>
   void _signup() async {
     if (_isLoading) return;
     final name = _nameController.text.trim();
+    final familyName = _familyNameController.text.trim();
     final email = _emailController.text.trim();
     final phone = _phoneController.text.trim();
     final password = _passwordController.text.trim();
     final confirmPassword = _confirmPasswordController.text.trim();
 
-    if (name.isEmpty || phone.isEmpty || password.isEmpty) {
-      AppNotification.show(context, 'الرجاء تعبئة جميع الحقول', isError: true);
+    if (name.isEmpty || familyName.isEmpty || phone.isEmpty || password.isEmpty) {
+      AppNotification.show(context, 'الرجاء تعبئة الاسم الأول والاسم العائلي ورقم الهاتف وكلمة المرور', isError: true);
       return;
     }
 
@@ -105,6 +108,7 @@ class _SignupScreenState extends State<SignupScreen>
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final error = await authProvider.signUp(
       name,
+      familyName,
       email,
       password,
       phone,
@@ -219,7 +223,13 @@ class _SignupScreenState extends State<SignupScreen>
           _buildTextField(
             controller: _nameController,
             icon: Icons.person_outline_rounded,
-            hint: 'الاسم الكامل',
+            hint: 'الاسم الأول',
+          ),
+          const SizedBox(height: 10),
+          _buildTextField(
+            controller: _familyNameController,
+            icon: Icons.group_outlined,
+            hint: 'اسم العائلة',
           ),
           const SizedBox(height: 10),
           _buildTextField(

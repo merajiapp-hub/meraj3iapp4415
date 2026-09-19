@@ -244,8 +244,15 @@ exports.suspendUser = functions.https.onCall(async (data, context) => {
   await admin.auth().updateUser(uid, { disabled: true });
   await admin.firestore().collection("users").doc(uid).update({ 
     isSuspended: true,
+    accountStatus: "suspended",
+    status: "suspended",
+    suspensionReason: reason || "تم التوقف من قبل الإدارة",
+    reason: reason || "تم التوقف من قبل الإدارة",
     suspendedAt: admin.firestore.FieldValue.serverTimestamp(),
-    suspendReason: reason || "No reason provided"
+    suspensionStartAt: admin.firestore.FieldValue.serverTimestamp(),
+    suspensionEndAt: null,
+    suspendedBy: "admin",
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
   await logAdminAction(
@@ -270,8 +277,15 @@ exports.reactivateUser = functions.https.onCall(async (data, context) => {
   await admin.auth().updateUser(uid, { disabled: false });
   await admin.firestore().collection("users").doc(uid).update({ 
     isSuspended: false,
+    accountStatus: "active",
+    status: "active",
+    suspensionReason: "",
+    reason: "",
     suspendedAt: admin.firestore.FieldValue.delete(),
-    suspendReason: admin.firestore.FieldValue.delete()
+    suspensionStartAt: admin.firestore.FieldValue.delete(),
+    suspensionEndAt: admin.firestore.FieldValue.delete(),
+    suspendedBy: admin.firestore.FieldValue.delete(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
   await logAdminAction(

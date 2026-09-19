@@ -29,13 +29,14 @@ class NoteExportService {
   // ─── TXT Export (UTF-8 with BOM for Windows compatibility) ─────────────
   static Uint8List textBytes({required String title, required String content}) {
     final plainText = plainTextFromQuill(content);
+    final safeTitle = _sanitizeTitle(title);
     final separator = '─' * 40;
     final now = DateTime.now();
     final dateStr =
         '${now.year}/${now.month.toString().padLeft(2, '0')}/${now.day.toString().padLeft(2, '0')}';
 
     final fullText = [
-      title.trim().isEmpty ? 'ملاحظة MERAJ3I' : title.trim(),
+      safeTitle.trim().isEmpty ? 'ملاحظة' : safeTitle,
       separator,
       'التاريخ: $dateStr',
       '',
@@ -48,6 +49,16 @@ class NoteExportService {
   }
 
   // ─── PDF Export (RTL, Arabic font, paginated) ───────────────────────────
+  static String _sanitizeTitle(String title) {
+    final trimmed = title.trim();
+    if (trimmed.isEmpty) return 'ملاحظة';
+    final withoutBrand = trimmed
+        .replaceAll(RegExp(r'MERAJ3I|مراجعي', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return withoutBrand.isEmpty ? 'ملاحظة' : withoutBrand;
+  }
+
   static Future<Uint8List> pdfBytes({
     required String title,
     required String content,
@@ -55,6 +66,7 @@ class NoteExportService {
     bool includeBackground = false,
   }) async {
     final document = PdfDocument();
+    final safeTitle = _sanitizeTitle(title);
 
     // Load Arabic-supporting fonts from assets
     final regularData =
@@ -93,8 +105,7 @@ class NoteExportService {
     }
 
     // Title (RTL, bold)
-    final titleStr =
-        title.trim().isEmpty ? 'ملاحظة MERAJ3I' : title.trim();
+    final titleStr = safeTitle;
     page.graphics.drawString(
       titleStr,
       titleFont,
@@ -115,7 +126,7 @@ class NoteExportService {
     final dateStr =
         '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
     page.graphics.drawString(
-      'MERAJ3I  ·  $dateStr',
+      dateStr,
       metaFont,
       brush: metaBrush,
       bounds: Rect.fromLTWH(0, 44, pageWidth, 16),

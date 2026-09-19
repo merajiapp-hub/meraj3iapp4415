@@ -47,6 +47,17 @@ class AuthProvider extends ChangeNotifier {
     return 'email';
   }
 
+  String? resolvePhoneValue(Map<String, dynamic>? data) {
+    if (data == null) return null;
+    for (final key in const ['phone', 'phoneNumber', 'mobile', 'telephone', 'phoneNormalized']) {
+      final value = data[key];
+      if (value is String && value.trim().isNotEmpty) {
+        return value.trim();
+      }
+    }
+    return null;
+  }
+
   Future<void> _linkPhoneCredential(
     User user,
     String phone,
@@ -59,6 +70,44 @@ class AuthProvider extends ChangeNotifier {
       password: password,
     );
     await user.linkWithCredential(credential);
+  }
+
+  Map<String, dynamic> buildUserProfileData({
+    required String uid,
+    required String name,
+    required String email,
+    required String phone,
+    required String gender,
+    required String provider,
+    String? profileImageUrl,
+  }) {
+    final normalizedPhone = normalizePhone(phone);
+    final safeEmail = email.trim();
+    final profile = <String, dynamic>{
+      'uid': uid,
+      'name': name.trim(),
+      'fullName': name.trim(),
+      'email': safeEmail.toLowerCase(),
+      'phone': normalizedPhone,
+      'phoneNumber': normalizedPhone,
+      'phoneNormalized': normalizedPhone,
+      'gender': gender.trim().isNotEmpty ? gender : 'غير محدد',
+      'provider': provider,
+      'authProvider': provider,
+      'role': 'user',
+      'isActive': true,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+      'lastActivity': FieldValue.serverTimestamp(),
+      'lastLoginAt': FieldValue.serverTimestamp(),
+    };
+
+    if (profileImageUrl != null && profileImageUrl.trim().isNotEmpty) {
+      profile['profileImageUrl'] = profileImageUrl;
+      profile['photoUrl'] = profileImageUrl;
+    }
+
+    return profile;
   }
 
   AuthProvider() {
@@ -260,10 +309,6 @@ class AuthProvider extends ChangeNotifier {
             .timeout(const Duration(seconds: 10));
         if (doc.exists && doc.data() != null) {
           _userData = doc.data();
-          if (_userData?['isSuspended'] == true) {
-            signOut();
-            return;
-          }
           _mustChangePassword = _userData?['mustChangePassword'] == true;
           notifyListeners();
         } else {
@@ -564,6 +609,7 @@ class AuthProvider extends ChangeNotifier {
   // مع retry تلقائي (1 ثانية تأخير لـ token propagation) وrollback عند الفشل
   Future<String?> signUp(
     String name,
+    String familyName,
     String email,
     String password,
     String phone,
@@ -571,6 +617,7 @@ class AuthProvider extends ChangeNotifier {
   ) async {
     UserCredential? cred;
     final normalizedPhone = normalizePhone(phone);
+    final displayName = [name.trim(), familyName.trim()].where((part) => part.isNotEmpty).join(' ').trim();
     final authEmail = email.trim().isNotEmpty
         ? email.trim().toLowerCase()
         : _phoneAuthEmail(normalizedPhone);
@@ -580,11 +627,13 @@ class AuthProvider extends ChangeNotifier {
           (existingUser.email == authEmail ||
               existingUser.providerData.any((info) => info.email == authEmail))) {
         try {
-          await existingUser.updateDisplayName(name);
+          await existingUser.updateDisplayName(displayName);
           await ensureUserDocument(existingUser, provider: email.trim().isEmpty ? 'phone' : 'email');
           await _firestore.collection('users').doc(existingUser.uid).set({
-            'name': name,
-            'fullName': name,
+            'name': displayName,
+            'fullName': displayName,
+            'firstName': name.trim(),
+            'lastName': familyName.trim(),
             'email': email.trim().toLowerCase(),
             'phone': normalizedPhone,
             'phoneNumber': normalizedPhone,
@@ -612,20 +661,10 @@ class AuthProvider extends ChangeNotifier {
           .timeout(const Duration(seconds: 15));
 
       // الخطوة 2: تحديث اسم العرض
-      await cred.user?.updateDisplayName(name);
+      await cred.user?.updateDisplayName(displayName);
 
-      // ربط الهاتف كاعتماد ثانوي حتى يعمل phone + password على نفس UID.
-      if (email.trim().isNotEmpty) {
-        try {
-          await _linkPhoneCredential(cred.user!, normalizedPhone, password);
-        } on FirebaseAuthException catch (e) {
-          if (e.code == 'credential-already-in-use') {
-            await cred.user?.delete();
-            return 'رقم الهاتف مستخدم في حساب آخر';
-          }
-          rethrow;
-        }
-      }
+      // لا نربط نفس البريد/كلمة المرور مرة ثانية؛ هذا يسبب ظهور خطأ بعد إنشاء الحساب مباشرة.
+      // نظام البريد الحالي داخل Firebase Auth يقوم بالفعل بإنشاء Provider email/password للـ UID.
 
       // الخطوة 3: التحقق من تفرد رقم الهاتف (المستخدم الآن مسجل → uid موجود)
       try {
@@ -635,41 +674,34 @@ class AuthProvider extends ChangeNotifier {
             .limit(1)
             .get()
             .timeout(const Duration(seconds: 10));
-          final legacyPhoneCheck = phoneCheck.docs.isEmpty
+        final legacyPhoneCheck = phoneCheck.docs.isEmpty
             ? await _firestore
-              .collection('users')
-              .where('phone', isEqualTo: phone.trim())
-              .limit(1)
-              .get()
-              .timeout(const Duration(seconds: 10))
+                .collection('users')
+                .where('phone', isEqualTo: normalizedPhone)
+                .limit(1)
+                .get()
+                .timeout(const Duration(seconds: 10))
             : null;
-          if (phoneCheck.docs.isNotEmpty ||
+        if (phoneCheck.docs.isNotEmpty ||
             (legacyPhoneCheck?.docs.isNotEmpty ?? false)) {
-          // rollback: نحذف حساب Auth لأن الهاتف مكرر
           await cred.user?.delete();
           return 'رقم الهاتف مستخدم في حساب آخر';
         }
       } catch (phoneCheckError) {
-        // إذا فشل الـ phone check (مثل مشكلة شبكة)، نكمل ونسمح بالتسجيل
         debugPrint('[SignUp] Phone check warning: $phoneCheckError');
       }
 
       // الخطوة 4: كتابة مستند Firestore مع retry واحد
-      final userData = {
-        'name': name,
-        'email': email.trim().toLowerCase(),
-        'phone': normalizedPhone,
-        'phoneNumber': normalizedPhone,
-        'phoneNormalized': normalizedPhone,
-        'gender': gender,
-        'createdAt': FieldValue.serverTimestamp(),
-        'lastActivity': FieldValue.serverTimestamp(),
-        'profileImageUrl': null,
-        'uid': cred.user!.uid,
-        'provider': 'email',
-        'role': 'user',
-        'isActive': true,
-      };
+      final userData = buildUserProfileData(
+        uid: cred.user!.uid,
+        name: displayName,
+        email: email,
+        phone: phone,
+        gender: gender,
+        provider: 'email',
+      );
+      userData['firstName'] = name.trim();
+      userData['lastName'] = familyName.trim();
 
       bool firestoreSuccess = false;
       String? firestoreError;

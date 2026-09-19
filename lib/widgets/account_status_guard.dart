@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/account_status.dart';
 import '../providers/auth_provider.dart';
 import '../screens/account_suspended_screen.dart';
 
@@ -13,8 +14,11 @@ class AccountStatusGuard extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
 
-    if (auth.user != null && auth.isAccountSuspended) {
-      return const AccountSuspendedScreen();
+    if (auth.user != null) {
+      final snapshot = normalizeAccountStatus(auth.userData);
+      if (snapshot.isSuspended) {
+        return const AccountSuspendedScreen();
+      }
     }
 
     return child;

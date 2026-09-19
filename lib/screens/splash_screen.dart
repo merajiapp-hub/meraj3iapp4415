@@ -197,9 +197,11 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
             Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+              child: Transform.translate(
+                offset: const Offset(0, -45),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                   AnimatedBuilder(
                     animation: _logoController,
                     builder: (context, child) => FadeTransition(
@@ -314,14 +316,15 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                   ] else ...[
                   ],
-                ],
+                  ],
+                ),
               ),
             ),
             if (!_showBiometricRetry)
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: 174,
+                bottom: 225,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [

@@ -104,8 +104,13 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
       await FirebaseFirestore.instance.collection('users').doc(widget.uid).update({
         'isSuspended': suspend,
         'accountStatus': suspend ? 'suspended' : 'active',
-        'suspendedAt': suspend ? FieldValue.serverTimestamp() : null,
+        'status': suspend ? 'suspended' : 'active',
         'suspensionReason': suspend ? 'تم التوقف من قبل الإدارة' : '',
+        'reason': suspend ? 'تم التوقف من قبل الإدارة' : '',
+        'suspendedAt': suspend ? FieldValue.serverTimestamp() : FieldValue.delete(),
+        'suspensionStartAt': suspend ? FieldValue.serverTimestamp() : FieldValue.delete(),
+        'suspensionEndAt': suspend ? null : FieldValue.delete(),
+        'suspendedBy': suspend ? 'admin' : FieldValue.delete(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
@@ -134,6 +139,53 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
           SnackBar(content: Text('خطأ: $e')),
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _deleteUserAccount() async {
+    if (!mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('حذف الحساب نهائياً؟'),
+        content: const Text(
+          'سيتم حذف ملف المستخدم من Firestore وإزالته من لوحة الإدارة. '
+          'حذف حساب Firebase Auth نفسه من حساب إداري آخر يحتاج Cloud Functions وخطة Blaze. '
+          'لا يمكن التراجع عن هذا الإجراء.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('حذف الحساب'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(widget.uid).delete();
+      const message = 'تم حذف ملف المستخدم من Firestore بنجاح';
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('حدث خطأ أثناء حذف الحساب: $e')),
+      );
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -338,6 +390,13 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                     label: isSuspended ? 'إعادة تفعيل الحساب' : 'تعليق الحساب',
                     color: isSuspended ? Colors.green : Colors.red,
                     onTap: () => _toggleSuspension(!isSuspended),
+                  ),
+                  const SizedBox(height: 8),
+                  _adminActionButton(
+                    icon: Icons.delete_forever_rounded,
+                    label: 'حذف الحساب نهائياً',
+                    color: Colors.red,
+                    onTap: _deleteUserAccount,
                   ),
                 ],
               ),

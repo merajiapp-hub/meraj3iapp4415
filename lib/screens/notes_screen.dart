@@ -62,9 +62,40 @@ class _NotesScreenState extends State<NotesScreen> {
 
   @override
   void dispose() {
+    ScaffoldMessenger.maybeOf(context)?.removeCurrentSnackBar();
     _searchController.dispose();
     _notesScrollController.dispose();
     super.dispose();
+  }
+
+  void _showTemporaryDeleteNotice({required VoidCallback onUndo}) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          'تم نقل الملاحظة إلى المهملات.',
+          style: GoogleFonts.tajawal(),
+        ),
+        backgroundColor: Colors.black87,
+        duration: const Duration(milliseconds: 1500),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        action: SnackBarAction(
+          label: 'تراجع',
+          textColor: AppTheme.primaryColor,
+          onPressed: onUndo,
+        ),
+      ),
+    );
+
+    Future<void>.delayed(const Duration(milliseconds: 1600), () {
+      if (mounted) {
+        ScaffoldMessenger.maybeOf(context)?.removeCurrentSnackBar();
+      }
+    });
   }
 
   void _dismissBlockingModalIfNeeded() {
@@ -732,24 +763,30 @@ class _NotesScreenState extends State<NotesScreen> {
 
   Future<void> _exportNote(Note note, {required bool pdf}) async {
     try {
-      final title = note.title.isEmpty ? 'ملاحظة MERAJ3I' : note.title;
+      final title = note.title.isEmpty ? 'ملاحظة' : note.title;
+      final safeTitle = title
+          .replaceAll(RegExp(r'MERAJ3I|مراجعي', caseSensitive: false), '')
+          .replaceAll(RegExp(r'[^\u0600-\u06FFa-zA-Z0-9\s_-]'), '')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+      final finalTitle = safeTitle.isEmpty ? 'ملاحظة' : safeTitle;
+      final filename = '${finalTitle.replaceAll(RegExp(r'\s+'), '_')}.${pdf ? 'pdf' : 'txt'}';
       final bytes = pdf
           ? await NoteExportService.pdfBytes(
-              title: title,
+              title: finalTitle,
               content: note.content,
             )
-          : NoteExportService.textBytes(title: title, content: note.content);
-      final extension = pdf ? 'pdf' : 'txt';
+          : NoteExportService.textBytes(title: finalTitle, content: note.content);
       await SharePlus.instance.share(
         ShareParams(
           files: [
             XFile.fromData(
               bytes,
-              name: '$title.$extension',
+              name: filename,
               mimeType: pdf ? 'application/pdf' : 'text/plain',
             ),
           ],
-          subject: title,
+          subject: finalTitle,
         ),
       );
     } catch (error) {
@@ -1064,28 +1101,10 @@ class _NotesScreenState extends State<NotesScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              provider.moveToTrash(note.id);
               Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'تم نقل الملاحظة إلى المهملات.',
-                    style: GoogleFonts.tajawal(),
-                  ),
-                  backgroundColor: Colors.black87,
-                  duration: const Duration(seconds: 3),
-                  behavior: SnackBarBehavior.floating,
-                  margin: EdgeInsets.only(
-                    left: 16,
-                    right: 16,
-                    top: MediaQuery.of(context).padding.top + 12,
-                  ),
-                  action: SnackBarAction(
-                    label: 'تراجع',
-                    textColor: AppTheme.primaryColor,
-                    onPressed: () => provider.restoreFromTrash(note.id),
-                  ),
-                ),
+              provider.moveToTrash(note.id);
+              _showTemporaryDeleteNotice(
+                onUndo: () => provider.restoreFromTrash(note.id),
               );
             },
             style: ElevatedButton.styleFrom(

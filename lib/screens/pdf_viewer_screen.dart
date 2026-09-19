@@ -4,7 +4,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -60,6 +59,8 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   int _totalPages = 0;
   bool _isLoaded = false;
   bool _isCheckingLocalFile = true;
+  bool _isOpening = true;
+  bool _openFailed = false;
 
   // Bookmarks
   List<int> _bookmarks = [];
@@ -295,77 +296,52 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   }
 
   Future<void> _checkLocalFile() async {
-    final downloads = widget.book == null
-        ? null
-        : Provider.of<DownloadsProvider>(context, listen: false);
-
+    // Only resolve an explicitly supplied/local offline file here. Opening a
+    // remote book must never promote it into the offline download cache.
     if (widget.localPath != null) {
       final file = File(widget.localPath!);
       if (await _cacheService.isValidPdf(file)) {
         setState(() {
           _localPath = widget.localPath;
           _isCheckingLocalFile = false;
+          _isOpening = false;
         });
         return;
       }
     }
 
-    if (widget.book != null) {
-      final cachedFile = await _cacheService.getValidFile(widget.book!.uniqueKey);
-      if (cachedFile != null) {
-        setState(() {
-          _localPath = cachedFile.path;
-          _isCheckingLocalFile = false;
-        });
-        return;
-      }
-
-      final path = downloads!.getLocalPath(widget.book!.uniqueKey);
+    if (widget.book != null && mounted) {
+      final downloads = Provider.of<DownloadsProvider>(context, listen: false);
+      final path = downloads.getLocalPath(widget.book!.uniqueKey);
       if (path != null) {
         final file = File(path);
         if (await _cacheService.isValidPdf(file)) {
           setState(() {
             _localPath = file.path;
             _isCheckingLocalFile = false;
+            _isOpening = false;
           });
           return;
         } else {
-          downloads.removeDownload(widget.book!.uniqueKey);
+          await downloads.removeDownload(widget.book!.uniqueKey);
         }
       }
     }
 
-    final directory = await getApplicationDocumentsDirectory();
-    final fileName = _generateFileName();
-    final file = File('${directory.path}/$fileName');
-    if (await file.exists()) {
-      setState(() {
-        _localPath = file.path;
-        _isCheckingLocalFile = false;
-      });
-      return;
-    }
-
     setState(() {
       _isCheckingLocalFile = false;
+      _isOpening = true;
     });
-
-    if (widget.book != null && mounted) {
-      await _downloadPdf(askConfirmation: false);
-    }
   }
 
-  String _generateFileName() {
-    if (widget.book != null) return "${widget.book!.uniqueKey}.pdf";
-    String name = widget.title;
-    if (widget.stageName != null && widget.stageName!.isNotEmpty) {
-      name = "${widget.stageName} - $name";
-    }
-    if (widget.sectionName != null && widget.sectionName!.isNotEmpty) {
-      name = "${widget.sectionName} - $name";
-    }
-    name = name.replaceAll(' ', '_').replaceAll('/', '_').replaceAll('\\', '_');
-    return "$name.pdf";
+  Future<void> _retryOpening() async {
+    if (!mounted) return;
+    setState(() {
+      _openFailed = false;
+      _isOpening = true;
+      _isCheckingLocalFile = true;
+    });
+    await _checkLocalFile();
   }
 
   Future<void> _downloadPdf({bool askConfirmation = true}) async {
@@ -1070,6 +1046,32 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
       );
     }
 
+    if (_openFailed) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.cloud_off_rounded, size: 58, color: Colors.grey),
+              const SizedBox(height: 14),
+              Text(
+                'تعذر فتح الكتاب، تحقق من الاتصال بالإنترنت وحاول مرة أخرى.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.tajawal(fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _retryOpening,
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text('إعادة المحاولة', style: GoogleFonts.tajawal()),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     Widget pdfWidget;
 
     if (_localPath != null) {
@@ -1094,6 +1096,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
           setState(() {
             _totalPages = details.document.pages.count;
             _isLoaded = true;
+            _isOpening = false;
           });
           // Jump to last saved page after load
           if (_currentPage > 1) {
@@ -1139,6 +1142,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
           setState(() {
             _totalPages = details.document.pages.count;
             _isLoaded = true;
+            _isOpening = false;
           });
           if (_currentPage > 1) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1148,15 +1152,44 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
         },
         onDocumentLoadFailed: (details) {
           if (mounted) {
-            AppNotification.show(
-              context,
-              'فشل فتح الملف، جرب فتحه في المتصفح',
-              isError: true,
-            );
+            setState(() {
+              _isOpening = false;
+              _openFailed = true;
+            });
           }
         },
       );
     }
+
+    final viewerWithLoadingOverlay = Stack(
+      children: [
+        pdfWidget,
+        if (_isOpening)
+          Positioned.fill(
+            child: ColoredBox(
+              color: Colors.black12,
+              child: Center(
+                child: Card(
+                  elevation: 6,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(color: AppTheme.primaryColor),
+                        const SizedBox(height: 14),
+                        Text('جاري تجهيز الكتاب...', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 4),
+                        Text('جارٍ فتح الكتاب...', style: GoogleFonts.tajawal(color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
 
     if (_isNightMode) {
       return ColorFiltered(
@@ -1182,10 +1215,10 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
           1,
           0,
         ]),
-        child: pdfWidget,
+        child: viewerWithLoadingOverlay,
       );
     }
 
-    return pdfWidget;
+    return viewerWithLoadingOverlay;
   }
 }

@@ -306,7 +306,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       if (_emailController.text != (auth.user?.email ?? '')) {
         _emailController.text = auth.user?.email ?? '';
       }
-      final phone = auth.userData?['phone'] ?? '';
+      final phone = auth.resolvePhoneValue(auth.userData) ?? '';
       if (_phoneController.text != phone) {
         _phoneController.text = phone;
       }

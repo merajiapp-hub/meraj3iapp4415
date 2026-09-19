@@ -44,7 +44,9 @@ class AppConfigProvider extends ChangeNotifier {
   void _loadFromCache() {
     if (_prefs == null) return;
 
-    _maintenanceMode = _prefs!.getBool('maintenance_mode') ?? false;
+    // Maintenance is a hard app gate and must follow Firestore only.
+    // A stale local cached value must never override the admin-controlled state.
+    _maintenanceMode = false;
     _maintenanceMessage =
         _prefs!.getString('maintenance_message') ?? _maintenanceMessage;
     _registrationOpen = _prefs!.getBool('registration_open') ?? true;

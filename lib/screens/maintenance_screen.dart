@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_config_provider.dart';
-import '../providers/auth_provider.dart';
 
 /// شاشة الصيانة — تظهر عندما يُفعّل المدير وضع الصيانة في Firestore
 class MaintenanceScreen extends StatefulWidget {
@@ -12,30 +11,8 @@ class MaintenanceScreen extends StatefulWidget {
   State<MaintenanceScreen> createState() => _MaintenanceScreenState();
 }
 
-class _MaintenanceScreenState extends State<MaintenanceScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _pulse;
+class _MaintenanceScreenState extends State<MaintenanceScreen> {
   bool _isChecking = false;
-  int _tapCount = 0;
-  
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
-    _pulse = Tween<double>(begin: 0.85, end: 1.0).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
 
   Future<void> _checkStatus() async {
     setState(() => _isChecking = true);
@@ -63,33 +40,21 @@ class _MaintenanceScreenState extends State<MaintenanceScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              GestureDetector(
-                onTap: () {
-                  _tapCount++;
-                  if (_tapCount >= 7) {
-                    _tapCount = 0;
-                    _showAdminLoginDialog(context);
-                  }
-                },
-                child: ScaleTransition(
-                  scale: _pulse,
-                  child: Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.orange.withValues(alpha: 0.4),
-                        width: 2,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.engineering_rounded,
-                      size: 60,
-                      color: Colors.orange,
-                    ),
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.orange.withValues(alpha: 0.4),
+                    width: 2,
                   ),
+                ),
+                child: const Icon(
+                  Icons.engineering_rounded,
+                  size: 60,
+                  color: Colors.orange,
                 ),
               ),
               const SizedBox(height: 32),
@@ -167,76 +132,4 @@ class _MaintenanceScreenState extends State<MaintenanceScreen>
     );
   }
 
-  void _showAdminLoginDialog(BuildContext context) {
-    final emailCtrl = TextEditingController();
-    final passCtrl = TextEditingController();
-    bool isLoading = false;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              backgroundColor: const Color(0xFF1E1E1E),
-              title: const Text('دخول الإدارة المخفي', style: TextStyle(color: Colors.white)),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: emailCtrl,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      labelText: 'البريد الإلكتروني',
-                      labelStyle: TextStyle(color: Colors.grey),
-                    ),
-                  ),
-                  TextField(
-                    controller: passCtrl,
-                    obscureText: true,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      labelText: 'كلمة المرور',
-                      labelStyle: TextStyle(color: Colors.grey),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isLoading ? null : () => Navigator.pop(ctx),
-                  child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
-                ),
-                ElevatedButton(
-                  onPressed: isLoading
-                      ? null
-                      : () async {
-                          setStateDialog(() => isLoading = true);
-                          final auth = Provider.of<AuthProvider>(context, listen: false);
-                          final error = await auth.signIn(emailCtrl.text.trim(), passCtrl.text);
-                          setStateDialog(() => isLoading = false);
-
-                          if (!ctx.mounted) return;
-                          
-                          if (error != null) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(
-                              SnackBar(content: Text(error), backgroundColor: Colors.red),
-                            );
-                          } else {
-                            Navigator.pop(ctx);
-                          }
-                        },
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                  child: isLoading
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('دخول', style: TextStyle(color: Colors.white)),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
 }
