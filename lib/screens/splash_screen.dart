@@ -74,8 +74,8 @@ class _SplashScreenState extends State<SplashScreen>
 
     _logoController.forward();
 
-    // إبقاء شاشة التحميل ظاهرة مدة كافية لظهور الهوية البصرية بوضوح.
-    Future.delayed(const Duration(seconds: 10), () {
+    // لا نُجبر المستخدم على انتظار تأخير ثابت غير ضروري.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _proceed();
     });
   }

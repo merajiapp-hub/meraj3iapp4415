@@ -253,27 +253,12 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
   String get _noteTitle => _titleController.text.trim().isEmpty
       ? 'ملاحظة MERAJ3I'
       : _titleController.text.trim();
-  String get _noteContent => _quillController.document.toPlainText().trim();
-
-  Future<void> _shareNote() async {
-    final title = _titleController.text.trim();
-    final plainText = _quillController.document.toPlainText();
-    try {
-      await SharePlus.instance.share(
-        ShareParams(
-          text: '$title\n\n$plainText'.trim(),
-          subject: title.isEmpty ? 'ملاحظة MERAJ3I' : title,
-        ),
-      );
-    } catch (error) {
-      _showExportError(error);
-    }
-  }
 
   Future<void> _exportTextFile() async {
     try {
+      final deltaContent = jsonEncode(_quillController.document.toDelta().toJson());
       final file = XFile.fromData(
-        NoteExportService.textBytes(title: _noteTitle, content: _noteContent),
+        NoteExportService.textBytes(title: _noteTitle, content: deltaContent),
         name: '${_safeFileName(_noteTitle)}.txt',
         mimeType: 'text/plain',
       );
@@ -287,9 +272,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
 
   Future<void> _exportPdfFile() async {
     try {
+      final deltaContent = jsonEncode(_quillController.document.toDelta().toJson());
       final bytes = await NoteExportService.pdfBytes(
         title: _noteTitle,
-        content: _noteContent,
+        content: deltaContent,
         pageStyle: _pageStyle,
         includeBackground: _pageStyle != 'blank',
       );
@@ -357,13 +343,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
               ),
             ),
             const SizedBox(height: 12),
-            _exportTile(
-              ctx,
-              Icons.share_rounded,
-              'مشاركة كنص',
-              const Color(0xFF3B82F6),
-              _shareNote,
-            ),
             _exportTile(
               ctx,
               Icons.picture_as_pdf_rounded,

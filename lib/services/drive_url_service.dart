@@ -18,30 +18,47 @@ class DriveUrlService {
 
     final cleanUrl = url.trim();
 
-    // الصيغة 1: /file/d/FILE_ID/
+    // 1) /file/d/FILE_ID
     final match1 = RegExp(r'/file/d/([a-zA-Z0-9_-]+)').firstMatch(cleanUrl);
     if (match1 != null) return match1.group(1);
 
-    // الصيغة 2: ?id=FILE_ID أو &id=FILE_ID
+    // 2) ?id=FILE_ID / &id=FILE_ID
     final match2 = RegExp(r'[?&]id=([a-zA-Z0-9_-]+)').firstMatch(cleanUrl);
     if (match2 != null) return match2.group(1);
 
-    // الصيغة 3: /folders/FILE_ID
-    final match3 = RegExp(r'/folders/([a-zA-Z0-9_-]+)').firstMatch(cleanUrl);
+    // 3) /open?id=FILE_ID
+    final match3 = RegExp(r'/open\?[^\s]*id=([a-zA-Z0-9_-]+)').firstMatch(cleanUrl);
     if (match3 != null) return match3.group(1);
 
-    // الصيغة 4: drive.google.com/d/FILE_ID
-    final match4 = RegExp(r'drive\.google\.com/d/([a-zA-Z0-9_-]+)').firstMatch(cleanUrl);
+    // 4) /uc?export=view&id=FILE_ID
+    final match4 = RegExp(r'[?&]export=[^&]*[?&]id=([a-zA-Z0-9_-]+)').firstMatch(cleanUrl);
     if (match4 != null) return match4.group(1);
 
-    // الصيغة 5: docs.google.com/document/d/FILE_ID
-    final match5 = RegExp(r'docs\.google\.com/\w+/d/([a-zA-Z0-9_-]+)').firstMatch(cleanUrl);
+    // 5) /uc?id=FILE_ID
+    final match5 = RegExp(r'/uc\?[^\s]*id=([a-zA-Z0-9_-]+)').firstMatch(cleanUrl);
     if (match5 != null) return match5.group(1);
 
-    // الصيغة 6: رابط مختصر goo.gl/...
-    // لا يمكن استخراجه مباشرة دون اتصال — يُعامل كـ needs_review
+    // 6) /folders/FILE_ID
+    final match6 = RegExp(r'/folders/([a-zA-Z0-9_-]+)').firstMatch(cleanUrl);
+    if (match6 != null) return match6.group(1);
+
+    // 7) drive.google.com/d/FILE_ID
+    final match7 = RegExp(r'drive\.google\.com/d/([a-zA-Z0-9_-]+)').firstMatch(cleanUrl);
+    if (match7 != null) return match7.group(1);
+
+    // 8) docs.google.com/.../d/FILE_ID
+    final match8 = RegExp(r'docs\.google\.com/\w+/d/([a-zA-Z0-9_-]+)').firstMatch(cleanUrl);
+    if (match8 != null) return match8.group(1);
 
     return null;
+  }
+
+  static String buildDirectDownloadUrl(String? url) {
+    final fileId = extractFileId(url);
+    if (fileId == null || fileId.isEmpty) {
+      return (url ?? '').trim();
+    }
+    return 'https://drive.google.com/uc?export=download&id=$fileId&confirm=t';
   }
 
   /// هل الرابط رابط Google Drive؟

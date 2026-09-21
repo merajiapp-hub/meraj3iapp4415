@@ -757,58 +757,51 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                   }
 
                                   return Container(
-                                    margin: const EdgeInsets.only(bottom: 8),
-                                    padding: const EdgeInsets.all(12),
+                                    margin: const EdgeInsets.only(bottom: 10),
+                                    padding: const EdgeInsets.all(14),
                                     decoration: BoxDecoration(
-                                      color: surface,
-                                      borderRadius: BorderRadius.circular(16),
+                                      gradient: LinearGradient(
+                                        colors: isDark
+                                            ? [
+                                                const Color(0xFF1F2A37),
+                                                const Color(0xFF162230),
+                                              ]
+                                            : [
+                                                Colors.white,
+                                                const Color(0xFFF4FAF6),
+                                              ],
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                      ),
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(
+                                        color: AppTheme.primaryColor.withValues(
+                                          alpha: isDark ? 0.18 : 0.12,
+                                        ),
+                                        width: 1,
+                                      ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: AppTheme.primaryColor
-                                              .withValues(
-                                                alpha: isDark ? 0.05 : 0.08,
-                                              ),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 4),
+                                          color: AppTheme.primaryColor.withValues(
+                                            alpha: isDark ? 0.05 : 0.08,
+                                          ),
+                                          blurRadius: 12,
+                                          offset: const Offset(0, 6),
                                         ),
                                       ],
-                                      // The green edge is the visual anchor used by the ratings design.
-                                      border: Border(
-                                        left: BorderSide(
-                                          color: AppTheme.primaryColor,
-                                          width: 4,
-                                        ),
-                                        top: BorderSide(
-                                          color: AppTheme.primaryColor
-                                              .withValues(
-                                                alpha: isDark ? 0.3 : 0.14,
-                                              ),
-                                        ),
-                                        right: BorderSide(
-                                          color: AppTheme.primaryColor
-                                              .withValues(
-                                                alpha: isDark ? 0.3 : 0.14,
-                                              ),
-                                        ),
-                                        bottom: BorderSide(
-                                          color: AppTheme.primaryColor
-                                              .withValues(
-                                                alpha: isDark ? 0.3 : 0.14,
-                                              ),
-                                        ),
-                                      ),
                                     ),
                                     child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
                                         Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             CircleAvatar(
-                                              radius: 14,
-                                              backgroundColor: AppTheme
-                                                  .primaryColor
-                                                  .withValues(alpha: 0.15),
+                                              radius: 15,
+                                              backgroundColor: AppTheme.primaryColor
+                                                  .withValues(alpha: 0.14),
                                               child: Text(
                                                 userName.isNotEmpty
                                                     ? userName
@@ -822,7 +815,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                                 ),
                                               ),
                                             ),
-                                            const SizedBox(width: 8),
+                                            const SizedBox(width: 10),
                                             Expanded(
                                               child: Column(
                                                 crossAxisAlignment:
@@ -831,9 +824,8 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                                   Text(
                                                     userName,
                                                     style: GoogleFonts.tajawal(
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 13,
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 14,
                                                       color: textCol,
                                                     ),
                                                   ),
@@ -843,99 +835,79 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                                         'd MMM yyyy',
                                                         'ar',
                                                       ).format(date),
-                                                      style:
-                                                          GoogleFonts.tajawal(
-                                                            fontSize: 10,
-                                                            color: isDark
-                                                                ? Colors.white54
-                                                                : Colors
-                                                                      .black54,
-                                                          ),
+                                                      style: GoogleFonts.tajawal(
+                                                        fontSize: 11,
+                                                        color: isDark
+                                                            ? Colors.white54
+                                                            : Colors.black54,
+                                                      ),
                                                     ),
                                                 ],
                                               ),
                                             ),
-                                            Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.end,
-                                              children: [
-                                                Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: List.generate(
-                                                    5,
-                                                    (starIndex) => Icon(
-                                                      starIndex < rating.round()
-                                                          ? Icons.star_rounded
-                                                          : Icons
-                                                                .star_outline_rounded,
-                                                      color:
-                                                          starIndex <
-                                                              rating.round()
-                                                          ? const Color(
-                                                              0xFFF6C945,
-                                                            )
-                                                          : Colors
-                                                                .grey
-                                                                .shade300,
-                                                      size: 14,
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  rating.toStringAsFixed(1),
-                                                  style: GoogleFonts.outfit(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 11,
-                                                    color:
-                                                        AppTheme.primaryColor,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(width: 6),
                                             Container(
-                                              width: 32,
-                                              height: 32,
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 10,
+                                                vertical: 7,
+                                              ),
                                               decoration: BoxDecoration(
                                                 color: AppTheme.primaryColor,
-                                                shape: BoxShape.circle,
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: AppTheme.primaryColor
-                                                        .withValues(alpha: 0.2),
-                                                    blurRadius: 6,
-                                                    offset: const Offset(0, 2),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(
+                                                    rating.toStringAsFixed(1),
+                                                    style: GoogleFonts.outfit(
+                                                      color: Colors.white,
+                                                      fontWeight: FontWeight.w700,
+                                                      fontSize: 12,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  const Icon(
+                                                    Icons.star_rounded,
+                                                    color: Colors.white,
+                                                    size: 14,
                                                   ),
                                                 ],
-                                              ),
-                                              alignment: Alignment.center,
-                                              child: Text(
-                                                rating.round().toString(),
-                                                style: GoogleFonts.outfit(
-                                                  color: Colors.white,
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w800,
-                                                ),
                                               ),
                                             ),
                                           ],
                                         ),
+                                        const SizedBox(height: 10),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.start,
+                                          children: List.generate(
+                                            5,
+                                            (starIndex) => Icon(
+                                              starIndex < rating.round()
+                                                  ? Icons.star_rounded
+                                                  : Icons.star_outline_rounded,
+                                              color: starIndex < rating.round()
+                                                  ? const Color(0xFFF6C945)
+                                                  : Colors.grey.shade300,
+                                              size: 17,
+                                            ),
+                                          ),
+                                        ),
                                         if (text.isNotEmpty) ...[
-                                          const SizedBox(height: 6),
+                                          const SizedBox(height: 12),
                                           Container(
                                             width: double.infinity,
                                             padding: const EdgeInsets.fromLTRB(
+                                              12,
                                               10,
+                                              12,
                                               8,
-                                              10,
-                                              6,
                                             ),
                                             decoration: BoxDecoration(
                                               color: isDark
                                                   ? Colors.white.withValues(
-                                                      alpha: 0.06,
+                                                      alpha: 0.05,
                                                     )
                                                   : const Color(0xFFF7F9FC),
                                               borderRadius:

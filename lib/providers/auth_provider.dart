@@ -24,21 +24,41 @@ class AuthProvider extends ChangeNotifier {
 
   static const String _defaultPhoneCountryCode = '222';
 
-  String normalizePhone(String value) {
+  static String normalizePhoneValue(String value) {
     var digits = value.trim().replaceAll(RegExp(r'[^0-9+]'), '');
-    if (digits.startsWith('00')) digits = '+${digits.substring(2)}';
-    if (!digits.startsWith('+')) {
-      digits = digits.startsWith(_defaultPhoneCountryCode)
-          ? '+$digits'
-          : '+$_defaultPhoneCountryCode$digits';
+    if (digits.isEmpty) return '';
+
+    if (digits.startsWith('00')) {
+      digits = digits.substring(2);
     }
-    return '+${digits.substring(1).replaceAll(RegExp(r'[^0-9]'), '')}';
+    if (digits.startsWith('+')) {
+      digits = digits.substring(1);
+    }
+
+    digits = digits.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return '';
+
+    if (digits.startsWith('0') && digits.length > 1) {
+      digits = digits.substring(1);
+    }
+
+    if (!digits.startsWith(_defaultPhoneCountryCode)) {
+      digits = _defaultPhoneCountryCode + digits;
+    }
+
+    return '+$digits';
   }
 
-  String _phoneAuthEmail(String phone) {
-    final digits = normalizePhone(phone).substring(1);
+  static String canonicalRegistrationEmail(String? email, String phone) {
+    final cleanEmail = (email ?? '').trim().toLowerCase();
+    if (cleanEmail.isNotEmpty) return cleanEmail;
+    final digits = normalizePhoneValue(phone).substring(1);
     return 'phone.$digits@auth.meraj3i.invalid';
   }
+
+  String normalizePhone(String value) => AuthProvider.normalizePhoneValue(value);
+
+  String _phoneAuthEmail(String phone) => AuthProvider.canonicalRegistrationEmail(null, phone);
 
   String _providerForUser(User user) {
     if (user.email?.endsWith('@auth.meraj3i.invalid') == true) {
@@ -605,8 +625,8 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // ─── تسجيل حساب جديد — مع إصلاح permission-denied ──────────────────────
-  // الترتيب الصحيح: Auth أولاً ← uid متاح ← Firestore تستقبل الكتابة
-  // مع retry تلقائي (1 ثانية تأخير لـ token propagation) وrollback عند الفشل
+  // الترتيب الصحيح: التحقق من التكرار أولاً → Auth أولاً → Firestore يدون الملف
+  // ثم rollback تلقائي إن فشل إنشاء الملف، وتجنب ترك حساب معلق في Auth.
   Future<String?> signUp(
     String name,
     String familyName,
@@ -618,9 +638,8 @@ class AuthProvider extends ChangeNotifier {
     UserCredential? cred;
     final normalizedPhone = normalizePhone(phone);
     final displayName = [name.trim(), familyName.trim()].where((part) => part.isNotEmpty).join(' ').trim();
-    final authEmail = email.trim().isNotEmpty
-        ? email.trim().toLowerCase()
-        : _phoneAuthEmail(normalizedPhone);
+    final authEmail = AuthProvider.canonicalRegistrationEmail(email, normalizedPhone);
+
     try {
       final existingUser = _auth.currentUser;
       if (existingUser != null &&
@@ -629,145 +648,145 @@ class AuthProvider extends ChangeNotifier {
         try {
           await existingUser.updateDisplayName(displayName);
           await ensureUserDocument(existingUser, provider: email.trim().isEmpty ? 'phone' : 'email');
-          await _firestore.collection('users').doc(existingUser.uid).set({
+          final mergedUserData = <String, dynamic>{
             'name': displayName,
             'fullName': displayName,
             'firstName': name.trim(),
             'lastName': familyName.trim(),
-            'email': email.trim().toLowerCase(),
+            'email': email.trim().isNotEmpty ? email.trim().toLowerCase() : existingUser.email ?? '',
             'phone': normalizedPhone,
             'phoneNumber': normalizedPhone,
             'phoneNormalized': normalizedPhone,
             'gender': gender,
             'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
+          };
+          await _firestore.collection('users').doc(existingUser.uid).set(mergedUserData, SetOptions(merge: true));
+          final savedProfile = await _firestore.collection('users').doc(existingUser.uid).get();
           _user = existingUser;
-          _userData = (await _firestore.collection('users').doc(existingUser.uid).get()).data();
+          _userData = savedProfile.data();
           _profileReady = _userData != null;
           notifyListeners();
           return null;
         } catch (e) {
           debugPrint('[SignUp] Existing Auth user profile recovery failed: $e');
-          return 'الحساب موجود، لكن تعذر إكمال ملفه الآن. أعد المحاولة.';
+          try {
+            final recovered = await ensureUserDocument(existingUser, provider: email.trim().isEmpty ? 'phone' : 'email');
+            _user = existingUser;
+            _userData = recovered.data();
+            _profileReady = _userData != null;
+            notifyListeners();
+            return null;
+          } catch (_) {
+            return 'الحساب موجود، لكن تعذر إكمال ملفه الآن. أعد المحاولة.';
+          }
         }
       }
       if (existingUser != null) {
         return 'يوجد حساب مسجل الدخول حاليًا. سجّل الخروج أولًا لإنشاء حساب آخر.';
       }
 
-      // الخطوة 1: إنشاء حساب Firebase Auth أولاً (المستخدم الآن لديه uid)
+      final duplicateEmail = email.trim().isNotEmpty
+          ? await _firestore
+              .collection('users')
+              .where('email', isEqualTo: email.trim().toLowerCase())
+              .limit(1)
+              .get()
+              .timeout(const Duration(seconds: 8))
+          : null;
+      final duplicatePhone = await _firestore
+          .collection('users')
+          .where('phoneNormalized', isEqualTo: normalizedPhone)
+          .limit(1)
+          .get()
+          .timeout(const Duration(seconds: 8));
+      final legacyDuplicatePhone = duplicatePhone.docs.isEmpty
+          ? await _firestore
+              .collection('users')
+              .where('phone', isEqualTo: normalizedPhone)
+              .limit(1)
+              .get()
+              .timeout(const Duration(seconds: 8))
+          : null;
+
+      if ((duplicateEmail?.docs.isNotEmpty ?? false) ||
+          duplicatePhone.docs.isNotEmpty ||
+          (legacyDuplicatePhone?.docs.isNotEmpty ?? false)) {
+        return email.trim().isEmpty
+            ? 'رقم الهاتف مستخدم في حساب آخر'
+            : 'هذا البريد الإلكتروني مستخدم مسبقاً';
+      }
+
       cred = await _auth
           .createUserWithEmailAndPassword(email: authEmail, password: password)
           .timeout(const Duration(seconds: 15));
 
-      // الخطوة 2: تحديث اسم العرض
-      await cred.user?.updateDisplayName(displayName);
-
-      // لا نربط نفس البريد/كلمة المرور مرة ثانية؛ هذا يسبب ظهور خطأ بعد إنشاء الحساب مباشرة.
-      // نظام البريد الحالي داخل Firebase Auth يقوم بالفعل بإنشاء Provider email/password للـ UID.
-
-      // الخطوة 3: التحقق من تفرد رقم الهاتف (المستخدم الآن مسجل → uid موجود)
-      try {
-        final phoneCheck = await _firestore
-            .collection('users')
-            .where('phoneNormalized', isEqualTo: normalizedPhone)
-            .limit(1)
-            .get()
-            .timeout(const Duration(seconds: 10));
-        final legacyPhoneCheck = phoneCheck.docs.isEmpty
-            ? await _firestore
-                .collection('users')
-                .where('phone', isEqualTo: normalizedPhone)
-                .limit(1)
-                .get()
-                .timeout(const Duration(seconds: 10))
-            : null;
-        if (phoneCheck.docs.isNotEmpty ||
-            (legacyPhoneCheck?.docs.isNotEmpty ?? false)) {
-          await cred.user?.delete();
-          return 'رقم الهاتف مستخدم في حساب آخر';
-        }
-      } catch (phoneCheckError) {
-        debugPrint('[SignUp] Phone check warning: $phoneCheckError');
+      final newUser = cred.user;
+      if (newUser == null) {
+        return 'تعذر إنشاء الحساب. أعد المحاولة.';
       }
 
-      // الخطوة 4: كتابة مستند Firestore مع retry واحد
+      try {
+        await newUser.updateDisplayName(displayName);
+      } catch (_) {}
+
       final userData = buildUserProfileData(
-        uid: cred.user!.uid,
+        uid: newUser.uid,
         name: displayName,
         email: email,
         phone: phone,
         gender: gender,
-        provider: 'email',
+        provider: email.trim().isEmpty ? 'phone' : 'email',
       );
       userData['firstName'] = name.trim();
       userData['lastName'] = familyName.trim();
+      userData['email'] = authEmail;
+      userData['phone'] = normalizedPhone;
+      userData['phoneNumber'] = normalizedPhone;
+      userData['phoneNormalized'] = normalizedPhone;
 
-      bool firestoreSuccess = false;
-      String? firestoreError;
-
-      // المحاولة الأولى
       try {
         await _firestore
             .collection('users')
-            .doc(cred.user!.uid)
-            .set(userData)
-            .timeout(const Duration(seconds: 10));
+            .doc(newUser.uid)
+            .set(userData, SetOptions(merge: true))
+            .timeout(const Duration(seconds: 12));
+
         final savedProfile = await _firestore
             .collection('users')
-            .doc(cred.user!.uid)
+            .doc(newUser.uid)
             .get()
-            .timeout(const Duration(seconds: 10));
-        firestoreSuccess = savedProfile.exists;
-      } on FirebaseException catch (e) {
-        if (e.code == 'permission-denied') {
-          // انتظر ثانية لـ Auth token يُنشر على Firestore rules
-          debugPrint('[SignUp] Token propagation delay — retrying in 1s...');
-          await Future.delayed(const Duration(seconds: 1));
-          // المحاولة الثانية (Retry)
-          try {
-            // إعادة تحميل token بعد الانتظار
-            await cred.user?.getIdToken(true);
-            await _firestore
-                .collection('users')
-                .doc(cred.user!.uid)
-                .set(userData)
-                .timeout(const Duration(seconds: 10));
-            final savedProfile = await _firestore
-                .collection('users')
-                .doc(cred.user!.uid)
-                .get()
-                .timeout(const Duration(seconds: 10));
-            firestoreSuccess = savedProfile.exists;
-          } catch (retryError) {
-            firestoreError = retryError.toString();
-          }
-        } else {
-          firestoreError = e.message;
+            .timeout(const Duration(seconds: 12));
+
+        if (!savedProfile.exists || savedProfile.data() == null) {
+          throw FirebaseException(
+            plugin: 'cloud_firestore',
+            code: 'profile-not-created',
+            message: 'User profile document was not created successfully.',
+          );
         }
-      } catch (e) {
-        firestoreError = e.toString();
+      } catch (firestoreError) {
+        debugPrint('[SignUp] Firestore profile write failed: $firestoreError');
+        try {
+          await newUser.delete();
+        } catch (_) {}
+        try {
+          await _auth.signOut();
+        } catch (_) {}
+        return 'تعذر إنشاء ملف المستخدم. تم إلغاء الحساب لتجنب التكرار.';
       }
 
-      if (!firestoreSuccess) {
-        // لا نحذف Auth: الحساب حقيقي ويمكن استكمال ملفه بعد عودة الشبكة.
-        debugPrint('[SignUp] Profile write failed; preserving Auth user: $firestoreError');
-        _user = cred.user;
-        return 'تم إنشاء الحساب، لكن تعذر إكمال ملف المستخدم مؤقتًا. أعد المحاولة.';
-      }
-
-      // الخطوة 5: إشعار الإدارة بتسجيل مستخدم جديد (في الخلفية)
       AdminActivityService.log(
         type: AdminActivityType.userRegistered,
         title: 'تسجيل مستخدم جديد',
-        description: 'سجل مستخدم جديد باسم: $name ($email)',
-        targetUserId: cred.user!.uid,
+        description: 'سجل مستخدم جديد باسم: $name ($authEmail)',
+        targetUserId: newUser.uid,
         targetUserName: name,
-        metadata: {'email': email, 'phone': phone},
+        metadata: {'email': authEmail, 'phone': normalizedPhone},
       ).catchError((_) {});
 
-      _user = cred.user;
-      _userData = (await _firestore.collection('users').doc(cred.user!.uid).get()).data();
+      _user = newUser;
+      final savedUser = await _firestore.collection('users').doc(newUser.uid).get();
+      _userData = savedUser.data();
       _profileReady = _userData != null;
       notifyListeners();
       return null;
@@ -874,12 +893,20 @@ class AuthProvider extends ChangeNotifier {
   Future<String?> updateProfile(
     String name,
     String? imageUrl, {
+    String? familyName,
+    String? phone,
+    String? gender,
     String? base64Image,
   }) async {
     try {
       if (_user != null) {
+        final fullName = [name.trim(), (familyName ?? '').trim()]
+            .where((part) => part.isNotEmpty)
+            .join(' ')
+            .trim();
+
         await _user!
-            .updateDisplayName(name)
+            .updateDisplayName(fullName.isNotEmpty ? fullName : name)
             .timeout(const Duration(seconds: 10));
         if (imageUrl != null) {
           await _user!
@@ -887,14 +914,32 @@ class AuthProvider extends ChangeNotifier {
               .timeout(const Duration(seconds: 10));
         }
 
-        final updateData = <String, dynamic>{'name': name};
+        final updateData = <String, dynamic>{
+          'name': name.trim(),
+          'fullName': fullName.isNotEmpty ? fullName : name.trim(),
+          'firstName': name.trim(),
+          'lastName': (familyName ?? '').trim(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+
+        if (phone != null && phone.trim().isNotEmpty) {
+          final normalizedPhone = normalizePhone(phone);
+          updateData['phone'] = normalizedPhone;
+          updateData['phoneNumber'] = normalizedPhone;
+          updateData['phoneNormalized'] = normalizedPhone;
+        }
+
+        if (gender != null && gender.trim().isNotEmpty) {
+          updateData['gender'] = gender.trim();
+        }
+
         if (imageUrl != null) updateData['profileImageUrl'] = imageUrl;
         if (base64Image != null) updateData['profileImageBase64'] = base64Image;
 
         await _firestore
             .collection('users')
             .doc(_user!.uid)
-            .update(updateData)
+            .set(updateData, SetOptions(merge: true))
             .timeout(const Duration(seconds: 10));
 
         _loadUserDataBackground();

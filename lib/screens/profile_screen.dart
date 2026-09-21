@@ -52,9 +52,10 @@ class _ProfileScreenState extends State<ProfileScreen>
     _animController.forward();
 
     final auth = Provider.of<AuthProvider>(context, listen: false);
-    _nameController.text = auth.user?.displayName ?? '';
-    _emailController.text = auth.user?.email ?? '';
-    _phoneController.text = auth.userData?['phone'] ?? '';
+    final fullName = auth.userData?['fullName'] ?? auth.userData?['name'] ?? auth.user?.displayName ?? '';
+    _nameController.text = fullName.toString();
+    _emailController.text = auth.userData?['email'] ?? auth.user?.email ?? '';
+    _phoneController.text = auth.userData?['phoneNumber'] ?? auth.userData?['phone'] ?? '';
     _profileImageUrl = auth.user?.photoURL;
   }
 
@@ -125,6 +126,8 @@ class _ProfileScreenState extends State<ProfileScreen>
       final error = await auth.updateProfile(
         _nameController.text,
         null,
+        phone: _phoneController.text,
+        gender: auth.userData?['gender'],
         base64Image: base64String,
       );
       if (!mounted) return;
@@ -166,7 +169,12 @@ class _ProfileScreenState extends State<ProfileScreen>
   void _saveProfile() async {
     setState(() => _isLoading = true);
     final auth = Provider.of<AuthProvider>(context, listen: false);
-    final error = await auth.updateProfile(_nameController.text, null);
+    final error = await auth.updateProfile(
+      _nameController.text,
+      null,
+      phone: _phoneController.text,
+      gender: auth.userData?['gender'],
+    );
     setState(() {
       _isLoading = false;
       _isEditing = false;
@@ -662,21 +670,6 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
           ),
           const SizedBox(height: 16),
-          _buildInfoField(
-            isDark: isDark,
-            controller: _nameController,
-            label: 'الاسم الكامل',
-            icon: Icons.person_outline_rounded,
-            enabled: _isEditing,
-          ),
-          const SizedBox(height: 14),
-          _buildInfoField(
-            isDark: isDark,
-            controller: _emailController,
-            label: 'البريد الإلكتروني',
-            icon: Icons.email_outlined,
-            enabled: false,
-          ),
           const SizedBox(height: 14),
           _buildInfoField(
             isDark: isDark,

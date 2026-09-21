@@ -20,6 +20,7 @@ import '../data/ad_manager.dart';
 import 'package:share_plus/share_plus.dart';
 import '../services/book_cache_service.dart';
 import '../services/book_download_service.dart';
+import '../services/drive_url_service.dart';
 
 class PdfViewerScreen extends StatefulWidget {
   final String pdfUrl;
@@ -61,6 +62,8 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   bool _isCheckingLocalFile = true;
   bool _isOpening = true;
   bool _openFailed = false;
+  double _openingProgress = 0.0;
+  Timer? _openingTimer;
 
   // Bookmarks
   List<int> _bookmarks = [];
@@ -143,6 +146,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   void dispose() {
     _readingTimer?.cancel();
     _downloadProgressSubscription?.cancel();
+    _openingTimer?.cancel();
     _toolbarAnimController.dispose();
     _pageJumpController.dispose();
     AdManager.showInterstitialAd(chance: 0.3);
@@ -275,12 +279,8 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   }
 
   String _getDirectLink(String url) {
-    if (url.contains('drive.google.com/file/d/')) {
-      final id = url.split('/d/')[1].split('/')[0].split('?')[0];
-      // استخدام export=download لتحميل مباشر بدون تحويل
-      return 'https://drive.google.com/uc?export=download&id=$id&confirm=t';
-    }
-    return url;
+    final direct = DriveUrlService.buildDirectDownloadUrl(url);
+    return direct.isEmpty ? url : direct;
   }
 
   Future<void> _launchUrl(String url) async {
@@ -295,7 +295,33 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
     }
   }
 
+  void _startOpeningProgress() {
+    _openingTimer?.cancel();
+    _openingTimer = Timer.periodic(const Duration(milliseconds: 180), (_) {
+      if (!mounted || !_isOpening || _isCheckingLocalFile) return;
+      if (_openingProgress >= 0.95) {
+        _openingProgress = 1.0;
+        _openingTimer?.cancel();
+        if (mounted) setState(() {});
+        return;
+      }
+      if (mounted) {
+        setState(() {
+          _openingProgress = (_openingProgress + 0.08).clamp(0.0, 0.95);
+        });
+      }
+    });
+  }
+
   Future<void> _checkLocalFile() async {
+    setState(() {
+      _openingProgress = 0.0;
+      _openFailed = false;
+      _isOpening = true;
+      _isCheckingLocalFile = true;
+    });
+    _startOpeningProgress();
+
     // Only resolve an explicitly supplied/local offline file here. Opening a
     // remote book must never promote it into the offline download cache.
     if (widget.localPath != null) {
@@ -305,7 +331,9 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
           _localPath = widget.localPath;
           _isCheckingLocalFile = false;
           _isOpening = false;
+          _openingProgress = 1.0;
         });
+        _openingTimer?.cancel();
         return;
       }
     }
@@ -320,7 +348,9 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
             _localPath = file.path;
             _isCheckingLocalFile = false;
             _isOpening = false;
+            _openingProgress = 1.0;
           });
+          _openingTimer?.cancel();
           return;
         } else {
           await downloads.removeDownload(widget.book!.uniqueKey);
@@ -331,7 +361,9 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
     setState(() {
       _isCheckingLocalFile = false;
       _isOpening = true;
+      _openingProgress = 0.15;
     });
+    _startOpeningProgress();
   }
 
   Future<void> _retryOpening() async {
@@ -340,7 +372,9 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
       _openFailed = false;
       _isOpening = true;
       _isCheckingLocalFile = true;
+      _openingProgress = 0.0;
     });
+    _startOpeningProgress();
     await _checkLocalFile();
   }
 
@@ -1167,22 +1201,44 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
         if (_isOpening)
           Positioned.fill(
             child: ColoredBox(
-              color: Colors.black12,
+              color: Colors.white,
               child: Center(
-                child: Card(
-                  elevation: 6,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const CircularProgressIndicator(color: AppTheme.primaryColor),
-                        const SizedBox(height: 14),
-                        Text('جاري تجهيز الكتاب...', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 4),
-                        Text('جارٍ فتح الكتاب...', style: GoogleFonts.tajawal(color: Colors.grey)),
-                      ],
-                    ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${(_openingProgress * 100).round()}%',
+                        style: GoogleFonts.outfit(
+                          fontSize: 42,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      SizedBox(
+                        width: 220,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(999),
+                          child: LinearProgressIndicator(
+                            minHeight: 8,
+                            value: _openingProgress.clamp(0.0, 1.0),
+                            backgroundColor: const Color(0xFFEDE7F6),
+                            valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        'جاري تجهيز الكتاب',
+                        style: GoogleFonts.tajawal(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF2D1B4E),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

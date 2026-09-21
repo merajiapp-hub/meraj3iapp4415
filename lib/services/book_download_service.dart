@@ -131,9 +131,7 @@ class BookDownloadService {
   }
 
   String _directUrl(String url) {
-    final fileId = DriveUrlService.extractFileId(url);
-    if (fileId == null) return url.trim();
-    return 'https://drive.google.com/uc?export=download&id=$fileId&confirm=t';
+    return DriveUrlService.buildDirectDownloadUrl(url);
   }
 
   String _friendlyMessage(Object? error) {

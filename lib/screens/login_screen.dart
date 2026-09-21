@@ -1,14 +1,15 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../theme/app_theme.dart';
-import '../providers/auth_provider.dart';
+
 import '../providers/app_config_provider.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/app_notification.dart';
+import 'account_suspended_screen.dart';
 import 'main_screen.dart';
 import 'signup_screen.dart';
-import 'account_suspended_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,20 +18,19 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen>
-    with TickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
+
   bool _isLoading = false;
   bool _isPasswordVisible = false;
-
-  late TabController _tabController;
   bool _rememberMe = false;
 
-  late AnimationController _animController;
-  late Animation<double> _fadeAnim;
-  late Animation<Offset> _slideAnim;
+  late final TabController _tabController;
+  late final AnimationController _animController;
+  late final Animation<double> _fadeAnim;
+  late final Animation<Offset> _slideAnim;
 
   @override
   void initState() {
@@ -42,9 +42,7 @@ class _LoginScreenState extends State<LoginScreen>
     );
     _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeIn);
     _slideAnim = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero)
-        .animate(
-          CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
-        );
+        .animate(CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic));
 
     _animController.forward();
     _loadSavedCredentials();
@@ -62,10 +60,11 @@ class _LoginScreenState extends State<LoginScreen>
 
   Future<void> _loadSavedCredentials() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('saved_password');
     final savedEmail = prefs.getString('saved_email');
     final savedPhone = prefs.getString('saved_phone');
+
     if ((savedEmail?.isNotEmpty ?? false) || (savedPhone?.isNotEmpty ?? false)) {
+      if (!mounted) return;
       setState(() {
         _rememberMe = true;
         if (savedEmail != null && savedEmail.isNotEmpty) {
@@ -81,22 +80,18 @@ class _LoginScreenState extends State<LoginScreen>
 
   void _login() async {
     if (_isLoading) return;
+
     final isEmail = _tabController.index == 0;
-    final id = isEmail
-        ? _emailController.text.trim()
-        : _phoneController.text.trim();
+    final id = (isEmail ? _emailController.text : _phoneController.text).trim();
     final pass = _passwordController.text.trim();
 
     if (id.isEmpty || pass.isEmpty) {
-      AppNotification.show(
-        context,
-        'الرجاء إدخال بيانات الدخول كاملة',
-        isError: true,
-      );
+      AppNotification.show(context, 'الرجاء إدخال بيانات الدخول كاملة', isError: true);
       return;
     }
 
     setState(() => _isLoading = true);
+
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final error = isEmail
         ? await authProvider.signIn(id, pass)
@@ -104,20 +99,20 @@ class _LoginScreenState extends State<LoginScreen>
 
     if (!mounted) return;
     setState(() => _isLoading = false);
+
     if (error == null) {
+      final prefs = await SharedPreferences.getInstance();
       if (_rememberMe) {
-        final prefs = await SharedPreferences.getInstance();
         if (isEmail) {
-          prefs.setString('saved_email', id);
-          prefs.remove('saved_phone');
+          await prefs.setString('saved_email', id);
+          await prefs.remove('saved_phone');
         } else {
-          prefs.setString('saved_phone', id);
-          prefs.remove('saved_email');
+          await prefs.setString('saved_phone', id);
+          await prefs.remove('saved_email');
         }
       } else {
-        final prefs = await SharedPreferences.getInstance();
-        prefs.remove('saved_email');
-        prefs.remove('saved_phone');
+        await prefs.remove('saved_email');
+        await prefs.remove('saved_phone');
       }
 
       if (!mounted) return;
@@ -125,16 +120,19 @@ class _LoginScreenState extends State<LoginScreen>
         context,
         MaterialPageRoute(builder: (_) => const MainScreen()),
       );
-    } else if (error == 'suspended') {
+      return;
+    }
+
+    if (error == 'suspended') {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const AccountSuspendedScreen()),
       );
-    } else {
-      if (!mounted) return;
-      AppNotification.show(context, error, isError: true);
+      return;
     }
+
+    AppNotification.show(context, error, isError: true);
   }
 
   void _loginAsGuest() async {
@@ -151,336 +149,13 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() => _isLoading = true);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     await authProvider.setGuestMode(true);
+
     if (!mounted) return;
     setState(() => _isLoading = false);
+
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const MainScreen(isGuest: true)),
-    );
-  }
-
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppTheme.deepBlueGradient),
-        child: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return FadeTransition(
-                opacity: _fadeAnim,
-                child: SlideTransition(
-                  position: _slideAnim,
-                  child: SingleChildScrollView(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight,
-                      ),
-                      child: IntrinsicHeight(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 20,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              const SizedBox(height: 20),
-                              _buildHeader(),
-                              const SizedBox(height: 24),
-                              _buildGlassCard(),
-                              const Spacer(),
-                              const SizedBox(height: 16),
-                              _buildGuestButton(),
-                              const SizedBox(height: 10),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Column(
-      children: [
-        Image.asset(
-          'assets/images/logo.png',
-          width: 100, // تصغير الحجم
-          height: 100, // تصغير الحجم
-          color: Colors.white,
-          colorBlendMode: BlendMode.srcIn,
-          filterQuality: FilterQuality.high,
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'أهلاً بك مجدداً',
-          style: GoogleFonts.tajawal(
-            fontSize: 24, // تصغير الحجم
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'قم بتسجيل الدخول للمتابعة',
-          style: GoogleFonts.tajawal(
-            fontSize: 14, // تصغير الحجم
-            color: Colors.white.withValues(alpha: 0.65),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGlassCard() {
-    return Container(
-      padding: const EdgeInsets.all(20), // تصغير الـ padding
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(24), // تصغير نصف القطر
-        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Tabs
-          Container(
-            height: 40, // تصغير الارتفاع
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              indicator: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                color: AppTheme.primaryColor,
-              ),
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white.withValues(alpha: 0.6),
-              labelStyle: GoogleFonts.tajawal(
-                fontWeight: FontWeight.bold,
-                fontSize: 13, // تصغير الخط
-              ),
-              tabs: const [
-                Tab(text: 'البريد الإلكتروني'),
-                Tab(text: 'رقم الهاتف'),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Input Fields based on Tab
-          SizedBox(
-            height: 55, // تصغير الارتفاع ليتوافق مع الحقل
-            child: TabBarView(
-              controller: _tabController,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _buildTextField(
-                  controller: _emailController,
-                  icon: Icons.email_outlined,
-                  hint: 'البريد الإلكتروني',
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                _buildTextField(
-                  controller: _phoneController,
-                  icon: Icons.phone_outlined,
-                  hint: 'رقم الهاتف',
-                  keyboardType: TextInputType.phone,
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 12),
-          _buildTextField(
-            controller: _passwordController,
-            icon: Icons.lock_outline_rounded,
-            hint: 'كلمة المرور',
-            isPassword: true,
-          ),
-
-          const SizedBox(height: 8),
-          // Remember me & Forgot Password
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  SizedBox(
-                    width: 20, // تصغير المربع
-                    height: 20,
-                    child: Checkbox(
-                      value: _rememberMe,
-                      onChanged: (val) => setState(() => _rememberMe = val!),
-                      fillColor: WidgetStateProperty.resolveWith(
-                        (states) => states.contains(WidgetState.selected)
-                            ? AppTheme.primaryColor
-                            : Colors.white.withValues(alpha: 0.2),
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      side: BorderSide.none,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'تذكرني',
-                    style: GoogleFonts.tajawal(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontSize: 12, // تصغير الخط
-                    ),
-                  ),
-                ],
-              ),
-              TextButton(
-                onPressed: _showForgotPasswordDialog,
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTheme.primaryColor,
-                  padding: EdgeInsets.zero,
-                  minimumSize: const Size(0, 0),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  'نسيت كلمة المرور؟',
-                  style: GoogleFonts.tajawal(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12, // تصغير الخط
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 24), // تقليل المسافة
-
-          // Login Button
-          SizedBox(
-            width: double.infinity,
-            height: 50, // تصغير الزر
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _login,
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-
-                  : Text(
-                      'تسجيل الدخول',
-                      style: GoogleFonts.tajawal(
-                        fontSize: 16, // تصغير الخط
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-            ),
-          ),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'ليس لديك حساب؟',
-                style: GoogleFonts.tajawal(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 13, // تصغير
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const SignupScreen()),
-                  );
-                },
-                child: Text(
-                  'سجل الآن',
-                  style: GoogleFonts.tajawal(
-                    color: AppTheme.primaryColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13, // تصغير
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required IconData icon,
-    required String hint,
-    bool isPassword = false,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(14), // تصغير الزوايا
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-      ),
-      child: TextField(
-        controller: controller,
-        obscureText: isPassword && !_isPasswordVisible,
-        keyboardType: keyboardType,
-        style: GoogleFonts.tajawal(color: Colors.white, fontSize: 14), // تصغير الخط
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: GoogleFonts.tajawal(
-            color: Colors.white.withValues(alpha: 0.4),
-            fontSize: 13,
-          ),
-          prefixIcon: Icon(
-            icon,
-            color: Colors.white.withValues(alpha: 0.6),
-            size: 18, // تصغير الأيقونة
-          ),
-          filled: true,
-          fillColor: Colors.transparent,
-          suffixIcon: isPassword
-              ? IconButton(
-                  icon: Icon(
-                    _isPasswordVisible
-                        ? Icons.visibility_off_rounded
-                        : Icons.visibility_rounded,
-                    color: Colors.white.withValues(alpha: 0.6),
-                    size: 18, // تصغير
-                  ),
-                  onPressed: () =>
-                      setState(() => _isPasswordVisible = !_isPasswordVisible),
-                )
-              : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14, // تقليل المساحة الرأسية
-          ),
-        ),
-      ),
     );
   }
 
@@ -492,79 +167,26 @@ class _LoginScreenState extends State<LoginScreen>
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          backgroundColor: const Color(0xFF1E293B),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.lock_reset_rounded,
-                  color: AppTheme.primaryColor,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded( // Ensure text doesn't overflow
-                child: Text(
-                  'استعادة كلمة المرور',
-                  style: GoogleFonts.tajawal(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontSize: 15,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            'استعادة كلمة المرور',
+            style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة تعيين كلمة المرور.',
-                style: GoogleFonts.tajawal(
-                  color: Colors.white70,
-                  fontSize: 12, // تصغير
-                  height: 1.5,
-                ),
+                'أدخل البريد الإلكتروني المرتبط بالحساب ليصلك رابط الاستعادة.',
+                style: GoogleFonts.tajawal(fontSize: 13),
               ),
-              const SizedBox(height: 16),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.12),
-                  ),
-                ),
-                child: TextField(
-                  controller: resetEmailController,
-                  keyboardType: TextInputType.emailAddress,
-                  style: GoogleFonts.tajawal(color: Colors.white, fontSize: 13),
-                  decoration: InputDecoration(
-                    hintText: 'البريد الإلكتروني',
-                    hintStyle: GoogleFonts.tajawal(color: Colors.white38),
-                    prefixIcon: Icon(
-                      Icons.email_outlined,
-                      color: Colors.white38,
-                      size: 18,
-                    ),
-                    border: InputBorder.none,
-                    filled: true,
-                    fillColor: Colors.transparent,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: resetEmailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  hintText: 'البريد الإلكتروني',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
               ),
@@ -572,61 +194,386 @@ class _LoginScreenState extends State<LoginScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(
-                'إلغاء',
-                style: GoogleFonts.tajawal(
-                  color: Colors.white54,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-              ),
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('إلغاء', style: GoogleFonts.tajawal()),
             ),
-            ElevatedButton(
+            FilledButton(
               onPressed: isSending
                   ? null
                   : () async {
                       final email = resetEmailController.text.trim();
-                      if (email.isEmpty) return;
-                      setDialogState(() => isSending = true);
-                      final authProvider = Provider.of<AuthProvider>(
-                        context,
-                        listen: false,
-                      );
-                      final error = await authProvider.resetPassword(email);
-                      if (!ctx.mounted) return;
-                      Navigator.of(ctx).pop();
-                      if (error == null) {
-                        if (!mounted) return;
+                      if (email.isEmpty) {
                         AppNotification.show(
                           context,
-                          'تم إرسال رابط الاسترداد إلى $email',
+                          'يرجى إدخال البريد الإلكتروني',
+                          isError: true,
+                        );
+                        return;
+                      }
+
+                      setDialogState(() => isSending = true);
+                      final auth = Provider.of<AuthProvider>(context, listen: false);
+                      final error = await auth.resetPassword(email);
+
+                      if (!ctx.mounted) return;
+                      Navigator.pop(ctx);
+
+                      if (!mounted) return;
+                      if (error == null) {
+                        AppNotification.show(
+                          context,
+                          'تم إرسال رابط استعادة كلمة المرور إلى بريدك الإلكتروني',
                         );
                       } else {
-                        if (!mounted) return;
                         AppNotification.show(context, error, isError: true);
                       }
                     },
-              child: isSending
+              child: Text(
+                isSending ? 'جارٍ الإرسال...' : 'إرسال',
+                style: GoogleFonts.tajawal(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const pageBg = Color(0xFFF3F7F5);
+    const panelColor = Color(0xFFFFFFFF);
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        } else {
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: pageBg,
+        body: SafeArea(
+          child: FadeTransition(
+            opacity: _fadeAnim,
+            child: SlideTransition(
+              position: _slideAnim,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 430),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: 12),
+                          _buildHeader(),
+                          const SizedBox(height: 20),
+                          _buildGlassCard(),
+                          const SizedBox(height: 16),
+                          _buildGuestButton(),
+                          const SizedBox(height: 10),
+                          _buildFooterLink(),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Column(
+      children: [
+        Image.asset(
+          'assets/images/logo.png',
+          width: 78,
+          height: 78,
+          fit: BoxFit.contain,
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'مرحباً بعودتك',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.tajawal(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF163B33),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'سجل الدخول للاستمرار في رحلتك',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.tajawal(
+            fontSize: 14,
+            color: const Color(0xFF5F7071),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGlassCard() {
+    const panelColor = Color(0xFFFFFFFF);
+    const fieldBg = Color(0xFFF3F7F5);
+    const dividerColor = Color(0xFFDDEAE7);
+    const activeColor = Color(0xFF0B6B58);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: panelColor,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: const Color(0xFFE3EFEA), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 52,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEAF3F1),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              indicator: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                color: activeColor,
+              ),
+              dividerColor: Colors.transparent,
+              labelColor: Colors.white,
+              unselectedLabelColor: const Color(0xFF4E615C),
+              indicatorPadding: const EdgeInsets.all(4),
+              labelStyle: GoogleFonts.tajawal(
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
+              tabs: const [
+                Tab(text: 'البريد'),
+                Tab(text: 'الهاتف'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: _tabController.index == 0
+                ? _buildTextField(
+                    key: const ValueKey('email'),
+                    controller: _emailController,
+                    icon: Icons.email_outlined,
+                    hint: 'البريد الإلكتروني',
+                    keyboardType: TextInputType.emailAddress,
+                  )
+                : _buildTextField(
+                    key: const ValueKey('phone'),
+                    controller: _phoneController,
+                    icon: Icons.phone_outlined,
+                    hint: 'رقم الهاتف',
+                    keyboardType: TextInputType.phone,
+                  ),
+          ),
+          const SizedBox(height: 12),
+          _buildTextField(
+            controller: _passwordController,
+            icon: Icons.lock_outline_rounded,
+            hint: 'كلمة المرور',
+            isPassword: true,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: Checkbox(
+                      value: _rememberMe,
+                      onChanged: (val) => setState(() => _rememberMe = val ?? false),
+                      fillColor: WidgetStateProperty.resolveWith(
+                        (states) => states.contains(WidgetState.selected)
+                            ? activeColor
+                            : const Color(0xFFDAE8E4),
+                      ),
+                      checkColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'تذكرني',
+                    style: GoogleFonts.tajawal(
+                      color: const Color(0xFF556664),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+              TextButton(
+                onPressed: _showForgotPasswordDialog,
+                style: TextButton.styleFrom(
+                  foregroundColor: activeColor,
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(0, 0),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  'نسيت كلمة المرور؟',
+                  style: GoogleFonts.tajawal(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _login,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: activeColor,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: _isLoading
                   ? const SizedBox(
-                      width: 16,
-                      height: 16,
+                      width: 20,
+                      height: 20,
                       child: CircularProgressIndicator(
                         color: Colors.white,
                         strokeWidth: 2,
                       ),
                     )
                   : Text(
-                      'إرسال',
+                      'تسجيل الدخول',
                       style: GoogleFonts.tajawal(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    Key? key,
+    required TextEditingController controller,
+    required IconData icon,
+    required String hint,
+    bool isPassword = false,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      height: 56,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1D322E) : const Color(0xFFF5F9F8),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? const Color(0xFF2A4A43) : const Color(0xFFE0ECE9),
+          width: 1,
         ),
       ),
+      child: TextField(
+        key: key,
+        controller: controller,
+        obscureText: isPassword && !_isPasswordVisible,
+        keyboardType: keyboardType,
+        textAlign: TextAlign.right,
+        style: GoogleFonts.tajawal(
+          color: isDark ? Colors.white : const Color(0xFF21382F),
+          fontSize: 14,
+        ),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: GoogleFonts.tajawal(
+            color: const Color(0xFF7C8C88),
+            fontSize: 13,
+          ),
+          prefixIcon: Icon(
+            icon,
+            color: const Color(0xFF4F6660),
+            size: 18,
+          ),
+          suffixIcon: isPassword
+              ? IconButton(
+                  icon: Icon(
+                    _isPasswordVisible
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                    color: const Color(0xFF52615C),
+                    size: 18,
+                  ),
+                  onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+                )
+              : null,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFooterLink() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          'ليس لديك حساب؟',
+          style: GoogleFonts.tajawal(
+            color: const Color(0xFF5E665F),
+            fontSize: 13,
+          ),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SignupScreen()),
+            );
+          },
+          child: Text(
+            'إنشاء حساب',
+            style: GoogleFonts.tajawal(
+              color: const Color(0xFF0B6B58),
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ],
     );
   }
 

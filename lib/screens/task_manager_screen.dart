@@ -725,7 +725,7 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
                 minHeight: 8,
                 backgroundColor: isDark ? Colors.white12 : Colors.grey.shade200,
                 valueColor: AlwaysStoppedAnimation<Color>(
-                  isDark ? AppTheme.accentColor : const Color(0xFF10B981),
+                  isDark ? AppTheme.accentColor : AppTheme.primaryColor,
                 ),
               ),
             ),
@@ -1158,11 +1158,7 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
               decoration: BoxDecoration(
                 gradient: isDark
                     ? AppTheme.deepBlueGradient
-                    : const LinearGradient(
-                        colors: [Color(0xFF0EA5E9), Color(0xFF0284C7)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                    : AppTheme.primaryGradient,
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(48),
                   bottomRight: Radius.circular(48),

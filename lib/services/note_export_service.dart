@@ -5,24 +5,60 @@ import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 /// Service to export notes as PDF or TXT with full Arabic RTL support.
 class NoteExportService {
+  static String _normalizePlainText(String value) {
+    if (value.isEmpty) return '';
+    final normalized = value
+        .replaceAll('\r\n', '\n')
+        .replaceAll('\r', '\n')
+        .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+        .trimRight();
+    return normalized;
+  }
+
+  static List<dynamic> _extractDeltaOps(dynamic decoded) {
+    if (decoded is List) return decoded;
+    if (decoded is Map) {
+      if (decoded['ops'] is List) return decoded['ops'] as List;
+      if (decoded['delta'] is List) return decoded['delta'] as List;
+      if (decoded['content'] is List) return decoded['content'] as List;
+    }
+    return const [];
+  }
+
   // ─── Text extraction from Quill Delta JSON ─────────────────────────────
   static String plainTextFromQuill(String content) {
-    if (content.isEmpty) return '';
+    if (content.trim().isEmpty) return '';
+
+    final raw = content.trim();
     try {
-      final decoded = jsonDecode(content);
-      if (decoded is! List) return content;
+      final decoded = jsonDecode(raw);
+      final ops = _extractDeltaOps(decoded);
+      if (ops.isEmpty) return _normalizePlainText(raw);
+
       final buffer = StringBuffer();
-      for (final op in decoded) {
+      for (final op in ops) {
+        if (op is String) {
+          buffer.write(op);
+          continue;
+        }
+
         if (op is Map) {
           final insert = op['insert'];
           if (insert is String) {
             buffer.write(insert);
+          } else if (insert is Map) {
+            final embedded = insert['image'] ?? insert['video'] ?? insert['formula'];
+            if (embedded is String && embedded.isNotEmpty) {
+              buffer.write(embedded);
+            }
           }
         }
       }
-      return buffer.toString().trimRight();
+
+      final text = buffer.toString();
+      return _normalizePlainText(text);
     } catch (_) {
-      return content;
+      return _normalizePlainText(raw);
     }
   }
 
@@ -68,7 +104,6 @@ class NoteExportService {
     final document = PdfDocument();
     final safeTitle = _sanitizeTitle(title);
 
-    // Load Arabic-supporting fonts from assets
     final regularData =
         await rootBundle.load('assets/fonts/Tajawal-Regular.ttf');
     final boldData = await rootBundle.load('assets/fonts/Tajawal-Bold.ttf');
@@ -77,7 +112,6 @@ class NoteExportService {
     final metaFont = PdfTrueTypeFont(regularData.buffer.asUint8List(), 10);
     final bodyFont = PdfTrueTypeFont(regularData.buffer.asUint8List(), 13);
 
-    // RTL string format for Arabic text
     final rtlFormat = PdfStringFormat(
       textDirection: PdfTextDirection.rightToLeft,
       alignment: PdfTextAlignment.right,
@@ -93,35 +127,33 @@ class NoteExportService {
     final primaryBrush = PdfSolidBrush(PdfColor(15, 23, 42));
     final metaBrush = PdfSolidBrush(PdfColor(100, 116, 139));
 
-    // First page
+    final rawBodyText = plainTextFromQuill(content);
+    final bodyText = _normalizePlainText(rawBodyText);
+    final bodyTextValue = bodyText.isEmpty ? '(ملاحظة فارغة)' : bodyText;
+
     final page = document.pages.add();
     final pageWidth = page.getClientSize().width;
     final pageHeight = page.getClientSize().height;
     const margin = 36.0;
 
-    // Optional page background
     if (includeBackground && pageStyle != 'blank') {
       _drawPageBackground(page.graphics, pageWidth, pageHeight, pageStyle);
     }
 
-    // Title (RTL, bold)
-    final titleStr = safeTitle;
     page.graphics.drawString(
-      titleStr,
+      safeTitle,
       titleFont,
       brush: primaryBrush,
       bounds: Rect.fromLTWH(0, 0, pageWidth, 34),
       format: rtlFormat,
     );
 
-    // Divider line
     page.graphics.drawLine(
       PdfPen(PdfColor(200, 210, 220), width: 0.5),
       Offset(0, 40),
       Offset(pageWidth, 40),
     );
 
-    // Meta: app name + date (LTR)
     final now = DateTime.now();
     final dateStr =
         '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
@@ -133,13 +165,8 @@ class NoteExportService {
       format: ltrFormat,
     );
 
-    // Body text with RTL Arabic and automatic pagination
-    final plainText = plainTextFromQuill(content);
-    final bodyStr =
-        plainText.trim().isEmpty ? '(ملاحظة فارغة)' : plainText.trim();
-
     final bodyElement = PdfTextElement(
-      text: bodyStr,
+      text: bodyTextValue,
       font: bodyFont,
       brush: primaryBrush,
       format: rtlFormat,
@@ -154,7 +181,6 @@ class NoteExportService {
       ),
     );
 
-    // Page numbers on all pages
     _addPageNumbers(document, metaFont, metaBrush);
 
     final bytes = await document.save();

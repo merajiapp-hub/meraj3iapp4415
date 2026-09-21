@@ -561,9 +561,16 @@ class _HomePageState extends State<HomePage>
       tooltip: tooltip,
       onPressed: onPressed,
       icon: Icon(icon, color: color, size: 24),
+      splashRadius: 20,
+      highlightColor: color.withValues(alpha: 0.08),
       style: IconButton.styleFrom(
-        backgroundColor: color.withValues(alpha: 0.1),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: Colors.transparent,
+        foregroundColor: color,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(10)),
+        ),
+        padding: const EdgeInsets.all(8),
+        minimumSize: const Size(36, 36),
       ),
     );
   }

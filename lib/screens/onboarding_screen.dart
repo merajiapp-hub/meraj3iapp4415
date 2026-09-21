@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
@@ -135,6 +136,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             duration: const Duration(milliseconds: 350),
             curve: Curves.easeOutCubic,
           );
+        } else {
+          SystemNavigator.pop();
         }
       },
       child: Scaffold(
