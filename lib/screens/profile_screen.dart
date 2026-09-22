@@ -304,19 +304,19 @@ class _ProfileScreenState extends State<ProfileScreen>
     final downloads = Provider.of<DownloadsProvider>(context);
     final auth = Provider.of<AuthProvider>(context);
     final reading = Provider.of<ReadingProvider>(context);
-    final userName = auth.user?.displayName ?? 'المستخدم';
-    final userEmail = auth.user?.email ?? '';
+    final userName = auth.userData?['fullName'] ?? auth.userData?['name'] ?? auth.user?.displayName ?? 'المستخدم';
+    final userEmail = auth.userData?['email'] ?? auth.user?.email ?? '';
+    final userPhone = auth.resolvePhoneValue(auth.userData) ?? '';
 
     if (!_isEditing) {
-      if (_nameController.text != (auth.user?.displayName ?? '')) {
-        _nameController.text = auth.user?.displayName ?? '';
+      if (_nameController.text != userName) {
+        _nameController.text = userName.toString();
       }
-      if (_emailController.text != (auth.user?.email ?? '')) {
-        _emailController.text = auth.user?.email ?? '';
+      if (_emailController.text != userEmail) {
+        _emailController.text = userEmail.toString();
       }
-      final phone = auth.resolvePhoneValue(auth.userData) ?? '';
-      if (_phoneController.text != phone) {
-        _phoneController.text = phone;
+      if (_phoneController.text != userPhone) {
+        _phoneController.text = userPhone;
       }
     }
 
@@ -628,6 +628,8 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Widget _buildInfoCard(bool isDark) {
     final auth = Provider.of<AuthProvider>(context, listen: false);
+    final fullName = auth.userData?['fullName'] ?? auth.userData?['name'] ?? auth.user?.displayName ?? 'غير متوفر';
+    final email = auth.userData?['email'] ?? auth.user?.email ?? 'غير متوفر';
     final gender = auth.userData?['gender'] ?? 'غير محدد';
     final creationTime = auth.user?.metadata.creationTime;
     final lastSignInTime = auth.user?.metadata.lastSignInTime;
@@ -670,6 +672,19 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
           ),
           const SizedBox(height: 16),
+          _buildReadOnlyField(
+            isDark: isDark,
+            label: 'الاسم الكامل',
+            value: fullName.toString(),
+            icon: Icons.person_rounded,
+          ),
+          const SizedBox(height: 14),
+          _buildReadOnlyField(
+            isDark: isDark,
+            label: 'البريد الإلكتروني',
+            value: email.toString(),
+            icon: Icons.email_outlined,
+          ),
           const SizedBox(height: 14),
           _buildInfoField(
             isDark: isDark,

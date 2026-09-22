@@ -20,14 +20,12 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin {
   final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
 
   bool _isLoading = false;
   bool _isPasswordVisible = false;
   bool _rememberMe = false;
 
-  late final TabController _tabController;
   late final AnimationController _animController;
   late final Animation<double> _fadeAnim;
   late final Animation<Offset> _slideAnim;
@@ -35,7 +33,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
@@ -51,9 +48,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   @override
   void dispose() {
     _emailController.dispose();
-    _phoneController.dispose();
     _passwordController.dispose();
-    _tabController.dispose();
     _animController.dispose();
     super.dispose();
   }
@@ -61,19 +56,12 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   Future<void> _loadSavedCredentials() async {
     final prefs = await SharedPreferences.getInstance();
     final savedEmail = prefs.getString('saved_email');
-    final savedPhone = prefs.getString('saved_phone');
 
-    if ((savedEmail?.isNotEmpty ?? false) || (savedPhone?.isNotEmpty ?? false)) {
+    if (savedEmail != null && savedEmail.isNotEmpty) {
       if (!mounted) return;
       setState(() {
         _rememberMe = true;
-        if (savedEmail != null && savedEmail.isNotEmpty) {
-          _emailController.text = savedEmail;
-          _tabController.index = 0;
-        } else if (savedPhone != null && savedPhone.isNotEmpty) {
-          _phoneController.text = savedPhone;
-          _tabController.index = 1;
-        }
+        _emailController.text = savedEmail;
       });
     }
   }
@@ -81,21 +69,18 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   void _login() async {
     if (_isLoading) return;
 
-    final isEmail = _tabController.index == 0;
-    final id = (isEmail ? _emailController.text : _phoneController.text).trim();
+    final email = _emailController.text.trim();
     final pass = _passwordController.text.trim();
 
-    if (id.isEmpty || pass.isEmpty) {
-      AppNotification.show(context, 'الرجاء إدخال بيانات الدخول كاملة', isError: true);
+    if (email.isEmpty || pass.isEmpty) {
+      AppNotification.show(context, 'الرجاء إدخال البريد الإلكتروني وكلمة المرور', isError: true);
       return;
     }
 
     setState(() => _isLoading = true);
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final error = isEmail
-        ? await authProvider.signIn(id, pass)
-        : await authProvider.signInWithPhone(id, pass);
+    final error = await authProvider.signIn(email, pass);
 
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -103,16 +88,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     if (error == null) {
       final prefs = await SharedPreferences.getInstance();
       if (_rememberMe) {
-        if (isEmail) {
-          await prefs.setString('saved_email', id);
-          await prefs.remove('saved_phone');
-        } else {
-          await prefs.setString('saved_phone', id);
-          await prefs.remove('saved_email');
-        }
+        await prefs.setString('saved_email', email);
       } else {
         await prefs.remove('saved_email');
-        await prefs.remove('saved_phone');
       }
 
       if (!mounted) return;
@@ -242,7 +220,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     const pageBg = Color(0xFFF3F7F5);
-    const panelColor = Color(0xFFFFFFFF);
 
     return PopScope(
       canPop: false,
@@ -325,8 +302,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
   Widget _buildGlassCard() {
     const panelColor = Color(0xFFFFFFFF);
-    const fieldBg = Color(0xFFF3F7F5);
-    const dividerColor = Color(0xFFDDEAE7);
     const activeColor = Color(0xFF0B6B58);
 
     return Container(
@@ -337,7 +312,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         border: Border.all(color: const Color(0xFFE3EFEA), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -345,50 +320,12 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       ),
       child: Column(
         children: [
-          Container(
-            height: 52,
-            decoration: BoxDecoration(
-              color: const Color(0xFFEAF3F1),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              indicator: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                color: activeColor,
-              ),
-              dividerColor: Colors.transparent,
-              labelColor: Colors.white,
-              unselectedLabelColor: const Color(0xFF4E615C),
-              indicatorPadding: const EdgeInsets.all(4),
-              labelStyle: GoogleFonts.tajawal(
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
-              ),
-              tabs: const [
-                Tab(text: 'البريد'),
-                Tab(text: 'الهاتف'),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: _tabController.index == 0
-                ? _buildTextField(
-                    key: const ValueKey('email'),
-                    controller: _emailController,
-                    icon: Icons.email_outlined,
-                    hint: 'البريد الإلكتروني',
-                    keyboardType: TextInputType.emailAddress,
-                  )
-                : _buildTextField(
-                    key: const ValueKey('phone'),
-                    controller: _phoneController,
-                    icon: Icons.phone_outlined,
-                    hint: 'رقم الهاتف',
-                    keyboardType: TextInputType.phone,
-                  ),
+          _buildTextField(
+            key: const ValueKey('email'),
+            controller: _emailController,
+            icon: Icons.email_outlined,
+            hint: 'البريد الإلكتروني',
+            keyboardType: TextInputType.emailAddress,
           ),
           const SizedBox(height: 12),
           _buildTextField(
@@ -495,12 +432,12 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      height: 56,
+      height: 52,
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1D322E) : const Color(0xFFF5F9F8),
-        borderRadius: BorderRadius.circular(16),
+        color: isDark ? const Color(0xFF1D322E) : const Color(0xFFF5F8F7),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isDark ? const Color(0xFF2A4A43) : const Color(0xFFE0ECE9),
+          color: isDark ? const Color(0xFF2A4A43) : const Color(0xFFE5EEEA),
           width: 1,
         ),
       ),
@@ -512,13 +449,13 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         textAlign: TextAlign.right,
         style: GoogleFonts.tajawal(
           color: isDark ? Colors.white : const Color(0xFF21382F),
-          fontSize: 14,
+          fontSize: 13,
         ),
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: GoogleFonts.tajawal(
-            color: const Color(0xFF7C8C88),
-            fontSize: 13,
+            color: const Color(0xFF8AA09B),
+            fontSize: 12.5,
           ),
           prefixIcon: Icon(
             icon,

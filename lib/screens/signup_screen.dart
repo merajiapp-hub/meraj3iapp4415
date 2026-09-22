@@ -142,7 +142,6 @@ class _SignupScreenState extends State<SignupScreen>
   @override
   Widget build(BuildContext context) {
     const pageBg = Color(0xFFF3F7F5);
-    const panelColor = Color(0xFFFFFFFF);
 
     return PopScope(
       canPop: false,
@@ -213,7 +212,6 @@ class _SignupScreenState extends State<SignupScreen>
 
   Widget _buildGlassCard() {
     const panelColor = Color(0xFFFFFFFF);
-    const fieldBg = Color(0xFFF3F7F5);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -223,7 +221,7 @@ class _SignupScreenState extends State<SignupScreen>
         border: Border.all(color: const Color(0xFFE3EFEA), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -259,12 +257,12 @@ class _SignupScreenState extends State<SignupScreen>
           ),
           const SizedBox(height: 12),
           Container(
-            height: 58,
+            height: 52,
             padding: const EdgeInsets.symmetric(horizontal: 14),
             decoration: BoxDecoration(
-              color: fieldBg,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE0ECE9), width: 1),
+              color: const Color(0xFFF6F9F8),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE5EEEA), width: 1),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
@@ -272,7 +270,7 @@ class _SignupScreenState extends State<SignupScreen>
                 value: _selectedGender,
                 icon: const Icon(Icons.keyboard_arrow_down_rounded),
                 style: GoogleFonts.tajawal(
-                  fontSize: 14,
+                  fontSize: 13,
                   color: const Color(0xFF24332D),
                 ),
                 items: ['ذكر', 'أنثى'].map((String value) {
@@ -435,11 +433,11 @@ class _SignupScreenState extends State<SignupScreen>
   }) {
     final isVisible = isConfirm ? _isConfirmPasswordVisible : _isPasswordVisible;
     return Container(
-      height: 58,
+      height: 52,
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F7F5),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE0ECE9), width: 1),
+        color: const Color(0xFFF5F8F7),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5EEEA), width: 1),
       ),
       child: TextField(
         controller: controller,
@@ -448,13 +446,13 @@ class _SignupScreenState extends State<SignupScreen>
         textAlign: TextAlign.right,
         style: GoogleFonts.tajawal(
           color: const Color(0xFF24332D),
-          fontSize: 14,
+          fontSize: 13,
         ),
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: GoogleFonts.tajawal(
-            color: const Color(0xFF7B847F),
-            fontSize: 13,
+            color: const Color(0xFF8AA09B),
+            fontSize: 12.5,
           ),
           prefixIcon: Icon(
             icon,
