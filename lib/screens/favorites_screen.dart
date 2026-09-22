@@ -21,6 +21,7 @@ class FavoritesScreen extends StatelessWidget {
             title: 'المفضلة',
             icon: Icons.favorite_rounded,
             gradient: AppTheme.brandGradient,
+            showBackButton: false,
           ),
           Consumer<FavoritesProvider>(
             builder: (context, favoritesProvider, child) {

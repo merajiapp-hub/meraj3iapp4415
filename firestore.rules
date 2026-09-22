@@ -37,9 +37,9 @@ service cloud.firestore {
     /// يتحقق من أن حقل البيانات المُرسَلة لا يحتوي على حقول حساسة
     function noSensitiveFields() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-        'name', 'fullName', 'gender', 'educationLevel',
+        'name', 'fullName', 'firstName', 'lastName', 'gender', 'educationLevel',
         'email', 'phone', 'phoneNumber', 'phoneNormalized',
-        'profileImageUrl', 'profileImageBase64',
+        'profileImageUrl', 'profileImageBase64', 'photoUrl',
         'fcmToken', 'fcmTokens', 'lastTokenUpdate',
         'provider', 'authProvider',
         'failedLoginAttempts', 'needsSupport', 'lastLoginAttemptAt',

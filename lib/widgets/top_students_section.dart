@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/results_service.dart';
+import '../../theme/app_theme.dart';
 import '../screens/results/student_detail_screen.dart';
 
 class TopStudentsSection extends StatelessWidget {
@@ -25,22 +26,49 @@ class TopStudentsSection extends StatelessWidget {
 
   List<StudentResult> _getTop3() {
     if (students.isEmpty) return [];
-    List<StudentResult> sorted;
+    
+    // الحصول على الناجحين فقط
+    final passedStudents = students.where((r) => r.isPassed && r.score != null).toList();
+    if (passedStudents.isEmpty) return [];
+
+    List<StudentResult> topList = [];
+    
     if (examType == ExamType.bac || examType == ExamType.complementary) {
-      final withNational = students
-          .where((r) => r.score != null)
-          .toList()
-        ..sort((a, b) {
-          final na = int.tryParse(a.nationalRank) ?? 999999;
-          final nb = int.tryParse(b.nationalRank) ?? 999999;
-          return na.compareTo(nb);
-        });
-      sorted = withNational;
+      // للباكالوريا: تصفية أصحاب الترتيب الوطني 1، 2، أو 3
+      topList = passedStudents.where((r) {
+        final rank = int.tryParse(r.nationalRank) ?? 999999;
+        return rank <= 3;
+      }).toList();
+      
+      // الترتيب تصاعدياً حسب الرتبة لتظهر 1 ثم 2 ثم 3
+      topList.sort((a, b) {
+        final na = int.tryParse(a.nationalRank) ?? 999999;
+        final nb = int.tryParse(b.nationalRank) ?? 999999;
+        return na.compareTo(nb);
+      });
     } else {
-      sorted = students.where((r) => r.score != null).toList()
-        ..sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
+      // للمسابقات الأخرى: تصفية أصحاب الترتيب 1، 2، أو 3
+      topList = passedStudents.where((r) {
+        final rank = int.tryParse(r.rank) ?? 999999;
+        return rank <= 3;
+      }).toList();
+      
+      // الترتيب تصاعدياً حسب الرتبة
+      topList.sort((a, b) {
+        final na = int.tryParse(a.rank) ?? 999999;
+        final nb = int.tryParse(b.rank) ?? 999999;
+        return na.compareTo(nb);
+      });
     }
-    return sorted.take(3).toList();
+
+    // إذا لم تكن هناك رتب محددة (fallback)، نأخذ أول 3 بناءً على Score
+    if (topList.isEmpty) {
+      final sortedByScore = passedStudents.toList()
+        ..sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
+      return sortedByScore.take(3).toList();
+    }
+    
+    return topList;
   }
 
   @override
@@ -86,19 +114,19 @@ class TopStudentsSection extends StatelessWidget {
                 ),
               ],
             ),
-            child: Column(
-              children: [
-                if (topStudents.isNotEmpty)
-                  _buildTopStudentRow(context, topStudents[0], 1, isDark),
-                if (topStudents.length > 1) ...[
-                  Divider(height: 1, color: Colors.grey.withValues(alpha: 0.2)),
-                  _buildTopStudentRow(context, topStudents[1], 2, isDark),
-                ],
-                if (topStudents.length > 2) ...[
-                  Divider(height: 1, color: Colors.grey.withValues(alpha: 0.2)),
-                  _buildTopStudentRow(context, topStudents[2], 3, isDark),
-                ],
-              ],
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: topStudents.length,
+              separatorBuilder: (context, index) => Divider(height: 1, color: Colors.grey.withValues(alpha: 0.2)),
+              itemBuilder: (context, index) {
+                final student = topStudents[index];
+                final rankStr = (examType == ExamType.bac || examType == ExamType.complementary) 
+                    ? student.nationalRank 
+                    : student.rank;
+                final rank = int.tryParse(rankStr) ?? (index + 1);
+                return _buildTopStudentRow(context, student, rank, isDark);
+              },
             ),
           ),
         ],
@@ -111,7 +139,9 @@ class TopStudentsSection extends StatelessWidget {
         ? const Color(0xFFFFD700)
         : rank == 2
             ? Colors.grey[400]!
-            : const Color(0xFFCD7F32);
+            : rank == 3 
+                ? const Color(0xFFCD7F32)
+                : AppTheme.primaryColor;
 
     final displayScore = student.score != null ? student.score!.toStringAsFixed(2) : '—';
 

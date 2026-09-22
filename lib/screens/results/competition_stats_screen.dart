@@ -71,9 +71,9 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
     final failed = widget.allResults.where((r) => r.isFailed).length;
     final absent = widget.allResults.where((r) => r.isAbsent).length;
     final expelled = widget.allResults.where((r) => r.isExpelled).length;
-    final complementary = widget.allResults
-        .where((r) => r.isComplementary)
-        .length;
+    final complementary = widget.examType == ExamType.bac
+        ? widget.allResults.where((r) => r.isComplementary).length
+        : 0;
 
     final passRate = total > 0 ? (passed / total * 100) : 0.0;
     final failRate = total > 0 ? (failed / total * 100) : 0.0;

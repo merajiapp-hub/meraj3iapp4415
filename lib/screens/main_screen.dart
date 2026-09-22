@@ -203,7 +203,7 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                   Expanded(
                     child: _NavItem(
-                      icon: Icons.bookmark_rounded,
+                      icon: Icons.favorite_rounded,
                       label: 'المفضلة',
                       index: 4,
                       currentIndex: _currentIndex,

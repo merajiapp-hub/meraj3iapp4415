@@ -220,7 +220,14 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
     if (widget.examType == ExamType.concours) {
       return {'ناجح', 'راسب'};
     }
-    final statuses = _allResults.where((r) => !r.isComplementary).map((r) => r.status).where((s) {
+    
+    final statuses = _allResults.where((r) {
+      // إخفاء حالة "تكميلي" للمسابقات غير البكالوريا العادية
+      if (r.isComplementary && widget.examType != ExamType.bac) {
+        return false;
+      }
+      return true;
+    }).map((r) => r.status).where((s) {
       if (s.isEmpty) return false;
       return true;
     }).toSet();
@@ -298,6 +305,15 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
                         ),
                       ],
                     ),
+                  ),
+                ),
+
+              // Quick Stats Summary
+              if (_allResults.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: _buildQuickStats(isDark),
                   ),
                 ),
 
@@ -435,6 +451,68 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
 
 
 
+
+  Widget _buildQuickStats(bool isDark) {
+    int total = _allResults.length;
+    int passed = _allResults.where((r) => r.isPassed).length;
+    double passRate = total > 0 ? (passed / total * 100) : 0;
+    
+    double highest = 0;
+    double lowest = 9999;
+    int countWithScore = 0;
+    for (var r in _allResults) {
+      if (r.score != null && !r.isInvalid) {
+        if (r.score! > highest) highest = r.score!;
+        if (r.score! < lowest) lowest = r.score!;
+        countWithScore++;
+      }
+    }
+    if (countWithScore == 0) lowest = 0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE2E8F0),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _StatItem(
+            label: 'المترشحين',
+            value: total.toString(),
+            icon: Icons.group_rounded,
+            color: Colors.blue,
+            isDark: isDark,
+          ),
+          _StatItem(
+            label: 'نسبة النجاح',
+            value: '${passRate.toStringAsFixed(1)}%',
+            icon: Icons.pie_chart_rounded,
+            color: Colors.green,
+            isDark: isDark,
+          ),
+          _StatItem(
+            label: 'أعلى ${widget.scoreLabel}',
+            value: highest > 0 ? highest.toStringAsFixed(2) : '—',
+            icon: Icons.trending_up_rounded,
+            color: Colors.orange,
+            isDark: isDark,
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildSearchBar(bool isDark) {
     return Container(
@@ -831,26 +909,59 @@ Flexible(child: Text(student.wilaya,
   }
 
   Widget _buildEmpty() {
+    final hasFilters = _filterWilaya.isNotEmpty ||
+        _filterCenter.isNotEmpty ||
+        _filterSchool.isNotEmpty ||
+        _filterStatus.isNotEmpty ||
+        _filterBranch.isNotEmpty ||
+        _searchCtrl.text.isNotEmpty;
+
     return Padding(
       padding: const EdgeInsets.all(40),
       child: Center(
         child: Column(
           children: [
-            const Icon(Icons.search_off_rounded,
-                size: 60, color: Colors.grey),
+            Icon(Icons.search_off_rounded, size: 80, color: Colors.grey[400]),
             const SizedBox(height: 16),
             Text(
-              'لا توجد نتائج',
+              'لا توجد نتائج مطابقة',
               style: GoogleFonts.tajawal(
-                fontSize: 18,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
+                color: Colors.grey[700],
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'جرب تعديل معايير البحث',
+              'لم يتم العثور على أي نتائج تتطابق مع بحثك.',
               style: GoogleFonts.tajawal(color: Colors.grey[500]),
+              textAlign: TextAlign.center,
             ),
+            if (hasFilters) ...[
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () {
+                  _searchCtrl.clear();
+                  setState(() {
+                    _filterWilaya = '';
+                    _filterCenter = '';
+                    _filterSchool = '';
+                    _filterStatus = '';
+                    _filterBranch = '';
+                  });
+                  _applyFilter();
+                },
+                icon: const Icon(Icons.filter_alt_off_rounded),
+                label: Text('مسح الفلاتر', style: GoogleFonts.tajawal()),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -974,4 +1085,52 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
+class _StatItem extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final bool isDark;
+
+  const _StatItem({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: GoogleFonts.outfit(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.tajawal(
+            fontSize: 11,
+            color: Colors.grey[500],
+          ),
+        ),
+      ],
+    );
+  }
+}
 

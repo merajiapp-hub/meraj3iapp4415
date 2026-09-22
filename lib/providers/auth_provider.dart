@@ -20,7 +20,9 @@ class AuthProvider extends ChangeNotifier {
   bool _mustChangePassword = false;
   bool _profileReady = false;
   bool _isAccountSuspended = false;
-  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _accountStatusSubscription;
+  bool _isRegistering = false;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _accountStatusSubscription;
 
   static const String _defaultPhoneCountryCode = '222';
 
@@ -56,9 +58,11 @@ class AuthProvider extends ChangeNotifier {
     return 'phone.$digits@auth.meraj3i.invalid';
   }
 
-  String normalizePhone(String value) => AuthProvider.normalizePhoneValue(value);
+  String normalizePhone(String value) =>
+      AuthProvider.normalizePhoneValue(value);
 
-  String _phoneAuthEmail(String phone) => AuthProvider.canonicalRegistrationEmail(null, phone);
+  String _phoneAuthEmail(String phone) =>
+      AuthProvider.canonicalRegistrationEmail(null, phone);
 
   String _providerForUser(User user) {
     if (user.email?.endsWith('@auth.meraj3i.invalid') == true) {
@@ -69,7 +73,13 @@ class AuthProvider extends ChangeNotifier {
 
   String? resolvePhoneValue(Map<String, dynamic>? data) {
     if (data == null) return null;
-    for (final key in const ['phone', 'phoneNumber', 'mobile', 'telephone', 'phoneNormalized']) {
+    for (final key in const [
+      'phone',
+      'phoneNumber',
+      'mobile',
+      'telephone',
+      'phoneNormalized',
+    ]) {
       final value = data[key];
       if (value is String && value.trim().isNotEmpty) {
         return value.trim();
@@ -92,7 +102,11 @@ class AuthProvider extends ChangeNotifier {
     await user.linkWithCredential(credential);
   }
 
-  static String safeFallbackDisplayName({String? fullName, String? email, String? provider}) {
+  static String safeFallbackDisplayName({
+    String? fullName,
+    String? email,
+    String? provider,
+  }) {
     final candidate = (fullName ?? '').trim();
     if (candidate.isNotEmpty) return candidate;
 
@@ -116,7 +130,9 @@ class AuthProvider extends ChangeNotifier {
   }) {
     final normalizedPhone = normalizePhone(phone);
     final safeEmail = email.trim();
-    final safeName = name.trim().isNotEmpty ? name.trim() : safeFallbackDisplayName(email: safeEmail, provider: provider);
+    final safeName = name.trim().isNotEmpty
+        ? name.trim()
+        : safeFallbackDisplayName(email: safeEmail, provider: provider);
     final profile = <String, dynamic>{
       'uid': uid,
       'name': safeName,
@@ -156,12 +172,14 @@ class AuthProvider extends ChangeNotifier {
         _isGuest = false;
         _profileReady = false;
         _isAccountSuspended = false;
-        try {
-          await ensureUserDocument(user, provider: _providerForUser(user));
-          await _checkAdminStatus(user);
-          await refreshAccountStatus();
-        } catch (e) {
-          debugPrint('[Auth] Profile provisioning failed: $e');
+        if (!_isRegistering) {
+          try {
+            await ensureUserDocument(user, provider: _providerForUser(user));
+            await _checkAdminStatus(user);
+            await refreshAccountStatus();
+          } catch (e) {
+            debugPrint('[Auth] Profile provisioning failed: $e');
+          }
         }
       } else {
         _isAdmin = false;
@@ -191,8 +209,8 @@ class AuthProvider extends ChangeNotifier {
   Future<void> _checkAdminStatus(User user) async {
     try {
       final email = user.email?.trim().toLowerCase();
-      final isKnownAdmin = email == 'mma831770@gmail.com' ||
-          email == 'abdellahismd@gmail.com';
+      final isKnownAdmin =
+          email == 'mma831770@gmail.com' || email == 'abdellahismd@gmail.com';
 
       if (isKnownAdmin) {
         _isAdmin = true;
@@ -201,12 +219,19 @@ class AuthProvider extends ChangeNotifier {
       }
 
       try {
-        final userDoc = await _firestore.collection('users').doc(user.uid).get();
+        final userDoc = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .get();
         final data = userDoc.data();
-        final role = (data?['role'] ?? data?['userRole'] ?? '').toString().toLowerCase();
+        final role = (data?['role'] ?? data?['userRole'] ?? '')
+            .toString()
+            .toLowerCase();
         final isAdminFlag = data?['isAdmin'] == true;
         _isAdmin = role == 'admin' || isAdminFlag;
-        debugPrint('[Auth] Admin status from Firestore: $_isAdmin for ${user.email}');
+        debugPrint(
+          '[Auth] Admin status from Firestore: $_isAdmin for ${user.email}',
+        );
       } catch (_) {
         _isAdmin = false;
       }
@@ -246,7 +271,9 @@ class AuthProvider extends ChangeNotifier {
           await refreshAccountStatus();
         } catch (e) {
           debugPrint('[Auth] Initial profile provisioning failed: $e');
-          debugPrint('[Auth] Profile is not ready yet; preserving Firebase session.');
+          debugPrint(
+            '[Auth] Profile is not ready yet; preserving Firebase session.',
+          );
         }
       }
       _initialized = true;
@@ -382,7 +409,10 @@ class AuthProvider extends ChangeNotifier {
       if (cred.user != null) {
         try {
           await ensureUserDocument(cred.user!, provider: 'email');
-          final userDoc = await _firestore.collection('users').doc(cred.user!.uid).get();
+          final userDoc = await _firestore
+              .collection('users')
+              .doc(cred.user!.uid)
+              .get();
           final snapshot = normalizeAccountStatus(userDoc.data());
           _user = cred.user;
           _userData = userDoc.data();
@@ -404,7 +434,9 @@ class AuthProvider extends ChangeNotifier {
           }
         } on FirebaseException catch (e) {
           if (e.code == 'permission-denied') {
-            debugPrint('[Auth] Permission denied while loading user doc for ${cred.user!.uid}.');
+            debugPrint(
+              '[Auth] Permission denied while loading user doc for ${cred.user!.uid}.',
+            );
             _user = cred.user;
             return 'تم تسجيل الدخول، لكن تعذر تحميل ملف المستخدم. أعد المحاولة.';
           }
@@ -509,32 +541,32 @@ class AuthProvider extends ChangeNotifier {
       if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
         // الحسابات القديمة استخدمت البريد الحقيقي كهوية Auth. رقّعها عند أول دخول.
         try {
-            final userDoc = await _firestore
+          final userDoc = await _firestore
               .collection('users')
               .where('phoneNormalized', isEqualTo: normalizedPhone)
               .limit(1)
               .get()
               .timeout(const Duration(seconds: 10));
-              final legacyDocs = userDoc.docs.isNotEmpty
-                ? userDoc.docs
-                : (await _firestore
-                    .collection('users')
-                    .where('phone', isEqualTo: normalizedPhone)
-                    .limit(1)
-                    .get()
-                    .timeout(const Duration(seconds: 10)))
-                  .docs;
-              final legacyDoc = legacyDocs.isEmpty ? null : legacyDocs.first;
-            if (legacyDoc == null) {
-              LoginActivityService.record(
-                result: 'account_not_found',
-                method: 'phone',
-                authCode: e.code,
-                identifier: normalizedPhone,
-              );
-              return 'لا يوجد حساب مرتبط بهذا الرقم';
-            }
-            final data = legacyDoc.data();
+          final legacyDocs = userDoc.docs.isNotEmpty
+              ? userDoc.docs
+              : (await _firestore
+                        .collection('users')
+                        .where('phone', isEqualTo: normalizedPhone)
+                        .limit(1)
+                        .get()
+                        .timeout(const Duration(seconds: 10)))
+                    .docs;
+          final legacyDoc = legacyDocs.isEmpty ? null : legacyDocs.first;
+          if (legacyDoc == null) {
+            LoginActivityService.record(
+              result: 'account_not_found',
+              method: 'phone',
+              authCode: e.code,
+              identifier: normalizedPhone,
+            );
+            return 'لا يوجد حساب مرتبط بهذا الرقم';
+          }
+          final data = legacyDoc.data();
           final email = (data['email'] as String?)?.trim();
           if (email == null || email.isEmpty) {
             LoginActivityService.record(
@@ -624,7 +656,9 @@ class AuthProvider extends ChangeNotifier {
     switch (e.code) {
       case 'user-not-found':
       case 'invalid-credential':
-        return phoneLogin ? 'لا يوجد حساب مرتبط بهذا الرقم' : 'بيانات الدخول غير صحيحة';
+        return phoneLogin
+            ? 'لا يوجد حساب مرتبط بهذا الرقم'
+            : 'بيانات الدخول غير صحيحة';
       case 'wrong-password':
         return 'كلمة المرور غير صحيحة';
       case 'user-disabled':
@@ -651,61 +685,76 @@ class AuthProvider extends ChangeNotifier {
   ) async {
     UserCredential? cred;
     final normalizedPhone = normalizePhone(phone);
-    final displayName = [name.trim(), familyName.trim()].where((part) => part.isNotEmpty).join(' ').trim();
-    final authEmail = AuthProvider.canonicalRegistrationEmail(email, normalizedPhone);
+    final displayName = [
+      name.trim(),
+      familyName.trim(),
+    ].where((part) => part.isNotEmpty).join(' ').trim();
+    final authEmail = AuthProvider.canonicalRegistrationEmail(
+      email,
+      normalizedPhone,
+    );
+
+    _isRegistering = true;
 
     try {
       final existingUser = _auth.currentUser;
       if (existingUser != null &&
           (existingUser.email == authEmail ||
-              existingUser.providerData.any((info) => info.email == authEmail))) {
+              existingUser.providerData.any(
+                (info) => info.email == authEmail,
+              ))) {
         try {
           await existingUser.updateDisplayName(displayName);
-          await ensureUserDocument(existingUser, provider: email.trim().isEmpty ? 'phone' : 'email');
+
           final mergedUserData = <String, dynamic>{
             'name': displayName,
             'fullName': displayName,
             'firstName': name.trim(),
             'lastName': familyName.trim(),
-            'email': email.trim().isNotEmpty ? email.trim().toLowerCase() : existingUser.email ?? '',
+            'email': email.trim().isNotEmpty
+                ? email.trim().toLowerCase()
+                : existingUser.email ?? '',
             'phone': normalizedPhone,
             'phoneNumber': normalizedPhone,
             'phoneNormalized': normalizedPhone,
             'gender': gender,
-            'updatedAt': FieldValue.serverTimestamp(),
           };
-          await _firestore.collection('users').doc(existingUser.uid).set(mergedUserData, SetOptions(merge: true));
-          final savedProfile = await _firestore.collection('users').doc(existingUser.uid).get();
+
+          final savedProfile = await ensureUserDocument(
+            existingUser,
+            provider: email.trim().isEmpty ? 'phone' : 'email',
+            registrationData: mergedUserData,
+          );
+
           _user = existingUser;
           _userData = savedProfile.data();
           _profileReady = _userData != null;
+
+          await _checkAdminStatus(existingUser);
+          await refreshAccountStatus();
+
+          _isRegistering = false;
           notifyListeners();
           return null;
         } catch (e) {
           debugPrint('[SignUp] Existing Auth user profile recovery failed: $e');
-          try {
-            final recovered = await ensureUserDocument(existingUser, provider: email.trim().isEmpty ? 'phone' : 'email');
-            _user = existingUser;
-            _userData = recovered.data();
-            _profileReady = _userData != null;
-            notifyListeners();
-            return null;
-          } catch (_) {
-            return 'الحساب موجود، لكن تعذر إكمال ملفه الآن. أعد المحاولة.';
-          }
+          _isRegistering = false;
+          return 'الحساب موجود، لكن تعذر إكمال ملفه الآن. أعد المحاولة.';
         }
       }
+
       if (existingUser != null) {
+        _isRegistering = false;
         return 'يوجد حساب مسجل الدخول حاليًا. سجّل الخروج أولًا لإنشاء حساب آخر.';
       }
 
       final duplicateEmail = email.trim().isNotEmpty
           ? await _firestore
-              .collection('users')
-              .where('email', isEqualTo: email.trim().toLowerCase())
-              .limit(1)
-              .get()
-              .timeout(const Duration(seconds: 8))
+                .collection('users')
+                .where('email', isEqualTo: email.trim().toLowerCase())
+                .limit(1)
+                .get()
+                .timeout(const Duration(seconds: 8))
           : null;
       final duplicatePhone = await _firestore
           .collection('users')
@@ -715,16 +764,17 @@ class AuthProvider extends ChangeNotifier {
           .timeout(const Duration(seconds: 8));
       final legacyDuplicatePhone = duplicatePhone.docs.isEmpty
           ? await _firestore
-              .collection('users')
-              .where('phone', isEqualTo: normalizedPhone)
-              .limit(1)
-              .get()
-              .timeout(const Duration(seconds: 8))
+                .collection('users')
+                .where('phone', isEqualTo: normalizedPhone)
+                .limit(1)
+                .get()
+                .timeout(const Duration(seconds: 8))
           : null;
 
       if ((duplicateEmail?.docs.isNotEmpty ?? false) ||
           duplicatePhone.docs.isNotEmpty ||
           (legacyDuplicatePhone?.docs.isNotEmpty ?? false)) {
+        _isRegistering = false;
         return email.trim().isEmpty
             ? 'رقم الهاتف مستخدم في حساب آخر'
             : 'هذا البريد الإلكتروني مستخدم مسبقاً';
@@ -736,6 +786,7 @@ class AuthProvider extends ChangeNotifier {
 
       final newUser = cred.user;
       if (newUser == null) {
+        _isRegistering = false;
         return 'تعذر إنشاء الحساب. أعد المحاولة.';
       }
 
@@ -759,25 +810,15 @@ class AuthProvider extends ChangeNotifier {
       userData['phoneNormalized'] = normalizedPhone;
 
       try {
-        await _firestore
-            .collection('users')
-            .doc(newUser.uid)
-            .set(userData, SetOptions(merge: true))
-            .timeout(const Duration(seconds: 12));
+        final savedProfile = await ensureUserDocument(
+          newUser,
+          provider: email.trim().isEmpty ? 'phone' : 'email',
+          registrationData: userData,
+        );
 
-        final savedProfile = await _firestore
-            .collection('users')
-            .doc(newUser.uid)
-            .get()
-            .timeout(const Duration(seconds: 12));
-
-        if (!savedProfile.exists || savedProfile.data() == null) {
-          throw FirebaseException(
-            plugin: 'cloud_firestore',
-            code: 'profile-not-created',
-            message: 'User profile document was not created successfully.',
-          );
-        }
+        _user = newUser;
+        _userData = savedProfile.data();
+        _profileReady = _userData != null;
       } catch (firestoreError) {
         debugPrint('[SignUp] Firestore profile write failed: $firestoreError');
         try {
@@ -786,7 +827,8 @@ class AuthProvider extends ChangeNotifier {
         try {
           await _auth.signOut();
         } catch (_) {}
-        return 'تعذر إنشاء ملف المستخدم. تم إلغاء الحساب لتجنب التكرار.';
+        _isRegistering = false;
+        return 'تعذر إكمال إنشاء ملف الحساب (Firestore Error). حاول مجدداً.';
       }
 
       AdminActivityService.log(
@@ -798,13 +840,14 @@ class AuthProvider extends ChangeNotifier {
         metadata: {'email': authEmail, 'phone': normalizedPhone},
       ).catchError((_) {});
 
-      _user = newUser;
-      final savedUser = await _firestore.collection('users').doc(newUser.uid).get();
-      _userData = savedUser.data();
-      _profileReady = _userData != null;
+      await _checkAdminStatus(newUser);
+      await refreshAccountStatus();
+
+      _isRegistering = false;
       notifyListeners();
       return null;
     } on FirebaseAuthException catch (e) {
+      _isRegistering = false;
       switch (e.code) {
         case 'email-already-in-use':
           return email.trim().isEmpty
@@ -822,6 +865,7 @@ class AuthProvider extends ChangeNotifier {
           return 'خطأ في إنشاء الحساب: ${e.message}';
       }
     } catch (e) {
+      _isRegistering = false;
       if (e.toString().contains('timeout') ||
           e.toString().contains('TimeoutException')) {
         return 'انتهت مهلة الاتصال. تحقق من الإنترنت وأعد المحاولة.';
@@ -914,10 +958,10 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     try {
       if (_user != null) {
-        final fullName = [name.trim(), (familyName ?? '').trim()]
-            .where((part) => part.isNotEmpty)
-            .join(' ')
-            .trim();
+        final fullName = [
+          name.trim(),
+          (familyName ?? '').trim(),
+        ].where((part) => part.isNotEmpty).join(' ').trim();
 
         await _user!
             .updateDisplayName(fullName.isNotEmpty ? fullName : name)
@@ -965,11 +1009,11 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-
   /// Ensures users/{uid} exists without overwriting profile fields edited in-app.
   Future<DocumentSnapshot<Map<String, dynamic>>> ensureUserDocument(
     User user, {
     String provider = 'google',
+    Map<String, dynamic>? registrationData,
   }) async {
     if (user.uid.isEmpty) {
       throw FirebaseException(plugin: 'firebase_auth', code: 'missing-uid');
@@ -985,27 +1029,35 @@ class AuthProvider extends ChangeNotifier {
     };
 
     if (!current.exists) {
-      final fallbackName = safeFallbackDisplayName(
-        fullName: user.displayName,
-        email: user.email,
-        provider: provider,
-      );
-      update.addAll({
-        'uid': user.uid,
-        'fullName': fallbackName,
-        'name': fallbackName,
-        'email': user.email ?? '',
-        'photoUrl': user.photoURL ?? '',
-        'profileImageUrl': user.photoURL,
-        'phone': '',
-        'educationLevel': '',
-        'gender': 'غير محدد',
-        'authProvider': provider,
-        'provider': provider,
-        'role': 'user',
-        'isActive': true,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      if (registrationData != null) {
+        update.addAll(registrationData);
+        update['uid'] = user.uid;
+        if (!update.containsKey('createdAt')) {
+          update['createdAt'] = FieldValue.serverTimestamp();
+        }
+      } else {
+        final fallbackName = safeFallbackDisplayName(
+          fullName: user.displayName,
+          email: user.email,
+          provider: provider,
+        );
+        update.addAll({
+          'uid': user.uid,
+          'fullName': fallbackName,
+          'name': fallbackName,
+          'email': user.email ?? '',
+          'photoUrl': user.photoURL ?? '',
+          'profileImageUrl': user.photoURL,
+          'phone': '',
+          'educationLevel': '',
+          'gender': 'غير محدد',
+          'authProvider': provider,
+          'provider': provider,
+          'role': 'user',
+          'isActive': true,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
     } else if (data != null) {
       if (!data.containsKey('fullName') && !data.containsKey('name')) {
         update['fullName'] = safeFallbackDisplayName(
@@ -1021,29 +1073,45 @@ class AuthProvider extends ChangeNotifier {
       if (!data.containsKey('createdAt')) {
         update['createdAt'] = FieldValue.serverTimestamp();
       }
+      if (registrationData != null) {
+        final safeUpdates = Map<String, dynamic>.from(registrationData)
+          ..remove('uid')
+          ..remove('role')
+          ..remove('isActive')
+          ..remove('createdAt');
+        update.addAll(safeUpdates);
+      }
     }
 
     try {
-      await ref.set(update, SetOptions(merge: true)).timeout(const Duration(seconds: 10));
+      await ref
+          .set(update, SetOptions(merge: true))
+          .timeout(const Duration(seconds: 10));
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
-        debugPrint('[Auth] ensureUserDocument permission denied for ${user.uid}; refreshing token and retrying once.');
+        debugPrint(
+          '[Auth] ensureUserDocument permission denied for ${user.uid}; refreshing token and retrying once.',
+        );
         await user.getIdToken(true);
-        await ref.set(update, SetOptions(merge: true)).timeout(const Duration(seconds: 10));
+        await ref
+            .set(update, SetOptions(merge: true))
+            .timeout(const Duration(seconds: 10));
       } else {
         rethrow;
       }
     }
     final saved = await ref.get().timeout(const Duration(seconds: 10));
     if (!saved.exists || saved.data() == null) {
-      throw FirebaseException(plugin: 'cloud_firestore', code: 'profile-not-created');
+      throw FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'profile-not-created',
+      );
     }
     _userData = saved.data();
     _mustChangePassword = _userData?['mustChangePassword'] == true;
     _profileReady = true;
     return saved;
   }
-
 
   Future<String?> deleteAccount() async {
     try {
@@ -1066,6 +1134,4 @@ class AuthProvider extends ChangeNotifier {
       return 'حدث خطأ أثناء تعطيل الحساب: $e';
     }
   }
-
-
 }

@@ -1,13 +1,11 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import '../theme/app_theme.dart';
 import '../providers/notes_provider.dart';
-import '../services/note_export_service.dart';
 
 // ─── Page Background Painter ─────────────────────────────────────────────────
 class _NotePagePainter extends CustomPainter {
@@ -250,148 +248,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     super.dispose();
   }
 
-  String get _noteTitle => _titleController.text.trim().isEmpty
-      ? 'ملاحظة MERAJ3I'
-      : _titleController.text.trim();
-
-  Future<void> _exportTextFile() async {
-    try {
-      final deltaContent = jsonEncode(_quillController.document.toDelta().toJson());
-      final file = XFile.fromData(
-        NoteExportService.textBytes(title: _noteTitle, content: deltaContent),
-        name: '${_safeFileName(_noteTitle)}.txt',
-        mimeType: 'text/plain',
-      );
-      await SharePlus.instance.share(
-        ShareParams(files: [file], subject: _noteTitle),
-      );
-    } catch (error) {
-      _showExportError(error);
-    }
-  }
-
-  Future<void> _exportPdfFile() async {
-    try {
-      final deltaContent = jsonEncode(_quillController.document.toDelta().toJson());
-      final bytes = await NoteExportService.pdfBytes(
-        title: _noteTitle,
-        content: deltaContent,
-        pageStyle: _pageStyle,
-        includeBackground: _pageStyle != 'blank',
-      );
-      final file = XFile.fromData(
-        bytes,
-        name: '${_safeFileName(_noteTitle)}.pdf',
-        mimeType: 'application/pdf',
-      );
-      await SharePlus.instance.share(
-        ShareParams(files: [file], subject: _noteTitle),
-      );
-    } catch (error) {
-      _showExportError(error);
-    }
-  }
-
-  String _safeFileName(String value) => value
-      .replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')
-      .replaceAll(RegExp(r'\s+'), '_');
-
-  void _showExportError(Object error) {
-    debugPrint('Note export error: $error');
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'تعذر تصدير الملاحظة. حاول مرة اخرى.',
-          style: GoogleFonts.tajawal(),
-        ),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  void _showExportMenu() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.transparent,
-      useSafeArea: true,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            Text(
-              'مشاركة وتصدير',
-              style: GoogleFonts.tajawal(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _exportTile(
-              ctx,
-              Icons.picture_as_pdf_rounded,
-              'تصدير PDF (عربي)',
-              const Color(0xFFDC2626),
-              _exportPdfFile,
-            ),
-            _exportTile(
-              ctx,
-              Icons.description_rounded,
-              'تصدير TXT',
-              const Color(0xFF16A34A),
-              _exportTextFile,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _exportTile(
-    BuildContext ctx,
-    IconData icon,
-    String label,
-    Color color,
-    Future<void> Function() action,
-  ) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: color, size: 22),
-      ),
-      title: Text(
-        label,
-        style: GoogleFonts.tajawal(fontWeight: FontWeight.w600),
-      ),
-      trailing: Icon(Icons.chevron_left_rounded, color: Colors.grey[400]),
-      onTap: () async {
-        Navigator.pop(ctx);
-        await action();
-      },
-    );
-  }
 
   void _showOptionsModal() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1007,15 +863,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
               ),
               onPressed: _showOptionsModal,
               tooltip: 'الخيارات',
-            ),
-            IconButton(
-              icon: const Icon(
-                Icons.ios_share_rounded,
-                color: Colors.white,
-                size: 22,
-              ),
-              onPressed: _showExportMenu,
-              tooltip: 'مشاركة',
             ),
           ],
           shape: const RoundedRectangleBorder(

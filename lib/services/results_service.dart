@@ -845,13 +845,17 @@ class ResultsService {
     final others = results.where((r) => !r.isPassed).toList();
 
     // ترتيب الناجحين حسب المعدل (تنازلياً)
-    passed.sort((a, b) => (b.score ?? -1).compareTo(a.score ?? -1));
+    passed.sort((a, b) => (b.score ?? -1.0).compareTo(a.score ?? -1.0));
     // ترتيب البقية (تكميلي، غائب، راسب) حسب المعدل (تنازلياً)
-    others.sort((a, b) => (b.score ?? -1).compareTo(a.score ?? -1));
+    others.sort((a, b) => (b.score ?? -1.0).compareTo(a.score ?? -1.0));
 
-    // إسناد الترتيب الوطني للناجحين فقط
+    // إسناد الترتيب الوطني للناجحين فقط مع مراعاة التعادل
     final passedWithNational = <StudentResult>[];
+    int currentNationalRank = 1;
     for (int i = 0; i < passed.length; i++) {
+      if (i > 0 && passed[i].score != passed[i - 1].score) {
+        currentNationalRank = i + 1;
+      }
       final r = passed[i];
       passedWithNational.add(
         StudentResult(
@@ -864,14 +868,14 @@ class ResultsService {
           averageScore: r.averageScore,
           status: r.status,
           rank: r.rank,
-          nationalRank: (i + 1).toString(),
+          nationalRank: currentNationalRank.toString(),
           branch: r.branch,
           rawData: r.rawData,
         ),
       );
     }
 
-    // ترتيب حسب الشعبة وإسناد ترتيب الشعبة
+    // ترتيب حسب الشعبة وإسناد ترتيب الشعبة مع مراعاة التعادل
     final grouped = <String, List<StudentResult>>{};
     for (final r in passedWithNational) {
       grouped.putIfAbsent(r.branch, () => []).add(r);
@@ -880,8 +884,13 @@ class ResultsService {
     final finalPassed = <StudentResult>[];
     for (final entry in grouped.entries) {
       final branchList = List<StudentResult>.from(entry.value)
-        ..sort((a, b) => (b.score ?? -1).compareTo(a.score ?? -1));
+        ..sort((a, b) => (b.score ?? -1.0).compareTo(a.score ?? -1.0));
+      
+      int currentBranchRank = 1;
       for (int i = 0; i < branchList.length; i++) {
+        if (i > 0 && branchList[i].score != branchList[i - 1].score) {
+          currentBranchRank = i + 1;
+        }
         final r = branchList[i];
         finalPassed.add(
           StudentResult(
@@ -893,7 +902,7 @@ class ResultsService {
             score: r.score,
             averageScore: r.averageScore,
             status: r.status,
-            rank: (i + 1).toString(), // ترتيب الشعبة
+            rank: currentBranchRank.toString(), // ترتيب الشعبة
             nationalRank: r.nationalRank,
             branch: r.branch,
             rawData: r.rawData,
@@ -945,12 +954,16 @@ class ResultsService {
     final others = results.where((r) => !r.isPassed).toList();
 
     // ترتيب تنازلياً
-    passed.sort((a, b) => (b.score ?? -1).compareTo(a.score ?? -1));
-    others.sort((a, b) => (b.score ?? -1).compareTo(a.score ?? -1));
+    passed.sort((a, b) => (b.score ?? -1.0).compareTo(a.score ?? -1.0));
+    others.sort((a, b) => (b.score ?? -1.0).compareTo(a.score ?? -1.0));
 
-    // إسناد الترتيبات للناجحين
+    // إسناد الترتيبات للناجحين مع مراعاة التعادل
     final passedWithRank = <StudentResult>[];
+    int currentRank = 1;
     for (int i = 0; i < passed.length; i++) {
+      if (i > 0 && passed[i].score != passed[i - 1].score) {
+        currentRank = i + 1;
+      }
       final r = passed[i];
       passedWithRank.add(
         StudentResult(
@@ -962,8 +975,8 @@ class ResultsService {
           score: r.score,
           averageScore: r.averageScore,
           status: r.status,
-          rank: (i + 1).toString(),
-          nationalRank: (i + 1).toString(),
+          rank: currentRank.toString(),
+          nationalRank: currentRank.toString(),
           branch: r.branch,
           rawData: r.rawData,
         ),

@@ -361,7 +361,7 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
       childAspectRatio: 2.2,
       children: items.map((comp) {
         return _buildCompCard(
-          emoji: comp.displayEmoji,
+          icon: comp.displayIcon,
           label: comp.title,
           gradient: _gradientForType(comp.type),
           published: comp.isPublished,
@@ -414,11 +414,16 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                 ),
                 child: Row(
                   children: [
-                    Text(
-                      comp.displayEmoji,
-                      style: TextStyle(
-                        fontSize: 22,
-                        color: comp.isPublished ? null : Colors.grey[400],
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: comp.isPublished ? color.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        comp.displayIcon,
+                        size: 20,
+                        color: comp.isPublished ? color : Colors.grey[400],
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -589,7 +594,7 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
   }
 
   Widget _buildCompCard({
-    required String emoji,
+    required IconData icon,
     required String label,
     required Gradient gradient,
     required bool published,
@@ -637,12 +642,10 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                   color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(
-                  emoji,
-                  style: TextStyle(
-                    fontSize: 22,
-                    color: published ? null : Colors.grey[400],
-                  ),
+                child: Icon(
+                  icon,
+                  size: 24,
+                  color: published ? Colors.white : Colors.grey[400],
                 ),
               ),
               const SizedBox(width: 12),

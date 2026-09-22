@@ -1,5 +1,6 @@
+import 'package:flutter/material.dart';
+
 // models/competition_model.dart
-// نموذج ديناميكي — لا يعتمد على enum ثابت
 // أي مفتاح جديد في Remote Config يظهر تلقائياً
 
 /// نوع المسابقة لتحديد طريقة عرض ومعالجة النتائج
@@ -155,6 +156,23 @@ class CompetitionModel {
         return '⭐';
       case CompetitionType.generic:
         return '📝';
+    }
+  }
+
+  IconData get displayIcon {
+    switch (type) {
+      case CompetitionType.concours:
+        return Icons.emoji_events_rounded;
+      case CompetitionType.brevet:
+        return Icons.menu_book_rounded;
+      case CompetitionType.bac:
+        return Icons.school_rounded;
+      case CompetitionType.complementary:
+        return Icons.autorenew_rounded;
+      case CompetitionType.excellence:
+        return Icons.star_rounded;
+      case CompetitionType.generic:
+        return Icons.assignment_rounded;
     }
   }
 

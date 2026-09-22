@@ -3,13 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-import 'package:share_plus/share_plus.dart';
 import '../providers/notes_provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/curved_header.dart';
-
-import '../services/note_export_service.dart';
 import 'note_editor_screen.dart';
 
 class NotesScreen extends StatefulWidget {
@@ -305,8 +302,7 @@ class _NotesScreenState extends State<NotesScreen> {
         CurvedHeader(
           title: 'ملاحظاتي',
           gradient: AppTheme.brandGradient,
-          showBackButton: true,
-          onBack: widget.onBackToHome,
+          showBackButton: false,
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
@@ -762,46 +758,6 @@ class _NotesScreenState extends State<NotesScreen> {
     return deltaStr; // Fallback
   }
 
-  Future<void> _exportNote(Note note, {required bool pdf}) async {
-    try {
-      final title = note.title.isEmpty ? 'ملاحظة' : note.title;
-      final safeTitle = title
-          .replaceAll(RegExp(r'MERAJ3I|مراجعي', caseSensitive: false), '')
-          .replaceAll(RegExp(r'[^\u0600-\u06FFa-zA-Z0-9\s_-]'), '')
-          .replaceAll(RegExp(r'\s+'), ' ')
-          .trim();
-      final finalTitle = safeTitle.isEmpty ? 'ملاحظة' : safeTitle;
-      final filename = '${finalTitle.replaceAll(RegExp(r'\s+'), '_')}.${pdf ? 'pdf' : 'txt'}';
-      final bytes = pdf
-          ? await NoteExportService.pdfBytes(
-              title: finalTitle,
-              content: note.content,
-            )
-          : NoteExportService.textBytes(title: finalTitle, content: note.content);
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [
-            XFile.fromData(
-              bytes,
-              name: filename,
-              mimeType: pdf ? 'application/pdf' : 'text/plain',
-            ),
-          ],
-          subject: finalTitle,
-        ),
-      );
-    } catch (error) {
-      debugPrint('Note export error: $error');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('تعذر تصدير الملاحظة.', style: GoogleFonts.tajawal()),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
   Widget _buildNoteCard(
     Note note,
     bool isDark,
@@ -910,29 +866,6 @@ class _NotesScreenState extends State<NotesScreen> {
                           : secondaryTextColor,
                       size: 22,
                     ),
-                  ),
-                  PopupMenuButton<String>(
-                    icon: Icon(
-                      Icons.ios_share_rounded,
-                      size: 20,
-                      color: secondaryTextColor,
-                    ),
-                    tooltip: 'تصدير الملاحظة',
-                    onSelected: (value) =>
-                        _exportNote(note, pdf: value == 'pdf'),
-                    itemBuilder: (_) => [
-                      PopupMenuItem(
-                        value: 'pdf',
-                        child: Text('تصدير PDF', style: GoogleFonts.tajawal()),
-                      ),
-                      PopupMenuItem(
-                        value: 'txt',
-                        child: Text(
-                          'تصدير ملف نصي',
-                          style: GoogleFonts.tajawal(),
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ],

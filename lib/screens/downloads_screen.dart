@@ -31,6 +31,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
           CurvedHeader(
             title: 'التنزيلات',
             gradient: isDark ? AppTheme.deepBlueGradient : AppTheme.primaryGradient,
+            showBackButton: false,
           ),
           Expanded(child: Consumer<DownloadsProvider>(
         builder: (context, provider, child) {
