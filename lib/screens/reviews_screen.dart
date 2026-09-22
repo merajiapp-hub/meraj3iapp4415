@@ -566,7 +566,6 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
-    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
     final textCol = isDark ? Colors.white : Colors.black87;
     final auth = Provider.of<AuthProvider>(context);
     final isGuest = auth.isGuest;

@@ -232,6 +232,7 @@ class _NotesScreenState extends State<NotesScreen> {
       body: Container(
         decoration: BoxDecoration(gradient: bgGradient),
         child: SafeArea(
+          top: false,
           child: Column(
             children: [
               _buildHeader(isDark, themeColor),

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -277,21 +277,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
     return Column(
       children: [
-        Container(
-          width: 138,
-          height: 138,
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF0B6B58).withValues(alpha: 0.18),
-                blurRadius: 22,
-                offset: const Offset(0, 12),
-              ),
-            ],
-          ),
+        SizedBox(
+          width: 160,
+          height: 160,
           child: Image.asset(
             'assets/images/logo.png',
             fit: BoxFit.contain,
@@ -508,9 +496,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   Widget _buildFooterLink() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final mutedColor = isDark ? Colors.white70 : const Color(0xFF5E665F);
-    final accent = const Color(0xFF0B6B58);
+    const mutedColor = Color(0xFF5E665F);
+    const accent = Color(0xFF0B6B58);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -543,13 +530,12 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   Widget _buildGuestButton() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final guestEnabled = context.watch<AppConfigProvider>().allowGuestView;
     if (!guestEnabled) {
       return const SizedBox.shrink();
     }
 
-    final primaryColor = isDark ? Colors.white : const Color(0xFF0B6B58);
+    const primaryColor = Color(0xFF0B6B58);
 
     return TextButton.icon(
       onPressed: _isLoading ? null : _loginAsGuest,

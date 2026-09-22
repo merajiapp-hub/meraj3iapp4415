@@ -516,9 +516,8 @@ class _SignupScreenState extends State<SignupScreen>
   }
 
   Widget _buildFooterLink() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final mutedColor = isDark ? Colors.white70 : const Color(0xFF5E665F);
-    final accent = const Color(0xFF0B6B58);
+    const mutedColor = Color(0xFF5E665F);
+    const accent = Color(0xFF0B6B58);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
