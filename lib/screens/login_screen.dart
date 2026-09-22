@@ -219,9 +219,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgStart = isDark ? const Color(0xFF091A16) : const Color(0xFFF3F7F5);
-    final bgEnd = isDark ? const Color(0xFF122B25) : const Color(0xFFEAF6F2);
+    const background = Colors.white;
 
     return PopScope(
       canPop: false,
@@ -234,32 +232,26 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         }
       },
       child: Scaffold(
-        backgroundColor: bgStart,
+        backgroundColor: background,
         body: SafeArea(
           child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [bgStart, bgEnd],
-              ),
-            ),
+            color: background,
             child: FadeTransition(
               opacity: _fadeAnim,
               child: SlideTransition(
                 position: _slideAnim,
                 child: Center(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 440),
                       child: SingleChildScrollView(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 12),
                             _buildHeader(),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 30),
                             _buildGlassCard(),
                             const SizedBox(height: 18),
                             _buildGuestButton(),
@@ -280,37 +272,32 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   Widget _buildHeader() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final titleColor = isDark ? Colors.white : const Color(0xFF163B33);
-    final subtitleColor = isDark ? const Color(0xFFB3D1CC) : const Color(0xFF5F7071);
+    const titleColor = Color(0xFF163B33);
+    const subtitleColor = Color(0xFF5F7071);
 
     return Column(
       children: [
         Container(
-          width: 118,
-          height: 118,
+          width: 138,
+          height: 138,
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
+            color: Colors.white,
             shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF0B6B58), Color(0xFF14A085)],
-            ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF0B6B58).withValues(alpha: 0.30),
-                blurRadius: 24,
-                offset: const Offset(0, 14),
+                color: const Color(0xFF0B6B58).withValues(alpha: 0.18),
+                blurRadius: 22,
+                offset: const Offset(0, 12),
               ),
             ],
           ),
-          padding: const EdgeInsets.all(20),
           child: Image.asset(
             'assets/images/logo.png',
             fit: BoxFit.contain,
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 18),
         Text(
           'مرحباً بعودتك',
           textAlign: TextAlign.center,
@@ -335,28 +322,23 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   Widget _buildGlassCard() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? const Color(0xFF132C28) : Colors.white;
-    final fieldColor = isDark ? const Color(0xFF183731) : const Color(0xFFF7FBF9);
-    final fieldBorder = isDark ? const Color(0xFF2A4A43) : const Color(0xFFE5EEEA);
-    final textColor = isDark ? Colors.white : const Color(0xFF21382F);
-    final hintColor = isDark ? const Color(0xFFAECAC2) : const Color(0xFF7E9A95);
-    final accent = const Color(0xFF0B6B58);
+    const cardColor = Colors.white;
+    const fieldColor = Color(0xFFF7F9F8);
+    const fieldBorder = Color(0xFFE8EFED);
+    const textColor = Color(0xFF21382F);
+    const hintColor = Color(0xFF7C9490);
+    const accent = Color(0xFF0B6B58);
 
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: cardColor,
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(
-          color: isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFE3EFEA),
-          width: 1,
-        ),
+        borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: (isDark ? Colors.black : Colors.black).withValues(alpha: isDark ? 0.28 : 0.06),
-            blurRadius: 22,
-            offset: const Offset(0, 14),
+            color: const Color(0xFF0B6B58).withValues(alpha: 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 12),
           ),
         ],
       ),
@@ -402,8 +384,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                         (states) => states.contains(WidgetState.selected) ? accent : Colors.transparent,
                       ),
                       checkColor: Colors.white,
-                      side: BorderSide(
-                        color: isDark ? const Color(0xFF6E9A8F) : const Color(0xFF9EB9B1),
+                      side: const BorderSide(
+                        color: Color(0xFF9EB9B1),
                         width: 1.4,
                       ),
                     ),
@@ -412,7 +394,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   Text(
                     'تذكرني',
                     style: GoogleFonts.tajawal(
-                      color: isDark ? Colors.white70 : const Color(0xFF556664),
+                      color: const Color(0xFF556664),
                       fontSize: 12.5,
                     ),
                   ),

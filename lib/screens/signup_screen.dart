@@ -141,9 +141,7 @@ class _SignupScreenState extends State<SignupScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgStart = isDark ? const Color(0xFF091A16) : const Color(0xFFF3F7F5);
-    final bgEnd = isDark ? const Color(0xFF122B25) : const Color(0xFFEAF6F2);
+    const background = Colors.white;
 
     return PopScope(
       canPop: false,
@@ -152,32 +150,26 @@ class _SignupScreenState extends State<SignupScreen>
         _safeBack();
       },
       child: Scaffold(
-        backgroundColor: bgStart,
+        backgroundColor: background,
         body: SafeArea(
           child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [bgStart, bgEnd],
-              ),
-            ),
+            color: background,
             child: FadeTransition(
               opacity: _fadeAnim,
               child: SlideTransition(
                 position: _slideAnim,
                 child: Center(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 460),
                       child: SingleChildScrollView(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 12),
                             _buildHeader(),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 28),
                             _buildGlassCard(),
                             const SizedBox(height: 14),
                             _buildFooterLink(),
@@ -196,13 +188,12 @@ class _SignupScreenState extends State<SignupScreen>
   }
 
   Widget _buildHeader() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final titleColor = isDark ? Colors.white : const Color(0xFF163B33);
-    final subtitleColor = isDark ? const Color(0xFFB3D1CC) : const Color(0xFF5F7071);
+    const titleColor = Color(0xFF163B33);
+    const subtitleColor = Color(0xFF5F7071);
 
     return Column(
       children: [
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Text(
           'أنشئ حسابك الآن',
           textAlign: TextAlign.center,
@@ -227,28 +218,23 @@ class _SignupScreenState extends State<SignupScreen>
   }
 
   Widget _buildGlassCard() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? const Color(0xFF132C28) : Colors.white;
-    final fieldColor = isDark ? const Color(0xFF183731) : const Color(0xFFF7FBF9);
-    final fieldBorder = isDark ? const Color(0xFF2A4A43) : const Color(0xFFE5EEEA);
-    final textColor = isDark ? Colors.white : const Color(0xFF21382F);
-    final hintColor = isDark ? const Color(0xFFAECAC2) : const Color(0xFF7E9A95);
-    final accent = const Color(0xFF0B6B58);
+    const cardColor = Colors.white;
+    const fieldColor = Color(0xFFF7F9F8);
+    const fieldBorder = Color(0xFFE8EFED);
+    const textColor = Color(0xFF21382F);
+    const hintColor = Color(0xFF7C9490);
+    const accent = Color(0xFF0B6B58);
 
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: cardColor,
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(
-          color: isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFE3EFEA),
-          width: 1,
-        ),
+        borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: (isDark ? Colors.black : Colors.black).withValues(alpha: isDark ? 0.28 : 0.06),
-            blurRadius: 22,
-            offset: const Offset(0, 14),
+            color: const Color(0xFF0B6B58).withValues(alpha: 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 12),
           ),
         ],
       ),
@@ -310,7 +296,7 @@ class _SignupScreenState extends State<SignupScreen>
                 isExpanded: true,
                 value: _selectedGender,
                 icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF4F6660)),
-                dropdownColor: isDark ? const Color(0xFF173A33) : Colors.white,
+                dropdownColor: Colors.white,
                 style: GoogleFonts.tajawal(
                   fontSize: 14,
                   color: textColor,
@@ -382,8 +368,8 @@ class _SignupScreenState extends State<SignupScreen>
                     (states) => states.contains(WidgetState.selected) ? accent : Colors.transparent,
                   ),
                   checkColor: Colors.white,
-                  side: BorderSide(
-                    color: isDark ? const Color(0xFF6E9A8F) : const Color(0xFF9EB9B1),
+                  side: const BorderSide(
+                    color: Color(0xFF9EB9B1),
                     width: 1.4,
                   ),
                 ),
@@ -396,7 +382,7 @@ class _SignupScreenState extends State<SignupScreen>
                     Text(
                       'أوافق على ',
                       style: GoogleFonts.tajawal(
-                        color: isDark ? Colors.white70 : const Color(0xFF5E665F),
+                        color: const Color(0xFF5E665F),
                         fontSize: 12,
                       ),
                     ),
@@ -417,7 +403,7 @@ class _SignupScreenState extends State<SignupScreen>
                     Text(
                       ' و ',
                       style: GoogleFonts.tajawal(
-                        color: isDark ? Colors.white70 : const Color(0xFF5E665F),
+                        color: const Color(0xFF5E665F),
                         fontSize: 12,
                       ),
                     ),
