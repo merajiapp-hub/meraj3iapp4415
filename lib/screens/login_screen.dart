@@ -219,7 +219,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
-    const pageBg = Color(0xFFF3F7F5);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgStart = isDark ? const Color(0xFF091A16) : const Color(0xFFF3F7F5);
+    final bgEnd = isDark ? const Color(0xFF122B25) : const Color(0xFFEAF6F2);
 
     return PopScope(
       canPop: false,
@@ -232,30 +234,39 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         }
       },
       child: Scaffold(
-        backgroundColor: pageBg,
+        backgroundColor: bgStart,
         body: SafeArea(
-          child: FadeTransition(
-            opacity: _fadeAnim,
-            child: SlideTransition(
-              position: _slideAnim,
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 430),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const SizedBox(height: 12),
-                          _buildHeader(),
-                          const SizedBox(height: 20),
-                          _buildGlassCard(),
-                          const SizedBox(height: 16),
-                          _buildGuestButton(),
-                          const SizedBox(height: 10),
-                          _buildFooterLink(),
-                        ],
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [bgStart, bgEnd],
+              ),
+            ),
+            child: FadeTransition(
+              opacity: _fadeAnim,
+              child: SlideTransition(
+                position: _slideAnim,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 440),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: 8),
+                            _buildHeader(),
+                            const SizedBox(height: 20),
+                            _buildGlassCard(),
+                            const SizedBox(height: 18),
+                            _buildGuestButton(),
+                            const SizedBox(height: 8),
+                            _buildFooterLink(),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -269,31 +280,54 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   Widget _buildHeader() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final titleColor = isDark ? Colors.white : const Color(0xFF163B33);
+    final subtitleColor = isDark ? const Color(0xFFB3D1CC) : const Color(0xFF5F7071);
+
     return Column(
       children: [
-        Image.asset(
-          'assets/images/logo.png',
-          width: 78,
-          height: 78,
-          fit: BoxFit.contain,
+        Container(
+          width: 118,
+          height: 118,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF0B6B58), Color(0xFF14A085)],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0B6B58).withValues(alpha: 0.30),
+                blurRadius: 24,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Image.asset(
+            'assets/images/logo.png',
+            fit: BoxFit.contain,
+          ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         Text(
           'مرحباً بعودتك',
           textAlign: TextAlign.center,
           style: GoogleFonts.tajawal(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF163B33),
+            fontSize: 30,
+            fontWeight: FontWeight.w800,
+            color: titleColor,
           ),
         ),
         const SizedBox(height: 6),
         Text(
-          'سجل الدخول للاستمرار في رحلتك',
+          'سجل دخولك لاستمرار رحلتك التعليمية',
           textAlign: TextAlign.center,
           style: GoogleFonts.tajawal(
             fontSize: 14,
-            color: const Color(0xFF5F7071),
+            color: subtitleColor,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ],
@@ -301,59 +335,76 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   Widget _buildGlassCard() {
-    const panelColor = Color(0xFFFFFFFF);
-    const activeColor = Color(0xFF0B6B58);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF132C28) : Colors.white;
+    final fieldColor = isDark ? const Color(0xFF183731) : const Color(0xFFF7FBF9);
+    final fieldBorder = isDark ? const Color(0xFF2A4A43) : const Color(0xFFE5EEEA);
+    final textColor = isDark ? Colors.white : const Color(0xFF21382F);
+    final hintColor = isDark ? const Color(0xFFAECAC2) : const Color(0xFF7E9A95);
+    final accent = const Color(0xFF0B6B58);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: panelColor,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: const Color(0xFFE3EFEA), width: 1),
+        color: cardColor,
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFE3EFEA),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+            color: (isDark ? Colors.black : Colors.black).withValues(alpha: isDark ? 0.28 : 0.06),
+            blurRadius: 22,
+            offset: const Offset(0, 14),
           ),
         ],
       ),
       child: Column(
         children: [
-          _buildTextField(
-            key: const ValueKey('email'),
+          _buildAuthField(
             controller: _emailController,
             icon: Icons.email_outlined,
             hint: 'البريد الإلكتروني',
+            fieldColor: fieldColor,
+            fieldBorder: fieldBorder,
+            textColor: textColor,
+            hintColor: hintColor,
             keyboardType: TextInputType.emailAddress,
           ),
-          const SizedBox(height: 12),
-          _buildTextField(
+          const SizedBox(height: 14),
+          _buildAuthField(
             controller: _passwordController,
             icon: Icons.lock_outline_rounded,
             hint: 'كلمة المرور',
+            fieldColor: fieldColor,
+            fieldBorder: fieldBorder,
+            textColor: textColor,
+            hintColor: hintColor,
             isPassword: true,
+            showToggle: true,
+            toggleVisibility: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+            isVisible: _isPasswordVisible,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
                   SizedBox(
-                    width: 18,
-                    height: 18,
+                    width: 20,
+                    height: 20,
                     child: Checkbox(
                       value: _rememberMe,
-                      onChanged: (val) => setState(() => _rememberMe = val ?? false),
+                      onChanged: (value) => setState(() => _rememberMe = value ?? false),
                       fillColor: WidgetStateProperty.resolveWith(
-                        (states) => states.contains(WidgetState.selected)
-                            ? activeColor
-                            : const Color(0xFFDAE8E4),
+                        (states) => states.contains(WidgetState.selected) ? accent : Colors.transparent,
                       ),
                       checkColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(5),
+                      side: BorderSide(
+                        color: isDark ? const Color(0xFF6E9A8F) : const Color(0xFF9EB9B1),
+                        width: 1.4,
                       ),
                     ),
                   ),
@@ -361,8 +412,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   Text(
                     'تذكرني',
                     style: GoogleFonts.tajawal(
-                      color: const Color(0xFF556664),
-                      fontSize: 12,
+                      color: isDark ? Colors.white70 : const Color(0xFF556664),
+                      fontSize: 12.5,
                     ),
                   ),
                 ],
@@ -370,7 +421,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               TextButton(
                 onPressed: _showForgotPasswordDialog,
                 style: TextButton.styleFrom(
-                  foregroundColor: activeColor,
+                  foregroundColor: accent,
                   padding: EdgeInsets.zero,
                   minimumSize: const Size(0, 0),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -379,7 +430,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   'نسيت كلمة المرور؟',
                   style: GoogleFonts.tajawal(
                     fontWeight: FontWeight.w700,
-                    fontSize: 12,
+                    fontSize: 12.5,
                   ),
                 ),
               ),
@@ -388,15 +439,15 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           const SizedBox(height: 18),
           SizedBox(
             width: double.infinity,
-            height: 52,
+            height: 56,
             child: ElevatedButton(
               onPressed: _isLoading ? null : _login,
               style: ElevatedButton.styleFrom(
-                backgroundColor: activeColor,
+                backgroundColor: accent,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(18),
                 ),
               ),
               child: _isLoading
@@ -411,7 +462,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   : Text(
                       'تسجيل الدخول',
                       style: GoogleFonts.tajawal(
-                        fontSize: 18,
+                        fontSize: 17,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -422,75 +473,70 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildTextField({
-    Key? key,
+  Widget _buildAuthField({
     required TextEditingController controller,
     required IconData icon,
     required String hint,
+    required Color fieldColor,
+    required Color fieldBorder,
+    required Color textColor,
+    required Color hintColor,
     bool isPassword = false,
+    bool showToggle = false,
+    VoidCallback? toggleVisibility,
+    bool isVisible = false,
     TextInputType keyboardType = TextInputType.text,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      height: 52,
+      height: 58,
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1D322E) : const Color(0xFFF5F8F7),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isDark ? const Color(0xFF2A4A43) : const Color(0xFFE5EEEA),
-          width: 1,
-        ),
+        color: fieldColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: fieldBorder, width: 1),
       ),
       child: TextField(
-        key: key,
         controller: controller,
-        obscureText: isPassword && !_isPasswordVisible,
         keyboardType: keyboardType,
+        obscureText: isPassword && !isVisible,
         textAlign: TextAlign.right,
-        style: GoogleFonts.tajawal(
-          color: isDark ? Colors.white : const Color(0xFF21382F),
-          fontSize: 13,
-        ),
+        style: GoogleFonts.tajawal(color: textColor, fontSize: 14, fontWeight: FontWeight.w500),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: GoogleFonts.tajawal(
-            color: const Color(0xFF8AA09B),
-            fontSize: 12.5,
-          ),
-          prefixIcon: Icon(
-            icon,
-            color: const Color(0xFF4F6660),
-            size: 18,
-          ),
-          suffixIcon: isPassword
+          hintStyle: GoogleFonts.tajawal(color: hintColor, fontSize: 13.5),
+          filled: false,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+          prefixIcon: Icon(icon, color: const Color(0xFF4F6660), size: 20),
+          suffixIcon: showToggle
               ? IconButton(
+                  padding: EdgeInsets.zero,
                   icon: Icon(
-                    _isPasswordVisible
-                        ? Icons.visibility_off_rounded
-                        : Icons.visibility_rounded,
+                    isVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
                     color: const Color(0xFF52615C),
-                    size: 18,
+                    size: 20,
                   ),
-                  onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+                  onPressed: toggleVisibility,
                 )
               : null,
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
         ),
       ),
     );
   }
 
   Widget _buildFooterLink() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final mutedColor = isDark ? Colors.white70 : const Color(0xFF5E665F);
+    final accent = const Color(0xFF0B6B58);
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
           'ليس لديك حساب؟',
           style: GoogleFonts.tajawal(
-            color: const Color(0xFF5E665F),
+            color: mutedColor,
             fontSize: 13,
           ),
         ),
@@ -504,7 +550,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           child: Text(
             'إنشاء حساب',
             style: GoogleFonts.tajawal(
-              color: const Color(0xFF0B6B58),
+              color: accent,
               fontWeight: FontWeight.bold,
               fontSize: 13,
             ),
@@ -515,26 +561,32 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   Widget _buildGuestButton() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final guestEnabled = context.watch<AppConfigProvider>().allowGuestView;
     if (!guestEnabled) {
       return const SizedBox.shrink();
     }
 
+    final primaryColor = isDark ? Colors.white : const Color(0xFF0B6B58);
+
     return TextButton.icon(
       onPressed: _isLoading ? null : _loginAsGuest,
+      style: TextButton.styleFrom(
+        foregroundColor: primaryColor,
+      ),
       icon: Icon(
         Icons.person_outline_rounded,
         size: 20,
-        color: Colors.white.withValues(alpha: 0.7),
+        color: primaryColor,
       ),
       label: Text(
         'المتابعة كزائر',
         style: GoogleFonts.tajawal(
-          color: Colors.white.withValues(alpha: 0.9),
+          color: primaryColor,
           fontSize: 14,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
           decoration: TextDecoration.underline,
-          decorationColor: Colors.white.withValues(alpha: 0.5),
+          decorationColor: primaryColor.withValues(alpha: 0.7),
         ),
       ),
     );

@@ -141,7 +141,9 @@ class _SignupScreenState extends State<SignupScreen>
 
   @override
   Widget build(BuildContext context) {
-    const pageBg = Color(0xFFF3F7F5);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgStart = isDark ? const Color(0xFF091A16) : const Color(0xFFF3F7F5);
+    final bgEnd = isDark ? const Color(0xFF122B25) : const Color(0xFFEAF6F2);
 
     return PopScope(
       canPop: false,
@@ -150,28 +152,37 @@ class _SignupScreenState extends State<SignupScreen>
         _safeBack();
       },
       child: Scaffold(
-        backgroundColor: pageBg,
+        backgroundColor: bgStart,
         body: SafeArea(
-          child: FadeTransition(
-            opacity: _fadeAnim,
-            child: SlideTransition(
-              position: _slideAnim,
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 430),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const SizedBox(height: 12),
-                          _buildHeader(),
-                          const SizedBox(height: 20),
-                          _buildGlassCard(),
-                          const SizedBox(height: 16),
-                          _buildFooterLink(),
-                        ],
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [bgStart, bgEnd],
+              ),
+            ),
+            child: FadeTransition(
+              opacity: _fadeAnim,
+              child: SlideTransition(
+                position: _slideAnim,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 460),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: 8),
+                            _buildHeader(),
+                            const SizedBox(height: 20),
+                            _buildGlassCard(),
+                            const SizedBox(height: 14),
+                            _buildFooterLink(),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -185,6 +196,10 @@ class _SignupScreenState extends State<SignupScreen>
   }
 
   Widget _buildHeader() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final titleColor = isDark ? Colors.white : const Color(0xFF163B33);
+    final subtitleColor = isDark ? const Color(0xFFB3D1CC) : const Color(0xFF5F7071);
+
     return Column(
       children: [
         const SizedBox(height: 10),
@@ -192,9 +207,9 @@ class _SignupScreenState extends State<SignupScreen>
           'أنشئ حسابك الآن',
           textAlign: TextAlign.center,
           style: GoogleFonts.tajawal(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF163B33),
+            fontSize: 30,
+            fontWeight: FontWeight.w800,
+            color: titleColor,
           ),
         ),
         const SizedBox(height: 6),
@@ -203,7 +218,8 @@ class _SignupScreenState extends State<SignupScreen>
           textAlign: TextAlign.center,
           style: GoogleFonts.tajawal(
             fontSize: 14,
-            color: const Color(0xFF5F7071),
+            color: subtitleColor,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ],
@@ -211,67 +227,94 @@ class _SignupScreenState extends State<SignupScreen>
   }
 
   Widget _buildGlassCard() {
-    const panelColor = Color(0xFFFFFFFF);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF132C28) : Colors.white;
+    final fieldColor = isDark ? const Color(0xFF183731) : const Color(0xFFF7FBF9);
+    final fieldBorder = isDark ? const Color(0xFF2A4A43) : const Color(0xFFE5EEEA);
+    final textColor = isDark ? Colors.white : const Color(0xFF21382F);
+    final hintColor = isDark ? const Color(0xFFAECAC2) : const Color(0xFF7E9A95);
+    final accent = const Color(0xFF0B6B58);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: panelColor,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: const Color(0xFFE3EFEA), width: 1),
+        color: cardColor,
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFE3EFEA),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+            color: (isDark ? Colors.black : Colors.black).withValues(alpha: isDark ? 0.28 : 0.06),
+            blurRadius: 22,
+            offset: const Offset(0, 14),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildTextField(
+          _buildAuthField(
             controller: _nameController,
             icon: Icons.person_outline_rounded,
             hint: 'الاسم الأول',
+            fieldColor: fieldColor,
+            fieldBorder: fieldBorder,
+            textColor: textColor,
+            hintColor: hintColor,
           ),
           const SizedBox(height: 12),
-          _buildTextField(
+          _buildAuthField(
             controller: _familyNameController,
             icon: Icons.group_outlined,
             hint: 'اسم العائلة',
+            fieldColor: fieldColor,
+            fieldBorder: fieldBorder,
+            textColor: textColor,
+            hintColor: hintColor,
           ),
           const SizedBox(height: 12),
-          _buildTextField(
+          _buildAuthField(
             controller: _emailController,
             icon: Icons.email_outlined,
             hint: 'البريد الإلكتروني',
+            fieldColor: fieldColor,
+            fieldBorder: fieldBorder,
+            textColor: textColor,
+            hintColor: hintColor,
             keyboardType: TextInputType.emailAddress,
           ),
           const SizedBox(height: 12),
-          _buildTextField(
+          _buildAuthField(
             controller: _phoneController,
             icon: Icons.phone_outlined,
             hint: 'رقم الهاتف',
+            fieldColor: fieldColor,
+            fieldBorder: fieldBorder,
+            textColor: textColor,
+            hintColor: hintColor,
             keyboardType: TextInputType.phone,
           ),
           const SizedBox(height: 12),
           Container(
-            height: 52,
+            height: 58,
             padding: const EdgeInsets.symmetric(horizontal: 14),
             decoration: BoxDecoration(
-              color: const Color(0xFFF6F9F8),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE5EEEA), width: 1),
+              color: fieldColor,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: fieldBorder, width: 1),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 isExpanded: true,
                 value: _selectedGender,
-                icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF4F6660)),
+                dropdownColor: isDark ? const Color(0xFF173A33) : Colors.white,
                 style: GoogleFonts.tajawal(
-                  fontSize: 13,
-                  color: const Color(0xFF24332D),
+                  fontSize: 14,
+                  color: textColor,
+                  fontWeight: FontWeight.w500,
                 ),
                 items: ['ذكر', 'أنثى'].map((String value) {
                   return DropdownMenuItem<String>(
@@ -280,7 +323,7 @@ class _SignupScreenState extends State<SignupScreen>
                       children: [
                         Icon(
                           value == 'ذكر' ? Icons.male_rounded : Icons.female_rounded,
-                          size: 18,
+                          size: 20,
                           color: const Color(0xFF52615C),
                         ),
                         const SizedBox(width: 10),
@@ -298,22 +341,34 @@ class _SignupScreenState extends State<SignupScreen>
             ),
           ),
           const SizedBox(height: 12),
-          _buildTextField(
+          _buildAuthField(
             controller: _passwordController,
             icon: Icons.lock_outline_rounded,
             hint: 'كلمة المرور',
+            fieldColor: fieldColor,
+            fieldBorder: fieldBorder,
+            textColor: textColor,
+            hintColor: hintColor,
             isPassword: true,
-            isConfirm: false,
+            showToggle: true,
+            toggleVisibility: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+            isVisible: _isPasswordVisible,
           ),
           const SizedBox(height: 12),
-          _buildTextField(
+          _buildAuthField(
             controller: _confirmPasswordController,
             icon: Icons.lock_outline_rounded,
             hint: 'تأكيد كلمة المرور',
+            fieldColor: fieldColor,
+            fieldBorder: fieldBorder,
+            textColor: textColor,
+            hintColor: hintColor,
             isPassword: true,
-            isConfirm: true,
+            showToggle: true,
+            toggleVisibility: () => setState(() => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
+            isVisible: _isConfirmPasswordVisible,
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -322,15 +377,14 @@ class _SignupScreenState extends State<SignupScreen>
                 height: 20,
                 child: Checkbox(
                   value: _acceptTerms,
-                  onChanged: (val) => setState(() => _acceptTerms = val ?? false),
+                  onChanged: (value) => setState(() => _acceptTerms = value ?? false),
                   fillColor: WidgetStateProperty.resolveWith(
-                    (states) => states.contains(WidgetState.selected)
-                        ? const Color(0xFF0B6B58)
-                        : const Color(0xFFDAE8E4),
+                    (states) => states.contains(WidgetState.selected) ? accent : Colors.transparent,
                   ),
                   checkColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(4),
+                  side: BorderSide(
+                    color: isDark ? const Color(0xFF6E9A8F) : const Color(0xFF9EB9B1),
+                    width: 1.4,
                   ),
                 ),
               ),
@@ -342,7 +396,7 @@ class _SignupScreenState extends State<SignupScreen>
                     Text(
                       'أوافق على ',
                       style: GoogleFonts.tajawal(
-                        color: const Color(0xFF5E665F),
+                        color: isDark ? Colors.white70 : const Color(0xFF5E665F),
                         fontSize: 12,
                       ),
                     ),
@@ -354,16 +408,16 @@ class _SignupScreenState extends State<SignupScreen>
                       child: Text(
                         'الشروط',
                         style: GoogleFonts.tajawal(
-                          color: const Color(0xFF0B6B58),
+                          color: accent,
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
                     Text(
-                      ' و',
+                      ' و ',
                       style: GoogleFonts.tajawal(
-                        color: const Color(0xFF5E665F),
+                        color: isDark ? Colors.white70 : const Color(0xFF5E665F),
                         fontSize: 12,
                       ),
                     ),
@@ -375,7 +429,7 @@ class _SignupScreenState extends State<SignupScreen>
                       child: Text(
                         'سياسة الخصوصية',
                         style: GoogleFonts.tajawal(
-                          color: const Color(0xFF0B6B58),
+                          color: accent,
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
@@ -386,18 +440,18 @@ class _SignupScreenState extends State<SignupScreen>
               ),
             ],
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
-            height: 52,
+            height: 56,
             child: ElevatedButton(
               onPressed: (_isLoading || _isCreatingAccount) ? null : _signup,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0B6B58),
+                backgroundColor: accent,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(18),
                 ),
               ),
               child: (_isLoading || _isCreatingAccount)
@@ -410,9 +464,9 @@ class _SignupScreenState extends State<SignupScreen>
                       ),
                     )
                   : Text(
-                      'إنشاء الحساب',
+                      'إنشاء حساب',
                       style: GoogleFonts.tajawal(
-                        fontSize: 18,
+                        fontSize: 17,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -423,76 +477,70 @@ class _SignupScreenState extends State<SignupScreen>
     );
   }
 
-  Widget _buildTextField({
+  Widget _buildAuthField({
     required TextEditingController controller,
     required IconData icon,
     required String hint,
+    required Color fieldColor,
+    required Color fieldBorder,
+    required Color textColor,
+    required Color hintColor,
     bool isPassword = false,
-    bool isConfirm = false,
+    bool showToggle = false,
+    VoidCallback? toggleVisibility,
+    bool isVisible = false,
     TextInputType keyboardType = TextInputType.text,
   }) {
-    final isVisible = isConfirm ? _isConfirmPasswordVisible : _isPasswordVisible;
     return Container(
-      height: 52,
+      height: 58,
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F8F7),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5EEEA), width: 1),
+        color: fieldColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: fieldBorder, width: 1),
       ),
       child: TextField(
         controller: controller,
-        obscureText: isPassword && !isVisible,
         keyboardType: keyboardType,
+        obscureText: isPassword && !isVisible,
         textAlign: TextAlign.right,
-        style: GoogleFonts.tajawal(
-          color: const Color(0xFF24332D),
-          fontSize: 13,
-        ),
+        style: GoogleFonts.tajawal(color: textColor, fontSize: 14, fontWeight: FontWeight.w500),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: GoogleFonts.tajawal(
-            color: const Color(0xFF8AA09B),
-            fontSize: 12.5,
-          ),
-          prefixIcon: Icon(
-            icon,
-            color: const Color(0xFF52615C),
-            size: 18,
-          ),
-          suffixIcon: isPassword
+          hintStyle: GoogleFonts.tajawal(color: hintColor, fontSize: 13.5),
+          filled: false,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+          prefixIcon: Icon(icon, color: const Color(0xFF4F6660), size: 20),
+          suffixIcon: showToggle
               ? IconButton(
                   padding: EdgeInsets.zero,
                   icon: Icon(
                     isVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
                     color: const Color(0xFF52615C),
-                    size: 18,
+                    size: 20,
                   ),
-                  onPressed: () => setState(() {
-                    if (isConfirm) {
-                      _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
-                    } else {
-                      _isPasswordVisible = !_isPasswordVisible;
-                    }
-                  }),
+                  onPressed: toggleVisibility,
                 )
               : null,
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
         ),
       ),
     );
   }
 
   Widget _buildFooterLink() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final mutedColor = isDark ? Colors.white70 : const Color(0xFF5E665F);
+    final accent = const Color(0xFF0B6B58);
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
           'هل لديك حساب بالفعل؟',
           style: GoogleFonts.tajawal(
-            color: const Color(0xFF5E665F),
+            color: mutedColor,
             fontSize: 13,
           ),
         ),
@@ -501,7 +549,7 @@ class _SignupScreenState extends State<SignupScreen>
           child: Text(
             'تسجيل الدخول',
             style: GoogleFonts.tajawal(
-              color: const Color(0xFF0B6B58),
+              color: accent,
               fontWeight: FontWeight.bold,
               fontSize: 13,
             ),

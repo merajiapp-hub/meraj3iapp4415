@@ -92,6 +92,19 @@ class AuthProvider extends ChangeNotifier {
     await user.linkWithCredential(credential);
   }
 
+  static String safeFallbackDisplayName({String? fullName, String? email, String? provider}) {
+    final candidate = (fullName ?? '').trim();
+    if (candidate.isNotEmpty) return candidate;
+
+    final emailCandidate = (email ?? '').trim();
+    if (emailCandidate.isNotEmpty && emailCandidate.contains('@')) {
+      final local = emailCandidate.split('@').first.trim();
+      if (local.isNotEmpty) return local;
+    }
+
+    return provider == 'google' ? 'مستخدم Google' : 'مستخدم';
+  }
+
   Map<String, dynamic> buildUserProfileData({
     required String uid,
     required String name,
@@ -103,10 +116,11 @@ class AuthProvider extends ChangeNotifier {
   }) {
     final normalizedPhone = normalizePhone(phone);
     final safeEmail = email.trim();
+    final safeName = name.trim().isNotEmpty ? name.trim() : safeFallbackDisplayName(email: safeEmail, provider: provider);
     final profile = <String, dynamic>{
       'uid': uid,
-      'name': name.trim(),
-      'fullName': name.trim(),
+      'name': safeName,
+      'fullName': safeName,
       'email': safeEmail.toLowerCase(),
       'phone': normalizedPhone,
       'phoneNumber': normalizedPhone,
@@ -971,10 +985,15 @@ class AuthProvider extends ChangeNotifier {
     };
 
     if (!current.exists) {
+      final fallbackName = safeFallbackDisplayName(
+        fullName: user.displayName,
+        email: user.email,
+        provider: provider,
+      );
       update.addAll({
         'uid': user.uid,
-        'fullName': user.displayName ?? (provider == 'google' ? 'مستخدم Google' : 'مستخدم جديد'),
-        'name': user.displayName ?? (provider == 'google' ? 'مستخدم Google' : 'مستخدم جديد'),
+        'fullName': fallbackName,
+        'name': fallbackName,
         'email': user.email ?? '',
         'photoUrl': user.photoURL ?? '',
         'profileImageUrl': user.photoURL,
@@ -989,7 +1008,11 @@ class AuthProvider extends ChangeNotifier {
       });
     } else if (data != null) {
       if (!data.containsKey('fullName') && !data.containsKey('name')) {
-        update['fullName'] = user.displayName ?? (provider == 'google' ? 'مستخدم Google' : 'مستخدم جديد');
+        update['fullName'] = safeFallbackDisplayName(
+          fullName: user.displayName,
+          email: user.email,
+          provider: provider,
+        );
       }
       if (!data.containsKey('authProvider') && !data.containsKey('provider')) {
         update['authProvider'] = provider;
