@@ -685,6 +685,9 @@ class AuthProvider extends ChangeNotifier {
   ) async {
     UserCredential? cred;
     final normalizedPhone = normalizePhone(phone);
+    // realEmail = البريد الحقيقي الذي يُخزَّن في Firestore
+    // authEmail = البريد الداخلي المستخدم في Firebase Auth فقط (قد يكون محوَّلاً من رقم الهاتف)
+    final realEmail = email.trim().toLowerCase();
     final displayName = [
       name.trim(),
       familyName.trim(),
@@ -693,46 +696,45 @@ class AuthProvider extends ChangeNotifier {
       email,
       normalizedPhone,
     );
+    final provider = realEmail.isNotEmpty ? 'email' : 'phone';
 
     _isRegistering = true;
+    debugPrint('[SignUp] Starting: name=$displayName, phone=$normalizedPhone, email=$realEmail');
 
     try {
+      // ── 1. مستخدم مسجل بنفس البريد موجود سابقاً ───────────────────────────
       final existingUser = _auth.currentUser;
       if (existingUser != null &&
           (existingUser.email == authEmail ||
               existingUser.providerData.any(
                 (info) => info.email == authEmail,
               ))) {
+        debugPrint('[SignUp] Existing Auth user found — recovering profile');
         try {
           await existingUser.updateDisplayName(displayName);
-
           final mergedUserData = <String, dynamic>{
             'name': displayName,
             'fullName': displayName,
             'firstName': name.trim(),
             'lastName': familyName.trim(),
-            'email': email.trim().isNotEmpty
-                ? email.trim().toLowerCase()
-                : existingUser.email ?? '',
+            'gender': gender.isNotEmpty ? gender : 'غير محدد',
             'phone': normalizedPhone,
             'phoneNumber': normalizedPhone,
             'phoneNormalized': normalizedPhone,
-            'gender': gender,
           };
-
+          if (realEmail.isNotEmpty) {
+            mergedUserData['email'] = realEmail;
+          }
           final savedProfile = await ensureUserDocument(
             existingUser,
-            provider: email.trim().isEmpty ? 'phone' : 'email',
+            provider: provider,
             registrationData: mergedUserData,
           );
-
           _user = existingUser;
           _userData = savedProfile.data();
           _profileReady = _userData != null;
-
           await _checkAdminStatus(existingUser);
           await refreshAccountStatus();
-
           _isRegistering = false;
           notifyListeners();
           return null;
@@ -748,38 +750,11 @@ class AuthProvider extends ChangeNotifier {
         return 'يوجد حساب مسجل الدخول حاليًا. سجّل الخروج أولًا لإنشاء حساب آخر.';
       }
 
-      final duplicateEmail = email.trim().isNotEmpty
-          ? await _firestore
-                .collection('users')
-                .where('email', isEqualTo: email.trim().toLowerCase())
-                .limit(1)
-                .get()
-                .timeout(const Duration(seconds: 8))
-          : null;
-      final duplicatePhone = await _firestore
-          .collection('users')
-          .where('phoneNormalized', isEqualTo: normalizedPhone)
-          .limit(1)
-          .get()
-          .timeout(const Duration(seconds: 8));
-      final legacyDuplicatePhone = duplicatePhone.docs.isEmpty
-          ? await _firestore
-                .collection('users')
-                .where('phone', isEqualTo: normalizedPhone)
-                .limit(1)
-                .get()
-                .timeout(const Duration(seconds: 8))
-          : null;
-
-      if ((duplicateEmail?.docs.isNotEmpty ?? false) ||
-          duplicatePhone.docs.isNotEmpty ||
-          (legacyDuplicatePhone?.docs.isNotEmpty ?? false)) {
-        _isRegistering = false;
-        return email.trim().isEmpty
-            ? 'رقم الهاتف مستخدم في حساب آخر'
-            : 'هذا البريد الإلكتروني مستخدم مسبقاً';
-      }
-
+      // ── 2. إنشاء حساب Firebase Authentication أولاً ───────────────────────
+      // CRITICAL: يجب إنشاء Auth أولاً قبل أي استعلام Firestore
+      // لأن المستخدم يحتاج مصادقة للوصول لقواعد Firestore (allow list: authenticated)
+      // Firebase Auth يرفض تلقائياً إذا كان البريد/الهاتف مستخدماً.
+      debugPrint('[SignUp] Creating Firebase Auth account: authEmail=$authEmail');
       cred = await _auth
           .createUserWithEmailAndPassword(email: authEmail, password: password)
           .timeout(const Duration(seconds: 15));
@@ -789,55 +764,122 @@ class AuthProvider extends ChangeNotifier {
         _isRegistering = false;
         return 'تعذر إنشاء الحساب. أعد المحاولة.';
       }
+      debugPrint('[SignUp] Auth account created: uid=${newUser.uid}');
 
+      // ── 3. تحديث الاسم في Firebase Auth ───────────────────────────────────
+      try { await newUser.updateDisplayName(displayName); } catch (_) {}
+
+      // ── 4. التحقق من تكرار رقم الهاتف في Firestore ────────────────────────
+      // الآن المستخدم مسجل ويملك صلاحية list
+      bool phoneAlreadyExists = false;
       try {
-        await newUser.updateDisplayName(displayName);
-      } catch (_) {}
+        final duplicatePhone = await _firestore
+            .collection('users')
+            .where('phoneNormalized', isEqualTo: normalizedPhone)
+            .limit(1)
+            .get()
+            .timeout(const Duration(seconds: 8));
+        if (duplicatePhone.docs.isNotEmpty) {
+          phoneAlreadyExists = true;
+        } else {
+          final legacyCheck = await _firestore
+              .collection('users')
+              .where('phone', isEqualTo: normalizedPhone)
+              .limit(1)
+              .get()
+              .timeout(const Duration(seconds: 8));
+          phoneAlreadyExists = legacyCheck.docs.isNotEmpty;
+        }
+      } catch (queryError) {
+        debugPrint('[SignUp] Duplicate phone check failed (non-critical): $queryError');
+      }
 
+      if (phoneAlreadyExists) {
+        try { await newUser.delete(); } catch (_) {}
+        try { await _auth.signOut(); } catch (_) {}
+        _isRegistering = false;
+        return 'رقم الهاتف مستخدم في حساب آخر';
+      }
+
+      // ── 5. بناء وحفظ ملف المستخدم الكامل في Firestore ────────────────────
+      // CRITICAL: نستخدم realEmail (البريد الحقيقي) وليس authEmail (الداخلي)
       final userData = buildUserProfileData(
         uid: newUser.uid,
         name: displayName,
-        email: email,
+        email: realEmail,
         phone: phone,
         gender: gender,
-        provider: email.trim().isEmpty ? 'phone' : 'email',
+        provider: provider,
       );
       userData['firstName'] = name.trim();
       userData['lastName'] = familyName.trim();
-      userData['email'] = authEmail;
       userData['phone'] = normalizedPhone;
       userData['phoneNumber'] = normalizedPhone;
       userData['phoneNormalized'] = normalizedPhone;
+      if (realEmail.isNotEmpty) {
+        userData['email'] = realEmail;
+      } else {
+        userData.remove('email'); // لا نخزن البريد الداخلي المشوَّه
+      }
+
+      debugPrint('[SignUp] Creating Firestore profile: uid=${newUser.uid}, name=$displayName');
 
       try {
         final savedProfile = await ensureUserDocument(
           newUser,
-          provider: email.trim().isEmpty ? 'phone' : 'email',
+          provider: provider,
           registrationData: userData,
         );
-
         _user = newUser;
         _userData = savedProfile.data();
         _profileReady = _userData != null;
+        debugPrint('[SignUp] ✅ Profile saved: ${_userData?.keys.toList()}');
+      } on FirebaseException catch (firestoreError) {
+        debugPrint('[SignUp] Firestore error: ${firestoreError.code} — ${firestoreError.message}');
+        if (firestoreError.code == 'permission-denied') {
+          // إعادة المحاولة بعد تحديث Token
+          debugPrint('[SignUp] Retrying after token refresh...');
+          try {
+            await newUser.getIdToken(true);
+            await Future.delayed(const Duration(milliseconds: 800));
+            final retryProfile = await ensureUserDocument(
+              newUser,
+              provider: provider,
+              registrationData: userData,
+            );
+            _user = newUser;
+            _userData = retryProfile.data();
+            _profileReady = _userData != null;
+            debugPrint('[SignUp] ✅ Retry succeeded');
+          } catch (retryError) {
+            debugPrint('[SignUp] ❌ Retry failed: $retryError');
+            _user = newUser;
+            _isRegistering = false;
+            notifyListeners();
+            return 'تم إنشاء الحساب لكن تعذر حفظ بياناتك. يرجى إعادة تسجيل الدخول.';
+          }
+        } else {
+          try { await newUser.delete(); } catch (_) {}
+          try { await _auth.signOut(); } catch (_) {}
+          _isRegistering = false;
+          return 'تعذر إكمال إنشاء الملف الشخصي. حاول مجدداً.';
+        }
       } catch (firestoreError) {
-        debugPrint('[SignUp] Firestore profile write failed: $firestoreError');
-        try {
-          await newUser.delete();
-        } catch (_) {}
-        try {
-          await _auth.signOut();
-        } catch (_) {}
+        debugPrint('[SignUp] ❌ Unexpected error: $firestoreError');
+        try { await newUser.delete(); } catch (_) {}
+        try { await _auth.signOut(); } catch (_) {}
         _isRegistering = false;
-        return 'تعذر إكمال إنشاء ملف الحساب (Firestore Error). حاول مجدداً.';
+        return 'تعذر إكمال إنشاء ملف الحساب. حاول مجدداً.';
       }
 
+      // ── 6. تسجيل النشاط والانتهاء ─────────────────────────────────────────
       AdminActivityService.log(
         type: AdminActivityType.userRegistered,
         title: 'تسجيل مستخدم جديد',
-        description: 'سجل مستخدم جديد باسم: $name ($authEmail)',
+        description: 'سجل مستخدم جديد باسم: $displayName (${realEmail.isNotEmpty ? realEmail : normalizedPhone})',
         targetUserId: newUser.uid,
-        targetUserName: name,
-        metadata: {'email': authEmail, 'phone': normalizedPhone},
+        targetUserName: displayName,
+        metadata: {'email': realEmail, 'phone': normalizedPhone, 'provider': provider},
       ).catchError((_) {});
 
       await _checkAdminStatus(newUser);
@@ -850,7 +892,7 @@ class AuthProvider extends ChangeNotifier {
       _isRegistering = false;
       switch (e.code) {
         case 'email-already-in-use':
-          return email.trim().isEmpty
+          return realEmail.isEmpty
               ? 'رقم الهاتف مستخدم في حساب آخر'
               : 'هذا البريد الإلكتروني مستخدم مسبقاً';
         case 'weak-password':

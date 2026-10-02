@@ -24,7 +24,8 @@ class _DownloadTask {
 }
 
 class BookDownloadService {
-  BookDownloadService({BookCacheService? cache}) : _cache = cache ?? BookCacheService();
+  BookDownloadService({BookCacheService? cache})
+    : _cache = cache ?? BookCacheService();
 
   final BookCacheService _cache;
   final Dio _dio = Dio();
@@ -45,7 +46,7 @@ class BookDownloadService {
     _active[book.uniqueKey] = task;
     task.future = _download(book, task);
     try {
-      return task.future;
+      return await task.future;
     } finally {
       _active.remove(book.uniqueKey);
       await task.progress.close();
@@ -83,7 +84,8 @@ class BookDownloadService {
             followRedirects: true,
             receiveTimeout: const Duration(seconds: 45),
             sendTimeout: const Duration(seconds: 20),
-            validateStatus: (status) => status != null && status >= 200 && status < 400,
+            validateStatus: (status) =>
+                status != null && status >= 200 && status < 400,
           ),
           onReceiveProgress: (received, total) {
             if (!task.progress.isClosed) {
@@ -93,7 +95,9 @@ class BookDownloadService {
         );
 
         if (!await _isPdf(temporary)) {
-          throw const BookDownloadException('الملف الذي أعاده الرابط ليس PDF صالحًا');
+          throw const BookDownloadException(
+            'الملف الذي أعاده الرابط ليس PDF صالحًا',
+          );
         }
         if (await output.exists()) await output.delete();
         await temporary.rename(finalPath);
@@ -123,10 +127,9 @@ class BookDownloadService {
 
   Future<bool> _isPdf(File file) async {
     if (!await file.exists() || await file.length() < 5) return false;
-    final header = await file.openRead(0, 5).fold<List<int>>(
-          <int>[],
-          (bytes, chunk) => bytes..addAll(chunk),
-        );
+    final header = await file
+        .openRead(0, 5)
+        .fold<List<int>>(<int>[], (bytes, chunk) => bytes..addAll(chunk));
     return String.fromCharCodes(header) == '%PDF-';
   }
 
@@ -136,7 +139,8 @@ class BookDownloadService {
 
   String _friendlyMessage(Object? error) {
     if (error is BookDownloadException) return error.message;
-    if (error is DioException && error.type == DioExceptionType.connectionTimeout) {
+    if (error is DioException &&
+        error.type == DioExceptionType.connectionTimeout) {
       return 'انتهت مهلة الاتصال. تحقق من الإنترنت وحاول مرة أخرى.';
     }
     return 'تعذر تحميل الكتاب. تحقق من اتصال الإنترنت وحاول مرة أخرى.';

@@ -62,8 +62,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   bool _isCheckingLocalFile = true;
   bool _isOpening = true;
   bool _openFailed = false;
-  double _openingProgress = 0.0;
-  Timer? _openingTimer;
+  String _loadingStage = 'جاري التحقق من الكتاب...';
 
   // Bookmarks
   List<int> _bookmarks = [];
@@ -146,7 +145,6 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   void dispose() {
     _readingTimer?.cancel();
     _downloadProgressSubscription?.cancel();
-    _openingTimer?.cancel();
     _toolbarAnimController.dispose();
     _pageJumpController.dispose();
     AdManager.showInterstitialAd(chance: 0.3);
@@ -167,10 +165,14 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   Future<void> _saveCurrentPage(int page) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_prefsKey, page);
-    
+
     if (widget.book != null && mounted) {
       final reading = Provider.of<ReadingProvider>(context, listen: false);
-      reading.markAsReading(widget.book!, page: page, totalPages: _totalPages > 0 ? _totalPages : null);
+      reading.markAsReading(
+        widget.book!,
+        page: page,
+        totalPages: _totalPages > 0 ? _totalPages : null,
+      );
     }
   }
 
@@ -199,7 +201,11 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   void _shareBook() {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     if (auth.isGuest) {
-      AppNotification.show(context, 'يرجى تسجيل الدخول لمشاركة الكتب', isError: true);
+      AppNotification.show(
+        context,
+        'يرجى تسجيل الدخول لمشاركة الكتب',
+        isError: true,
+      );
       return;
     }
     final url = widget.pdfUrl.isNotEmpty ? widget.pdfUrl : (_localPath ?? '');
@@ -231,22 +237,56 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('إضافة إلى قائمة القراءة', style: GoogleFonts.cairo(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(
+                'إضافة إلى قائمة القراءة',
+                style: GoogleFonts.cairo(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 16),
               ListTile(
-                leading: const Icon(Icons.bookmark_added_rounded, color: Colors.blue),
+                leading: const Icon(
+                  Icons.bookmark_added_rounded,
+                  color: Colors.blue,
+                ),
                 title: Text('أريد قراءته', style: GoogleFonts.cairo()),
-                onTap: () { Navigator.pop(ctx); reading.markAsToRead(book); AppNotification.show(context, 'تمت الإضافة إلى قائمة القراءة ✅'); },
+                onTap: () {
+                  Navigator.pop(ctx);
+                  reading.markAsToRead(book);
+                  AppNotification.show(
+                    context,
+                    'تمت الإضافة إلى قائمة القراءة ✅',
+                  );
+                },
               ),
               ListTile(
-                leading: const Icon(Icons.menu_book_rounded, color: Colors.orange),
+                leading: const Icon(
+                  Icons.menu_book_rounded,
+                  color: Colors.orange,
+                ),
                 title: Text('قيد القراءة الآن', style: GoogleFonts.cairo()),
-                onTap: () { Navigator.pop(ctx); reading.markAsReading(book, page: _currentPage, totalPages: _totalPages); AppNotification.show(context, 'تم التحديث 📖'); },
+                onTap: () {
+                  Navigator.pop(ctx);
+                  reading.markAsReading(
+                    book,
+                    page: _currentPage,
+                    totalPages: _totalPages,
+                  );
+                  AppNotification.show(context, 'تم التحديث 📖');
+                },
               ),
               ListTile(
-                leading: const Icon(Icons.check_circle_rounded, color: Colors.green),
+                leading: const Icon(
+                  Icons.check_circle_rounded,
+                  color: Colors.green,
+                ),
                 title: Text('قرأته بالكامل', style: GoogleFonts.cairo()),
-                onTap: () { Navigator.pop(ctx); reading.markAsCompleted(book); AppNotification.show(context, 'تم حفظه في المقروءات ✅'); },
+                onTap: () {
+                  Navigator.pop(ctx);
+                  reading.markAsCompleted(book);
+                  AppNotification.show(context, 'تم حفظه في المقروءات ✅');
+                },
               ),
             ],
           ),
@@ -267,7 +307,11 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   void _jumpToPage(int page) {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     if (auth.isGuest && page > 10) {
-      AppNotification.show(context, 'حساب الزائر مخصص لتصفح أول 10 صفحات فقط. يرجى إنشاء حساب للمتابعة.', isError: true);
+      AppNotification.show(
+        context,
+        'حساب الزائر مخصص لتصفح أول 10 صفحات فقط. يرجى إنشاء حساب للمتابعة.',
+        isError: true,
+      );
       return;
     }
     if (page >= 1 && page <= _totalPages) {
@@ -286,7 +330,11 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   Future<void> _launchUrl(String url) async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     if (auth.isGuest) {
-      AppNotification.show(context, 'يرجى تسجيل الدخول لفتح الروابط الخارجية', isError: true);
+      AppNotification.show(
+        context,
+        'يرجى تسجيل الدخول لفتح الروابط الخارجية',
+        isError: true,
+      );
       return;
     }
     final uri = Uri.parse(url);
@@ -295,32 +343,15 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
     }
   }
 
-  void _startOpeningProgress() {
-    _openingTimer?.cancel();
-    _openingTimer = Timer.periodic(const Duration(milliseconds: 180), (_) {
-      if (!mounted || !_isOpening || _isCheckingLocalFile) return;
-      if (_openingProgress >= 0.95) {
-        _openingProgress = 1.0;
-        _openingTimer?.cancel();
-        if (mounted) setState(() {});
-        return;
-      }
-      if (mounted) {
-        setState(() {
-          _openingProgress = (_openingProgress + 0.08).clamp(0.0, 0.95);
-        });
-      }
-    });
-  }
+  // تم إزالة المؤقت الوهمي (_startOpeningProgress) واستبداله بحالات حقيقية
 
   Future<void> _checkLocalFile() async {
     setState(() {
-      _openingProgress = 0.0;
       _openFailed = false;
       _isOpening = true;
       _isCheckingLocalFile = true;
+      _loadingStage = 'جاري التحقق من الملف المحفوظ...';
     });
-    _startOpeningProgress();
 
     // Only resolve an explicitly supplied/local offline file here. Opening a
     // remote book must never promote it into the offline download cache.
@@ -330,10 +361,10 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
         setState(() {
           _localPath = widget.localPath;
           _isCheckingLocalFile = false;
-          _isOpening = false;
-          _openingProgress = 1.0;
+          _isOpening =
+              true; // يجب أن يبقى true حتى يتم تجهيزه في onDocumentLoaded
+          _loadingStage = 'جاري تجهيز الكتاب للقراءة...';
         });
-        _openingTimer?.cancel();
         return;
       }
     }
@@ -347,10 +378,10 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
           setState(() {
             _localPath = file.path;
             _isCheckingLocalFile = false;
-            _isOpening = false;
-            _openingProgress = 1.0;
+            _isOpening =
+                true; // يجب أن يبقى true حتى يتم تجهيزه في onDocumentLoaded
+            _loadingStage = 'جاري تجهيز الكتاب للقراءة...';
           });
-          _openingTimer?.cancel();
           return;
         } else {
           await downloads.removeDownload(widget.book!.uniqueKey);
@@ -361,9 +392,8 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
     setState(() {
       _isCheckingLocalFile = false;
       _isOpening = true;
-      _openingProgress = 0.15;
+      _loadingStage = 'جاري جلب بيانات الكتاب...';
     });
-    _startOpeningProgress();
   }
 
   Future<void> _retryOpening() async {
@@ -372,16 +402,19 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
       _openFailed = false;
       _isOpening = true;
       _isCheckingLocalFile = true;
-      _openingProgress = 0.0;
+      _loadingStage = 'جاري التحقق من الكتاب...';
     });
-    _startOpeningProgress();
     await _checkLocalFile();
   }
 
   Future<void> _downloadPdf({bool askConfirmation = true}) async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     if (auth.isGuest) {
-      AppNotification.show(context, 'يرجى تسجيل الدخول لتحميل الكتب', isError: true);
+      AppNotification.show(
+        context,
+        'يرجى تسجيل الدخول لتحميل الكتب',
+        isError: true,
+      );
       return;
     }
     if (widget.pdfUrl.contains('/drive/folders/')) {
@@ -394,63 +427,66 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
     }
 
     final bool? confirm = askConfirmation
-      ? await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Row(
-            children: [
-              const Icon(Icons.download_rounded, color: AppTheme.primaryColor),
-              const SizedBox(width: 10),
-              Text(
-                'MERAJ3I',
-                style: GoogleFonts.tajawal(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                  color: AppTheme.primaryColor,
-                ),
-              ),
-            ],
-          ),
-          content: Text(
-            'هل تريد تحميل "${widget.title}" للمطالعة لاحقاً بدون إنترنت؟',
-            style: GoogleFonts.tajawal(fontSize: 15),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(
-                'إلغاء',
-                style: GoogleFonts.tajawal(
-                  color: Colors.grey,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
+        ? await showDialog<bool>(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-              ),
-              child: Text(
-                'تحميل',
-                style: GoogleFonts.tajawal(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+                title: Row(
+                  children: [
+                    const Icon(
+                      Icons.download_rounded,
+                      color: AppTheme.primaryColor,
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'MERAJ3I',
+                      style: GoogleFonts.tajawal(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ),
-          ],
-        );
-      },
-    )
-      : true;
+                content: Text(
+                  'هل تريد تحميل "${widget.title}" للمطالعة لاحقاً بدون إنترنت؟',
+                  style: GoogleFonts.tajawal(fontSize: 15),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: Text(
+                      'إلغاء',
+                      style: GoogleFonts.tajawal(
+                        color: Colors.grey,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: Text(
+                      'تحميل',
+                      style: GoogleFonts.tajawal(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          )
+        : true;
 
     if (confirm != true) return;
 
@@ -468,11 +504,11 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
       _downloadProgressSubscription = _downloadService
           .progressFor(widget.book!.uniqueKey)
           .listen((progress) {
-        if (!mounted) return;
-        setState(() {
-          _downloadProgress = progress.value ?? 0;
-        });
-      });
+            if (!mounted) return;
+            setState(() {
+              _downloadProgress = progress.value ?? 0;
+            });
+          });
       final savePath = await _downloadService.getOrDownload(widget.book!);
 
       if (widget.book != null) {
@@ -730,7 +766,9 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
               icon: _isDownloading
                   ? const Icon(Icons.close_rounded)
                   : const Icon(Icons.download_rounded),
-              tooltip: _isDownloading ? 'إلغاء التحميل' : 'تحميل للقراءة بدون إنترنت',
+              tooltip: _isDownloading
+                  ? 'إلغاء التحميل'
+                  : 'تحميل للقراءة بدون إنترنت',
               onPressed: _isDownloading
                   ? () => _downloadService.cancel(widget.book!.uniqueKey)
                   : _downloadPdf,
@@ -764,7 +802,10 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
                 ? _buildFolderView()
                 : Stack(
                     children: [
-                      GestureDetector(onTap: _toggleToolbar, child: _buildPdfView()),
+                      GestureDetector(
+                        onTap: _toggleToolbar,
+                        child: _buildPdfView(),
+                      ),
                       // Download progress bar
                       if (_isDownloading)
                         Positioned(
@@ -1061,13 +1102,19 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.picture_as_pdf_rounded, size: 56, color: AppTheme.primaryColor),
+            const Icon(
+              Icons.picture_as_pdf_rounded,
+              size: 56,
+              color: AppTheme.primaryColor,
+            ),
             const SizedBox(height: 16),
             Text('جاري تحميل ${widget.title}', textAlign: TextAlign.center),
             const SizedBox(height: 12),
             SizedBox(
               width: 260,
-              child: LinearProgressIndicator(value: _downloadProgress > 0 ? _downloadProgress : null),
+              child: LinearProgressIndicator(
+                value: _downloadProgress > 0 ? _downloadProgress : null,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -1120,7 +1167,11 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
           final auth = Provider.of<AuthProvider>(context, listen: false);
           if (auth.isGuest && details.newPageNumber > 10) {
             _pdfViewerController.jumpToPage(10);
-            AppNotification.show(context, 'حساب الزائر مخصص لتصفح أول 10 صفحات فقط. يرجى إنشاء حساب للمتابعة.', isError: true);
+            AppNotification.show(
+              context,
+              'حساب الزائر مخصص لتصفح أول 10 صفحات فقط. يرجى إنشاء حساب للمتابعة.',
+              isError: true,
+            );
             return;
           }
           setState(() => _currentPage = details.newPageNumber);
@@ -1166,7 +1217,11 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
           final auth = Provider.of<AuthProvider>(context, listen: false);
           if (auth.isGuest && details.newPageNumber > 10) {
             _pdfViewerController.jumpToPage(10);
-            AppNotification.show(context, 'حساب الزائر مخصص لتصفح أول 10 صفحات فقط. يرجى إنشاء حساب للمتابعة.', isError: true);
+            AppNotification.show(
+              context,
+              'حساب الزائر مخصص لتصفح أول 10 صفحات فقط. يرجى إنشاء حساب للمتابعة.',
+              isError: true,
+            );
             return;
           }
           setState(() => _currentPage = details.newPageNumber);
@@ -1208,35 +1263,19 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        '${(_openingProgress * 100).round()}%',
-                        style: GoogleFonts.outfit(
-                          fontSize: 42,
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.primaryColor,
-                        ),
+                      const CircularProgressIndicator(
+                        color: AppTheme.primaryColor,
+                        strokeWidth: 3,
                       ),
-                      const SizedBox(height: 18),
-                      SizedBox(
-                        width: 220,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(999),
-                          child: LinearProgressIndicator(
-                            minHeight: 8,
-                            value: _openingProgress.clamp(0.0, 1.0),
-                            backgroundColor: const Color(0xFFEDE7F6),
-                            valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 24),
                       Text(
-                        'جاري تجهيز الكتاب',
+                        _loadingStage,
                         style: GoogleFonts.tajawal(
-                          fontSize: 16,
+                          fontSize: 18,
                           fontWeight: FontWeight.w700,
                           color: const Color(0xFF2D1B4E),
                         ),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
