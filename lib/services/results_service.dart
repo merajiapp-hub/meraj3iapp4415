@@ -163,19 +163,55 @@ class StudentResult {
       score = _findNumericField(row, ['mgex']);
       averageScore = score;
     } else if (type == ExamType.concours) {
-      // Concours: المجموع موجود في TOTAL أو غيره
+      // Concours: المجموع موجود في TOTAL أو غيره — قائمة موسّعة تشمل الحقول الشائعة
       score = _findNumericField(row, [
         'total_general',
         'total général',
+        'total general',
         'totalgeneral',
+        'total_gene',
+        'totalgene',
         'المجموع العام',
         'المجموع النهائي',
+        'المجموع الكلي',
         'total',
         'المجموع',
         'مجموع',
+        'totale',
+        'ptotal',
+        'points_total',
+        'score_total',
         'score',
+        'note_total',
         'note',
+        'resultat',
+        'résultat',
+        'moy',
+        'moyenne',
+        'pts',
+        'points',
+        'sum',
+        't_gen',
+        'tgen',
       ]);
+      // إذا لم نجد المجموع بالأسماء المحددة، ابحث عن أكبر قيمة رقمية في الصف
+      // (المجموع الكلي دائماً هو الأكبر في صف بيانات الكونكور)
+      if (score == null) {
+        double? maxVal;
+        for (final entry in row.entries) {
+          final val = _parseDouble(entry.value.trim());
+          // نبحث عن قيمة بين 21 و 200 (تجنب التقاط معدلات من 20)
+          if (val != null && val > 20 && val <= 200) {
+            if (maxVal == null || val > maxVal) {
+              maxVal = val;
+            }
+          }
+        }
+        // استخدم القيمة الكبرى فقط إذا كانت معقولة كمجموع (تزيد عن 30 لتمييز المجاميع من الدرجات الفردية)
+        if (maxVal != null && maxVal > 30) {
+          score = maxVal;
+        }
+      }
       // لا نستبدل TOTAL بالمعدل؛ غياب TOTAL يعني أن النتيجة غير صالحة للتصنيف.
       averageScore = score != null ? (score / 200.0 * 20.0) : null;
     } else if (type == ExamType.brevet) {
@@ -227,13 +263,17 @@ class StudentResult {
     String status = _normalizeStatus(rawStatus, type);
 
     if (type == ExamType.concours) {
-      // TOTAL is authoritative when available; some published files contain
-      // stale text decisions alongside a successful total. If TOTAL is absent,
-      // preserve an explicit official decision instead of inventing a failure.
+      // TOTAL is authoritative — always apply the 85+ rule from the numeric score.
+      // Never trust the text decision from CSV as it may conflict with the actual total.
       if (score != null) {
+        // القاعدة الأساسية: 85 إلى 200 ناجح، أقل من 85 راسب
         status = concoursStatusFromTotal(score);
-      } else if (status.isEmpty) {
-        status = 'بيانات غير صالحة';
+      } else {
+        // لا يوجد مجموع رقمي: نرجع للحالة النصية إذا كانت صريحة، وإلا نعتبرها بيانات غير صالحة
+        if (status.isEmpty) {
+          status = 'بيانات غير صالحة';
+        }
+        // إذا كان النص يقول ناجح نثق به، أما راسب فلا نثق به بدون رقم
       }
     } else if (type == ExamType.excellence) {
       if (status.isEmpty) {
@@ -247,6 +287,7 @@ class StudentResult {
           status = 'راسب';
         }
       }
+
     } else if (type == ExamType.complementary) {
       if (status.isEmpty || status == 'الدورة التكميلية') {
         if (score != null) {
@@ -416,7 +457,7 @@ class _CacheMeta {
 
 class ResultsService {
   // نستخدم ملفات على القرص لـ Cache البيانات الكبيرة بدل SharedPreferences
-  static const _metaPrefix = 'rc_meta_v8_'; // v8 = invalidate stale result classifications
+  static const _metaPrefix = 'rc_meta_v10_'; // v10 = fix concours score detection: use max value in row (not first value > 20)
 
   /// 30 دقيقة: Soft Expiry
   static const _cacheSoftMs = 30 * 60 * 1000;
@@ -1097,7 +1138,9 @@ class ResultsService {
     averageScore: j['averageScore'] != null
         ? (j['averageScore'] as num).toDouble()
         : null,
-    status: j['status'] as String? ?? 'راسب',
+    // لا نستخدم 'راسب' كقيمة افتراضية — الحالة محسوبة بدقة عند التحليل الأولي
+    // وتُخزَّن في Cache كما هي، لذا نُعيدها كما هي بدون تغيير.
+    status: j['status'] as String? ?? '',
     rank: j['rank'] as String? ?? '',
     nationalRank: j['nationalRank'] as String? ?? '',
     branch: j['branch'] as String? ?? '',
@@ -1129,14 +1172,14 @@ class ResultsService {
 
   static Future<bool> isCacheStale(ExamType type, String url) async {
     if (url.isEmpty) return false;
-    final cacheKey = '${type.name}_${url.hashCode}_v3';
+    final cacheKey = '${type.name}_${url.hashCode}_v10';
     return _checkSoftExpiry(cacheKey);
   }
 
   static Future<DateTime?> lastUpdated(ExamType type, String url) async {
     if (url.isEmpty) return null;
     try {
-      final cacheKey = '${type.name}_${url.hashCode}_v3';
+      final cacheKey = '${type.name}_${url.hashCode}_v10';
       final prefs = await SharedPreferences.getInstance();
       final metaStr = prefs.getString(_metaPrefix + cacheKey);
       if (metaStr == null) return null;

@@ -98,47 +98,49 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
     if (s.score == null) return;
     final all = widget.allResults;
 
-    // ترتيب وطني (الناجحون فقط)
+    // تحديد المجموعة التي سيتم الترتيب ضمنها (ناجحون أو تكميليون)
+    final bool Function(StudentResult) rankFilter;
     if (s.isPassed) {
-      final passedSorted = all
-          .where((r) => r.isPassed && r.score != null)
-          .toList()
-        ..sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
-      final idx = passedSorted.indexWhere((r) => r.id == s.id);
-      if (idx >= 0) _rankNational = idx + 1;
+      rankFilter = (r) => r.isPassed && r.score != null;
+    } else if (s.isComplementary) {
+      rankFilter = (r) => r.isComplementary && r.score != null;
+    } else {
+      // لا يتم الترتيب للراسبين أو الغائبين
+      rankFilter = (r) => false;
     }
 
-    // ترتيب الولاية
-    if (s.wilaya.isNotEmpty) {
-      final wilayaList = all
-          .where((r) =>
-              r.wilaya == s.wilaya && r.isPassed && r.score != null)
-          .toList()
+    if (!s.isPassed && !s.isComplementary) {
+      // لا نحسب الترتيب
+    } else {
+      // ترتيب وطني
+      final nationalList = all.where(rankFilter).toList()
         ..sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
-      final idx = wilayaList.indexWhere((r) => r.id == s.id);
-      if (idx >= 0) _rankWilaya = idx + 1;
-    }
+      final idxNat = nationalList.indexWhere((r) => r.id == s.id);
+      if (idxNat >= 0) _rankNational = idxNat + 1;
 
-    // ترتيب المركز
-    if (s.center.isNotEmpty) {
-      final centerList = all
-          .where((r) =>
-              r.center == s.center && r.isPassed && r.score != null)
-          .toList()
-        ..sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
-      final idx = centerList.indexWhere((r) => r.id == s.id);
-      if (idx >= 0) _rankCenter = idx + 1;
-    }
+      // ترتيب الولاية
+      if (s.wilaya.isNotEmpty) {
+        final wilayaList = all.where((r) => r.wilaya == s.wilaya && rankFilter(r)).toList()
+          ..sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
+        final idxWil = wilayaList.indexWhere((r) => r.id == s.id);
+        if (idxWil >= 0) _rankWilaya = idxWil + 1;
+      }
 
-    // ترتيب المدرسة
-    if (s.school.isNotEmpty) {
-      final schoolList = all
-          .where((r) =>
-              r.school == s.school && r.isPassed && r.score != null)
-          .toList()
-        ..sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
-      final idx = schoolList.indexWhere((r) => r.id == s.id);
-      if (idx >= 0) _rankSchool = idx + 1;
+      // ترتيب المركز
+      if (s.center.isNotEmpty) {
+        final centerList = all.where((r) => r.center == s.center && rankFilter(r)).toList()
+          ..sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
+        final idxCen = centerList.indexWhere((r) => r.id == s.id);
+        if (idxCen >= 0) _rankCenter = idxCen + 1;
+      }
+
+      // ترتيب المدرسة
+      if (s.school.isNotEmpty) {
+        final schoolList = all.where((r) => r.school == s.school && rankFilter(r)).toList()
+          ..sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
+        final idxSch = schoolList.indexWhere((r) => r.id == s.id);
+        if (idxSch >= 0) _rankSchool = idxSch + 1;
+      }
     }
 
     // حساب مقارنة النتائج الوطنية

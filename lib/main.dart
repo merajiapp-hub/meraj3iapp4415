@@ -311,11 +311,11 @@ class Meraj3iApp extends StatelessWidget {
         return Consumer2<AppConfigProvider, AuthProvider>(
           builder: (context, appConfig, auth, _) {
             final isAdmin = auth.isAdmin;
-            final isMaintenance = appConfig.maintenanceMode && !isAdmin;
+            final isMaintenance = appConfig.maintenanceMode;
             final shouldBlockSuspended = auth.user != null && auth.isAccountSuspended;
             final pageContent = shouldBlockSuspended
                 ? const AccountSuspendedScreen()
-                : (isMaintenance
+                : (isMaintenance && !isAdmin
                     ? const MaintenanceScreen()
                     : (child ?? const SizedBox.shrink()));
 

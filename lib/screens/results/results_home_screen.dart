@@ -122,6 +122,7 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
           maxScore: _maxScoreFor(comp.type),
           scoreLabel: _scoreLabelFor(comp.type),
           showBranch: _showBranchFor(comp.type),
+          isFirstSession: comp.isFirstSession,
         ),
       ),
     );

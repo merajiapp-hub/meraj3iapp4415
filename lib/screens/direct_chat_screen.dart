@@ -56,7 +56,14 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
 
     setState(() {
       _uid = user.uid;
-      _userName = user.displayName ?? user.email ?? 'مستخدم';
+      final ud = auth.userData;
+      _userName = ud?['fullName']?.toString().trim().isNotEmpty == true
+          ? ud!['fullName'].toString().trim()
+          : ud?['name']?.toString().trim().isNotEmpty == true
+              ? ud!['name'].toString().trim()
+              : user.displayName?.trim().isNotEmpty == true
+                  ? user.displayName!.trim()
+                  : user.email ?? 'مستخدم';
       _chatId = 'chat_${user.uid}';
     });
 

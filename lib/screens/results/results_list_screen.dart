@@ -20,6 +20,8 @@ class ResultsListScreen extends StatefulWidget {
   final String scoreLabel;
   final bool showBranch;
   final String? initialSearchQuery;
+  /// بكالوريا فقط: true = دورة أولى (تُظهِر قسم التكميلي), false = دورة ثانية (لا تُظهِر القسم)
+  final bool isFirstSession;
 
   const ResultsListScreen({
     super.key,
@@ -33,6 +35,7 @@ class ResultsListScreen extends StatefulWidget {
     required this.scoreLabel,
     this.showBranch = false,
     this.initialSearchQuery,
+    this.isFirstSession = false,
   });
 
   @override
@@ -53,6 +56,20 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
   String _filterSchool = '';
   String _filterStatus = '';
   String _filterBranch = '';
+
+  // خيارات الفلاتر المتاحة (تم تخزينها مؤقتًا لتحسين الأداء)
+  Set<String> _availableBranches = {};
+  Set<String> _availableWilayas = {};
+  Set<String> _availableCenters = {};
+  Set<String> _availableSchools = {};
+  Set<String> _availableStatuses = {};
+
+  // إحصائيات سريعة (مخزنة مؤقتاً لتحسين الأداء)
+  int _statTotal = 0;
+  int _statPassed = 0;
+  int _statFailed = 0;
+  int _statInvalid = 0;
+  double _statHighest = 0;
 
   // لتأخير البحث حتى يتوقف المستخدم عن الكتابة (debounce)
   _Debouncer? _searchDebouncer;
@@ -166,10 +183,18 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
     if (!mounted) return;
     setState(() {
       _filtered = _allResults.where((r) {
+        // إخفاء المؤهلين للتكميلية إذا لم تكن الباكالوريا الدورة الأولى
+        if (r.isComplementary &&
+            !(widget.examType == ExamType.bac && widget.isFirstSession)) {
+          return false;
+        }
         final matchSearch =
             q.isEmpty ||
             r.name.toLowerCase().contains(q) ||
-            r.id.toLowerCase().contains(q);
+            r.id.toLowerCase().contains(q) ||
+            r.school.toLowerCase().contains(q) ||
+            r.center.toLowerCase().contains(q) ||
+            r.wilaya.toLowerCase().contains(q);
         final matchWilaya = _filterWilaya.isEmpty || r.wilaya == _filterWilaya;
         final matchCenter = _filterCenter.isEmpty || r.center == _filterCenter;
         final matchSchool = _filterSchool.isEmpty || r.school == _filterSchool;
@@ -183,56 +208,86 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
             matchBranch;
       }).toList();
     });
-  }
-
-  Set<String> get _availableBranches {
-    return _allResults.map((r) => r.branch).where((b) => b.isNotEmpty).toSet();
-  }
-
-  Set<String> get _availableWilayas {
-    return _allResults
-        .where((r) => _filterBranch.isEmpty || r.branch == _filterBranch)
-        .map((r) => r.wilaya)
-        .where((w) => w.isNotEmpty)
-        .toSet();
-  }
-
-  Set<String> get _availableCenters {
-    return _allResults
-        .where((r) => _filterBranch.isEmpty || r.branch == _filterBranch)
-        .where((r) => _filterWilaya.isEmpty || r.wilaya == _filterWilaya)
-        .map((r) => r.center)
-        .where((c) => c.isNotEmpty)
-        .toSet();
-  }
-
-  Set<String> get _availableSchools {
-    return _allResults
-        .where((r) => _filterBranch.isEmpty || r.branch == _filterBranch)
-        .where((r) => _filterWilaya.isEmpty || r.wilaya == _filterWilaya)
-        .where((r) => _filterCenter.isEmpty || r.center == _filterCenter)
-        .map((r) => r.school)
-        .where((s) => s.isNotEmpty)
-        .toSet();
-  }
-
-  Set<String> get _availableStatuses {
-    if (widget.examType == ExamType.concours) {
-      return {'ناجح', 'راسب'};
-    }
     
-    final statuses = _allResults.where((r) {
-      // إخفاء حالة "تكميلي" للمسابقات غير البكالوريا العادية
-      if (r.isComplementary && widget.examType != ExamType.bac) {
-        return false;
+    _updateFilterOptions();
+  }
+
+  void _updateFilterOptions() {
+    if (!mounted) return;
+    
+    // تحديث خيارات الفلاتر بناءً على التحديد الحالي (تسلسل هرمي)
+    final newBranches = <String>{};
+    final newWilayas = <String>{};
+    final newCenters = <String>{};
+    final newSchools = <String>{};
+    final newStatuses = <String>{};
+
+    // حساب الإحصائيات السريعة هنا (مرة واحدة فقط عند تحديث البيانات)
+    int sPassed = 0;
+    int sFailed = 0;
+    int sInvalid = 0;
+    int sComplementary = 0;
+    double sHighest = 0;
+    
+    // هل يُظهر التكميلية في هذه الشاشة؟
+    final showComplementary =
+        widget.examType == ExamType.bac && widget.isFirstSession;
+
+    for (final r in _allResults) {
+      // تجاهل طلاب التكميلية إذا لم تكن الباكالوريا الدورة الأولى
+      if (r.isComplementary && !showComplementary) continue;
+
+      if (r.branch.isNotEmpty) newBranches.add(r.branch);
+      
+      final matchBranch = _filterBranch.isEmpty || r.branch == _filterBranch;
+      if (matchBranch && r.wilaya.isNotEmpty) newWilayas.add(r.wilaya);
+      
+      final matchWilaya = matchBranch && (_filterWilaya.isEmpty || r.wilaya == _filterWilaya);
+      if (matchWilaya && r.center.isNotEmpty) newCenters.add(r.center);
+      
+      final matchCenter = matchWilaya && (_filterCenter.isEmpty || r.center == _filterCenter);
+      if (matchCenter && r.school.isNotEmpty) newSchools.add(r.school);
+
+      // الحالات
+      if (r.status.isNotEmpty) newStatuses.add(r.status);
+
+      // الإحصائيات
+      if (r.isPassed) {
+        sPassed++;
+      } else if (r.isFailed) {
+        sFailed++;
+      } else if (r.isComplementary) {
+        sComplementary++;
+      } else if (r.isInvalid || r.status.isEmpty) {
+        sInvalid++;
       }
-      return true;
-    }).map((r) => r.status).where((s) {
-      if (s.isEmpty) return false;
-      return true;
-    }).toSet();
-    
-    return statuses;
+      
+      if (r.score != null && !r.isInvalid && r.score! > sHighest) {
+        sHighest = r.score!;
+      }
+    }
+
+    if (widget.examType == ExamType.concours) {
+      newStatuses.add('ناجح');
+      newStatuses.add('راسب');
+    }
+
+    setState(() {
+      _availableBranches = newBranches;
+      _availableWilayas = newWilayas;
+      _availableCenters = newCenters;
+      _availableSchools = newSchools;
+      _availableStatuses = newStatuses;
+      
+      // إجمالي المترشحين: يشمل من يُعرضون فعلاً (نستثني التكميليين غير المعروضين)
+      _statTotal = showComplementary
+          ? _allResults.length
+          : _allResults.where((r) => !r.isComplementary).length;
+      _statPassed = sPassed;
+      _statFailed = sFailed;
+      _statInvalid = sInvalid + sComplementary; // تُحسب في "غير مصنّف" عند الإخفاء
+      _statHighest = sHighest;
+    });
   }
 
   @override
@@ -332,6 +387,7 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
                               allResults: _allResults,
                               examType: widget.examType,
                               gradient: widget.gradient,
+                              isFirstSession: widget.isFirstSession,
                             ),
                           ),
                         );
@@ -453,21 +509,10 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
 
 
   Widget _buildQuickStats(bool isDark) {
-    int total = _allResults.length;
-    int passed = _allResults.where((r) => r.isPassed).length;
-    double passRate = total > 0 ? (passed / total * 100) : 0;
-    
-    double highest = 0;
-    double lowest = 9999;
-    int countWithScore = 0;
-    for (var r in _allResults) {
-      if (r.score != null && !r.isInvalid) {
-        if (r.score! > highest) highest = r.score!;
-        if (r.score! < lowest) lowest = r.score!;
-        countWithScore++;
-      }
-    }
-    if (countWithScore == 0) lowest = 0;
+    // عدد النتائج القابلة للتصنيف
+    int classifiable = _statPassed + _statFailed;
+    // نسبة النجاح من القابلين للتصنيف فقط (خطأ 0/0)
+    double passRate = classifiable > 0 ? (_statPassed / classifiable * 100) : 0;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -485,30 +530,77 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+      child: Column(
         children: [
-          _StatItem(
-            label: 'المترشحين',
-            value: total.toString(),
-            icon: Icons.group_rounded,
-            color: Colors.blue,
-            isDark: isDark,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _StatItem(
+                label: 'المترشحين',
+                value: _statTotal.toString(),
+                icon: Icons.group_rounded,
+                color: Colors.blue,
+                isDark: isDark,
+              ),
+              _StatItem(
+                label: 'نسبة النجاح',
+                value: '${passRate.toStringAsFixed(1)}%',
+                icon: Icons.pie_chart_rounded,
+                color: Colors.green,
+                isDark: isDark,
+              ),
+              _StatItem(
+                label: 'أعلى ${widget.scoreLabel}',
+                value: _statHighest > 0 ? _statHighest.toStringAsFixed(2) : '—',
+                icon: Icons.trending_up_rounded,
+                color: Colors.orange,
+                isDark: isDark,
+              ),
+            ],
           ),
-          _StatItem(
-            label: 'نسبة النجاح',
-            value: '${passRate.toStringAsFixed(1)}%',
-            icon: Icons.pie_chart_rounded,
-            color: Colors.green,
-            isDark: isDark,
-          ),
-          _StatItem(
-            label: 'أعلى ${widget.scoreLabel}',
-            value: highest > 0 ? highest.toStringAsFixed(2) : '—',
-            icon: Icons.trending_up_rounded,
-            color: Colors.orange,
-            isDark: isDark,
-          ),
+          // شريط توضيحي للناجحين والراسبين
+          if (classifiable > 0) ...[
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: classifiable > 0 ? (_statPassed / classifiable) : 0,
+                minHeight: 6,
+                backgroundColor: Colors.red.withValues(alpha: 0.2),
+                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF16A34A)),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '✓ ناجح: $_statPassed',
+                  style: GoogleFonts.tajawal(
+                    fontSize: 11,
+                    color: const Color(0xFF16A34A),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (_statInvalid > 0)
+                  Text(
+                    '? غير مصنّف: $_statInvalid',
+                    style: GoogleFonts.tajawal(
+                      fontSize: 11,
+                      color: Colors.deepOrange,
+                    ),
+                  ),
+                Text(
+                  '✗ راسب: $_statFailed',
+                  style: GoogleFonts.tajawal(
+                    fontSize: 11,
+                    color: Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

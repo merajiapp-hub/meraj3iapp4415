@@ -13,6 +13,8 @@ class CompetitionStatsScreen extends StatefulWidget {
   final List<StudentResult> allResults;
   final ExamType examType;
   final Gradient gradient;
+  /// بكالوريا فقط: true = الدورة الأولى ، false = الدورة الثانية أو مسابقة أخرى
+  final bool isFirstSession;
 
   const CompetitionStatsScreen({
     super.key,
@@ -20,6 +22,7 @@ class CompetitionStatsScreen extends StatefulWidget {
     required this.allResults,
     required this.examType,
     required this.gradient,
+    this.isFirstSession = false,
   });
 
   @override
@@ -38,7 +41,10 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
   @override
   void initState() {
     super.initState();
-    final tabCount = widget.examType == ExamType.bac ? 4 : 3;
+    // تاب "المؤهلون للتكميلية" يظهر فقط للبكالوريا الدورة الأولى
+    final bool showComplementaryTab =
+        widget.examType == ExamType.bac && widget.isFirstSession;
+    final tabCount = showComplementaryTab ? 4 : 3;
     _tabController = TabController(length: tabCount, vsync: this);
     _schoolSearchCtrl.addListener(() {
       setState(
@@ -75,8 +81,9 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
         ? widget.allResults.where((r) => r.isComplementary).length
         : 0;
 
-    final passRate = total > 0 ? (passed / total * 100) : 0.0;
-    final failRate = total > 0 ? (failed / total * 100) : 0.0;
+    final classifiable = passed + failed;
+    final passRate = classifiable > 0 ? (passed / classifiable * 100) : 0.0;
+    final failRate = classifiable > 0 ? (failed / classifiable * 100) : 0.0;
     final absentRate = total > 0 ? (absent / total * 100) : 0.0;
     final expelledRate = total > 0 ? (expelled / total * 100) : 0.0;
     final complementaryRate = total > 0 ? (complementary / total * 100) : 0.0;
@@ -152,8 +159,10 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
       sortedWilayas[i].rank = i + 1;
     }
 
-    // ─── الطلاب المؤهلون: يظهر هذا القسم في ترتيب البكالوريا فقط ───
-    final compStudents = widget.examType == ExamType.bac
+    // ─── الطلاب المؤهلون: يظهر هذا القسم في بكالوريا الدورة الأولى فقط ───
+    final bool showComplementaryTab =
+        widget.examType == ExamType.bac && widget.isFirstSession;
+    final compStudents = showComplementaryTab
         ? widget.allResults.where((r) => r.isComplementary).toList()
         : <StudentResult>[];
 
@@ -197,7 +206,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
               icon: Icon(Icons.map_rounded, size: 20),
               text: 'ترتيب الولايات',
             ),
-            if (widget.examType == ExamType.bac)
+            if (showComplementaryTab)
               const Tab(
                 icon: Icon(Icons.refresh_rounded, size: 20),
                 text: 'المؤهلون للتكميلية',
@@ -248,8 +257,8 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
             maxScore: maxScore,
           ),
 
-          // 4. ترتيب البكالوريا: المؤهلون فقط
-          if (widget.examType == ExamType.bac)
+          // 4. المؤهلون للتكميلية — بكالوريا الدورة الأولى فقط
+          if (showComplementaryTab)
             _buildComplementaryTab(
               isDark: isDark,
               primaryColor: primaryColor,
@@ -347,7 +356,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: LinearProgressIndicator(
-                    value: total > 0 ? (passed / total) : 0,
+                    value: (passed + failed) > 0 ? (passed / (passed + failed)) : 0,
                     minHeight: 8,
                     backgroundColor: Colors.white.withValues(alpha: 0.2),
                     valueColor: const AlwaysStoppedAnimation<Color>(
@@ -360,7 +369,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      '$passed ناجح من أصل $total مترشح',
+                      '$passed ناجح من أصل ${passed + failed} مصنف',
                       style: GoogleFonts.tajawal(
                         color: Colors.white,
                         fontSize: 12,

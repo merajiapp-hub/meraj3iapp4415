@@ -28,6 +28,7 @@ class BacResultsScreen extends StatelessWidget {
       maxScore: 20,
       scoreLabel: 'المعدل',
       showBranch: true,
+      isFirstSession: true, // الباكالوريا العادية تُظهر قسم المؤهلين للدورة التكميلية
     );
   }
 }

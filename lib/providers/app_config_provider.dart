@@ -77,12 +77,12 @@ class AppConfigProvider extends ChangeNotifier {
     await _prefs!.setBool('results_enabled', data['results_enabled'] == true);
   }
 
-  Future<void> _saveAppSettingsToCache(AppSettings settings) async {
+  Future<void> _saveAppSettingsToCache() async {
     if (_prefs == null) return;
-    await _prefs!.setBool('maintenance_mode', settings.maintenanceMode);
-    await _prefs!.setString('maintenance_message', settings.maintenanceMessage);
-    await _prefs!.setBool('registration_open', settings.registrationOpen);
-    await _prefs!.setBool('allow_guest_view', settings.allowGuestView);
+    await _prefs!.setBool('maintenance_mode', _maintenanceMode);
+    await _prefs!.setString('maintenance_message', _maintenanceMessage);
+    await _prefs!.setBool('registration_open', _registrationOpen);
+    await _prefs!.setBool('allow_guest_view', _allowGuestView);
   }
 
   void _listenToFeatureFlags() {
@@ -123,7 +123,7 @@ class AppConfigProvider extends ChangeNotifier {
             final settings = AppSettings.fromFirestore(snapshot.data());
             _maintenanceMode = settings.maintenanceMode;
             _maintenanceMessage = settings.maintenanceMessage;
-            _saveAppSettingsToCache(settings);
+            _saveAppSettingsToCache();
             notifyListeners();
           },
           onError: (error) {
@@ -145,7 +145,7 @@ class AppConfigProvider extends ChangeNotifier {
             final settings = AppSettings.fromFirestore(snapshot.data());
             _registrationOpen = settings.registrationOpen;
             _allowGuestView = settings.allowGuestView;
-            _saveAppSettingsToCache(settings);
+            _saveAppSettingsToCache();
             notifyListeners();
           },
           onError: (error) {
@@ -165,7 +165,7 @@ class AppConfigProvider extends ChangeNotifier {
       final settings = AppSettings.fromFirestore(doc.data());
       _maintenanceMode = settings.maintenanceMode;
       _maintenanceMessage = settings.maintenanceMessage;
-      _saveAppSettingsToCache(settings);
+      _saveAppSettingsToCache();
       notifyListeners();
     } catch (e) {
       debugPrint('[AppConfig] Error checking maintenance status: $e');
@@ -182,7 +182,7 @@ class AppConfigProvider extends ChangeNotifier {
       final settings = AppSettings.fromFirestore(doc.data());
       _registrationOpen = settings.registrationOpen;
       _allowGuestView = settings.allowGuestView;
-      _saveAppSettingsToCache(settings);
+      _saveAppSettingsToCache();
       notifyListeners();
     } catch (e) {
       debugPrint('[AppConfig] Error checking app settings: $e');

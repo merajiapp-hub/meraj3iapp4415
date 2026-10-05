@@ -25,6 +25,10 @@ class CompetitionModel {
   final String? color; // hex color مثل "#0D9488"
   final int order; // ترتيب العرض
 
+  /// لتمييز بكالوريا الدورة الأولى عن الدورة الثانية.
+  /// يُستخدم لإظهار قسم "المؤهلون للتكميلية" فقط في الدورة الأولى.
+  final bool isFirstSession;
+
   const CompetitionModel({
     required this.rawKey,
     required this.type,
@@ -35,6 +39,7 @@ class CompetitionModel {
     this.subtitle,
     this.color,
     this.order = 99,
+    this.isFirstSession = false,
   });
 
   /// إنشاء من JSON مع rawKey
@@ -53,6 +58,28 @@ class CompetitionModel {
           : (json.containsKey('isActive')
             ? json['isActive']
             : json['active']));
+
+    // تحديد ما إذا كانت الدورة الأولى:
+    // - إذا كان الحقل 'session' == '1' أو 'first' أو 'اول' → دورة أولى
+    // - إذا كان النوع bac ولا يحتوي المفتاح على 'complementary'/'rattrapage'/'session2' → دورة أولى
+    // - إذا كان النوع complementary → دورة ثانية دائماً
+    bool isFirstSession = false;
+    if (type == CompetitionType.bac) {
+      final sessionVal = (json['session'] ?? '').toString().toLowerCase().trim();
+      final k = key.toLowerCase();
+      if (sessionVal == '2' || sessionVal == 'second' || sessionVal == 'deuxieme' || sessionVal == 'ثاني') {
+        isFirstSession = false;
+      } else if (k.contains('session2') || k.contains('session_2') || k.contains('rattrapage') || k.contains('second')) {
+        isFirstSession = false;
+      } else {
+        // بكالوريا بدون تحديد دورة = دورة أولى افتراضياً
+        isFirstSession = true;
+      }
+    } else if (type == CompetitionType.complementary) {
+      // نوع complementary = دورة تكميلية = ليست دورة أولى
+      isFirstSession = false;
+    }
+
     return CompetitionModel(
       rawKey: key,
       type: type,
@@ -67,6 +94,7 @@ class CompetitionModel {
       order: rawOrder is num
           ? rawOrder.toInt()
           : int.tryParse('$rawOrder') ?? _defaultOrder(key),
+      isFirstSession: isFirstSession,
     );
   }
 

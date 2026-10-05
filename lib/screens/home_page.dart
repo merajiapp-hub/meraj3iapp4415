@@ -886,7 +886,13 @@ class _HomePageState extends State<HomePage>
   Widget _buildDrawer() {
     final auth = Provider.of<AuthProvider>(context);
     final user = auth.user;
-    final userName = user?.displayName ?? 'حساب الطالب';
+    final userName = auth.userData?['fullName']?.toString().trim().isNotEmpty == true
+        ? auth.userData!['fullName'].toString().trim()
+        : auth.userData?['name']?.toString().trim().isNotEmpty == true
+            ? auth.userData!['name'].toString().trim()
+            : user?.displayName?.trim().isNotEmpty == true
+                ? user!.displayName!.trim()
+                : 'حساب الطالب';
     final userEmail = user?.email ?? '';
 
     return Drawer(

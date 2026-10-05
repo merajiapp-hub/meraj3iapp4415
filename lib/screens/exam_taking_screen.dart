@@ -2,18 +2,23 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:provider/provider.dart';
 
+import '../data/exam_selection_utils.dart';
 import '../data/quiz_models.dart';
-import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import 'exam_result_screen.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  شاشة أداء الاختبار — مع حفظ تلقائي وإمكانية الاستكمال
+// ─────────────────────────────────────────────────────────────────────────────
 
 class ExamTakingScreen extends StatefulWidget {
   final String quizId;
   final String quizTitle;
   final int durationMinutes;
   final List<QuizQuestion> questions;
+  final String? uid;
+  final String? resumeAttemptId; // معرف محاولة سابقة للاستكمال
 
   const ExamTakingScreen({
     super.key,
@@ -21,6 +26,8 @@ class ExamTakingScreen extends StatefulWidget {
     required this.quizTitle,
     required this.durationMinutes,
     required this.questions,
+    this.uid,
+    this.resumeAttemptId,
   });
 
   @override
@@ -31,10 +38,12 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
     with TickerProviderStateMixin {
   final PageController _pageController = PageController();
   int _currentPage = 0;
-  final Map<int, int> _answers = {}; // questionIndex -> selectedOptionIndex
+  final Map<int, int> _answers = {}; // questionIndex → selectedOptionIndex
   late int _secondsLeft;
   Timer? _timer;
+  Timer? _autoSaveTimer;
   bool _isSubmitting = false;
+  String? _attemptId; // معرف المحاولة في Firestore
 
   late AnimationController _timerAnimController;
   late AnimationController _progressAnimController;
@@ -54,9 +63,106 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
       duration: const Duration(milliseconds: 400),
     );
 
+    _initAttempt();
     _startTimer();
   }
 
+  // ── تهيئة المحاولة (جديدة أو استكمال) ─────────────────────────────────────
+  Future<void> _initAttempt() async {
+    if (widget.uid == null) return;
+
+    if (widget.resumeAttemptId != null) {
+      // استعادة محاولة سابقة
+      _attemptId = widget.resumeAttemptId;
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('exam_attempts')
+            .doc(_attemptId)
+            .get();
+        if (doc.exists) {
+          final data = doc.data()!;
+          // استعادة الإجابات السابقة
+          final savedAnswers =
+              (data['answers'] as Map<String, dynamic>? ?? {});
+          final remainingSeconds =
+              (data['remainingSeconds'] as num?)?.toInt();
+          final lastQuestion =
+              (data['currentQuestion'] as num?)?.toInt() ?? 0;
+
+          if (mounted) {
+            setState(() {
+              for (final entry in savedAnswers.entries) {
+                final idx = int.tryParse(entry.key);
+                if (idx != null && entry.value is int) {
+                  _answers[idx] = entry.value as int;
+                }
+              }
+              if (remainingSeconds != null && remainingSeconds > 0) {
+                _secondsLeft = remainingSeconds;
+              }
+            });
+            // الانتقال إلى السؤال الأخير
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && lastQuestion > 0 && lastQuestion < widget.questions.length) {
+                _pageController.jumpToPage(lastQuestion);
+                setState(() => _currentPage = lastQuestion);
+              }
+            });
+          }
+        }
+      } catch (e) {
+        debugPrint('Failed to restore attempt: $e');
+      }
+    } else {
+      // إنشاء محاولة جديدة
+      try {
+        final ref =
+            await FirebaseFirestore.instance.collection('exam_attempts').add({
+          'userId': widget.uid,
+          'quizId': widget.quizId,
+          'quizTitle': widget.quizTitle,
+          'status': 'in_progress',
+          'answers': <String, int>{},
+          'currentQuestion': 0,
+          'remainingSeconds': _secondsLeft,
+          'totalQuestions': widget.questions.length,
+          'startedAt': FieldValue.serverTimestamp(),
+          'lastSavedAt': FieldValue.serverTimestamp(),
+        });
+        _attemptId = ref.id;
+      } catch (e) {
+        debugPrint('Failed to create attempt: $e');
+      }
+    }
+
+    // حفظ تلقائي كل 15 ثانية
+    _autoSaveTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      _autoSave();
+    });
+  }
+
+  // ── حفظ تلقائي ────────────────────────────────────────────────────────────
+  Future<void> _autoSave() async {
+    if (_attemptId == null || widget.uid == null) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('exam_attempts')
+          .doc(_attemptId)
+          .update({
+        'answers': {
+          for (final e in _answers.entries) '${e.key}': e.value
+        },
+        'currentQuestion': _currentPage,
+        'remainingSeconds': _secondsLeft,
+        'lastSavedAt': FieldValue.serverTimestamp(),
+        'status': 'in_progress',
+      });
+    } catch (e) {
+      debugPrint('Auto-save failed: $e');
+    }
+  }
+
+  // ── التايمر ────────────────────────────────────────────────────────────────
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
@@ -71,6 +177,7 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
   @override
   void dispose() {
     _timer?.cancel();
+    _autoSaveTimer?.cancel();
     _timerAnimController.dispose();
     _progressAnimController.dispose();
     _pageController.dispose();
@@ -86,12 +193,14 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
   Color get _timerColor {
     final pct = _secondsLeft / (widget.durationMinutes * 60);
     if (pct > 0.5) return AppTheme.primaryColor;
-    if (pct > 0.25) return AppTheme.lightGreen;
-    return AppTheme.accentColor;
+    if (pct > 0.25) return Colors.orange;
+    return Colors.redAccent;
   }
 
   void _selectAnswer(int questionIndex, int optionIndex) {
     setState(() => _answers[questionIndex] = optionIndex);
+    // حفظ فوري عند كل إجابة
+    _autoSave();
   }
 
   void _goToQuestion(int index) {
@@ -102,25 +211,21 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
     );
   }
 
+  // ── إنهاء الاختبار ────────────────────────────────────────────────────────
   Future<void> _submitExam({bool autoSubmit = false}) async {
     if (_isSubmitting) return;
-    // Cache uid before any async gaps
-    final uid = context.read<AuthProvider>().user?.uid;
-    if (!autoSubmit) {
-      final answeredCount = _answers.length;
-      final totalCount = widget.questions.length;
-      final unanswered = totalCount - answeredCount;
 
+    if (!autoSubmit) {
+      final unanswered = widget.questions.length - _answers.length;
       if (unanswered > 0) {
         final confirm = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Text(
-              'إنهاء الاختبار؟',
-              style: GoogleFonts.cairo(fontWeight: FontWeight.bold),
-              textDirection: TextDirection.rtl,
-            ),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Text('إنهاء الاختبار؟',
+                style: GoogleFonts.cairo(fontWeight: FontWeight.bold),
+                textDirection: TextDirection.rtl),
             content: Text(
               'لم تجب على $unanswered سؤال بعد.\nهل أنت متأكد من إنهاء الاختبار؟',
               style: GoogleFonts.cairo(),
@@ -128,18 +233,17 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: Text('متابعة', style: GoogleFonts.cairo()),
-              ),
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text('متابعة', style: GoogleFonts.cairo())),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: () => Navigator.pop(ctx, true),
-                child: Text('إنهاء', style: GoogleFonts.cairo(color: Colors.white)),
+                child: Text('إنهاء',
+                    style: GoogleFonts.cairo(color: Colors.white)),
               ),
             ],
           ),
@@ -150,8 +254,9 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
 
     setState(() => _isSubmitting = true);
     _timer?.cancel();
+    _autoSaveTimer?.cancel();
 
-    // Calculate results
+    // حساب النتائج
     int correct = 0;
     int wrong = 0;
     final List<Map<String, dynamic>> reviewData = [];
@@ -177,29 +282,49 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
       });
     }
 
-    final int unanswered = widget.questions.length - _answers.length;
-    final int timeTakenSeconds = widget.durationMinutes * 60 - _secondsLeft;
+    final unanswered = widget.questions.length - _answers.length;
+    final timeTaken =
+        widget.durationMinutes * 60 - _secondsLeft;
+    final score = widget.questions.isEmpty
+        ? 0
+        : (correct / widget.questions.length * 100).round();
+    final stars = ExamSelectionUtils.starsForScore(score);
 
-    // Save attempt to Firestore
-    try {
-      if (uid != null) {
-        await FirebaseFirestore.instance.collection('exam_attempts').add({
-          'userId': uid,
+    // حفظ النتيجة النهائية في Firestore
+    if (widget.uid != null) {
+      try {
+        final payload = {
+          'userId': widget.uid,
           'quizId': widget.quizId,
           'quizTitle': widget.quizTitle,
           'correctAnswers': correct,
           'wrongAnswers': wrong,
           'unanswered': unanswered,
           'totalQuestions': widget.questions.length,
-          'score': widget.questions.isEmpty
-              ? 0
-              : (correct / widget.questions.length * 100).round(),
-          'timeTakenSeconds': timeTakenSeconds,
+          'score': score,
+          'stars': stars,
+          'timeTakenSeconds': timeTaken,
+          'answers': {for (final e in _answers.entries) '${e.key}': e.value},
+          'status': 'completed',
           'submittedAt': FieldValue.serverTimestamp(),
-        });
+          'lastSavedAt': FieldValue.serverTimestamp(),
+        };
+
+        if (_attemptId != null) {
+          // تحديث المحاولة الموجودة
+          await FirebaseFirestore.instance
+              .collection('exam_attempts')
+              .doc(_attemptId)
+              .update(payload);
+        } else {
+          // إنشاء مستند جديد
+          await FirebaseFirestore.instance
+              .collection('exam_attempts')
+              .add({...payload, 'startedAt': FieldValue.serverTimestamp()});
+        }
+      } catch (e) {
+        debugPrint('Failed to save final attempt: $e');
       }
-    } catch (e) {
-      debugPrint('Failed to save exam attempt: $e');
     }
 
     if (!mounted) return;
@@ -213,8 +338,10 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
           wrong: wrong,
           unanswered: unanswered,
           total: widget.questions.length,
-          timeTakenSeconds: timeTakenSeconds,
+          timeTakenSeconds: timeTaken,
           reviewData: reviewData,
+          score: score,
+          stars: stars,
         ),
       ),
     );
@@ -233,25 +360,31 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
         final confirm = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: Text('الخروج من الاختبار؟',
                 style: GoogleFonts.cairo(fontWeight: FontWeight.bold),
                 textDirection: TextDirection.rtl),
-            content: Text('سيتم فقدان إجاباتك الحالية.',
-                style: GoogleFonts.cairo(), textDirection: TextDirection.rtl),
+            content: Text('سيتم حفظ تقدمك تلقائياً، يمكنك الاستكمال لاحقاً.',
+                style: GoogleFonts.cairo(),
+                textDirection: TextDirection.rtl),
             actions: [
               TextButton(
                   onPressed: () => Navigator.pop(ctx, false),
                   child: Text('متابعة', style: GoogleFonts.cairo())),
               ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: Text('خروج',
-                      style: GoogleFonts.cairo(color: Colors.white))),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor),
+                onPressed: () => Navigator.pop(ctx, true),
+                child:
+                    Text('حفظ وخروج', style: GoogleFonts.cairo(color: Colors.white)),
+              ),
             ],
           ),
         );
-        if (confirm == true && context.mounted) {
+        if (confirm == true && mounted) {
+          await _autoSave(); // حفظ قبل الخروج
+          if (!context.mounted) return;
           Navigator.of(context).pop();
         }
       },
@@ -290,86 +423,79 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Row(
               children: [
-                // Timer
+                // التايمر
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                    color: _timerColor.withValues(alpha: 0.25),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _timerColor.withValues(alpha: 0.5)),
+                    border: Border.all(color: _timerColor.withValues(alpha: 0.6)),
                   ),
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.timer_rounded, color: _timerColor, size: 18),
+                      Icon(Icons.timer_outlined,
+                          color: _timerColor, size: 16),
                       const SizedBox(width: 4),
-                      Text(
-                        _formattedTime,
-                        style: GoogleFonts.outfit(
-                          color: _timerColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
+                      Text(_formattedTime,
+                          style: GoogleFonts.cairo(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15)),
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    widget.quizTitle,
-                    style: GoogleFonts.cairo(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                const Spacer(),
+                // عنوان الاختبار
+                Flexible(
+                  child: Text(widget.quizTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.cairo(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14)),
                 ),
-                const SizedBox(width: 12),
-                // Progress fraction
-                Text(
-                  '${_currentPage + 1}/${widget.questions.length}',
-                  style: GoogleFonts.outfit(
-                    color: Colors.white70,
-                    fontSize: 14,
+                const Spacer(),
+                // رقم السؤال الحالي
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${_currentPage + 1}/${widget.questions.length}',
+                    style: GoogleFonts.cairo(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14),
                   ),
                 ),
               ],
             ),
           ),
-          // Progress bar
+          // شريط التقدم
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'الإجابات: ${_answers.length}/${widget.questions.length}',
-                      style: GoogleFonts.cairo(
-                          color: Colors.white70, fontSize: 11),
-                    ),
-                    Text(
-                      '${(progress * 100).round()}%',
-                      style: GoogleFonts.outfit(
-                          color: Colors.white70, fontSize: 11),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
                     value: progress,
-                    backgroundColor: Colors.white24,
+                    backgroundColor: Colors.white.withValues(alpha: 0.25),
                     valueColor:
                         const AlwaysStoppedAnimation<Color>(Colors.white),
                     minHeight: 6,
                   ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'تم الإجابة على ${_answers.length} من ${widget.questions.length} سؤال',
+                  style: GoogleFonts.cairo(
+                      color: Colors.white70, fontSize: 11),
                 ),
               ],
             ),
@@ -380,9 +506,8 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
   }
 
   Widget _buildQuestionNavigator(bool isDark) {
-    return Container(
-      height: 48,
-      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+    return SizedBox(
+      height: 52,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -390,33 +515,41 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
         itemBuilder: (context, index) {
           final isAnswered = _answers.containsKey(index);
           final isCurrent = index == _currentPage;
+          Color bg;
+          if (isCurrent) {
+            bg = AppTheme.primaryColor;
+          } else if (isAnswered) {
+            bg = const Color(0xFF10B981);
+          } else {
+            bg = isDark ? const Color(0xFF1E293B) : Colors.grey.shade200;
+          }
           return GestureDetector(
             onTap: () => _goToQuestion(index),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
               width: 36,
               height: 36,
-              margin: const EdgeInsets.only(right: 6),
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isCurrent
-                    ? AppTheme.primaryColor
-                    : isAnswered
-                        ? AppTheme.primaryColor.withValues(alpha: 0.8)
-                        : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                color: bg,
+                borderRadius: BorderRadius.circular(10),
                 border: isCurrent
                     ? Border.all(color: Colors.white, width: 2)
                     : null,
+                boxShadow: isCurrent
+                    ? [BoxShadow(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.4),
+                        blurRadius: 6)]
+                    : null,
               ),
               child: Center(
-                child: Text(
-                  '${index + 1}',
-                  style: GoogleFonts.outfit(
-                    color: (isCurrent || isAnswered) ? Colors.white : (isDark ? Colors.white54 : Colors.black54),
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                child: Text('${index + 1}',
+                    style: GoogleFonts.cairo(
+                        color: (isCurrent || isAnswered)
+                            ? Colors.white
+                            : (isDark ? Colors.white54 : Colors.black54),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold)),
               ),
             ),
           );
@@ -428,91 +561,168 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
   Widget _buildQuestionsPageView(bool isDark) {
     return PageView.builder(
       controller: _pageController,
+      physics: const NeverScrollableScrollPhysics(),
       onPageChanged: (index) => setState(() => _currentPage = index),
       itemCount: widget.questions.length,
       itemBuilder: (context, index) {
         final q = widget.questions[index];
-        return _buildQuestionCard(q, index, isDark);
+        final selected = _answers[index];
+        return _QuestionCard(
+          question: q,
+          index: index,
+          total: widget.questions.length,
+          selectedOption: selected,
+          isDark: isDark,
+          onSelect: (optIdx) => _selectAnswer(index, optIdx),
+        );
       },
     );
   }
 
-  Widget _buildQuestionCard(QuizQuestion q, int index, bool isDark) {
-    final selectedOption = _answers[index];
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildBottomBar(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, -4)),
+        ],
+      ),
+      child: Row(
         children: [
-          // Question card
+          OutlinedButton.icon(
+            onPressed:
+                _currentPage > 0 ? () => _goToQuestion(_currentPage - 1) : null,
+            icon: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+            label: Text('السابق', style: GoogleFonts.cairo()),
+            style: OutlinedButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const Spacer(),
+          if (_currentPage < widget.questions.length - 1)
+            ElevatedButton.icon(
+              onPressed: () => _goToQuestion(_currentPage + 1),
+              icon: const Icon(Icons.arrow_back_ios_rounded,
+                  size: 14, color: Colors.white),
+              label: Text('التالي',
+                  style: GoogleFonts.cairo(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+            )
+          else
+            ElevatedButton.icon(
+              onPressed: _isSubmitting ? null : _submitExam,
+              icon: _isSubmitting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.check_circle_outline_rounded,
+                      color: Colors.white),
+              label: Text('إنهاء الاختبار',
+                  style: GoogleFonts.cairo(
+                      color: Colors.white, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  بطاقة السؤال
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _QuestionCard extends StatelessWidget {
+  final QuizQuestion question;
+  final int index;
+  final int total;
+  final int? selectedOption;
+  final bool isDark;
+  final ValueChanged<int> onSelect;
+
+  const _QuestionCard({
+    required this.question,
+    required this.index,
+    required this.total,
+    required this.selectedOption,
+    required this.isDark,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // نص السؤال
           Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                  color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
+                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+                    blurRadius: 10)
               ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        gradient: AppTheme.primaryGradient,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'السؤال ${index + 1}',
-                        style: GoogleFonts.cairo(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
                 Text(
-                  q.question,
+                  'السؤال ${index + 1} من $total',
                   style: GoogleFonts.cairo(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white : Colors.black87,
-                    height: 1.6,
-                  ),
-                  textDirection: TextDirection.rtl,
+                      fontSize: 11,
+                      color: AppTheme.primaryColor,
+                      fontWeight: FontWeight.bold),
                 ),
+                const SizedBox(height: 8),
+                Text(question.question,
+                    style: GoogleFonts.cairo(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
+                        height: 1.6),
+                    textDirection: TextDirection.rtl),
               ],
             ),
           ),
           const SizedBox(height: 16),
-          // Options
-          ...q.options.asMap().entries.map((entry) {
-            final optionIndex = entry.key;
-            final optionText = entry.value;
-            final isSelected = selectedOption == optionIndex;
-            final letter = String.fromCharCode(0x0041 + optionIndex); // A, B, C, D
 
+          // الخيارات
+          ...question.options.asMap().entries.map((entry) {
+            final i = entry.key;
+            final opt = entry.value;
+            final isSelected = selectedOption == i;
             return GestureDetector(
-              onTap: () => _selectAnswer(index, optionIndex),
+              onTap: () => onSelect(i),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? const Color(0xFF1E40AF).withValues(alpha: 0.1)
+                      ? AppTheme.primaryColor.withValues(alpha: isDark ? 0.25 : 0.10)
                       : (isDark ? const Color(0xFF1E293B) : Colors.white),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
@@ -521,54 +731,56 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
                         : (isDark ? Colors.white12 : Colors.black12),
                     width: isSelected ? 2 : 1,
                   ),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.15),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : null,
                 ),
                 child: Row(
                   children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 34,
-                      height: 34,
+                    Container(
+                      width: 30,
+                      height: 30,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: isSelected
                             ? AppTheme.primaryColor
-                            : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                            : (isDark
+                                ? Colors.white.withValues(alpha: 0.07)
+                                : Colors.grey.shade100),
+                        border: isSelected
+                            ? null
+                            : Border.all(
+                                color: isDark
+                                    ? Colors.white24
+                                    : Colors.black12),
                       ),
                       child: Center(
-                        child: Text(
-                          letter,
-                          style: GoogleFonts.outfit(
-                            color: isSelected ? Colors.white : (isDark ? Colors.white54 : Colors.black54),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
+                        child: isSelected
+                            ? const Icon(Icons.check_rounded,
+                                color: Colors.white, size: 16)
+                            : Text(
+                                String.fromCharCode(0x0041 + i), // A,B,C,D...
+                                style: GoogleFonts.cairo(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                    color: isDark
+                                        ? Colors.white54
+                                        : Colors.black38),
+                              ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        optionText,
-                        style: GoogleFonts.cairo(
-                          fontSize: 15,
-                          color: isDark ? Colors.white : Colors.black87,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                        ),
-                        textDirection: TextDirection.rtl,
-                      ),
+                      child: Text(opt,
+                          style: GoogleFonts.cairo(
+                              fontSize: 14,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: isSelected
+                                  ? AppTheme.primaryColor
+                                  : (isDark
+                                      ? Colors.white70
+                                      : Colors.black87)),
+                          textDirection: TextDirection.rtl),
                     ),
-                    if (isSelected)
-                      Icon(Icons.check_circle_rounded,
-                          color: AppTheme.primaryColor, size: 20),
                   ],
                 ),
               ),
@@ -578,78 +790,4 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
       ),
     );
   }
-
-  Widget _buildBottomBar(bool isDark) {
-    final isFirst = _currentPage == 0;
-    final isLast = _currentPage == widget.questions.length - 1;
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Previous
-          if (!isFirst)
-            OutlinedButton.icon(
-              onPressed: () => _goToQuestion(_currentPage - 1),
-              icon: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
-              label: Text('السابق', style: GoogleFonts.cairo()),
-              style: OutlinedButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
-            ),
-          const Spacer(),
-          // Next or Submit
-          if (!isLast)
-            ElevatedButton.icon(
-              onPressed: () => _goToQuestion(_currentPage + 1),
-              icon: Text('التالي', style: GoogleFonts.cairo(color: Colors.white)),
-              label: const Icon(Icons.arrow_back_ios_rounded,
-                  size: 16, color: Colors.white),
-              style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              ),
-            )
-          else
-            ElevatedButton.icon(
-              onPressed: _isSubmitting ? null : () => _submitExam(),
-              icon: _isSubmitting
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.check_circle_rounded,
-                      color: Colors.white, size: 18),
-              label: Text(
-                _isSubmitting ? 'جاري الإرسال...' : 'إنهاء الاختبار',
-                style: GoogleFonts.cairo(
-                    color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-              style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
 }
-

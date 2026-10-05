@@ -20,7 +20,6 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
   final TextEditingController _reviewController = TextEditingController();
   double _currentRating = 5.0;
   bool _isSubmitting = false;
-  final Set<String> _expandedReviews = <String>{};
 
   @override
   void dispose() {
@@ -399,7 +398,6 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
             ),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final compact = constraints.maxWidth < 390;
                 final metrics = [
                   _buildMetric(
                     value: avg.toStringAsFixed(1),
@@ -424,13 +422,14 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                     suffix: ' نجوم',
                   ),
                 ];
-                return compact
-                    ? Column(children: metrics)
-                    : Row(
-                        children: metrics
-                            .map((metric) => Expanded(child: metric))
-                            .toList(),
-                      );
+                return Column(
+                  children: metrics
+                      .map((metric) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: metric,
+                          ))
+                      .toList(),
+                );
               },
             ),
           ),
@@ -731,7 +730,6 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                   final data =
                                       docs[reviewIndex].data()
                                           as Map<String, dynamic>;
-                                  final reviewId = docs[reviewIndex].id;
                                   final rating =
                                       (data['rating'] as num?)?.toDouble() ??
                                       5.0;
@@ -767,7 +765,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                               ]
                                             : [
                                                 Colors.white,
-                                                const Color(0xFFF4FAF6),
+                                                Colors.white,
                                               ],
                                         begin: Alignment.topCenter,
                                         end: Alignment.bottomCenter,
@@ -923,16 +921,6 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                                   curve: Curves.easeOut,
                                                   child: Text(
                                                     text,
-                                                    maxLines:
-                                                        _expandedReviews
-                                                            .contains(reviewId)
-                                                        ? null
-                                                        : 4,
-                                                    overflow:
-                                                        _expandedReviews
-                                                            .contains(reviewId)
-                                                        ? TextOverflow.visible
-                                                        : TextOverflow.ellipsis,
                                                     textDirection:
                                                         TextDirection.rtl,
                                                     style: GoogleFonts.tajawal(
@@ -944,41 +932,6 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                                     ),
                                                   ),
                                                 ),
-                                                if (text.length > 180)
-                                                  Align(
-                                                    alignment:
-                                                        Alignment.centerLeft,
-                                                    child: TextButton(
-                                                      onPressed: () => setState(
-                                                        () {
-                                                          if (!_expandedReviews
-                                                              .add(reviewId)) {
-                                                            _expandedReviews
-                                                                .remove(
-                                                                  reviewId,
-                                                                );
-                                                          }
-                                                        },
-                                                      ),
-                                                      child: Text(
-                                                        _expandedReviews
-                                                                .contains(
-                                                                  reviewId,
-                                                                )
-                                                            ? 'عرض أقل'
-                                                            : 'عرض المزيد',
-                                                        style:
-                                                            GoogleFonts.tajawal(
-                                                              color: AppTheme
-                                                                  .primaryColor,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                              fontSize: 12,
-                                                            ),
-                                                      ),
-                                                    ),
-                                                  ),
                                               ],
                                             ),
                                           ),

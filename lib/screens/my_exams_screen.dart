@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 
+import '../data/exam_selection_utils.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/curved_header.dart';
@@ -119,29 +120,35 @@ class MyExamsScreen extends StatelessWidget {
 
         // Summary stats
         final attempts = docs.map((d) => d.data()).toList();
-        final avgScore = attempts.isEmpty
+        final completedAttempts =
+            attempts.where((a) => a['status'] != 'in_progress').toList();
+        final avgScore = completedAttempts.isEmpty
             ? 0
-            : (attempts.fold<int>(
+            : (completedAttempts.fold<int>(
                         0,
                         (acc, a) => acc + ((a['score'] as num?)?.toInt() ?? 0),
                       ) /
-                      attempts.length)
+                      completedAttempts.length)
                   .round();
-        final bestScore = attempts.isEmpty
+        final bestScore = completedAttempts.isEmpty
             ? 0
-            : attempts.fold<int>(
+            : completedAttempts.fold<int>(
                 0,
-                (best, a) => ((a['score'] as num?)?.toInt() ?? 0) > best
-                    ? (a['score'] as num).toInt()
-                    : best,
+                (best, a) =>
+                    ((a['score'] as num?)?.toInt() ?? 0) > best
+                        ? (a['score'] as num).toInt()
+                        : best,
               );
+        final totalStars = attempts.fold<int>(
+            0, (acc, a) => acc + ((a['stars'] as num?)?.toInt() ?? 0));
 
         return Column(
           children: [
             // Summary bar
             Container(
               margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+              padding:
+                  const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
               decoration: BoxDecoration(
                 gradient: AppTheme.primaryGradient,
                 borderRadius: BorderRadius.circular(14),
@@ -165,6 +172,12 @@ class MyExamsScreen extends StatelessWidget {
                     label: 'الأفضل',
                     value: '$bestScore%',
                     icon: Icons.emoji_events_rounded,
+                  ),
+                  Container(width: 1, height: 30, color: Colors.white24),
+                  _SummaryItem(
+                    label: 'نجوم',
+                    value: '$totalStars ⭐',
+                    icon: Icons.star_rounded,
                   ),
                 ],
               ),
@@ -200,6 +213,10 @@ class MyExamsScreen extends StatelessWidget {
     final total = (data['totalQuestions'] as num?)?.toInt() ?? 0;
     final timeSecs = (data['timeTakenSeconds'] as num?)?.toInt() ?? 0;
     final title = data['quizTitle']?.toString() ?? 'اختبار';
+    final status = data['status']?.toString() ?? 'completed';
+    final savedStars = (data['stars'] as num?)?.toInt() ?? 0;
+    final stars = savedStars > 0 ? savedStars : _calcStars(score);
+    final isInProgress = status == 'in_progress';
 
     final m = (timeSecs ~/ 60).toString().padLeft(2, '0');
     final s = (timeSecs % 60).toString().padLeft(2, '0');
@@ -227,7 +244,10 @@ class MyExamsScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: scoreColor.withValues(alpha: 0.2)),
+        border: Border.all(
+            color: isInProgress
+                ? Colors.orange.withValues(alpha: 0.4)
+                : scoreColor.withValues(alpha: 0.2)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.05),
@@ -238,24 +258,29 @@ class MyExamsScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Score circle
+          // دائرة النتيجة أو حالة التقدم
           Container(
             width: 56,
             height: 56,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: scoreColor.withValues(alpha: 0.1),
-              border: Border.all(color: scoreColor, width: 2),
+              color: (isInProgress ? Colors.orange : scoreColor)
+                  .withValues(alpha: 0.1),
+              border: Border.all(
+                  color: isInProgress ? Colors.orange : scoreColor, width: 2),
             ),
             child: Center(
-              child: Text(
-                '$score%',
-                style: GoogleFonts.outfit(
-                  color: scoreColor,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                ),
-              ),
+              child: isInProgress
+                  ? const Icon(Icons.pause_circle_outline_rounded,
+                      color: Colors.orange, size: 26)
+                  : Text(
+                      '$score%',
+                      style: GoogleFonts.outfit(
+                        color: scoreColor,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                      ),
+                    ),
             ),
           ),
           const SizedBox(width: 14),
@@ -263,66 +288,80 @@ class MyExamsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: GoogleFonts.cairo(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textDirection: TextDirection.rtl,
-                ),
-                const SizedBox(height: 4),
-                Wrap(
-                  spacing: 10,
+                Row(
                   children: [
-                    _MiniChip(
-                      label: '✓ $correct',
-                      color: const Color(0xFF10B981),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: GoogleFonts.cairo(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textDirection: TextDirection.rtl,
+                      ),
                     ),
-                    _MiniChip(
-                      label: '✗ $wrong',
-                      color: const Color(0xFFEF4444),
-                    ),
-                    _MiniChip(
-                      label: 'من $total',
-                      color: const Color(0xFF6366F1),
-                    ),
+                    if (isInProgress)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text('قيد التقدم',
+                            style: GoogleFonts.cairo(
+                                fontSize: 10,
+                                color: Colors.orange,
+                                fontWeight: FontWeight.bold)),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 4),
+                if (!isInProgress) ...[
+                  Row(
+                    children: List.generate(
+                      5,
+                      (i) => Icon(
+                        i < stars
+                            ? Icons.star_rounded
+                            : Icons.star_outline_rounded,
+                        color: i < stars ? Colors.amber : Colors.grey.shade400,
+                        size: 14,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 10,
+                    children: [
+                      _MiniChip(label: '✓ $correct', color: const Color(0xFF10B981)),
+                      _MiniChip(label: '✗ $wrong', color: const Color(0xFFEF4444)),
+                      _MiniChip(label: 'من $total', color: const Color(0xFF6366F1)),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(
-                      Icons.timer_outlined,
-                      size: 12,
-                      color: isDark ? Colors.white38 : Colors.black38,
-                    ),
+                    Icon(Icons.timer_outlined, size: 12,
+                        color: isDark ? Colors.white38 : Colors.black38),
                     const SizedBox(width: 4),
-                    Text(
-                      timeStr,
-                      style: GoogleFonts.outfit(
-                        fontSize: 12,
-                        color: isDark ? Colors.white38 : Colors.black38,
-                      ),
-                    ),
+                    Text(timeStr,
+                        style: GoogleFonts.outfit(
+                            fontSize: 12,
+                            color: isDark ? Colors.white38 : Colors.black38)),
                     if (dateStr.isNotEmpty) ...[
                       const SizedBox(width: 10),
-                      Icon(
-                        Icons.calendar_today_outlined,
-                        size: 11,
-                        color: isDark ? Colors.white38 : Colors.black38,
-                      ),
+                      Icon(Icons.calendar_today_outlined, size: 11,
+                          color: isDark ? Colors.white38 : Colors.black38),
                       const SizedBox(width: 3),
-                      Text(
-                        dateStr,
-                        style: GoogleFonts.outfit(
-                          fontSize: 11,
-                          color: isDark ? Colors.white38 : Colors.black38,
-                        ),
-                      ),
+                      Text(dateStr,
+                          style: GoogleFonts.outfit(
+                              fontSize: 11,
+                              color: isDark ? Colors.white38 : Colors.black38)),
                     ],
                   ],
                 ),
@@ -334,33 +373,27 @@ class MyExamsScreen extends StatelessWidget {
     );
   }
 
+  int _calcStars(int score) =>
+      ExamSelectionUtils.starsForScore(score);
+
   Widget _buildEmpty(bool isDark) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.quiz_outlined,
-            size: 80,
-            color: isDark ? Colors.white24 : Colors.black12,
-          ),
+          Icon(Icons.quiz_outlined, size: 80,
+              color: isDark ? Colors.white24 : Colors.black12),
           const SizedBox(height: 16),
-          Text(
-            'لم تخض أي اختبار بعد',
-            style: GoogleFonts.cairo(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white54 : Colors.black54,
-            ),
-          ),
+          Text('لم تخض أي اختبار بعد',
+              style: GoogleFonts.cairo(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white54 : Colors.black54)),
           const SizedBox(height: 8),
-          Text(
-            'ابدأ اختبارك الأول من صفحة الاختبارات',
-            style: GoogleFonts.cairo(
-              fontSize: 14,
-              color: isDark ? Colors.white38 : Colors.black38,
-            ),
-          ),
+          Text('ابدأ اختبارك الأول من صفحة الاختبارات',
+              style: GoogleFonts.cairo(
+                  fontSize: 14,
+                  color: isDark ? Colors.white38 : Colors.black38)),
         ],
       ),
     );
@@ -385,19 +418,14 @@ class _SummaryItem extends StatelessWidget {
       children: [
         Icon(icon, color: Colors.white70, size: 16),
         const SizedBox(height: 2),
-        Text(
-          value,
-          style: GoogleFonts.outfit(
-            color: Colors.white,
-            fontWeight: FontWeight.w800,
-            fontSize: 16,
-          ),
-        ),
-        Text(
-          label,
-          style: GoogleFonts.cairo(color: Colors.white70, fontSize: 10),
-          textAlign: TextAlign.center,
-        ),
+        Text(value,
+            style: GoogleFonts.outfit(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 15)),
+        Text(label,
+            style: GoogleFonts.cairo(color: Colors.white70, fontSize: 10),
+            textAlign: TextAlign.center),
       ],
     );
   }
@@ -418,14 +446,9 @@ class _MiniChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          color: color,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+      child: Text(label,
+          style: TextStyle(
+              fontSize: 11, color: color, fontWeight: FontWeight.bold)),
     );
   }
 }

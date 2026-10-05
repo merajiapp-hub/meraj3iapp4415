@@ -10,6 +10,8 @@ class ExamResultScreen extends StatefulWidget {
   final int total;
   final int timeTakenSeconds;
   final List<Map<String, dynamic>> reviewData;
+  final int score;
+  final int stars;
 
   const ExamResultScreen({
     super.key,
@@ -20,6 +22,8 @@ class ExamResultScreen extends StatefulWidget {
     required this.total,
     required this.timeTakenSeconds,
     required this.reviewData,
+    this.score = 0,
+    this.stars = 1,
   });
 
   @override
@@ -52,8 +56,20 @@ class _ExamResultScreenState extends State<ExamResultScreen>
     super.dispose();
   }
 
-  int get score =>
-      widget.total == 0 ? 0 : (widget.correct / widget.total * 100).round();
+  int get score => widget.score > 0
+      ? widget.score
+      : (widget.total == 0 ? 0 : (widget.correct / widget.total * 100).round());
+
+  int get stars => widget.stars > 0 ? widget.stars : _calcStars();
+
+  int _calcStars() {
+    final s = score;
+    if (s >= 80) return 5;
+    if (s >= 60) return 4;
+    if (s >= 40) return 3;
+    if (s >= 20) return 2;
+    return 1;
+  }
 
   Color get scoreColor {
     if (score >= 80) return AppTheme.primaryColor;
@@ -169,6 +185,33 @@ class _ExamResultScreenState extends State<ExamResultScreen>
                         ],
                       );
                     },
+                  ),
+                  const SizedBox(height: 16),
+                  // نجوم الأداء
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      5,
+                      (i) => Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: Icon(
+                          i < stars
+                              ? Icons.star_rounded
+                              : Icons.star_outline_rounded,
+                          color: i < stars ? Colors.amber : Colors.white38,
+                          size: 30,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    score >= widget.total * 100 / widget.total
+                        ? 'تم إنهاء الاختبار بنجاح 🎉'
+                        : 'اكتمل الاختبار — يمكنك مراجعة أخطائك والمحاولة مجدداً 💪',
+                    style: GoogleFonts.cairo(
+                        color: Colors.white, fontSize: 12),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),

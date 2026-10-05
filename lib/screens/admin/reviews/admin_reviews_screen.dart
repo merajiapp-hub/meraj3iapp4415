@@ -127,7 +127,6 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
             ),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final compact = constraints.maxWidth < 390;
                 final metrics = [
                   _buildMetric(
                     value: avg.toStringAsFixed(1),
@@ -152,13 +151,14 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
                     suffix: ' نجوم',
                   ),
                 ];
-                return compact
-                    ? Column(children: metrics)
-                    : Row(
-                        children: metrics
-                            .map((metric) => Expanded(child: metric))
-                            .toList(),
-                      );
+                return Column(
+                  children: metrics
+                      .map((metric) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: metric,
+                          ))
+                      .toList(),
+                );
               },
             ),
           ),
