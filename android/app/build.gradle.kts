@@ -23,6 +23,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -35,7 +36,6 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        // multiDexEnabled not needed with minSdk >= 21 (native multidex in Android runtime)
     }
 
     signingConfigs {
@@ -49,9 +49,15 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("release")
+            // Minification forces R8 to compact all code into a single DEX file,
+            // preventing the 'Invalid dex file indices: classes2.dex' error with Shorebird.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }
@@ -60,6 +66,9 @@ flutter {
     source = "../.."
 }
 dependencies {
+  // Core library desugaring (required by flutter_local_notifications)
+  coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.4")
+
   // Import the Firebase BoM
   implementation(platform("com.google.firebase:firebase-bom:34.10.0"))
 
