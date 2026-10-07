@@ -28,7 +28,6 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
   String? _competition; // Concours | Brevet | Baccalauréat
   String? _stream;      // 7D | 7C | 7LM | 7LO  (للبكالوريا فقط)
   String? _subject;
-  String? _chapter;
 
   static const _competitions = ExamSelectionUtils.competitions;
   static const _bacStreams = ExamSelectionUtils.bacStreams;
@@ -89,29 +88,15 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
           stream: _competition == 'Baccalauréat' ? _stream : null,
         );
 
-        final chapters = _subject != null && _subject!.isNotEmpty
-            ? ExamSelectionUtils.chaptersForSubject(
-                docs,
-                _subject!,
-                competition: _competition,
-                stream: _competition == 'Baccalauréat' ? _stream : null,
-              )
-            : <String>[];
-
         // إعادة ضبط الاختيارات التابعة إذا لم تعد صالحة
         if (_subject != null && !subjects.contains(_subject)) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) setState(() { _subject = null; _chapter = null; });
-          });
-        }
-        if (_chapter != null && !chapters.contains(_chapter)) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) setState(() => _chapter = null);
+            if (mounted) setState(() { _subject = null; });
           });
         }
 
-        // الاختبارات المطابقة للمادة المختارة (بدون فلتر شابيتر)
-        final selectedExams = _subject != null && _subject!.isNotEmpty
+        // الاختبارات المطابقة للمادة والشابيتر المختارَين
+        final allSubjectExams = _subject != null && _subject!.isNotEmpty
             ? docs.where((doc) {
                 final comp = ExamSelectionUtils.normalizeCompetition(
                     (doc['competition'] ?? doc['examType'] ?? '').toString());
@@ -124,9 +109,9 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
                 if ((doc['subject'] ?? '').toString().trim() != _subject) return false;
                 return true;
               }).toList()
-            : <Map<String, dynamic>>{}.toList();
+            : <Map<String, dynamic>>[];
 
-        selectedExams.sort((a, b) =>
+        allSubjectExams.sort((a, b) =>
             ((a['order'] ?? 999) as num).compareTo((b['order'] ?? 999) as num));
 
         return ListView(
@@ -141,7 +126,6 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
                 _competition = value;
                 _stream = null;
                 _subject = null;
-                _chapter = null;
               }),
             ),
             const SizedBox(height: 14),
@@ -155,7 +139,6 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
                 onChanged: (value) => setState(() {
                   _stream = value;
                   _subject = null;
-                  _chapter = null;
                 }),
               ),
               const SizedBox(height: 14),
@@ -170,26 +153,22 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
                 isDark: isDark,
                 onChanged: (value) => setState(() {
                   _subject = value;
-                  _chapter = null;
                 }),
               ),
               const SizedBox(height: 14),
             ],
 
-            // ── قائمة الاختبارات ──
+            // ── قائمة الاختبارات (الشابيترات) ──
             if (_competition == null)
               _buildHint('اختر نوع المسابقة للبدء', Icons.school_rounded, isDark)
             else if (_competition == 'Baccalauréat' && _stream == null)
               _buildHint('اختر الشعبة', Icons.account_tree_rounded, isDark)
             else if (_subject == null)
               _buildHint('اختر المادة لعرض الاختبارات', Icons.menu_book_rounded, isDark)
-            else if (selectedExams.isEmpty)
-              _buildHint(
-                  'لا توجد اختبارات منشورة لهذه المادة حتى الآن',
-                  Icons.quiz_rounded,
-                  isDark)
+            else if (allSubjectExams.isEmpty)
+              _buildHint('لا توجد شابيترات منشورة لهذه المادة حتى الآن', Icons.quiz_rounded, isDark)
             else
-              ...selectedExams.map((data) => Padding(
+              ...allSubjectExams.map((data) => Padding(
                     padding: const EdgeInsets.only(bottom: 14),
                     child: _ExamCard(
                       data: data,
@@ -314,11 +293,11 @@ class _CompetitionSelector extends StatelessWidget {
   Color _color(String comp) {
     switch (comp) {
       case 'Concours':
-        return const Color(0xFF0EA5E9);
+        return AppTheme.primaryColor;
       case 'Brevet':
-        return const Color(0xFF10B981);
+        return AppTheme.accentColor;
       default:
-        return const Color(0xFF8B5CF6);
+        return AppTheme.secondaryColor;
     }
   }
 }
@@ -425,7 +404,7 @@ class _StreamSelector extends StatelessWidget {
         runSpacing: 10,
         children: streams.map((s) {
           final isSelected = s == selected;
-          const color = Color(0xFF8B5CF6);
+          final color = AppTheme.accentColor;
           return GestureDetector(
             onTap: () => onChanged(s),
             child: AnimatedContainer(
@@ -603,23 +582,23 @@ class _ExamCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: GoogleFonts.cairo(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color:
-                            isDark ? Colors.white : Colors.black87)),
+                Text(
+                  chapter.isNotEmpty ? chapter : title,
+                  style: GoogleFonts.cairo(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 6,
                   runSpacing: 4,
                   children: [
-                    _Badge(label: competition, color: const Color(0xFF0EA5E9)),
-                    if (stream.isNotEmpty &&
-                        competition == 'Baccalauréat')
-                      _Badge(label: stream, color: const Color(0xFF8B5CF6)),
-                    _Badge(label: subject, color: const Color(0xFF10B981)),
-                    _Badge(label: chapter, color: const Color(0xFFF59E0B)),
+                    _Badge(label: competition, color: AppTheme.primaryColor),
+                    if (stream.isNotEmpty && competition == 'Baccalauréat')
+                      _Badge(label: stream, color: AppTheme.accentColor),
+                    _Badge(label: subject, color: AppTheme.secondaryColor),
                   ],
                 ),
               ],
@@ -931,6 +910,8 @@ class _ExamActionButton extends StatelessWidget {
     }
   }
 }
+
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Widgets مساعدة

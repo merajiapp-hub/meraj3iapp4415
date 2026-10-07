@@ -119,7 +119,7 @@ class _SplashScreenState extends State<SplashScreen>
     }
 
     // تحقق من تسجيل الدخول
-    if (authProvider.user != null && authProvider.profileReady) {
+    if (authProvider.user != null) {
       // التحقق البيومتري إذا كان مفعّلاً
       bool biometricsEnabled = false;
       try {
@@ -134,12 +134,12 @@ class _SplashScreenState extends State<SplashScreen>
         try {
           authenticated = await localAuth
               .authenticate(
-                localizedReason: 'قم بالمصادقة لفتح التطبيق',
-                options: const AuthenticationOptions(
-                  stickyAuth: true,
-                  biometricOnly: true,
-                ),
-              )
+              localizedReason: 'قم بالمصادقة لفتح التطبيق',
+              options: const AuthenticationOptions(
+                stickyAuth: true,
+                biometricOnly: true,
+              ),
+            )
               .timeout(const Duration(seconds: 30));
         } catch (e) {
           debugPrint('[Splash] Biometric error: $e');

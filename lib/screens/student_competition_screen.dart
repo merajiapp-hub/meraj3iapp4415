@@ -8,6 +8,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/student_provider.dart';
+import '../providers/statistics_provider.dart';
 import '../widgets/geometric_sliver_app_bar.dart';
 
 // ══════════════════════════════════════════
@@ -434,18 +435,27 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
                     Icons.star_rounded,
                     '${myE?.points ?? profile.points}',
                     'نقطة'),
-                _buildMyStatChip(
-                    Icons.menu_book_rounded,
-                    '${myE?.booksRead ?? profile.booksRead}',
-                    'كتاب'),
-                _buildMyStatChip(
-                    Icons.task_alt_rounded,
-                    '${myE?.completedTasks ?? profile.completedTasks}',
-                    'مهمة'),
-                _buildMyStatChip(
-                    Icons.quiz_rounded,
-                    '${myE?.quizzesTaken ?? profile.quizzesTaken}',
-                    'اختبار'),
+                Builder(builder: (ctx) {
+                  final sp = context.watch<StatisticsProvider>();
+                  return _buildMyStatChip(
+                      Icons.menu_book_rounded,
+                      '${sp.userCompletedBooks > 0 ? sp.userCompletedBooks : (myE?.booksRead ?? profile.booksRead)}',
+                      'كتاب');
+                }),
+                Builder(builder: (ctx) {
+                  final sp = context.watch<StatisticsProvider>();
+                  return _buildMyStatChip(
+                      Icons.task_alt_rounded,
+                      '${sp.userCompletedTasks > 0 ? sp.userCompletedTasks : (myE?.completedTasks ?? profile.completedTasks)}',
+                      'مهمة');
+                }),
+                Builder(builder: (ctx) {
+                  final sp = context.watch<StatisticsProvider>();
+                  return _buildMyStatChip(
+                      Icons.quiz_rounded,
+                      '${sp.userTestsTaken > 0 ? sp.userTestsTaken : (myE?.quizzesTaken ?? profile.quizzesTaken)}',
+                      'اختبار');
+                }),
               ],
             ),
             // ─── رسالة تحفيزية ──────────────────────────────

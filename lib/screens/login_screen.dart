@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../providers/app_config_provider.dart';
 import '../providers/auth_provider.dart';
@@ -25,6 +26,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   bool _isLoading = false;
   bool _isPasswordVisible = false;
   bool _rememberMe = false;
+  bool _canCheckBiometrics = false;
+  final _secureStorage = const FlutterSecureStorage();
 
   late final AnimationController _animController;
   late final Animation<double> _fadeAnim;
@@ -54,15 +57,47 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   Future<void> _loadSavedCredentials() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedEmail = prefs.getString('saved_email');
+    final LocalAuthentication auth = LocalAuthentication();
+    bool canCheckBiometrics = false;
+    try {
+      canCheckBiometrics = await auth.canCheckBiometrics || await auth.isDeviceSupported();
+    } catch (e) {
+      debugPrint('Biometrics check error: $e');
+    }
 
-    if (savedEmail != null && savedEmail.isNotEmpty) {
-      if (!mounted) return;
-      setState(() {
+    final savedEmail = await _secureStorage.read(key: 'saved_email');
+    final savedPassword = await _secureStorage.read(key: 'saved_password');
+
+    if (!mounted) return;
+    setState(() {
+      _canCheckBiometrics = canCheckBiometrics && savedEmail != null && savedPassword != null;
+      if (savedEmail != null && savedEmail.isNotEmpty) {
         _rememberMe = true;
         _emailController.text = savedEmail;
-      });
+        if (savedPassword != null) {
+          _passwordController.text = savedPassword;
+        }
+      }
+    });
+  }
+
+  Future<void> _authenticateWithBiometrics() async {
+    final LocalAuthentication auth = LocalAuthentication();
+    try {
+      final authenticated = await auth.authenticate(
+        localizedReason: 'الرجاء المصادقة لتسجيل الدخول',
+        options: const AuthenticationOptions(
+          stickyAuth: true,
+          biometricOnly: true,
+        ),
+      );
+
+      if (authenticated) {
+        _login();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      AppNotification.show(context, 'تعذر التحقق عبر البصمة', isError: true);
     }
   }
 
@@ -86,11 +121,12 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     setState(() => _isLoading = false);
 
     if (error == null) {
-      final prefs = await SharedPreferences.getInstance();
       if (_rememberMe) {
-        await prefs.setString('saved_email', email);
+        await _secureStorage.write(key: 'saved_email', value: email);
+        await _secureStorage.write(key: 'saved_password', value: pass);
       } else {
-        await prefs.remove('saved_email');
+        await _secureStorage.delete(key: 'saved_email');
+        await _secureStorage.delete(key: 'saved_password');
       }
 
       if (!mounted) return;
@@ -407,36 +443,62 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
             ],
           ),
           const SizedBox(height: 18),
-          SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _login,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: accent,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
-              ),
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : Text(
-                      'تسجيل الدخول',
-                      style: GoogleFonts.tajawal(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _login,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accent,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
                       ),
                     ),
-            ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            'تسجيل الدخول',
+                            style: GoogleFonts.tajawal(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+              if (_canCheckBiometrics) ...[
+                const SizedBox(width: 12),
+                SizedBox(
+                  height: 56,
+                  width: 56,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _authenticateWithBiometrics,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: fieldColor,
+                      foregroundColor: accent,
+                      elevation: 0,
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                        side: const BorderSide(color: fieldBorder),
+                      ),
+                    ),
+                    child: const Icon(Icons.fingerprint_rounded, size: 28),
+                  ),
+                ),
+              ]
+            ],
           ),
         ],
       ),

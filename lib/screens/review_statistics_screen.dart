@@ -50,11 +50,89 @@ class ReviewStatisticsScreen extends StatelessWidget {
 
           final percentage = (average / 5 * 100).clamp(0, 100).toDouble();
 
+          final maxStarIndex = starCounts.indexOf(starCounts.reduce((a, b) => a > b ? a : b)) + 1;
+
           return SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
             child: Column(
               children: [
-                _buildAverageCard(average, total, isDark),
+                // ── بطاقة الإحصائيات العمودية كما في الصورة ──
+                Container(
+                  padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppTheme.surfaceDark : Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                    border: Border.all(
+                      color: isDark ? Colors.white.withValues(alpha: 0.05) : AppTheme.primaryColor.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            'إحصائيات التقييمات',
+                            style: GoogleFonts.tajawal(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Icon(Icons.show_chart_rounded, color: AppTheme.primaryColor, size: 26),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      IntrinsicHeight(
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _StatBubble(
+                                icon: Icons.trending_up_rounded,
+                                iconBgColor: Colors.red.shade50,
+                                iconColor: Colors.redAccent,
+                                value: '$maxStarIndex ⭐',
+                                label: 'الأكثر تكراراً',
+                                isDark: isDark,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _StatBubble(
+                                icon: Icons.group_rounded,
+                                iconBgColor: AppTheme.primaryColor.withValues(alpha: 0.12),
+                                iconColor: AppTheme.primaryColor,
+                                value: '$total',
+                                label: 'إجمالي التقييمات',
+                                isDark: isDark,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _StatBubble(
+                                icon: Icons.star_half_rounded,
+                                iconBgColor: AppTheme.secondaryColor.withValues(alpha: 0.15),
+                                iconColor: AppTheme.secondaryColor,
+                                value: average.toStringAsFixed(1),
+                                label: 'متوسط التقييم',
+                                isDark: isDark,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 14),
                 _buildPercentageCard(percentage, isDark),
                 const SizedBox(height: 14),
@@ -65,54 +143,6 @@ class ReviewStatisticsScreen extends StatelessWidget {
             ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildAverageCard(double average, int total, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        border: Border.all(
-          color: isDark ? Colors.white.withValues(alpha: 0.05) : AppTheme.primaryColor.withValues(alpha: 0.1),
-        ),
-      ),
-      child: Column(
-        children: [
-          Text(
-            average.toStringAsFixed(1),
-            style: GoogleFonts.outfit(
-              fontSize: 52,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(5, (index) {
-              return Icon(
-                index < average.round() ? Icons.star_rounded : Icons.star_outline_rounded,
-                color: AppTheme.secondaryColor,
-                  size: 25,
-              );
-            }),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'من إجمالي $total تقييم',
-            style: GoogleFonts.tajawal(fontSize: 14, color: Colors.grey[500]),
-          ),
-        ],
       ),
     );
   }
@@ -306,6 +336,61 @@ class ReviewStatisticsScreen extends StatelessWidget {
       border: Border.all(
         color: isDark ? Colors.white.withValues(alpha: 0.05) : AppTheme.primaryColor.withValues(alpha: 0.1),
       ),
+    );
+  }
+}
+
+class _StatBubble extends StatelessWidget {
+  final IconData icon;
+  final Color iconBgColor;
+  final Color iconColor;
+  final String value;
+  final String label;
+  final bool isDark;
+
+  const _StatBubble({
+    required this.icon,
+    required this.iconBgColor,
+    required this.iconColor,
+    required this.value,
+    required this.label,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: iconBgColor,
+          ),
+          child: Icon(icon, color: iconColor, size: 26),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          value,
+          style: GoogleFonts.outfit(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: iconColor,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: GoogleFonts.tajawal(
+            fontSize: 12,
+            color: isDark ? Colors.white54 : Colors.black45,
+            fontWeight: FontWeight.w600,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
     );
   }
 }

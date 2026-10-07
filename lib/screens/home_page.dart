@@ -651,7 +651,9 @@ class _HomePageState extends State<HomePage>
   // ══════════════════════════════════════════════════════
   Widget _buildUserCard(bool isDark) {
     final auth = context.read<AuthProvider>();
-    final name = widget.isGuest ? 'زائر' : (auth.user?.displayName ?? 'مستخدم');
+    final name = widget.isGuest 
+        ? 'زائر' 
+        : (auth.userData?['fullName'] ?? auth.userData?['name'] ?? auth.user?.displayName ?? 'مستخدم');
     return GestureDetector(
       onTap: widget.isGuest
           ? null

@@ -51,6 +51,9 @@ class ReadingProvider extends ChangeNotifier {
 
   int get readCount => completedList.length;
 
+  int get totalReadingSeconds =>
+      sessions.fold(0, (acc, s) => acc + s.readingTimeSeconds);
+
   Future<void> _loadLocal() async {
     final prefs = await SharedPreferences.getInstance();
     final String key = _uid != null ? '${_readingKey}_$_uid' : _readingKey;

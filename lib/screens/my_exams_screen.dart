@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'dart:math';
 
 import '../data/exam_selection_utils.dart';
 import '../providers/auth_provider.dart';
@@ -142,49 +144,143 @@ class MyExamsScreen extends StatelessWidget {
         final totalStars = attempts.fold<int>(
             0, (acc, a) => acc + ((a['stars'] as num?)?.toInt() ?? 0));
 
+        final chartData = completedAttempts.reversed.toList();
+
         return Column(
           children: [
-            // Summary bar
-            Container(
-              margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              padding:
-                  const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-              decoration: BoxDecoration(
-                gradient: AppTheme.primaryGradient,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+            // Summary Cards - بطاقات إحصائية عمودية
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 1.4,
                 children: [
-                  _SummaryItem(
-                    label: 'المحاولات',
-                    value: '${attempts.length}',
+                  _StatCard(
                     icon: Icons.assignment_turned_in_rounded,
+                    iconColor: AppTheme.primaryColor,
+                    value: '${attempts.length}',
+                    label: 'إجمالي المحاولات',
+                    isDark: isDark,
                   ),
-                  Container(width: 1, height: 30, color: Colors.white24),
-                  _SummaryItem(
-                    label: 'المتوسط',
-                    value: '$avgScore%',
+                  _StatCard(
                     icon: Icons.bar_chart_rounded,
+                    iconColor: const Color(0xFF10B981),
+                    value: '$avgScore%',
+                    label: 'متوسط النتائج',
+                    isDark: isDark,
                   ),
-                  Container(width: 1, height: 30, color: Colors.white24),
-                  _SummaryItem(
-                    label: 'الأفضل',
-                    value: '$bestScore%',
+                  _StatCard(
                     icon: Icons.emoji_events_rounded,
+                    iconColor: const Color(0xFFF59E0B),
+                    value: '$bestScore%',
+                    label: 'أفضل نتيجة',
+                    isDark: isDark,
                   ),
-                  Container(width: 1, height: 30, color: Colors.white24),
-                  _SummaryItem(
-                    label: 'نجوم',
-                    value: '$totalStars ⭐',
+                  _StatCard(
                     icon: Icons.star_rounded,
+                    iconColor: const Color(0xFFF59E0B),
+                    value: '$totalStars ⭐',
+                    label: 'مجموع النجوم',
+                    isDark: isDark,
                   ),
                 ],
               ),
             ),
+            
+            // Chart Section
+            if (chartData.length > 1)
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                height: 180,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('التقدم الزمني',
+                        style: GoogleFonts.cairo(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white70 : Colors.black87)),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: LineChart(
+                        LineChartData(
+                          gridData: FlGridData(
+                              show: true,
+                              drawVerticalLine: false,
+                              horizontalInterval: 20,
+                              getDrawingHorizontalLine: (value) => FlLine(
+                                    color: isDark
+                                        ? Colors.white10
+                                        : Colors.grey.shade200,
+                                    strokeWidth: 1,
+                                  )),
+                          titlesData: FlTitlesData(
+                            leftTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                    showTitles: true,
+                                    reservedSize: 30,
+                                    getTitlesWidget: (val, meta) => Text(
+                                        '${val.toInt()}',
+                                        style: GoogleFonts.outfit(
+                                            fontSize: 10,
+                                            color: isDark
+                                                ? Colors.white54
+                                                : Colors.black54)))),
+                            bottomTitles: const AxisTitles(
+                                sideTitles: SideTitles(showTitles: false)),
+                            rightTitles: const AxisTitles(
+                                sideTitles: SideTitles(showTitles: false)),
+                            topTitles: const AxisTitles(
+                                sideTitles: SideTitles(showTitles: false)),
+                          ),
+                          borderData: FlBorderData(show: false),
+                          minX: 0,
+                          maxX: max(1, chartData.length - 1).toDouble(),
+                          minY: 0,
+                          maxY: 100,
+                          lineBarsData: [
+                            LineChartBarData(
+                              spots: chartData.asMap().entries.map((e) {
+                                final sc = (e.value['score'] as num?)?.toDouble() ?? 0;
+                                return FlSpot(e.key.toDouble(), sc);
+                              }).toList(),
+                              isCurved: true,
+                              color: AppTheme.primaryColor,
+                              barWidth: 3,
+                              isStrokeCapRound: true,
+                              dotData: FlDotData(show: true),
+                              belowBarData: BarAreaData(
+                                show: true,
+                                color: AppTheme.primaryColor.withValues(alpha: 0.15),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             Expanded(
               child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                 itemCount: docs.length,
                 separatorBuilder: (context, index) =>
                     const SizedBox(height: 10),
@@ -400,36 +496,7 @@ class MyExamsScreen extends StatelessWidget {
   }
 }
 
-class _SummaryItem extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
 
-  const _SummaryItem({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: Colors.white70, size: 16),
-        const SizedBox(height: 2),
-        Text(value,
-            style: GoogleFonts.outfit(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: 15)),
-        Text(label,
-            style: GoogleFonts.cairo(color: Colors.white70, fontSize: 10),
-            textAlign: TextAlign.center),
-      ],
-    );
-  }
-}
 
 class _MiniChip extends StatelessWidget {
   final String label;
@@ -452,3 +519,71 @@ class _MiniChip extends StatelessWidget {
     );
   }
 }
+
+class _StatCard extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String value;
+  final String label;
+  final bool isDark;
+
+  const _StatCard({
+    required this.icon,
+    required this.iconColor,
+    required this.value,
+    required this.label,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: iconColor.withValues(alpha: 0.13),
+            ),
+            child: Icon(icon, color: iconColor, size: 22),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.outfit(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: iconColor,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: GoogleFonts.cairo(
+              fontSize: 11,
+              color: isDark ? Colors.white54 : Colors.black54,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+

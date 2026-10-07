@@ -97,8 +97,7 @@ const containsSensitiveKey = (value) => {
 };
 
 /**
- * Records a sanitized login outcome. Failed attempts are allowed before auth,
- * but only this backend can write them, resolve a known UID, and update support flags.
+ * Records a sanitized login outcome.
  */
 exports.recordLoginAttempt = functions.https.onCall(async (data, context) => {
   if (!data || containsSensitiveKey(data)) {
@@ -214,13 +213,10 @@ exports.recordLoginAttempt = functions.https.onCall(async (data, context) => {
 
 /**
  * One-time script to set up the initial admins.
- * Can be called securely from a trusted client or initialized via CLI.
  */
 exports.setInitialAdmins = functions.https.onCall(async (data, context) => {
-  // In a real production app, you might want to remove this or protect it heavily.
-  // For now, we only allow specific emails to claim the admin role.
   const allowedEmails = ["mma831770@gmail.com", "abdellahismd@gmail.com"];
-  
+
   if (!context.auth || !context.auth.token.email) {
     throw new functions.https.HttpsError("unauthenticated", "User must be authenticated with email.");
   }
@@ -233,125 +229,285 @@ exports.setInitialAdmins = functions.https.onCall(async (data, context) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// User Management Functions (Admin Only)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PROTECTED_EMAILS = ["mma831770@gmail.com", "abdellahismd@gmail.com"];
+
+/**
+ * Delete all subcollections of a Firestore document.
+ */
+const deleteSubcollections = async (docRef) => {
+  const subcollections = await docRef.listCollections();
+  for (const sub of subcollections) {
+    const docs = await sub.get();
+    let batch = admin.firestore().batch();
+    let count = 0;
+    for (const doc of docs.docs) {
+      batch.delete(doc.ref);
+      count++;
+      if (count >= 400) {
+        await batch.commit();
+        batch = admin.firestore().batch();
+        count = 0;
+      }
+    }
+    if (count > 0) await batch.commit();
+  }
+};
+
 /**
  * Suspend a user account.
+ * - Disables in Firebase Authentication (blocks all new sessions)
+ * - Updates Firestore with suspension details
+ * - Records audit log
  */
 exports.suspendUser = functions.https.onCall(async (data, context) => {
   checkAdmin(context);
-  const { uid, reason } = data;
-  if (!uid) throw new functions.https.HttpsError("invalid-argument", "UID is required");
+  const { uid, reason, note } = data;
+  if (!uid || typeof uid !== "string") {
+    throw new functions.https.HttpsError("invalid-argument", "Valid UID is required");
+  }
 
+  // Verify user exists
+  let userRecord;
+  try {
+    userRecord = await admin.auth().getUser(uid);
+  } catch (error) {
+    if (error.code === "auth/user-not-found") {
+      throw new functions.https.HttpsError("not-found", "User not found in Firebase Auth");
+    }
+    throw error;
+  }
+
+  // Protect admin accounts
+  if (PROTECTED_EMAILS.includes(userRecord.email)) {
+    throw new functions.https.HttpsError("permission-denied", "Cannot suspend a protected admin account.");
+  }
+
+  // Disable in Firebase Authentication
   await admin.auth().updateUser(uid, { disabled: true });
-  await admin.firestore().collection("users").doc(uid).update({ 
+
+  // Update Firestore
+  await admin.firestore().collection("users").doc(uid).set({
     isSuspended: true,
     accountStatus: "suspended",
     status: "suspended",
-    suspensionReason: reason || "تم التوقف من قبل الإدارة",
-    reason: reason || "تم التوقف من قبل الإدارة",
+    suspensionReason: reason || "تم الإيقاف من قبل الإدارة",
+    reason: reason || "تم الإيقاف من قبل الإدارة",
     suspendedAt: admin.firestore.FieldValue.serverTimestamp(),
     suspensionStartAt: admin.firestore.FieldValue.serverTimestamp(),
     suspensionEndAt: null,
-    suspendedBy: "admin",
+    suspendedBy: context.auth.uid,
+    suspendedByEmail: context.auth.token.email || "Admin",
+    adminNote: note || null,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
+  }, { merge: true });
 
   await logAdminAction(
-    context.auth.uid, 
-    context.auth.token.email || "Admin", 
-    "SUSPEND_USER", 
-    uid, 
-    { reason }
+      context.auth.uid,
+      context.auth.token.email || "Admin",
+      "SUSPEND_USER",
+      uid,
+      { reason, note, email: userRecord.email }
   );
 
-  return { message: "User suspended successfully" };
+  return { success: true, message: "User suspended successfully" };
 });
 
 /**
- * Reactivate a user account.
+ * Reactivate a suspended user account.
+ * - Re-enables in Firebase Authentication
+ * - Clears suspension fields in Firestore
+ * - Records audit log
  */
 exports.reactivateUser = functions.https.onCall(async (data, context) => {
   checkAdmin(context);
   const { uid } = data;
-  if (!uid) throw new functions.https.HttpsError("invalid-argument", "UID is required");
+  if (!uid || typeof uid !== "string") {
+    throw new functions.https.HttpsError("invalid-argument", "Valid UID is required");
+  }
 
-  await admin.auth().updateUser(uid, { disabled: false });
-  await admin.firestore().collection("users").doc(uid).update({ 
+  // Verify user exists
+  let userRecord;
+  try {
+    userRecord = await admin.auth().getUser(uid);
+  } catch (error) {
+    if (error.code === "auth/user-not-found") {
+      throw new functions.https.HttpsError("not-found", "User not found in Firebase Auth");
+    }
+    throw error;
+  }
+
+  // Re-enable in Firebase Authentication (only if disabled)
+  if (userRecord.disabled) {
+    await admin.auth().updateUser(uid, { disabled: false });
+  }
+
+  // Clear suspension in Firestore
+  const db = admin.firestore();
+  await db.collection("users").doc(uid).set({
     isSuspended: false,
     accountStatus: "active",
     status: "active",
-    suspensionReason: "",
-    reason: "",
+    suspensionReason: admin.firestore.FieldValue.delete(),
+    reason: admin.firestore.FieldValue.delete(),
     suspendedAt: admin.firestore.FieldValue.delete(),
     suspensionStartAt: admin.firestore.FieldValue.delete(),
     suspensionEndAt: admin.firestore.FieldValue.delete(),
     suspendedBy: admin.firestore.FieldValue.delete(),
+    suspendedByEmail: admin.firestore.FieldValue.delete(),
+    adminNote: admin.firestore.FieldValue.delete(),
+    reactivatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    reactivatedBy: context.auth.uid,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
+  }, { merge: true });
 
   await logAdminAction(
-    context.auth.uid, 
-    context.auth.token.email || "Admin", 
-    "REACTIVATE_USER", 
-    uid, 
-    {}
+      context.auth.uid,
+      context.auth.token.email || "Admin",
+      "REACTIVATE_USER",
+      uid,
+      { email: userRecord.email }
   );
 
-  return { message: "User reactivated successfully" };
+  return { success: true, message: "User reactivated successfully" };
 });
 
 /**
- * Force password change.
+ * Force password change for a user.
  */
 exports.requirePasswordChange = functions.https.onCall(async (data, context) => {
   checkAdmin(context);
   const { uid } = data;
   if (!uid) throw new functions.https.HttpsError("invalid-argument", "UID is required");
 
-  // We set a custom claim or a firestore field. Let's use Firestore for UI reactivity.
   await admin.firestore().collection("users").doc(uid).update({
-    mustChangePassword: true
+    mustChangePassword: true,
   });
 
   await logAdminAction(
-    context.auth.uid, 
-    context.auth.token.email || "Admin", 
-    "FORCE_PASSWORD_CHANGE", 
-    uid, 
-    {}
+      context.auth.uid,
+      context.auth.token.email || "Admin",
+      "FORCE_PASSWORD_CHANGE",
+      uid,
+      {}
   );
 
   return { message: "User flagged for password change" };
 });
 
 /**
- * Delete a user account (Admin only).
+ * Delete a user account completely (Admin only).
+ *
+ * Step 1: Verify admin + target user exists in Auth
+ * Step 2: Protect admin accounts from deletion
+ * Step 3: Mark Firestore doc as pendingDeletion (blocks re-creation)
+ * Step 4: Disable Auth account (immediately invalidates all sessions)
+ * Step 5: Delete Firestore subcollections (notifications, etc.)
+ * Step 6: Delete main Firestore document
+ * Step 7: Delete Firebase Auth account
+ * Step 8: Write final audit log
  */
 exports.deleteUserAdmin = functions.https.onCall(async (data, context) => {
   checkAdmin(context);
   const { uid } = data;
-  if (!uid) throw new functions.https.HttpsError("invalid-argument", "UID is required");
-  
-  // Protect admins from deleting each other easily
-  const userRecord = await admin.auth().getUser(uid);
-  if (userRecord.customClaims && userRecord.customClaims.admin) {
-    throw new functions.https.HttpsError("permission-denied", "Cannot delete another admin account directly.");
+  if (!uid || typeof uid !== "string") {
+    throw new functions.https.HttpsError("invalid-argument", "Valid UID is required");
   }
 
-  await admin.auth().deleteUser(uid);
-  
-  // Delete user document
-  await admin.firestore().collection("users").doc(uid).delete();
-  // We can also archive their data here if needed based on policies
+  const db = admin.firestore();
+  const userRef = db.collection("users").doc(uid);
 
+  // Step 1: Verify target user in Auth
+  let userRecord = null;
+  try {
+    userRecord = await admin.auth().getUser(uid);
+  } catch (error) {
+    if (error.code === "auth/user-not-found") {
+      // Auth already deleted — clean up Firestore if doc still exists
+      const snap = await userRef.get();
+      if (snap.exists) {
+        await deleteSubcollections(userRef);
+        await userRef.delete();
+      }
+      await logAdminAction(
+          context.auth.uid,
+          context.auth.token.email || "Admin",
+          "DELETE_USER_AUTH_ALREADY_GONE",
+          uid,
+          { note: "Auth was already deleted. Cleaned up Firestore." }
+      );
+      return { success: true, message: "Auth was already deleted. Firestore cleaned up.", uid };
+    }
+    throw error;
+  }
+
+  // Step 2: Protect admin accounts
+  if (userRecord.customClaims && userRecord.customClaims.admin) {
+    throw new functions.https.HttpsError("permission-denied", "Cannot delete an admin account.");
+  }
+  if (userRecord.email && PROTECTED_EMAILS.includes(userRecord.email)) {
+    throw new functions.https.HttpsError("permission-denied", "Cannot delete a protected account.");
+  }
+
+  // Step 3: Mark as pendingDeletion to prevent ensureUserDocument re-creating the doc
+  try {
+    await userRef.set({
+      pendingDeletion: true,
+      deletionRequestedAt: admin.firestore.FieldValue.serverTimestamp(),
+      deletionRequestedBy: context.auth.uid,
+    }, { merge: true });
+  } catch (_) { /* doc may not exist in Firestore — continue */ }
+
+  // Step 4: Disable in Auth to invalidate all active sessions immediately
+  try {
+    await admin.auth().updateUser(uid, { disabled: true });
+  } catch (e) {
+    if (e.code !== "auth/user-not-found") throw e;
+  }
+
+  // Step 5 & 6: Delete Firestore subcollections then main doc
+  const snap = await userRef.get();
+  if (snap.exists) {
+    await deleteSubcollections(userRef);
+    await userRef.delete();
+  }
+
+  // Step 7: Delete Firebase Auth account
+  try {
+    await admin.auth().deleteUser(uid);
+  } catch (authError) {
+    if (authError.code !== "auth/user-not-found") {
+      await logAdminAction(
+          context.auth.uid,
+          context.auth.token.email || "Admin",
+          "DELETE_USER_AUTH_STEP_FAILED",
+          uid,
+          { error: authError.message, note: "Firestore was deleted but Auth deletion failed." }
+      );
+      throw new functions.https.HttpsError(
+          "internal",
+          `Firestore deleted but Auth deletion failed: ${authError.message}`
+      );
+    }
+  }
+
+  // Step 8: Final audit log
   await logAdminAction(
-    context.auth.uid, 
-    context.auth.token.email || "Admin", 
-    "DELETE_USER", 
-    uid, 
-    {}
+      context.auth.uid,
+      context.auth.token.email || "Admin",
+      "DELETE_USER_COMPLETE",
+      uid,
+      {
+        email: userRecord.email || null,
+        displayName: userRecord.displayName || null,
+        deletedAt: new Date().toISOString(),
+      }
   );
 
-  return { message: "User deleted successfully" };
+  return { success: true, message: "User deleted successfully", uid };
 });
 
 /**
@@ -393,7 +549,7 @@ exports.sendAdminNotification = functions.https.onCall(async (data, context) => 
       tokenEntries.push({token, uid: userDoc.id});
     }
   }
-  
+
   const payload = {
     notification: {
       title: title || "MERAJ3I",
@@ -458,11 +614,11 @@ exports.sendAdminNotification = functions.https.onCall(async (data, context) => 
   }
 
   await logAdminAction(
-    context.auth.uid, 
-    context.auth.token.email || "Admin", 
-    "SEND_NOTIFICATION", 
-    uid || topic, 
-    { title, body, topic, uid, targetAll, successCount, failureCount, storedCount }
+      context.auth.uid,
+      context.auth.token.email || "Admin",
+      "SEND_NOTIFICATION",
+      uid || topic,
+      { title, body, topic, uid, targetAll, successCount, failureCount, storedCount }
   );
 
   return {

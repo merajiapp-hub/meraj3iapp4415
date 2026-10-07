@@ -67,37 +67,48 @@ class StatisticsProvider extends ChangeNotifier {
     final user = _auth.currentUser;
     if (user == null) return;
     try {
-      final doc = await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('data')
-          .doc('stats')
-          .get();
+      // نجلب من كلا المصدرين في آنٍ واحد لأفضل أداء
+      final results = await Future.wait([
+        _firestore.collection('users').doc(user.uid).collection('data').doc('stats').get(),
+        _firestore.collection('users').doc(user.uid).get(),
+      ]);
 
-      if (doc.exists) {
-        final data = doc.data()!;
-        userReadBooks = data['readBooks'] ?? 0;
+      final statsDoc = results[0];
+      final userDoc = results[1];
+
+      if (statsDoc.exists) {
+        final data = statsDoc.data()!;
+        userReadBooks       = data['readBooks'] ?? 0;
         totalReadingSeconds = data['readingSeconds'] ?? 0;
-        userCompletedTasks = data['completedTasks'] ?? 0;
-        userCorrectAnswers = data['correctAnswers'] ?? 0;
-        userWrongAnswers = data['wrongAnswers'] ?? 0;
-        userFavoriteBooks = data['favoriteBooks'] ?? 0;
+        userCompletedTasks  = data['completedTasks'] ?? 0;
+        userCorrectAnswers  = data['correctAnswers'] ?? 0;
+        userWrongAnswers    = data['wrongAnswers'] ?? 0;
+        userFavoriteBooks   = data['favoriteBooks'] ?? 0;
         userDownloadedBooks = data['downloadedBooks'] ?? 0;
-        userStreakDays = data['streakDays'] ?? 0;
-        userCompletedBooks = data['completedBooks'] ?? 0;
-        
-        // حساب متوسط الدرجات
-        final total = userCorrectAnswers + userWrongAnswers;
-        if (total > 0) {
-          userAvgScore = (userCorrectAnswers / total) * 100;
-        } else {
-          userAvgScore = 0.0;
-        }
-        
-        userTestsTaken = total > 0 ? 1 : 0; // Simple logic for now
-        notifyListeners();
-        saveLocalStats();
+        userStreakDays      = data['streakDays'] ?? 0;
+        userCompletedBooks  = data['completedBooks'] ?? 0;
+      } else if (userDoc.exists) {
+        // استخدام بيانات الوثيقة الرئيسية كاحتياطي
+        final d = userDoc.data() ?? {};
+        userReadBooks       = (d['booksRead'] ?? 0) as int;
+        userCorrectAnswers  = (d['correctAnswers'] ?? 0) as int;
+        userWrongAnswers    = (d['wrongAnswers'] ?? 0) as int;
+        userCompletedTasks  = (d['completedTasks'] ?? 0) as int;
+        userStreakDays      = (d['streakDays'] ?? 0) as int;
       }
+
+      // حساب متوسط الدرجات
+      final total = userCorrectAnswers + userWrongAnswers;
+      if (total > 0) {
+        userAvgScore   = (userCorrectAnswers / total) * 100;
+        userTestsTaken = total;
+      } else {
+        userAvgScore   = 0.0;
+        userTestsTaken = 0;
+      }
+
+      notifyListeners();
+      saveLocalStats();
     } catch (e) {
       debugPrint('Error fetching user stats: $e');
     }
@@ -136,6 +147,30 @@ class StatisticsProvider extends ChangeNotifier {
     }
 
     notifyListeners();
+    saveLocalStats();
+
+    final user = _auth.currentUser;
+    if (user != null) {
+      _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('data')
+          .doc('stats')
+          .set({
+        'readBooks': userReadBooks,
+        'completedBooks': userCompletedBooks,
+        'downloadedBooks': userDownloadedBooks,
+        'favoriteBooks': userFavoriteBooks,
+        'completedTasks': userCompletedTasks,
+        'correctAnswers': userCorrectAnswers,
+        'wrongAnswers': userWrongAnswers,
+        'streakDays': userStreakDays,
+        'readingSeconds': totalReadingSeconds,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true)).catchError((e) {
+        debugPrint('Error syncing stats to Firestore: $e');
+      });
+    }
   }
 
   Future<void> refreshGlobalStats() async {
@@ -272,21 +307,61 @@ class StatisticsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// خريطة: حقل الإحصائيات ← الحقل المقابل في وثيقة المستخدم الرئيسية
+  static const Map<String, String> _userDocFieldMap = {
+    'readBooks': 'booksRead',
+    'completedBooks': 'booksRead',
+    'correctAnswers': 'correctAnswers',
+    'wrongAnswers': 'wrongAnswers',
+    'completedTasks': 'completedTasks',
+    'streakDays': 'streakDays',
+  };
+
   Future<void> incrementUserStat(String field, {int value = 1}) async {
     _updateLocalUserStat(field, value); // تحديث فوري للواجهة
-    
+
     final user = _auth.currentUser;
     if (user == null) return;
     try {
-      await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('data')
-          .doc('stats')
-          .set({
-        field: FieldValue.increment(value),
-        'lastUpdated': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      final batch = _firestore.batch();
+
+      // 1) كتابة في مجموعة data/stats الخاصة
+      batch.set(
+        _firestore.collection('users').doc(user.uid).collection('data').doc('stats'),
+        {field: FieldValue.increment(value), 'lastUpdated': FieldValue.serverTimestamp()},
+        SetOptions(merge: true),
+      );
+
+      // 2) تحديث وثيقة المستخدم الرئيسية للقراءة الصحيحة في لوحة المتصدرين
+      final Map<String, dynamic> userDocUpdate = {
+        'lastActivity': FieldValue.serverTimestamp(),
+      };
+      if (_userDocFieldMap.containsKey(field)) {
+        userDocUpdate[_userDocFieldMap[field]!] = FieldValue.increment(value);
+      }
+      // نقاط الخبرة: كل إجابة صحيحة = 10 نقاط، كتاب مكتمل = 50
+      if (field == 'correctAnswers') {
+        userDocUpdate['points'] = FieldValue.increment(value * 10);
+      } else if (field == 'completedBooks') {
+        userDocUpdate['points'] = FieldValue.increment(value * 50);
+      } else if (field == 'completedTasks') {
+        userDocUpdate['points'] = FieldValue.increment(value * 5);
+      }
+      // متوسط الدرجات
+      if (field == 'correctAnswers' || field == 'wrongAnswers') {
+        final total = userCorrectAnswers + userWrongAnswers;
+        if (total > 0) {
+          userDocUpdate['avgScore'] = (userCorrectAnswers / total) * 100;
+          userDocUpdate['progressLevel'] = (userCorrectAnswers / total);
+        }
+      }
+      batch.set(
+        _firestore.collection('users').doc(user.uid),
+        userDocUpdate,
+        SetOptions(merge: true),
+      );
+
+      await batch.commit();
     } catch (e) {
       debugPrint('Error incrementing user stat: $e');
     }
@@ -294,19 +369,38 @@ class StatisticsProvider extends ChangeNotifier {
 
   Future<void> decrementUserStat(String field, {int value = 1}) async {
     _updateLocalUserStat(field, -value); // تحديث فوري للواجهة
-    
+
     final user = _auth.currentUser;
     if (user == null) return;
     try {
-      await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('data')
-          .doc('stats')
-          .set({
-        field: FieldValue.increment(-value),
-        'lastUpdated': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      final batch = _firestore.batch();
+
+      batch.set(
+        _firestore.collection('users').doc(user.uid).collection('data').doc('stats'),
+        {field: FieldValue.increment(-value), 'lastUpdated': FieldValue.serverTimestamp()},
+        SetOptions(merge: true),
+      );
+
+      final Map<String, dynamic> userDocUpdate = {
+        'lastActivity': FieldValue.serverTimestamp(),
+      };
+      if (_userDocFieldMap.containsKey(field)) {
+        userDocUpdate[_userDocFieldMap[field]!] = FieldValue.increment(-value);
+      }
+      if (field == 'correctAnswers') {
+        userDocUpdate['points'] = FieldValue.increment(-value * 10);
+      } else if (field == 'completedBooks') {
+        userDocUpdate['points'] = FieldValue.increment(-value * 50);
+      } else if (field == 'completedTasks') {
+        userDocUpdate['points'] = FieldValue.increment(-value * 5);
+      }
+      batch.set(
+        _firestore.collection('users').doc(user.uid),
+        userDocUpdate,
+        SetOptions(merge: true),
+      );
+
+      await batch.commit();
     } catch (e) {
       debugPrint('Error decrementing user stat: $e');
     }

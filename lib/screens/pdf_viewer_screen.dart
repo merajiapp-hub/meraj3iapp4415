@@ -122,9 +122,10 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
           isUploaded: isUploaded,
           docId: isUploaded ? widget.book!.id : null,
         );
-        stats.incrementUserStat('readBooks');
-
         final reading = Provider.of<ReadingProvider>(context, listen: false);
+        if (reading.getSession(widget.book!.uniqueKey) == null) {
+          stats.incrementUserStat('readBooks');
+        }
         reading.markAsReading(widget.book!);
       }
     });
@@ -284,6 +285,10 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
                 title: Text('قرأته بالكامل', style: GoogleFonts.cairo()),
                 onTap: () {
                   Navigator.pop(ctx);
+                  if (!reading.isRead(book.uniqueKey)) {
+                    Provider.of<StatisticsProvider>(context, listen: false)
+                        .incrementUserStat('completedBooks');
+                  }
                   reading.markAsCompleted(book);
                   AppNotification.show(context, 'تم حفظه في المقروءات ✅');
                 },
@@ -526,17 +531,20 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
             listen: false,
           );
 
+          final isAlreadyDownloaded = dbProvider.isDownloaded(widget.book!.uniqueKey);
           await dbProvider.addDownload(db);
 
-          // Update Stats
-          final isUploaded = widget.book!.section == 'uploaded';
-          statsProvider.incrementBookStat(
-            widget.book!.uniqueKey,
-            'downloadCount',
-            isUploaded: isUploaded,
-            docId: isUploaded ? widget.book!.id : null,
-          );
-          statsProvider.incrementUserStat('downloadedBooks');
+          if (!isAlreadyDownloaded) {
+            // Update Stats
+            final isUploaded = widget.book!.section == 'uploaded';
+            statsProvider.incrementBookStat(
+              widget.book!.uniqueKey,
+              'downloadCount',
+              isUploaded: isUploaded,
+              docId: isUploaded ? widget.book!.id : null,
+            );
+            statsProvider.incrementUserStat('downloadedBooks');
+          }
         }
       }
 
@@ -704,12 +712,16 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
                   ),
                   tooltip: isRead ? 'مقروء' : 'تعيين كمقروء',
                   onPressed: () {
-                    reading.markAsCompleted(widget.book!);
                     if (!isRead) {
+                      Provider.of<StatisticsProvider>(context, listen: false)
+                          .incrementUserStat('completedBooks');
+                      reading.markAsCompleted(widget.book!);
                       AppNotification.show(
                         context,
                         'تم حفظ الكتاب في المقروءات ✅',
                       );
+                    } else {
+                      reading.markAsCompleted(widget.book!);
                     }
                   },
                 );
