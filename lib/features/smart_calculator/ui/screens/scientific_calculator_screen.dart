@@ -63,10 +63,12 @@ class _ScientificCalculatorScreenState
 
         return SafeArea(
           top: false,
-          child: KeyboardListener(
-          focusNode: _focusNode,
-          onKeyEvent: (event) => _handleKeyEvent(event, provider),
-          child: Column(
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: KeyboardListener(
+              focusNode: _focusNode,
+              onKeyEvent: (event) => _handleKeyEvent(event, provider),
+              child: Column(
             children: [
               // ── Display Section ──
               Expanded(
@@ -82,7 +84,7 @@ class _ScientificCalculatorScreenState
                         : AppTheme.backgroundLight,
                   ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       // Top bar for tools (History, Undo, Redo, Variables, Angle Mode)
@@ -207,6 +209,7 @@ class _ScientificCalculatorScreenState
               const SmartKeyboard(),
             ],
           ),
+            ),
           ),
         );
       },

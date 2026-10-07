@@ -53,12 +53,15 @@ class ScientificCalculatorScreen extends StatelessWidget {
             body: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  children: const [
-                    Expanded(flex: 3, child: CalculatorDisplay()),
-                    SizedBox(height: 16),
-                    Expanded(flex: 7, child: CalculatorKeypad()),
-                  ],
+                child: Directionality(
+                  textDirection: TextDirection.ltr,
+                  child: Column(
+                    children: const [
+                      Expanded(flex: 3, child: CalculatorDisplay()),
+                      SizedBox(height: 16),
+                      Expanded(flex: 7, child: CalculatorKeypad()),
+                    ],
+                  ),
                 ),
               ),
             ),

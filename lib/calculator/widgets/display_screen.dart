@@ -19,7 +19,7 @@ class CalculatorDisplay extends StatelessWidget {
         border: Border.all(color: Colors.grey.withValues(alpha: 0.1), width: 1),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Status bar (SHIFT, ALPHA, Angle Mode)
           Row(
@@ -60,7 +60,7 @@ class CalculatorDisplay extends StatelessWidget {
           // Expression display
           Expanded(
             child: Align(
-              alignment: Alignment.bottomRight,
+              alignment: Alignment.bottomLeft,
               child: SingleChildScrollView(
                 reverse: true,
                 child: Text(
@@ -70,7 +70,7 @@ class CalculatorDisplay extends StatelessWidget {
                     fontWeight: FontWeight.w400,
                     color: theme.operatorTextColor,
                   ),
-                  textAlign: TextAlign.right,
+                  textAlign: TextAlign.left,
                 ),
               ),
             ),
@@ -85,7 +85,7 @@ class CalculatorDisplay extends StatelessWidget {
               fontWeight: FontWeight.w600,
               color: theme.operatorTextColor.withValues(alpha: 0.8),
             ),
-            textAlign: TextAlign.right,
+            textAlign: TextAlign.left,
           ),
         ],
       ),

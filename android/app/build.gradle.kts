@@ -36,6 +36,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        multiDexEnabled = true
     }
 
     signingConfigs {
@@ -50,8 +51,7 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
-            // Minification forces R8 to compact all code into a single DEX file,
-            // preventing the 'Invalid dex file indices: classes2.dex' error with Shorebird.
+            // Minification is REQUIRED by Shorebird to merge all DEX into one file
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -69,11 +69,12 @@ dependencies {
   // Core library desugaring (required by flutter_local_notifications)
   coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.4")
 
+  // MultiDex support (required by Shorebird)
+  implementation("androidx.multidex:multidex:2.0.1")
+
   // Import the Firebase BoM
   implementation(platform("com.google.firebase:firebase-bom:34.10.0"))
 
-
-  // TODO: Add the dependencies for Firebase products you want to use
   // When using the BoM, don't specify versions in Firebase dependencies
   implementation("com.google.firebase:firebase-analytics")
 
