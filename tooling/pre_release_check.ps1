@@ -28,12 +28,9 @@ $WarnCount = 0
 # =============================================
 # الإصدارات المتوقعة (حدّثها عند تغيير أي أداة)
 # =============================================
-$EXPECTED_FLUTTER_MIN   = "3.47"
-$EXPECTED_SHOREBIRD_MIN = "1.6"
-$EXPECTED_JAVA_VERSION  = "17"
-$EXPECTED_GRADLE_VERSION = "8.14"
-$EXPECTED_AGP_VERSION   = "8.11"
-$CRITICAL_GRADLE_PROP   = "org.gradle.configuration-cache=false"
+$EXPECTED_FLUTTER_MIN    = "3.47"
+$EXPECTED_JAVA_VERSION   = "17"
+$CRITICAL_GRADLE_PROP    = "org.gradle.configuration-cache=false"
 
 # =============================================
 # دوال مساعدة
@@ -147,9 +144,11 @@ try {
     if ($shorebirdOut -match "Shorebird (\d+\.\d+)") {
         $ver = $Matches[1]
         Write-OK "Shorebird $ver"
-        if ($shorebirdOut -match "new version") {
-            Write-WARN "يوجد إصدار جديد من Shorebird — شغّل: shorebird upgrade"
-        }
+    } else {
+        Write-OK "Shorebird متاح"
+    }
+    if ($shorebirdOut -match "new version") {
+        Write-WARN "يوجد إصدار جديد من Shorebird — شغّل: shorebird upgrade"
     }
 } catch {
     Write-FAIL "Shorebird غير مثبّت أو غير متاح في PATH"
@@ -192,7 +191,7 @@ Assert-FileExists "android\upload-keystore.jks" "upload-keystore.jks" $false
 Write-Step "التحقق من إعدادات Gradle الحرجة"
 
 Assert-FileContains "android\gradle.properties" `
-    "org.gradle.configuration-cache=false" `
+    $CRITICAL_GRADLE_PROP `
     "Configuration Cache معطل (ضروري لتوافق Shorebird)" `
     $true
 
