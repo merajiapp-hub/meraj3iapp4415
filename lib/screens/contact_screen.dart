@@ -50,11 +50,10 @@ class ContactUsScreen extends StatelessWidget {
             _buildContactCard(
               context,
               title: 'واتساب 1',
-              // رقم بالاتجاه الصحيح LTR
               phoneNumber: '44154142',
               displayNumber: '44 15 41 42',
               icon: Icons.chat_bubble_outline_rounded,
-              color: Colors.green,
+              color: const Color(0xFF4CAF50),
               onCall: () => _launchUrl(
                 'tel:+22244154142',
                 mode: LaunchMode.externalApplication,
@@ -70,7 +69,7 @@ class ContactUsScreen extends StatelessWidget {
               phoneNumber: '43663386',
               displayNumber: '43 66 33 86',
               icon: Icons.chat_bubble_outline_rounded,
-              color: Colors.green,
+              color: const Color(0xFF4CAF50),
               onCall: () => _launchUrl(
                 'tel:+22243663386',
                 mode: LaunchMode.externalApplication,
@@ -152,21 +151,19 @@ class ContactUsScreen extends StatelessWidget {
     required VoidCallback onCall,
     required VoidCallback onWhatsApp,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(
-          color: Theme.of(context).dividerColor.withValues(alpha: 0.08),
-        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -239,7 +236,7 @@ class ContactUsScreen extends StatelessWidget {
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: onWhatsApp,
-                    icon: const Icon(Icons.chat_rounded, size: 18),
+                    icon: const Icon(Icons.message_rounded, size: 18),
                     label: Text('واتساب', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: color,

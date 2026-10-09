@@ -425,7 +425,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                 return Column(
                   children: metrics
                       .map((metric) => Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            padding: const EdgeInsets.symmetric(vertical: 6),
                             child: metric,
                           ))
                       .toList(),
@@ -468,37 +468,44 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     required bool isDark,
     String suffix = '',
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 5),
-      child: Column(
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: color.withValues(alpha: 0.15),
+          width: 1,
+        ),
+      ),
+      child: Row(
         children: [
           Container(
-            width: 38,
-            height: 38,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : Colors.white,
+              color: color.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: color, size: 21),
+            child: Icon(icon, color: color, size: 24),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.tajawal(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white70 : Colors.black87,
+              ),
+            ),
+          ),
           Text(
             '$value$suffix',
             style: GoogleFonts.outfit(
-              fontSize: 19,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: AppTheme.primaryColor,
-            ),
-          ),
-          const SizedBox(height: 1),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.tajawal(
-              fontSize: 11,
-              color: isDark ? Colors.white60 : Colors.black54,
             ),
           ),
         ],

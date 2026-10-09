@@ -85,9 +85,8 @@ class StudentCompetitionScreen extends StatefulWidget {
 }
 
 class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   final _firestore = FirebaseFirestore.instance;
-  late TabController _tabController;
   late AnimationController _animController;
 
   // ─── بيانات محملة ───────────────────────
@@ -98,19 +97,11 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
   String? _errorMsg;
   Timer? _refreshTimer;
 
-  // التبويب: 0 = الأسبوع, 1 = الشهر, 2 = كل الوقت
-  int _selectedPeriod = 2;
+
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this, initialIndex: 2);
-    _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        setState(() => _selectedPeriod = _tabController.index);
-        _loadLeaderboard();
-      }
-    });
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -120,7 +111,6 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
 
   @override
   void dispose() {
-    _tabController.dispose();
     _animController.dispose();
     _refreshTimer?.cancel();
     super.dispose();
@@ -138,39 +128,21 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
       final currentUserId =
           Provider.of<AuthProvider>(context, listen: false).user?.uid;
 
-      // تحديد نطاق التاريخ حسب الفترة
-      DateTime? since;
-      if (_selectedPeriod == 0) {
-        since = DateTime.now().subtract(const Duration(days: 7));
-      } else if (_selectedPeriod == 1) {
-        since = DateTime.now().subtract(const Duration(days: 30));
-      }
 
       Query query = _firestore
-          .collection('users')
+          .collection('leaderboard')
           .orderBy('points', descending: true)
-          .limit(300); // Fetch more to allow in-memory filtering
+          .limit(100);
 
       final snap = await query.get();
       
       List<_LeaderboardEntry> entries = [];
       for (var d in snap.docs) {
-         final data = d.data() as Map<String, dynamic>? ?? {};
-         
-         if (since != null) {
-            final lastAct = data['lastActivity'] as Timestamp?;
-            if (lastAct == null || lastAct.toDate().isBefore(since)) {
-               continue; // Skip if not active in period
-            }
-         }
-         
          final entry = _LeaderboardEntry.fromDoc(d);
          if (entry.points > 0 || entry.booksRead > 0) {
             entries.add(entry);
          }
       }
-      
-      entries = entries.take(100).toList();
 
       // حساب ترتيب المستخدم الحالي
       int myRank = 0;
@@ -186,12 +158,12 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
       // إذا لم يُجد المستخدم ضمن أفضل 100 — جلب بياناته منفرداً
       if (myEntry == null && currentUserId != null) {
         final myDoc =
-            await _firestore.collection('users').doc(currentUserId).get();
+            await _firestore.collection('leaderboard').doc(currentUserId).get();
         if (myDoc.exists) {
           myEntry = _LeaderboardEntry.fromDoc(myDoc);
           // تقدير الترتيب
           final countSnap = await _firestore
-              .collection('users')
+              .collection('leaderboard')
               .where('points', isGreaterThan: myEntry.points)
               .count()
               .get();
@@ -207,11 +179,24 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
         _isLoading = false;
       });
       _animController.forward(from: 0);
+    } on FirebaseException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        if (e.code == 'permission-denied') {
+          _errorMsg = 'صلاحيات قراءة لوحة الشرف غير متاحة. يرجى تحديث قواعد البيانات.';
+        } else if (e.code == 'failed-precondition') {
+          _errorMsg = 'يتطلب الاستعلام بناء فهرس (Index) في Firebase.';
+        } else {
+          _errorMsg = 'تعذر تحميل الترتيب حالياً: ${e.message}';
+        }
+      });
+      debugPrint('Leaderboard FirebaseException: ${e.code} - ${e.message}');
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMsg = 'تعذر تحميل الترتيب حالياً.';
+        _errorMsg = 'حدث خطأ غير متوقع أثناء تحميل الترتيب.';
       });
       debugPrint('Leaderboard error: $e');
     }
@@ -241,49 +226,7 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
               gradient: AppTheme.brandGradient,
             ),
 
-            // ─── تبويبات الفترة ───────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? AppTheme.surfaceDark
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.06),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: TabBar(
-                    controller: _tabController,
-                    indicator: BoxDecoration(
-                      gradient: AppTheme.primaryGradient,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    dividerColor: Colors.transparent,
-                    labelColor: Colors.white,
-                    unselectedLabelColor:
-                        isDark ? Colors.white60 : Colors.black54,
-                    labelStyle: GoogleFonts.tajawal(
-                        fontSize: 13, fontWeight: FontWeight.bold),
-                    unselectedLabelStyle:
-                        GoogleFonts.tajawal(fontSize: 13),
-                    tabs: const [
-                      Tab(text: 'هذا الأسبوع'),
-                      Tab(text: 'هذا الشهر'),
-                      Tab(text: 'كل الوقت'),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            // تمت إزالة التبويبات (الأسبوع/الشهر) لعدم توفر بيانات تاريخية دقيقة لحساب النقاط المكتسبة أسبوعياً
 
             // ─── بطاقة إحصائياتي ─────────────────────────────
             if (currentUserId != null)
@@ -407,7 +350,7 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
                 Column(
                   children: [
                     Text(
-                      '#${_myRank > 0 ? _myRank : '—'}',
+                      '${_myRank > 0 ? _myRank : '—'}',
                       style: GoogleFonts.outfit(
                         color: Colors.white,
                         fontSize: 26,
@@ -797,7 +740,7 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
               SizedBox(
                 width: 36,
                 child: Text(
-                  '#$rank',
+                  '$rank',
                   style: GoogleFonts.outfit(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,

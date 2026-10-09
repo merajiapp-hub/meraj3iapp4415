@@ -202,6 +202,23 @@ service cloud.firestore {
       allow read, write: if isAppAdmin();
     }
 
+    match /app_config/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
+    match /news/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
+    match /announcements/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
+    match /lessons/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
+    match /exams/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
+    match /questions/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
+    match /app_releases/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
+    match /system_health/{document=**} { allow read, write: if isAppAdmin(); }
+    match /security_logs/{document=**} { allow read, write: if isAppAdmin(); }
+    match /activity_logs/{document=**} { allow read, write: if isAppAdmin(); }
+    match /admin_activity/{document=**} { allow read, write: if isAppAdmin(); }
+    match /error_logs/{document=**} { allow read, write: if isAppAdmin(); }
+    match /books/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
+    match /grades/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
+    match /subjects/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
+    match /remote_config/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
+
     // Login activity is written only by the trusted Cloud Function and read by admins.
     match /login_attempts/{attemptId} {
       allow read: if isAppAdmin();

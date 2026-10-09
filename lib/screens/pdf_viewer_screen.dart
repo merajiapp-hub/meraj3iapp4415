@@ -103,8 +103,11 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
     );
     _toolbarAnimController.value = 1.0;
 
-    // فحص الملف المحلي فوراً بمجرد فتح الشاشة — تحسين السرعة
-    _checkLocalFile();
+    // تشغيل الفحص وتحميل بيانات الصفحات بالتوازي — تحسين السرعة
+    Future.wait([
+      _checkLocalFile(),
+      _loadSavedData(),
+    ]);
 
     if (widget.pdfUrl.contains('/drive/folders/')) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -138,8 +141,6 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
         stats.incrementUserStat('readingSeconds', value: 60);
       }
     });
-
-    _loadSavedData();
   }
 
   @override
@@ -1175,6 +1176,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
         canShowScrollHead: false,
         pageSpacing: 4,
         initialPageNumber: _currentPage,
+        enableDoubleTapZooming: true,
         onPageChanged: (details) {
           final auth = Provider.of<AuthProvider>(context, listen: false);
           if (auth.isGuest && details.newPageNumber > 10) {
@@ -1201,6 +1203,9 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
               _pdfViewerController.jumpToPage(_currentPage);
             });
           }
+        },
+        onDocumentLoadFailed: (details) {
+          if (mounted) setState(() { _isOpening = false; _openFailed = true; });
         },
       );
     } else if (widget.pdfUrl.isEmpty) {

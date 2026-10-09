@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../theme/app_theme.dart';
+import '../widgets/app_drawer.dart';
 import 'home_page.dart';
 import 'notes_screen.dart';
 import 'task_manager_screen.dart';
@@ -124,6 +125,7 @@ class _MainScreenState extends State<MainScreen> {
         _handleBackButton();
       },
       child: Scaffold(
+        drawer: AppDrawer(isGuest: widget.isGuest),
         body: IndexedStack(index: _currentIndex, children: _pages),
         bottomNavigationBar: Container(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),

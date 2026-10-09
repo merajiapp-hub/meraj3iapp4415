@@ -11,6 +11,7 @@ import 'swedd_screen.dart';
 import 'published_exams_screen.dart';
 import 'student/reading_list_screen.dart';
 import 'student/progress_screen.dart';
+
 import '../widgets/curved_header.dart';
 
 class ServicesScreen extends StatelessWidget {
@@ -261,29 +262,6 @@ class ServicesScreen extends StatelessWidget {
               ),
             ),
           ),
-          if (service.badge != null)
-              Positioned(
-                top: 8,
-                left: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: service.gradient,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    service.badge!,
-                    style: GoogleFonts.outfit(
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
           ],
         ),
       ),

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/app_notification.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'terms_of_use_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'login_screen.dart';
@@ -128,6 +129,11 @@ class _SignupScreenState extends State<SignupScreen>
     });
 
     if (error == null) {
+      const secureStorage = FlutterSecureStorage();
+      await secureStorage.write(key: 'saved_email', value: email);
+      await secureStorage.write(key: 'saved_password', value: password);
+
+      if (!mounted) return;
       AppNotification.show(context, 'تم إنشاء الحساب والدخول بنجاح.');
       Navigator.pushAndRemoveUntil(
         context,

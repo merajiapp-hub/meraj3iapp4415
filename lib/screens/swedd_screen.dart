@@ -6,16 +6,54 @@ import 'pdf_viewer_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../widgets/curved_header.dart';
 import '../theme/app_theme.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class SweddScreen extends StatelessWidget {
+class SweddScreen extends StatefulWidget {
   const SweddScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final sweddBooks = BooksData.allBooks
-        .where((b) => b.section == BooksData.sSwedd)
-        .toList();
+  State<SweddScreen> createState() => _SweddScreenState();
+}
 
+class _SweddScreenState extends State<SweddScreen> {
+  Stream<List<Book>> _getSweddBooksStream() {
+    return FirebaseFirestore.instance
+        .collection('books')
+        .where('section', isEqualTo: BooksData.sSwedd)
+        .where('isActive', isEqualTo: true)
+        .orderBy('order')
+        .snapshots()
+        .map((snap) {
+      if (snap.docs.isEmpty) {
+        return BooksData.allBooks
+            .where((b) => b.section == BooksData.sSwedd)
+            .toList();
+      }
+      return snap.docs.map((d) => Book.fromMap(d.data(), d.id)).toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: StreamBuilder<List<Book>>(
+        stream: _getSweddBooksStream(),
+        builder: (context, snapshot) {
+          List<Book> sweddBooks;
+          if (snapshot.hasError || !snapshot.hasData) {
+            sweddBooks = BooksData.allBooks
+                .where((b) => b.section == BooksData.sSwedd)
+                .toList();
+          } else {
+            sweddBooks = snapshot.data!;
+          }
+          return _buildBody(context, sweddBooks);
+        },
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, List<Book> sweddBooks) {
     // Grouping by Grade (Year) -> Category
     final Map<String, Map<String, List<Book>>> grouped = {};
     for (final book in sweddBooks) {
@@ -23,245 +61,236 @@ class SweddScreen extends StatelessWidget {
       grouped[book.grade]!.putIfAbsent(book.category, () => []).add(book);
     }
 
-    return Scaffold(
-      body: Column(
-        children: [
-          const CurvedHeader(
-            title: 'مشروع SWEDD',
-            gradient: AppTheme.brandGradient,
-            leadingIcon: Icons.health_and_safety_rounded,
-          ),
-          Expanded(child: sweddBooks.isEmpty
-          ? _buildEmptyState(context)
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header Banner
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: AppTheme.primaryGradient,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                          blurRadius: 15,
-                          offset: const Offset(0, 8),
+    return Column(
+      children: [
+        const CurvedHeader(
+          title: 'مشروع SWEDD',
+          gradient: AppTheme.brandGradient,
+          leadingIcon: Icons.health_and_safety_rounded,
+        ),
+        Expanded(
+          child: sweddBooks.isEmpty
+              ? _buildEmptyState(context)
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header Banner
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          gradient: AppTheme.primaryGradient,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                              blurRadius: 15,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.health_and_safety_rounded,
-                          color: Colors.white,
-                          size: 40,
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'تمكين المرأة',
-                                style: GoogleFonts.tajawal(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                'دعم النساء والفتيات في التعليم',
-                                style: GoogleFonts.tajawal(
-                                  color: Colors.white70,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Content by grade
-                  ...grouped.entries.map((gradeEntry) {
-                    final gradeName = _getFormattedGrade(gradeEntry.key);
-                    final categoriesMap = gradeEntry.value;
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.health_and_safety_rounded,
+                              color: Colors.white,
+                              size: 40,
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'تمكين المرأة',
+                                    style: GoogleFonts.tajawal(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
-                                child: Text(
-                                  gradeName,
-                                  style: GoogleFonts.tajawal(
-                                    color: AppTheme.primaryColor,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
+                                  Text(
+                                    'دعم النساء والفتيات في التعليم',
+                                    style: GoogleFonts.tajawal(
+                                      color: Colors.white70,
+                                      fontSize: 13,
+                                    ),
                                   ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        ...categoriesMap.entries.map((categoryEntry) {
-                          final categoryName = categoryEntry.key;
-                          final books = categoryEntry.value;
-
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? const Color(0xFF1E293B)
-                                  : Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(
-                                    alpha: Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.05,
-                                  ),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                              border: Border.all(
-                                color: Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.white.withValues(alpha: 0.05)
-                                    : const Color(0xFFE2E8F0),
+                                ],
                               ),
                             ),
-                            child: ExpansionTile(
-                              iconColor: AppTheme.primaryColor,
-                              title: Text(
-                                categoryName,
-                                style: GoogleFonts.tajawal(
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface,
-                                ),
-                              ),
-                              children: books.map((book) {
-                                return Container(
-                                  decoration: BoxDecoration(
-                                    border: Border(
-                                      top: BorderSide(
-                                        color: Theme.of(
-                                          context,
-                                        ).dividerColor.withValues(alpha: 0.1),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      // Content by grade
+                      ...grouped.entries.map((gradeEntry) {
+                        final gradeName = _getFormattedGrade(gradeEntry.key);
+                        final categoriesMap = gradeEntry.value;
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      gradeName,
+                                      style: GoogleFonts.tajawal(
+                                        color: AppTheme.primaryColor,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
                                       ),
                                     ),
                                   ),
-                                  child: ListTile(
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 6,
-                                    ),
-                                    leading: Container(
-                                      width: 40,
-                                      height: 40,
-                                      padding: book.thumbnailUrl != null ? EdgeInsets.zero : const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(8),
+                                ],
+                              ),
+                            ),
+                            ...categoriesMap.entries.map((categoryEntry) {
+                              final categoryName = categoryEntry.key;
+                              final books = categoryEntry.value;
+
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? const Color(0xFF1E293B)
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.05,
                                       ),
-                                      child: book.thumbnailUrl != null
-                                          ? ClipRRect(
-                                              borderRadius: BorderRadius.circular(8),
-                                              child: CachedNetworkImage(
-                                                imageUrl: book.thumbnailUrl!,
-                                                fit: BoxFit.cover,
-                                                errorWidget: (context, url, error) => const Icon(
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                  border: Border.all(
+                                    color: Theme.of(context).brightness == Brightness.dark
+                                        ? Colors.white.withValues(alpha: 0.05)
+                                        : const Color(0xFFE2E8F0),
+                                  ),
+                                ),
+                                child: ExpansionTile(
+                                  iconColor: AppTheme.primaryColor,
+                                  title: Text(
+                                    categoryName,
+                                    style: GoogleFonts.tajawal(
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                    ),
+                                  ),
+                                  children: books.map((book) {
+                                    return Container(
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          top: BorderSide(
+                                            color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+                                          ),
+                                        ),
+                                      ),
+                                      child: ListTile(
+                                        contentPadding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 6,
+                                        ),
+                                        leading: Container(
+                                          width: 40,
+                                          height: 40,
+                                          padding: book.thumbnailUrl != null ? EdgeInsets.zero : const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: book.thumbnailUrl != null
+                                              ? ClipRRect(
+                                                  borderRadius: BorderRadius.circular(8),
+                                                  child: CachedNetworkImage(
+                                                    imageUrl: book.thumbnailUrl!,
+                                                    fit: BoxFit.cover,
+                                                    errorWidget: (context, url, error) => const Icon(
+                                                      Icons.health_and_safety,
+                                                      color: AppTheme.primaryColor,
+                                                      size: 18,
+                                                    ),
+                                                  ),
+                                                )
+                                              : const Icon(
                                                   Icons.health_and_safety,
                                                   color: AppTheme.primaryColor,
                                                   size: 18,
                                                 ),
-                                              ),
-                                            )
-                                          : const Icon(
-                                              Icons.health_and_safety,
-                                              color: AppTheme.primaryColor,
-                                              size: 18,
-                                            ),
-                                    ),
-                                    title: Text(
-                                      book.title,
-                                      style: GoogleFonts.tajawal(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                    trailing: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        'عرض الكتاب',
-                                        style: GoogleFonts.tajawal(
-                                          color: AppTheme.primaryColor,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
                                         ),
-                                      ),
-                                    ),
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => PdfViewerScreen(
-                                            pdfUrl: book.url,
-                                            title: book.title,
-                                            stageName: 'SWEDD',
-                                            sectionName: book.category,
-                                            book: book,
+                                        title: Text(
+                                          book.title,
+                                          style: GoogleFonts.tajawal(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
                                           ),
                                         ),
-                                      );
-                                    },
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          );
-                        }),
-                      ],
-                    );
-                  }),
-
-                  const SizedBox(height: 20),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+                                        trailing: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            'عرض الكتاب',
+                                            style: GoogleFonts.tajawal(
+                                              color: AppTheme.primaryColor,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => PdfViewerScreen(
+                                                pdfUrl: book.url,
+                                                title: book.title,
+                                                stageName: 'SWEDD',
+                                                sectionName: book.category,
+                                                book: book,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              );
+                            }),
+                          ],
+                        );
+                      }),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+        ),
+      ],
     );
   }
 

@@ -58,7 +58,7 @@ class DriveUrlService {
     if (fileId == null || fileId.isEmpty) {
       return (url ?? '').trim();
     }
-    return 'https://drive.google.com/uc?export=download&id=$fileId&confirm=t';
+    return 'https://drive.google.com/uc?export=view&id=$fileId';
   }
 
   /// هل الرابط رابط Google Drive؟

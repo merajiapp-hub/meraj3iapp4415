@@ -59,18 +59,25 @@ class Book {
         DriveUrlService.extractFileId(originalDriveUrl);
   }
 
-  /// رابط الصورة المصغرة (Thumbnail)
   String? get thumbnailUrl {
-    // إذا كان هناك coverUrl صريح، استخدمه
-    if (coverUrl.isNotEmpty && !coverUrl.contains('drive.google.com')) {
+    // إذا كان هناك coverUrl صريح من Firestore (ليس Drive)
+    if (coverUrl.isNotEmpty &&
+        !coverUrl.contains('drive.google.com') &&
+        !coverUrl.contains('docs.google.com')) {
       return coverUrl;
     }
+    // استخراج fileId من coverUrl إذا كان Drive link
+    if (coverUrl.isNotEmpty) {
+      final coverId = DriveUrlService.extractFileId(coverUrl);
+      if (coverId != null) {
+        return 'https://drive.google.com/thumbnail?id=$coverId&sz=w400';
+      }
+    }
+    // استخراج fileId من url الكتاب نفسه لعرض صورة مصغرة
     final fileId = resolvedFileId;
     if (fileId != null) {
-      return DriveUrlService.getThumbnailUrl(fileId);
+      return 'https://drive.google.com/thumbnail?id=$fileId&sz=w400';
     }
-    // إذا كان coverUrl من Drive، استخدمه مباشرةً
-    if (coverUrl.isNotEmpty) return coverUrl;
     return null;
   }
 

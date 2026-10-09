@@ -1,7 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../data/books_data.dart';
 import '../models/book.dart';
+import '../services/content_service.dart';
 import '../widgets/book_card.dart';
 import '../widgets/geometric_sliver_app_bar.dart';
 
@@ -24,22 +25,92 @@ class BooksListScreen extends StatefulWidget {
 }
 
 class _BooksListScreenState extends State<BooksListScreen> {
-  // تتبع أي مستوى مفتوح
   final Set<int> _expandedIndices = {};
 
-  List<Book> _getBooks() {
-    return BooksData.allBooks.where((b) {
-      if (b.section != widget.section) return false;
-      if (widget.categoryFilter == 'الدروس' ||
-          widget.categoryFilter == 'التمارين') {
-        return b.category.contains('التمارين') ||
-            b.category.contains('الدروس');
-      }
-      return b.category.contains(widget.categoryFilter);
-    }).toList();
+  List<Book>? _books;
+  List<String> _grades = [];
+  bool _loading = true;
+  String? _error;
+  StreamSubscription<List<Book>>? _sub;
+
+  @override
+  void initState() {
+    super.initState();
+    _subscribe();
   }
 
-  List<String> _getGrades(List<Book> books) {
+  @override
+  void didUpdateWidget(covariant BooksListScreen old) {
+    super.didUpdateWidget(old);
+    if (old.section != widget.section || old.categoryFilter != widget.categoryFilter) {
+      _sub?.cancel();
+      _subscribe();
+    }
+  }
+
+  void _subscribe() {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    final category = widget.categoryFilter == 'الدروس' || widget.categoryFilter == 'التمارين'
+        ? null
+        : widget.categoryFilter;
+
+    _sub = ContentService.watchBooksBySection(widget.section, category: category)
+        .listen(
+      (books) {
+        if (!mounted) return;
+        // فلترة إضافية للدروس/التمارين
+        List<Book> filtered = books;
+        if (widget.categoryFilter == 'الدروس' || widget.categoryFilter == 'التمارين') {
+          filtered = books.where((b) =>
+              b.category.contains('التمارين') || b.category.contains('الدروس')).toList();
+        }
+        setState(() {
+          _books = filtered;
+          _grades = _computeGrades(filtered);
+          _loading = false;
+        });
+      },
+      onError: (e) {
+        if (!mounted) return;
+        // fallback local
+        _loadLocal();
+      },
+    );
+  }
+
+  void _loadLocal() async {
+    try {
+      final books = await ContentService.fetchBooksBySection(widget.section,
+          category: widget.categoryFilter);
+      if (!mounted) return;
+      setState(() {
+        _books = books;
+        _grades = _computeGrades(books);
+        _loading = false;
+        _error = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _books = [];
+        _grades = [];
+        _loading = false;
+        _error = 'تعذّر تحميل الكتب. تحقق من اتصالك بالإنترنت.';
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  List<String> _computeGrades(List<Book> books) {
     final grades = books.map((b) => b.grade).toSet().toList();
     grades.sort((a, b) {
       int getVal(String s) {
@@ -57,7 +128,6 @@ class _BooksListScreenState extends State<BooksListScreen> {
     return grades;
   }
 
-  /// أيقونة المستوى الدراسي
   IconData _gradeIcon(String grade) {
     if (grade.contains('الأولى')) return Icons.looks_one_rounded;
     if (grade.contains('الثانية')) return Icons.looks_two_rounded;
@@ -70,8 +140,6 @@ class _BooksListScreenState extends State<BooksListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final books = _getBooks();
-    final grades = _getGrades(books);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accentColor = (widget.gradient as LinearGradient).colors.first;
 
@@ -87,8 +155,33 @@ class _BooksListScreenState extends State<BooksListScreen> {
             gradient: widget.gradient,
           ),
 
-          // ── المحتوى ──
-          if (books.isEmpty)
+          if (_loading)
+            SliverFillRemaining(
+              child: Center(
+                child: CircularProgressIndicator(color: accentColor),
+              ),
+            )
+          else if (_error != null)
+            SliverFillRemaining(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.wifi_off_rounded, size: 48, color: Colors.grey[400]),
+                    const SizedBox(height: 12),
+                    Text(_error!, textAlign: TextAlign.center,
+                        style: GoogleFonts.tajawal(color: Colors.grey[500])),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () { _sub?.cancel(); _subscribe(); },
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('إعادة المحاولة'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else if (_books == null || _books!.isEmpty)
             SliverFillRemaining(
               child: Center(
                 child: Column(
@@ -100,11 +193,7 @@ class _BooksListScreenState extends State<BooksListScreen> {
                         color: accentColor.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(
-                        Icons.folder_open_rounded,
-                        size: 48,
-                        color: accentColor,
-                      ),
+                      child: Icon(Icons.folder_open_rounded, size: 48, color: accentColor),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -114,6 +203,11 @@ class _BooksListScreenState extends State<BooksListScreen> {
                         color: Colors.grey[500],
                         fontWeight: FontWeight.w500,
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'سيتم إضافة المحتوى قريباً',
+                      style: GoogleFonts.tajawal(fontSize: 13, color: Colors.grey[400]),
                     ),
                   ],
                 ),
@@ -125,17 +219,14 @@ class _BooksListScreenState extends State<BooksListScreen> {
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                    final grade = grades[index];
-                    final gradeBooks =
-                        books.where((b) => b.grade == grade).toList();
+                    final grade = _grades[index];
+                    final gradeBooks = _books!.where((b) => b.grade == grade).toList();
                     final isExpanded = _expandedIndices.contains(index);
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       decoration: BoxDecoration(
-                        color: isDark
-                            ? const Color(0xFF1E293B)
-                            : Colors.white,
+                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: isExpanded
@@ -149,17 +240,14 @@ class _BooksListScreenState extends State<BooksListScreen> {
                           BoxShadow(
                             color: isExpanded
                                 ? accentColor.withValues(alpha: 0.10)
-                                : Colors.black.withValues(
-                                    alpha: isDark ? 0.2 : 0.04),
+                                : Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
                             blurRadius: isExpanded ? 14 : 8,
                             offset: const Offset(0, 3),
                           ),
                         ],
                       ),
                       child: Theme(
-                        data: Theme.of(context).copyWith(
-                          dividerColor: Colors.transparent,
-                        ),
+                        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                         child: ExpansionTile(
                           initiallyExpanded: false,
                           onExpansionChanged: (expanded) {
@@ -171,18 +259,13 @@ class _BooksListScreenState extends State<BooksListScreen> {
                               }
                             });
                           },
-                          tilePadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 4,
-                          ),
+                          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
                           collapsedShape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
-
-                          // رمز المستوى الدراسي
                           leading: SizedBox(
                             width: 42,
                             height: 42,
@@ -194,7 +277,6 @@ class _BooksListScreenState extends State<BooksListScreen> {
                               size: 22,
                             ),
                           ),
-
                           title: Text(
                             grade,
                             style: GoogleFonts.tajawal(
@@ -203,16 +285,13 @@ class _BooksListScreenState extends State<BooksListScreen> {
                               color: isDark ? Colors.white : const Color(0xFF0F172A),
                             ),
                           ),
-
                           subtitle: Row(
                             children: [
                               Container(
                                 margin: const EdgeInsets.only(top: 3),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 7, vertical: 1),
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
                                 decoration: BoxDecoration(
-                                  color: accentColor.withValues(
-                                      alpha: isDark ? 0.2 : 0.1),
+                                  color: accentColor.withValues(alpha: isDark ? 0.2 : 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
@@ -226,12 +305,8 @@ class _BooksListScreenState extends State<BooksListScreen> {
                               ),
                             ],
                           ),
-
                           iconColor: accentColor,
-                          collapsedIconColor: isDark
-                              ? Colors.grey[400]
-                              : Colors.grey[500],
-
+                          collapsedIconColor: isDark ? Colors.grey[400] : Colors.grey[500],
                           childrenPadding: const EdgeInsets.only(bottom: 8),
                           children: gradeBooks
                               .map((book) => BookCard(
@@ -244,7 +319,7 @@ class _BooksListScreenState extends State<BooksListScreen> {
                       ),
                     );
                   },
-                  childCount: grades.length,
+                  childCount: _grades.length,
                 ),
               ),
             ),

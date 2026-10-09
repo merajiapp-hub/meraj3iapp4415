@@ -6,27 +6,59 @@ import '../models/book.dart';
 import '../widgets/curved_header.dart';
 import 'pdf_viewer_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class NationalExamsScreen extends StatelessWidget {
+class NationalExamsScreen extends StatefulWidget {
   const NationalExamsScreen({super.key});
 
-  // لون حسب نوع المسابقة
-  static Color _typeColor(String grade) {
-    return AppTheme.primaryColor;
-  }
+  @override
+  State<NationalExamsScreen> createState() => _NationalExamsScreenState();
+}
 
-  static LinearGradient _typeGradient(String grade) {
-    return AppTheme.primaryGradient;
+class _NationalExamsScreenState extends State<NationalExamsScreen> {
+  static Color _typeColor(String grade) => AppTheme.primaryColor;
+  static LinearGradient _typeGradient(String grade) => AppTheme.primaryGradient;
+
+  Stream<List<Book>> _getExamsStream() {
+    return FirebaseFirestore.instance
+        .collection('books')
+        .where('section', isEqualTo: BooksData.sCompetitions)
+        .where('isActive', isEqualTo: true)
+        .orderBy('order')
+        .snapshots()
+        .map((snap) {
+      if (snap.docs.isEmpty) {
+        return BooksData.allBooks
+            .where((b) => b.section == BooksData.sCompetitions)
+            .toList();
+      }
+      return snap.docs.map((d) => Book.fromMap(d.data(), d.id)).toList();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final exams = BooksData.allBooks
-        .where((b) => b.section == BooksData.sCompetitions)
-        .toList();
+    return Scaffold(
+      body: StreamBuilder<List<Book>>(
+        stream: _getExamsStream(),
+        builder: (context, snapshot) {
+          List<Book> exams;
+          if (snapshot.hasError || !snapshot.hasData) {
+            exams = BooksData.allBooks
+                .where((b) => b.section == BooksData.sCompetitions)
+                .toList();
+          } else {
+            exams = snapshot.data!;
+          }
+          return _buildBody(context, isDark, exams);
+        },
+      ),
+    );
+  }
 
+  Widget _buildBody(BuildContext context, bool isDark, List<Book> exams) {
     final Map<String, Map<String, List<Book>>> ungrouped = {};
     for (final exam in exams) {
       ungrouped.putIfAbsent(exam.grade, () => {});
@@ -58,48 +90,37 @@ class NationalExamsScreen extends StatelessWidget {
       for (final grade in sortedGrades) grade: ungrouped[grade]!,
     };
 
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: CurvedHeader(
-              title: 'امتحانات المسابقات الوطنية',
-              gradient: AppTheme.brandGradient,
-              leadingIcon: Icons.emoji_events_rounded,
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: CurvedHeader(
+            title: 'امتحانات المسابقات الوطنية',
+            gradient: AppTheme.brandGradient,
+            leadingIcon: Icons.emoji_events_rounded,
+          ),
+        ),
+        if (exams.isEmpty)
+          SliverFillRemaining(child: _buildLockedView(context))
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                _buildHeroBanner(context),
+                const SizedBox(height: 20),
+                ...grouped.entries.map((gradeEntry) {
+                  return _GradeSection(
+                    gradeName: _getGradeName(gradeEntry.key),
+                    categoriesMap: gradeEntry.value,
+                    color: _typeColor(gradeEntry.key),
+                    gradient: _typeGradient(gradeEntry.key),
+                    isDark: isDark,
+                  );
+                }),
+              ]),
             ),
           ),
-
-          if (exams.isEmpty)
-            SliverFillRemaining(child: _buildLockedView(context))
-          else
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  // ── بانر رئيسي ──
-                  _buildHeroBanner(context),
-                  const SizedBox(height: 20),
-
-                  // ── مجموعات المسابقات ──
-                  ...grouped.entries.map((gradeEntry) {
-                    final gradeName = _getGradeName(gradeEntry.key);
-                    final categoriesMap = gradeEntry.value;
-                    final color = _typeColor(gradeEntry.key);
-                    final gradient = _typeGradient(gradeEntry.key);
-
-                    return _GradeSection(
-                      gradeName: gradeName,
-                      categoriesMap: categoriesMap,
-                      color: color,
-                      gradient: gradient,
-                      isDark: isDark,
-                    );
-                  }),
-                ]),
-              ),
-            ),
-        ],
-      ),
+      ],
     );
   }
 
@@ -126,11 +147,7 @@ class NationalExamsScreen extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.emoji_events_rounded,
-              color: Colors.white,
-              size: 28,
-            ),
+            child: const Icon(Icons.emoji_events_rounded, color: Colors.white, size: 28),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -139,19 +156,12 @@ class NationalExamsScreen extends StatelessWidget {
               children: [
                 Text(
                   'امتحانات المسابقات الوطنية',
-                  style: GoogleFonts.tajawal(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: GoogleFonts.tajawal(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   'كونكور  •  ابريفة  •  باكالوريا',
-                  style: GoogleFonts.tajawal(
-                    color: Colors.white70,
-                    fontSize: 12,
-                  ),
+                  style: GoogleFonts.tajawal(color: Colors.white70, fontSize: 12),
                 ),
               ],
             ),
@@ -187,19 +197,12 @@ class NationalExamsScreen extends StatelessWidget {
                 color: Colors.orange.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.lock_outline_rounded,
-                size: 60,
-                color: Colors.orange,
-              ),
+              child: const Icon(Icons.lock_outline_rounded, size: 60, color: Colors.orange),
             ),
             const SizedBox(height: 24),
             Text(
               'امتحانات المسابقات غير متوفرة',
-              style: GoogleFonts.tajawal(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
+              style: GoogleFonts.tajawal(fontSize: 22, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
@@ -216,7 +219,7 @@ class NationalExamsScreen extends StatelessWidget {
 }
 
 // ══════════════════════════════════════
-//  قسم مسابقة واحدة (Concours/Brevet/Bac)
+//  قسم مسابقة واحدة
 // ══════════════════════════════════════
 class _GradeSection extends StatelessWidget {
   final String gradeName;
@@ -238,7 +241,6 @@ class _GradeSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── رأس النوع ──
         Container(
           margin: const EdgeInsets.only(bottom: 10, top: 4),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -246,41 +248,22 @@ class _GradeSection extends StatelessWidget {
             gradient: gradient,
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: 0.25),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
+              BoxShadow(color: color.withValues(alpha: 0.25), blurRadius: 8, offset: const Offset(0, 3)),
             ],
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                gradeName,
-                style: GoogleFonts.tajawal(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-              ),
-            ],
+          child: Text(
+            gradeName,
+            style: GoogleFonts.tajawal(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
           ),
         ),
-
-        // ── قائمة السنوات داخل النوع ──
         ...categoriesMap.entries.map((categoryEntry) {
-          final yearName = categoryEntry.key;
-          final yearExams = categoryEntry.value;
-
           return _YearTile(
-            yearName: yearName,
-            yearExams: yearExams,
+            yearName: categoryEntry.key,
+            yearExams: categoryEntry.value,
             color: color,
             isDark: isDark,
           );
         }),
-
         const SizedBox(height: 12),
       ],
     );
@@ -320,9 +303,7 @@ class _YearTileState extends State<_YearTile> {
         border: Border.all(
           color: _isExpanded
               ? widget.color.withValues(alpha: 0.35)
-              : (widget.isDark
-                  ? Colors.white.withValues(alpha: 0.07)
-                  : const Color(0xFFE2E8F0)),
+              : (widget.isDark ? Colors.white.withValues(alpha: 0.07) : const Color(0xFFE2E8F0)),
           width: _isExpanded ? 1.5 : 1,
         ),
         boxShadow: [
@@ -340,23 +321,16 @@ class _YearTileState extends State<_YearTile> {
         child: ExpansionTile(
           onExpansionChanged: (v) => setState(() => _isExpanded = v),
           tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
-          collapsedShape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          collapsedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           leading: Container(
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: widget.color.withValues(
-                  alpha: _isExpanded ? 0.18 : (widget.isDark ? 0.15 : 0.09)),
+              color: widget.color.withValues(alpha: _isExpanded ? 0.18 : (widget.isDark ? 0.15 : 0.09)),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(
-              Icons.folder_open_rounded,
-              color: widget.color,
-              size: 20,
-            ),
+            child: Icon(Icons.folder_open_rounded, color: widget.color, size: 20),
           ),
           title: Text(
             widget.yearName,
@@ -368,20 +342,13 @@ class _YearTileState extends State<_YearTile> {
           ),
           subtitle: Text(
             '${widget.yearExams.length} امتحان',
-            style: GoogleFonts.tajawal(
-              fontSize: 10,
-              color: widget.color,
-              fontWeight: FontWeight.w600,
-            ),
+            style: GoogleFonts.tajawal(fontSize: 10, color: widget.color, fontWeight: FontWeight.w600),
           ),
           iconColor: widget.color,
-          collapsedIconColor:
-              widget.isDark ? Colors.grey[400] : Colors.grey[500],
-          childrenPadding:
-              const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          collapsedIconColor: widget.isDark ? Colors.grey[400] : Colors.grey[500],
+          childrenPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           children: widget.yearExams.map((exam) {
-            return _ExamTile(
-                exam: exam, color: widget.color, isDark: widget.isDark);
+            return _ExamTile(exam: exam, color: widget.color, isDark: widget.isDark);
           }).toList(),
         ),
       ),
@@ -397,11 +364,7 @@ class _ExamTile extends StatelessWidget {
   final Color color;
   final bool isDark;
 
-  const _ExamTile({
-    required this.exam,
-    required this.color,
-    required this.isDark,
-  });
+  const _ExamTile({required this.exam, required this.color, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -409,19 +372,14 @@ class _ExamTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: isDark
-            ? Colors.white.withValues(alpha: 0.04)
-            : color.withValues(alpha: 0.04),
+        color: isDark ? Colors.white.withValues(alpha: 0.04) : color.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.06)
-              : color.withValues(alpha: 0.12),
+          color: isDark ? Colors.white.withValues(alpha: 0.06) : color.withValues(alpha: 0.12),
         ),
       ),
       child: Row(
         children: [
-          // أيقونة الامتحان
           Container(
             width: 34,
             height: 34,
@@ -436,21 +394,13 @@ class _ExamTile extends StatelessWidget {
                     child: CachedNetworkImage(
                       imageUrl: exam.thumbnailUrl!,
                       fit: BoxFit.cover,
-                      errorWidget: (context, url, error) => Icon(
-                        Icons.description_rounded,
-                        color: color,
-                        size: 16,
-                      ),
+                      errorWidget: (context, url, error) =>
+                          Icon(Icons.description_rounded, color: color, size: 16),
                     ),
                   )
-                : Icon(
-                    Icons.description_rounded,
-                    color: color,
-                    size: 16,
-                  ),
-          ),const SizedBox(width: 10),
-
-          // اسم الامتحان
+                : Icon(Icons.description_rounded, color: color, size: 16),
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               exam.title,
@@ -464,8 +414,6 @@ class _ExamTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-
-          // أزرار الإجراءات
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -487,8 +435,7 @@ class _ExamTile extends StatelessWidget {
                     ),
                   ),
                 ),
-              if (exam.url.isNotEmpty && exam.solutionUrl.isNotEmpty)
-                const SizedBox(width: 6),
+              if (exam.url.isNotEmpty && exam.solutionUrl.isNotEmpty) const SizedBox(width: 6),
               if (exam.solutionUrl.isNotEmpty)
                 _ExamButton(
                   label: 'الحل',
@@ -550,11 +497,7 @@ class _ExamButton extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               label,
-              style: GoogleFonts.tajawal(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 11,
-              ),
+              style: GoogleFonts.tajawal(color: color, fontWeight: FontWeight.bold, fontSize: 11),
             ),
           ],
         ),

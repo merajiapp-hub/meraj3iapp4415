@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import '../data/books_data.dart';
 import 'books_list_screen.dart';
 import '../widgets/curved_header.dart';
 
@@ -23,6 +23,15 @@ class StageDetailScreen extends StatefulWidget {
 
   @override
   State<StageDetailScreen> createState() => _StageDetailScreenState();
+}
+
+Stream<List<dynamic>> _booksCountStream(String section) {
+  return FirebaseFirestore.instance
+      .collection('books')
+      .where('section', isEqualTo: section)
+      .where('isActive', isEqualTo: true)
+      .snapshots()
+      .map((s) => s.docs);
 }
 
 class _StageDetailScreenState extends State<StageDetailScreen> {
@@ -74,19 +83,18 @@ class _StageDetailScreenState extends State<StageDetailScreen> {
 
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 10, 20, 4),
-            child: Row(
-              children: [
-                _StatChip(
-                  icon: Icons.folder_rounded,
-                  label:
-                      '${BooksData.allBooks.where((b) => b.section == widget.section).length} ملف',
-                ),
-                const SizedBox(width: 8),
-                _StatChip(
-                  icon: Icons.layers_rounded,
-                  label: '${sections.length} أقسام',
-                ),
-              ],
+            child: StreamBuilder<List<dynamic>>(
+              stream: _booksCountStream(widget.section),
+              builder: (context, snap) {
+                final count = snap.data?.length ?? 0;
+                return Row(
+                  children: [
+                    _StatChip(icon: Icons.folder_rounded, label: '$count ملف'),
+                    const SizedBox(width: 8),
+                    _StatChip(icon: Icons.layers_rounded, label: '${sections.length} أقسام'),
+                  ],
+                );
+              },
             ),
           ),
 

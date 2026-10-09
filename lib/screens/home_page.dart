@@ -37,6 +37,8 @@ import 'student/reading_history_screen.dart';
 import '../widgets/banner_ad_widget.dart';
 import '../features/smart_calculator/ui/screens/smart_calculator_screen.dart';
 import 'services_screen.dart';
+import 'news_screen.dart';
+import 'announcements_screen.dart';
 
 class HomePage extends StatefulWidget {
   final bool isGuest;
@@ -83,6 +85,13 @@ class _HomePageState extends State<HomePage>
           duration: const Duration(milliseconds: 600),
           curve: Curves.easeInOutCubic,
         );
+      }
+    });
+
+    // تحميل صور الكاروزيل مسبقاً لتجنب التأخير عند ظهورها
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final path in ['assets/IM/IM1.jpg', 'assets/IM/IM2.jpg', 'assets/IM/IM3.jpg']) {
+        precacheImage(AssetImage(path), context);
       }
     });
   }
@@ -184,9 +193,9 @@ class _HomePageState extends State<HomePage>
         if (didPop) return;
         _handleBackButton();
       },
-      child: Scaffold(
-        drawer: _buildDrawer(),
-        body: Column(
+      child: Container(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: Column(
           children: [
             _buildHomeToolbar(isDark),
             // ══════════════════════════════════════════
@@ -258,7 +267,9 @@ class _HomePageState extends State<HomePage>
                         const SizedBox(height: 14),
 
                         // ── Grid الأزرار الرئيسية ──
-                        _buildMainServicesGrid(size, isDark),
+                        RepaintBoundary(
+                          child: _buildMainServicesGrid(size, isDark),
+                        ),
 
                         const SizedBox(height: 28),
                         const BannerAdWidget(),
@@ -414,31 +425,6 @@ class _HomePageState extends State<HomePage>
               ),
             ),
 
-            // شارة (Badge) اختيارية
-            if (service.badge != null)
-              Positioned(
-                top: 8,
-                left: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 5,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: service.gradient,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    service.badge!,
-                    style: GoogleFonts.outfit(
-                      color: Colors.white,
-                      fontSize: 8,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.4,
-                    ),
-                  ),
-                ),
-              ),
           ],
         ),
       ),
@@ -749,6 +735,12 @@ class _HomePageState extends State<HomePage>
   Widget _buildTopCarousel(bool isDark) {
     final List<Widget> carouselItems = [
       _buildUserCard(isDark),
+      _buildCarouselActionCard('آخر الأخبار', 'تابع أهم وأحدث الأخبار', Icons.newspaper_rounded, const Color(0xFF14B8A6), isDark, () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const NewsScreen()));
+      }),
+      _buildCarouselActionCard('الإعلانات', 'اطلع على الإعلانات الهامة', Icons.campaign_rounded, const Color(0xFFF5A623), isDark, () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const AnnouncementsScreen()));
+      }),
       _buildCarouselImageCard('assets/IM/IM1.jpg'),
       _buildCarouselImageCard('assets/IM/IM2.jpg'),
       _buildCarouselImageCard('assets/IM/IM3.jpg'),
@@ -756,19 +748,21 @@ class _HomePageState extends State<HomePage>
 
     return Column(
       children: [
-        SizedBox(
-          height: 155,
-          child: PageView.builder(
-            controller: _pageController,
-            onPageChanged: (index) {
-              setState(() {
-                _carouselIndex = index % carouselItems.length;
-              });
-            },
-            itemBuilder: (context, index) {
-              final itemIndex = index % carouselItems.length;
-              return carouselItems[itemIndex];
-            },
+        RepaintBoundary(
+          child: SizedBox(
+            height: 155,
+            child: PageView.builder(
+              controller: _pageController,
+              onPageChanged: (index) {
+                setState(() {
+                  _carouselIndex = index % carouselItems.length;
+                });
+              },
+              itemBuilder: (context, index) {
+                final itemIndex = index % carouselItems.length;
+                return carouselItems[itemIndex];
+              },
+            ),
           ),
         ),
         const SizedBox(height: 10),
@@ -855,6 +849,58 @@ class _HomePageState extends State<HomePage>
     );
   }
 
+  Widget _buildCarouselActionCard(String title, String subtitle, IconData icon, Color color, bool isDark, VoidCallback onTap) {
+    return _AnimatedCard(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: LinearGradient(
+            colors: isDark 
+                ? [color.withValues(alpha: 0.5), color.withValues(alpha: 0.2)]
+                : [color.withValues(alpha: 0.9), color],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.2),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: Colors.white, size: 28),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(title, style: GoogleFonts.tajawal(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                  const SizedBox(height: 4),
+                  Text(subtitle, style: GoogleFonts.tajawal(fontSize: 13, color: Colors.white70)),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ══════════════════════════════════════════════════════
   //  عنوان القسم
   // ══════════════════════════════════════════════════════
@@ -882,368 +928,7 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  // ══════════════════════════════════════════════════════
-  //  Drawer
-  // ══════════════════════════════════════════════════════
-  Widget _buildDrawer() {
-    final auth = Provider.of<AuthProvider>(context);
-    final user = auth.user;
-    final userName = auth.userData?['fullName']?.toString().trim().isNotEmpty == true
-        ? auth.userData!['fullName'].toString().trim()
-        : auth.userData?['name']?.toString().trim().isNotEmpty == true
-            ? auth.userData!['name'].toString().trim()
-            : user?.displayName?.trim().isNotEmpty == true
-                ? user!.displayName!.trim()
-                : 'حساب الطالب';
-    final userEmail = user?.email ?? '';
 
-    return Drawer(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.horizontal(left: Radius.circular(30)),
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.only(
-              top: 60,
-              bottom: 40,
-              left: 20,
-              right: 20,
-            ),
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: AppTheme.deepBlueGradient,
-              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(30)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.25),
-                      width: 2,
-                    ),
-                  ),
-                  child: CircleAvatar(
-                    radius: 35,
-                    backgroundColor: Colors.white24,
-                    backgroundImage: auth.profileImageProvider,
-                    child: auth.profileImageProvider == null
-                        ? const Icon(
-                            Icons.person_rounded,
-                            size: 40,
-                            color: Colors.white,
-                          )
-                        : null,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    widget.isGuest ? 'مستخدم زائر' : userName,
-                    style: GoogleFonts.tajawal(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                Text(
-                  widget.isGuest
-                      ? 'سجل دخولك للحصول على مميزات أكثر'
-                      : userEmail,
-                  style: GoogleFonts.tajawal(
-                    color: Colors.white70,
-                    fontSize: 13,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.only(top: 10),
-              children: [
-                _buildDrawerItem(Icons.library_books_rounded, 'مراجع أخرى', () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ReferencesScreen()),
-                  );
-                }),
-                _buildDrawerItem(Icons.history_edu_rounded, 'سجل القراءة', () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const ReadingHistoryScreen(),
-                    ),
-                  );
-                }),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                  child: Divider(height: 1),
-                ),
-                _buildDrawerItem(Icons.reviews_rounded, 'آراء المستخدمين', () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ReviewsScreen()),
-                  );
-                }),
-
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                  child: Divider(height: 1),
-                ),
-                _buildDrawerItem(Icons.notifications_rounded, 'الإشعارات', () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const NotificationsScreen(),
-                    ),
-                  );
-                }),
-
-                _buildDrawerItem(Icons.settings_rounded, 'الإعدادات', () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                  );
-                }),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                  child: Divider(height: 1),
-                ),
-                _buildDrawerItem(Icons.info_rounded, 'عن التطبيق', () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const InfoScreen()),
-                  );
-                }),
-                _buildDrawerItem(Icons.help_rounded, 'الأسئلة الشائعة', () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const FaqScreen()),
-                  );
-                }),
-                _buildDrawerItem(
-                  Icons.privacy_tip_rounded,
-                  'سياسة الخصوصية',
-                  () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const PrivacyPolicyScreen(),
-                      ),
-                    );
-                  },
-                ),
-                _buildDrawerItem(
-                  Icons.volunteer_activism_rounded,
-                  'دعم التطبيق',
-                  () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const DonationsScreen(),
-                      ),
-                    );
-                  },
-                ),
-                _buildDrawerItem(Icons.auto_awesome_rounded, 'الإهداء', () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const DedicationScreen()),
-                  );
-                }),
-                _buildDrawerItem(Icons.contact_support_rounded, 'اتصل بنا', () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ContactUsScreen()),
-                  );
-                }),
-                _buildDrawerItem(Icons.gavel_rounded, 'شروط الاستخدام', () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const TermsOfUseScreen()),
-                  );
-                }),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                  child: Divider(height: 1),
-                ),
-                _buildDrawerItem(
-                  Image.asset(
-                    'assets/images/logo.png',
-                    width: 22,
-                    height: 22,
-                    color: Colors.red,
-                  ),
-                  'تسجيل الخروج',
-                  () {
-                    final isDark =
-                        Theme.of(context).brightness == Brightness.dark;
-                    showDialog(
-                      context: context,
-                      builder: (context) {
-                        return AlertDialog(
-                          backgroundColor: isDark
-                              ? AppTheme.surfaceDark
-                              : Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          title: Column(
-                            children: [
-                              Image.asset('assets/images/logo.png', height: 60),
-                              const SizedBox(height: 12),
-                              Text(
-                                'تسجيل الخروج',
-                                style: GoogleFonts.tajawal(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.redAccent,
-                                ),
-                              ),
-                            ],
-                          ),
-                          content: Text(
-                            'هل أنت متأكد من أنك تريد تسجيل الخروج من حسابك؟',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.tajawal(
-                              color: isDark ? Colors.white70 : Colors.black87,
-                            ),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: Text(
-                                'إلغاء',
-                                style: GoogleFonts.tajawal(
-                                  color: Colors.grey,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            ElevatedButton(
-                              onPressed: () async {
-                                Navigator.pop(context);
-                                final authProvider = Provider.of<AuthProvider>(
-                                  context,
-                                  listen: false,
-                                );
-                                await authProvider.signOut();
-
-                                if (context.mounted) {
-                                  Provider.of<FavoritesProvider>(
-                                    context,
-                                    listen: false,
-                                  ).clearAll();
-                                  Provider.of<DownloadsProvider>(
-                                    context,
-                                    listen: false,
-                                  ).clearAll();
-                                  Provider.of<TaskProvider>(
-                                    context,
-                                    listen: false,
-                                  ).clearAll();
-                                  Provider.of<ReadingProvider>(
-                                    context,
-                                    listen: false,
-                                  ).clearAll();
-                                  AppNotification.showLogout(context);
-                                  Navigator.of(context).pushAndRemoveUntil(
-                                    MaterialPageRoute(
-                                      builder: (_) => const LoginScreen(),
-                                    ),
-                                    (route) => false,
-                                  );
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.redAccent,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Text(
-                                'تسجيل الخروج',
-                                style: GoogleFonts.tajawal(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                  },
-                  color: Colors.redAccent,
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ══════════════════════════════════════════════════════
-  //  عنصر Drawer
-  // ══════════════════════════════════════════════════════
-  Widget _buildDrawerItem(
-    dynamic iconOrWidget, // IconData or Widget
-    String title,
-    VoidCallback onTap, {
-    Color? color,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final iconColor = isDark ? Colors.white : (color ?? AppTheme.primaryColor);
-    final leadingWidget = iconOrWidget is IconData
-        ? Icon(
-            iconOrWidget,
-            color: iconColor,
-            size: 22,
-          )
-        : (iconOrWidget as Widget);
-
-    return ListTile(
-      leading: leadingWidget,
-      title: Text(
-        title,
-        style: GoogleFonts.tajawal(
-          fontSize: 15,
-          fontWeight: FontWeight.bold,
-          color: isDark ? Colors.white : (color ?? AppTheme.primaryColor),
-        ),
-      ),
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-      minLeadingWidth: 24,
-      horizontalTitleGap: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      tileColor: Colors.transparent,
-    );
-  }
 }
 
 // ══════════════════════════════════════════════════════

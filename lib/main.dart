@@ -174,7 +174,6 @@ void main() async {
       cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
     );
 
-    // إعداد معالج الإشعارات في الخلفية الكاملة
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   } catch (e) {
     debugPrint('Firebase initialization error: $e');

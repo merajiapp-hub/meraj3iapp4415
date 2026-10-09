@@ -55,7 +55,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     final fullName = auth.userData?['fullName'] ?? auth.userData?['name'] ?? auth.user?.displayName ?? '';
     _nameController.text = fullName.toString();
     _emailController.text = auth.userData?['email'] ?? auth.user?.email ?? '';
-    _phoneController.text = auth.userData?['phoneNumber'] ?? auth.userData?['phone'] ?? '';
+    final rawPhone = auth.resolvePhoneValue(auth.userData) ?? '';
+    _phoneController.text = AuthProvider.formatPhoneForDisplay(rawPhone);
     _profileImageUrl = auth.user?.photoURL;
   }
 
@@ -306,7 +307,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     final reading = Provider.of<ReadingProvider>(context);
     final userName = auth.userData?['fullName'] ?? auth.userData?['name'] ?? auth.user?.displayName ?? 'المستخدم';
     final userEmail = auth.userData?['email'] ?? auth.user?.email ?? '';
-    final userPhone = auth.resolvePhoneValue(auth.userData) ?? '';
+    final rawPhone = auth.resolvePhoneValue(auth.userData) ?? '';
+    final userPhone = AuthProvider.formatPhoneForDisplay(rawPhone);
 
     if (!_isEditing) {
       if (_nameController.text != userName) {

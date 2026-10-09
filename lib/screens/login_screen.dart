@@ -27,6 +27,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   bool _isPasswordVisible = false;
   bool _rememberMe = false;
   bool _canCheckBiometrics = false;
+  List<BiometricType> _availableBiometrics = [];
   final _secureStorage = const FlutterSecureStorage();
 
   late final AnimationController _animController;
@@ -59,45 +60,63 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   Future<void> _loadSavedCredentials() async {
     final LocalAuthentication auth = LocalAuthentication();
     bool canCheckBiometrics = false;
+    List<BiometricType> availableBiometrics = [];
     try {
       canCheckBiometrics = await auth.canCheckBiometrics || await auth.isDeviceSupported();
+      if (canCheckBiometrics) {
+        availableBiometrics = await auth.getAvailableBiometrics();
+      }
     } catch (e) {
       debugPrint('Biometrics check error: $e');
     }
 
     final savedEmail = await _secureStorage.read(key: 'saved_email');
     final savedPassword = await _secureStorage.read(key: 'saved_password');
+    final hasSaved = savedEmail != null && savedEmail.isNotEmpty && savedPassword != null;
 
     if (!mounted) return;
     setState(() {
-      _canCheckBiometrics = canCheckBiometrics && savedEmail != null && savedPassword != null;
-      if (savedEmail != null && savedEmail.isNotEmpty) {
+      _canCheckBiometrics = canCheckBiometrics;
+      _availableBiometrics = availableBiometrics;
+      if (hasSaved) {
         _rememberMe = true;
         _emailController.text = savedEmail;
-        if (savedPassword != null) {
-          _passwordController.text = savedPassword;
-        }
+        _passwordController.text = savedPassword;
       }
     });
+
+    // Auto-trigger biometric authentication if credentials are saved
+    if (canCheckBiometrics && hasSaved) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) {
+        _authenticateWithBiometrics(auto: true);
+      }
+    }
   }
 
-  Future<void> _authenticateWithBiometrics() async {
+  Future<void> _authenticateWithBiometrics({bool auto = false}) async {
     final LocalAuthentication auth = LocalAuthentication();
     try {
       final authenticated = await auth.authenticate(
-        localizedReason: 'الرجاء المصادقة لتسجيل الدخول',
+        localizedReason: 'المصادقة بالبصمة أو الوجه لتسجيل الدخول',
         options: const AuthenticationOptions(
           stickyAuth: true,
-          biometricOnly: true,
+          biometricOnly: false, // يدعم البصمة والوجه وكذلك PIN كـ fallback
         ),
       );
 
-      if (authenticated) {
+      if (authenticated && mounted) {
         _login();
       }
+    } on PlatformException catch (e) {
+      debugPrint('Biometric error: ${e.code} — ${e.message}');
+      if (!auto && mounted) {
+        AppNotification.show(context, 'تعذر التحقق البيومتري: ${e.message}', isError: true);
+      }
     } catch (e) {
-      if (!mounted) return;
-      AppNotification.show(context, 'تعذر التحقق عبر البصمة', isError: true);
+      if (!auto && mounted) {
+        AppNotification.show(context, 'تعذر التحقق عبر البصمة', isError: true);
+      }
     }
   }
 
@@ -115,7 +134,14 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     setState(() => _isLoading = true);
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final error = await authProvider.signIn(email, pass);
+    String? error;
+    
+    final cleanInput = email.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (cleanInput.length >= 8 && RegExp(r'^[0-9+]+$').hasMatch(email.trim())) {
+      error = await authProvider.signInWithPhone(email, pass);
+    } else {
+      error = await authProvider.signIn(email, pass);
+    }
 
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -479,23 +505,42 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               ),
               if (_canCheckBiometrics) ...[
                 const SizedBox(width: 12),
-                SizedBox(
-                  height: 56,
-                  width: 56,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _authenticateWithBiometrics,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: fieldColor,
-                      foregroundColor: accent,
-                      elevation: 0,
-                      padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                        side: const BorderSide(color: fieldBorder),
+                Column(
+                  children: [
+                    SizedBox(
+                      height: 56,
+                      width: 56,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _authenticateWithBiometrics,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: fieldColor,
+                          foregroundColor: accent,
+                          elevation: 0,
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                            side: const BorderSide(color: fieldBorder),
+                          ),
+                        ),
+                        child: Icon(
+                          _availableBiometrics.contains(BiometricType.face)
+                              ? Icons.face_rounded
+                              : Icons.fingerprint_rounded,
+                          size: 28,
+                        ),
                       ),
                     ),
-                    child: const Icon(Icons.fingerprint_rounded, size: 28),
-                  ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _availableBiometrics.contains(BiometricType.face)
+                          ? 'الوجه'
+                          : 'البصمة',
+                      style: GoogleFonts.tajawal(
+                        fontSize: 10,
+                        color: hintColor,
+                      ),
+                    ),
+                  ],
                 ),
               ]
             ],

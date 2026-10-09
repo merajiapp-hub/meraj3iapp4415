@@ -51,6 +51,19 @@ class AuthProvider extends ChangeNotifier {
     return '+$digits';
   }
 
+  /// يحوّل الرقم المعيَّر (+2220XXXXXXXX) إلى صيغة عرض مقروءة (0XXXXXXXX)
+  static String formatPhoneForDisplay(String? normalized) {
+    if (normalized == null || normalized.trim().isEmpty) return '';
+    var digits = normalized.trim().replaceAll(RegExp(r'[^0-9]'), '');
+    // إزالة رمز الدولة الموريتانية 222
+    if (digits.startsWith('222') && digits.length > 3) {
+      digits = '0${digits.substring(3)}';
+    } else if (digits.startsWith('00222') && digits.length > 5) {
+      digits = '0${digits.substring(5)}';
+    }
+    return digits;
+  }
+
   static String canonicalRegistrationEmail(String? email, String phone) {
     final cleanEmail = (email ?? '').trim().toLowerCase();
     if (cleanEmail.isNotEmpty) return cleanEmail;
@@ -256,18 +269,25 @@ class AuthProvider extends ChangeNotifier {
   // يُستخدم في SplashScreen للانتظار حتى يحسم Firebase حالة المستخدم
   // مع ضمان عدم التعليق أبداً (Timeout = 8 ثوانٍ)
   Future<User?> getInitialAuthState() async {
+    if (_initialized) return _user;
+    if (_auth.currentUser != null) {
+      _user = _auth.currentUser;
+      return _user;
+    }
     try {
-      final user = await _auth.authStateChanges().first.timeout(
-        const Duration(seconds: 8),
-        onTimeout: () {
-          debugPrint('[Auth] getInitialAuthState timeout — using currentUser');
-          return _auth.currentUser;
-        },
-      );
-      _user = user;
-      if (user != null) {
+      await Future.doWhile(() async {
+        if (_initialized) return false;
+        await Future.delayed(const Duration(milliseconds: 50));
+        return true;
+      }).timeout(const Duration(seconds: 4));
+    } catch (e) {
+      debugPrint('[Auth] getInitialAuthState timeout — using currentUser');
+    }
+    _user = _user ?? _auth.currentUser;
+    _initialized = true;
+    if (_user != null && !_profileReady) {
         try {
-          await ensureUserDocument(user, provider: _providerForUser(user));
+          await ensureUserDocument(_user!, provider: _providerForUser(_user!));
           await refreshAccountStatus();
         } catch (e) {
           debugPrint('[Auth] Initial profile provisioning failed: $e');
@@ -278,11 +298,6 @@ class AuthProvider extends ChangeNotifier {
       }
       _initialized = true;
       return _user;
-    } catch (e) {
-      debugPrint('[Auth] getInitialAuthState error: $e');
-      _initialized = true;
-      return _user;
-    }
   }
 
   Future<bool> refreshAccountStatus() async {
@@ -1152,6 +1167,37 @@ class AuthProvider extends ChangeNotifier {
     _userData = saved.data();
     _mustChangePassword = _userData?['mustChangePassword'] == true;
     _profileReady = true;
+
+    // إنشاء/تحديث مدخل لوحة الشرف دائماً بعد تحميل بيانات المستخدم
+    try {
+      final savedData = saved.data()!;
+      final name = (savedData['fullName'] ?? savedData['name'] ?? user.displayName ?? 'طالب').toString();
+      final leaderboardRef = _firestore.collection('leaderboard').doc(user.uid);
+      final leaderboardDoc = await leaderboardRef.get();
+      if (!leaderboardDoc.exists) {
+        // مستخدم جديد - ابدأ بنقاط صفر
+        await leaderboardRef.set({
+          'name': name,
+          'points': 0,
+          'booksRead': 0,
+          'completedTasks': 0,
+          'quizzesTaken': 0,
+          'progressLevel': 0.0,
+          'profileImageUrl': user.photoURL,
+          'lastActivity': FieldValue.serverTimestamp(),
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        // مستخدم موجود - تحديث الاسم فقط
+        await leaderboardRef.set({
+          'name': name,
+          'lastActivity': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      debugPrint('[Auth] Error writing leaderboard entry: $e');
+    }
+
     return saved;
   }
 

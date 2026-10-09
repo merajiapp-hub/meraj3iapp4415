@@ -65,7 +65,7 @@ class StudentProvider with ChangeNotifier {
           _profile.toMap(),
           SetOptions(merge: true),
         );
-        // Also update the root user document for leaderboard querying
+        // Also update the root user document for backwards compatibility
         await _firestore.collection('users').doc(user.uid).set({
           'points': _profile.points,
           'booksRead': _profile.booksRead,
@@ -73,6 +73,17 @@ class StudentProvider with ChangeNotifier {
           'quizzesTaken': _profile.quizzesTaken,
           'progressLevel': _profile.progressLevel,
           'name': _profile.name, // Ensure name is synced
+        }, SetOptions(merge: true));
+        
+        // Write to dedicated public leaderboard collection to avoid permission issues
+        await _firestore.collection('leaderboard').doc(user.uid).set({
+          'points': _profile.points,
+          'booksRead': _profile.booksRead,
+          'completedTasks': _profile.completedTasks,
+          'quizzesTaken': _profile.quizzesTaken,
+          'progressLevel': _profile.progressLevel,
+          'name': _profile.name,
+          'lastActivity': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
       } catch (e) {
         debugPrint('Error updating profile in Firestore: $e');
@@ -139,6 +150,9 @@ class StudentProvider with ChangeNotifier {
     if (user != null) {
       try {
         await _firestore.collection('users').doc(user.uid).set({
+          'lastActivity': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        await _firestore.collection('leaderboard').doc(user.uid).set({
           'lastActivity': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
       } catch (_) {}

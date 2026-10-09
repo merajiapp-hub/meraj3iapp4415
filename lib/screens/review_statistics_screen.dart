@@ -92,43 +92,36 @@ class ReviewStatisticsScreen extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 20),
-                      IntrinsicHeight(
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: _StatBubble(
-                                icon: Icons.trending_up_rounded,
-                                iconBgColor: Colors.red.shade50,
-                                iconColor: Colors.redAccent,
-                                value: '$maxStarIndex ⭐',
-                                label: 'الأكثر تكراراً',
-                                isDark: isDark,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _StatBubble(
-                                icon: Icons.group_rounded,
-                                iconBgColor: AppTheme.primaryColor.withValues(alpha: 0.12),
-                                iconColor: AppTheme.primaryColor,
-                                value: '$total',
-                                label: 'إجمالي التقييمات',
-                                isDark: isDark,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _StatBubble(
-                                icon: Icons.star_half_rounded,
-                                iconBgColor: AppTheme.secondaryColor.withValues(alpha: 0.15),
-                                iconColor: AppTheme.secondaryColor,
-                                value: average.toStringAsFixed(1),
-                                label: 'متوسط التقييم',
-                                isDark: isDark,
-                              ),
-                            ),
-                          ],
-                        ),
+                      Column(
+                        children: [
+                          _VerticalStatCard(
+                            icon: Icons.star_half_rounded,
+                            iconBgColor: AppTheme.secondaryColor.withValues(alpha: 0.15),
+                            iconColor: AppTheme.secondaryColor,
+                            value: average.toStringAsFixed(1),
+                            label: 'متوسط التقييم',
+                            isDark: isDark,
+                          ),
+                          const SizedBox(height: 10),
+                          _VerticalStatCard(
+                            icon: Icons.group_rounded,
+                            iconBgColor: AppTheme.primaryColor.withValues(alpha: 0.12),
+                            iconColor: AppTheme.primaryColor,
+                            value: '$total',
+                            label: 'إجمالي التقييمات',
+                            isDark: isDark,
+                          ),
+                          const SizedBox(height: 10),
+                          _VerticalStatCard(
+                            icon: Icons.trending_up_rounded,
+                            iconBgColor: Colors.red.shade50,
+                            iconColor: Colors.redAccent,
+                            value: '$maxStarIndex',
+                            suffix: ' نجوم',
+                            label: 'الأكثر تكراراً',
+                            isDark: isDark,
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -340,57 +333,69 @@ class ReviewStatisticsScreen extends StatelessWidget {
   }
 }
 
-class _StatBubble extends StatelessWidget {
+class _VerticalStatCard extends StatelessWidget {
   final IconData icon;
   final Color iconBgColor;
   final Color iconColor;
   final String value;
   final String label;
   final bool isDark;
+  final String suffix;
 
-  const _StatBubble({
+  const _VerticalStatCard({
     required this.icon,
     required this.iconBgColor,
     required this.iconColor,
     required this.value,
     required this.label,
     required this.isDark,
+    this.suffix = '',
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: iconBgColor,
-          ),
-          child: Icon(icon, color: iconColor, size: 26),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: iconColor.withValues(alpha: 0.15),
+          width: 1,
         ),
-        const SizedBox(height: 10),
-        Text(
-          value,
-          style: GoogleFonts.outfit(
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-            color: iconColor,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: iconBgColor,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: iconColor, size: 24),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: GoogleFonts.tajawal(
-            fontSize: 12,
-            color: isDark ? Colors.white54 : Colors.black45,
-            fontWeight: FontWeight.w600,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.tajawal(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white70 : Colors.black87,
+              ),
+            ),
           ),
-          textAlign: TextAlign.center,
-        ),
-      ],
+          Text(
+            '$value$suffix',
+            style: GoogleFonts.outfit(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: iconColor,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
