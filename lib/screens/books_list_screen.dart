@@ -42,7 +42,8 @@ class _BooksListScreenState extends State<BooksListScreen> {
   @override
   void didUpdateWidget(covariant BooksListScreen old) {
     super.didUpdateWidget(old);
-    if (old.section != widget.section || old.categoryFilter != widget.categoryFilter) {
+    if (old.section != widget.section ||
+        old.categoryFilter != widget.categoryFilter) {
       _sub?.cancel();
       _subscribe();
     }
@@ -54,54 +55,48 @@ class _BooksListScreenState extends State<BooksListScreen> {
       _error = null;
     });
 
-    final category = widget.categoryFilter == 'الدروس' || widget.categoryFilter == 'التمارين'
+    final category =
+        widget.categoryFilter == 'الدروس' || widget.categoryFilter == 'التمارين'
         ? null
         : widget.categoryFilter;
 
-    _sub = ContentService.watchBooksBySection(widget.section, category: category)
-        .listen(
-      (books) {
-        if (!mounted) return;
-        // فلترة إضافية للدروس/التمارين
-        List<Book> filtered = books;
-        if (widget.categoryFilter == 'الدروس' || widget.categoryFilter == 'التمارين') {
-          filtered = books.where((b) =>
-              b.category.contains('التمارين') || b.category.contains('الدروس')).toList();
-        }
-        setState(() {
-          _books = filtered;
-          _grades = _computeGrades(filtered);
-          _loading = false;
-        });
-      },
-      onError: (e) {
-        if (!mounted) return;
-        // fallback local
-        _loadLocal();
-      },
-    );
-  }
-
-  void _loadLocal() async {
-    try {
-      final books = await ContentService.fetchBooksBySection(widget.section,
-          category: widget.categoryFilter);
-      if (!mounted) return;
-      setState(() {
-        _books = books;
-        _grades = _computeGrades(books);
-        _loading = false;
-        _error = null;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _books = [];
-        _grades = [];
-        _loading = false;
-        _error = 'تعذّر تحميل الكتب. تحقق من اتصالك بالإنترنت.';
-      });
-    }
+    _sub =
+        ContentService.watchBooksBySection(
+          widget.section,
+          category: category,
+        ).listen(
+          (books) {
+            if (!mounted) return;
+            // فلترة إضافية للدروس/التمارين
+            List<Book> filtered = books;
+            if (widget.categoryFilter == 'الدروس' ||
+                widget.categoryFilter == 'التمارين') {
+              filtered = books
+                  .where(
+                    (b) =>
+                        b.category.contains('التمارين') ||
+                        b.category.contains('الدروس'),
+                  )
+                  .toList();
+            }
+            setState(() {
+              _books = filtered;
+              _grades = _computeGrades(filtered);
+              _loading = false;
+            });
+          },
+          onError: (e) {
+            if (!mounted) return;
+            debugPrint('Books stream error: $e');
+            setState(() {
+              _books = [];
+              _grades = [];
+              _loading = false;
+              _error =
+                  'تعذّر تحميل الكتب من الخادم. تحقق من الاتصال وحاول مجددًا.';
+            });
+          },
+        );
   }
 
   @override
@@ -123,6 +118,7 @@ class _BooksListScreenState extends State<BooksListScreen> {
         if (s.contains('السابعة')) return 7;
         return 99;
       }
+
       return getVal(a).compareTo(getVal(b));
     });
     return grades;
@@ -167,13 +163,23 @@ class _BooksListScreenState extends State<BooksListScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.wifi_off_rounded, size: 48, color: Colors.grey[400]),
+                    Icon(
+                      Icons.wifi_off_rounded,
+                      size: 48,
+                      color: Colors.grey[400],
+                    ),
                     const SizedBox(height: 12),
-                    Text(_error!, textAlign: TextAlign.center,
-                        style: GoogleFonts.tajawal(color: Colors.grey[500])),
+                    Text(
+                      _error!,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.tajawal(color: Colors.grey[500]),
+                    ),
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
-                      onPressed: () { _sub?.cancel(); _subscribe(); },
+                      onPressed: () {
+                        _sub?.cancel();
+                        _subscribe();
+                      },
                       icon: const Icon(Icons.refresh_rounded),
                       label: const Text('إعادة المحاولة'),
                     ),
@@ -193,7 +199,11 @@ class _BooksListScreenState extends State<BooksListScreen> {
                         color: accentColor.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(Icons.folder_open_rounded, size: 48, color: accentColor),
+                      child: Icon(
+                        Icons.folder_open_rounded,
+                        size: 48,
+                        color: accentColor,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -207,7 +217,10 @@ class _BooksListScreenState extends State<BooksListScreen> {
                     const SizedBox(height: 8),
                     Text(
                       'سيتم إضافة المحتوى قريباً',
-                      style: GoogleFonts.tajawal(fontSize: 13, color: Colors.grey[400]),
+                      style: GoogleFonts.tajawal(
+                        fontSize: 13,
+                        color: Colors.grey[400],
+                      ),
                     ),
                   ],
                 ),
@@ -217,110 +230,127 @@ class _BooksListScreenState extends State<BooksListScreen> {
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(14, 16, 14, 24),
               sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final grade = _grades[index];
-                    final gradeBooks = _books!.where((b) => b.grade == grade).toList();
-                    final isExpanded = _expandedIndices.contains(index);
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final grade = _grades[index];
+                  final gradeBooks = _books!
+                      .where((b) => b.grade == grade)
+                      .toList();
+                  final isExpanded = _expandedIndices.contains(index);
 
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isExpanded
-                              ? accentColor.withValues(alpha: 0.3)
-                              : (isDark
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isExpanded
+                            ? accentColor.withValues(alpha: 0.3)
+                            : (isDark
                                   ? Colors.white.withValues(alpha: 0.06)
                                   : const Color(0xFFE2E8F0)),
-                          width: isExpanded ? 1.5 : 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: isExpanded
-                                ? accentColor.withValues(alpha: 0.10)
-                                : Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-                            blurRadius: isExpanded ? 14 : 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
+                        width: isExpanded ? 1.5 : 1,
                       ),
-                      child: Theme(
-                        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                        child: ExpansionTile(
-                          initiallyExpanded: false,
-                          onExpansionChanged: (expanded) {
-                            setState(() {
-                              if (expanded) {
-                                _expandedIndices.add(index);
-                              } else {
-                                _expandedIndices.remove(index);
-                              }
-                            });
-                          },
-                          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          collapsedShape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          leading: SizedBox(
-                            width: 42,
-                            height: 42,
-                            child: Icon(
-                              _gradeIcon(grade),
-                              color: isDark
-                                  ? Colors.white
-                                  : (isExpanded ? Colors.white : accentColor),
-                              size: 22,
-                            ),
-                          ),
-                          title: Text(
-                            grade,
-                            style: GoogleFonts.tajawal(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
-                            ),
-                          ),
-                          subtitle: Row(
-                            children: [
-                              Container(
-                                margin: const EdgeInsets.only(top: 3),
-                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: accentColor.withValues(alpha: isDark ? 0.2 : 0.1),
-                                  borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: isExpanded
+                              ? accentColor.withValues(alpha: 0.10)
+                              : Colors.black.withValues(
+                                  alpha: isDark ? 0.2 : 0.04,
                                 ),
-                                child: Text(
-                                  '${gradeBooks.length} عنصر',
-                                  style: GoogleFonts.tajawal(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: accentColor,
-                                  ),
+                          blurRadius: isExpanded ? 14 : 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Theme(
+                      data: Theme.of(
+                        context,
+                      ).copyWith(dividerColor: Colors.transparent),
+                      child: ExpansionTile(
+                        initiallyExpanded: false,
+                        onExpansionChanged: (expanded) {
+                          setState(() {
+                            if (expanded) {
+                              _expandedIndices.add(index);
+                            } else {
+                              _expandedIndices.remove(index);
+                            }
+                          });
+                        },
+                        tilePadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        collapsedShape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        leading: SizedBox(
+                          width: 42,
+                          height: 42,
+                          child: Icon(
+                            _gradeIcon(grade),
+                            color: isDark
+                                ? Colors.white
+                                : (isExpanded ? Colors.white : accentColor),
+                            size: 22,
+                          ),
+                        ),
+                        title: Text(
+                          grade,
+                          style: GoogleFonts.tajawal(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        subtitle: Row(
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.only(top: 3),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: accentColor.withValues(
+                                  alpha: isDark ? 0.2 : 0.1,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '${gradeBooks.length} عنصر',
+                                style: GoogleFonts.tajawal(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: accentColor,
                                 ),
                               ),
-                            ],
-                          ),
-                          iconColor: accentColor,
-                          collapsedIconColor: isDark ? Colors.grey[400] : Colors.grey[500],
-                          childrenPadding: const EdgeInsets.only(bottom: 8),
-                          children: gradeBooks
-                              .map((book) => BookCard(
-                                    book: book,
-                                    gradient: widget.gradient,
-                                    isDark: isDark,
-                                  ))
-                              .toList(),
+                            ),
+                          ],
                         ),
+                        iconColor: accentColor,
+                        collapsedIconColor: isDark
+                            ? Colors.grey[400]
+                            : Colors.grey[500],
+                        childrenPadding: const EdgeInsets.only(bottom: 8),
+                        children: gradeBooks
+                            .map(
+                              (book) => BookCard(
+                                book: book,
+                                gradient: widget.gradient,
+                                isDark: isDark,
+                              ),
+                            )
+                            .toList(),
                       ),
-                    );
-                  },
-                  childCount: _grades.length,
-                ),
+                    ),
+                  );
+                }, childCount: _grades.length),
               ),
             ),
         ],

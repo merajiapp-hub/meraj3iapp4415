@@ -10,11 +10,12 @@ import '../services/admin_activity_service.dart';
 class FavoritesProvider extends ChangeNotifier {
   static const String _favoritesKey = 'favorite_books_v2';
   final List<Book> _favoriteBooks = [];
+  late final Future<void> _ready;
 
   List<Book> get favoriteBooks => _favoriteBooks;
 
   FavoritesProvider() {
-    _loadFavorites();
+    _ready = _loadFavorites();
   }
 
   Future<void> _loadFavorites() async {
@@ -36,29 +37,30 @@ class FavoritesProvider extends ChangeNotifier {
   }
 
   Future<void> toggleFavorite(BuildContext context, Book book) async {
+    final stats = Provider.of<StatisticsProvider>(context, listen: false);
+    await _ready;
     final bool isExist = _favoriteBooks.any(
       (b) => b.uniqueKey == book.uniqueKey,
     );
-    
-    final stats = Provider.of<StatisticsProvider>(context, listen: false);
     final isUploaded = book.section == 'uploaded';
     final user = FirebaseAuth.instance.currentUser;
 
     if (isExist) {
       _favoriteBooks.removeWhere((b) => b.uniqueKey == book.uniqueKey);
       stats.decrementBookStat(
-        book.uniqueKey, 
-        'favoriteCount', 
-        isUploaded: isUploaded, 
+        book.uniqueKey,
+        'favoriteCount',
+        isUploaded: isUploaded,
         docId: isUploaded ? book.id : null,
       );
       stats.decrementUserStat('favoriteBooks');
-      
+
       if (user != null) {
         AdminActivityService.log(
           type: AdminActivityType.bookUnfavorited,
           title: 'إزالة كتاب من المفضلة',
-          description: 'قام المستخدم ${user.email ?? user.uid} بإزالة الكتاب: "${book.title}" من مفضلته',
+          description:
+              'قام المستخدم ${user.email ?? user.uid} بإزالة الكتاب: "${book.title}" من مفضلته',
           targetUserId: user.uid,
           metadata: {'bookId': book.id, 'bookTitle': book.title},
         ).catchError((_) {});
@@ -66,18 +68,19 @@ class FavoritesProvider extends ChangeNotifier {
     } else {
       _favoriteBooks.add(book);
       stats.incrementBookStat(
-        book.uniqueKey, 
-        'favoriteCount', 
-        isUploaded: isUploaded, 
+        book.uniqueKey,
+        'favoriteCount',
+        isUploaded: isUploaded,
         docId: isUploaded ? book.id : null,
       );
       stats.incrementUserStat('favoriteBooks');
-      
+
       if (user != null) {
         AdminActivityService.log(
           type: AdminActivityType.bookFavorited,
           title: 'إضافة كتاب للمفضلة',
-          description: 'قام المستخدم ${user.email ?? user.uid} بإضافة الكتاب: "${book.title}" إلى مفضلته',
+          description:
+              'قام المستخدم ${user.email ?? user.uid} بإضافة الكتاب: "${book.title}" إلى مفضلته',
           targetUserId: user.uid,
           metadata: {'bookId': book.id, 'bookTitle': book.title},
         ).catchError((_) {});
@@ -101,8 +104,10 @@ class FavoritesProvider extends ChangeNotifier {
     await prefs.setString(_favoritesKey, jsonString);
   }
 
-  void clearAll() {
+  Future<void> clearAll() async {
+    await _ready;
     _favoriteBooks.clear();
     notifyListeners();
+    await _saveFavorites();
   }
 }

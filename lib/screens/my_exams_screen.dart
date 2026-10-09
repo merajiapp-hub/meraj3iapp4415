@@ -23,20 +23,23 @@ class MyExamsScreen extends StatelessWidget {
       backgroundColor: isDark
           ? const Color(0xFF0F172A)
           : const Color(0xFFF1F5F9),
-      body: Column(
-        children: [
-          const CurvedHeader(
-            title: 'اختباراتي',
-            gradient: AppTheme.brandGradient,
-            leadingIcon: Icons.history_rounded,
-          ),
-          Expanded(
-            child: uid == null
-                ? _buildLoginRequired(isDark)
-                : _buildAttemptsList(uid, isDark),
-          ),
-        ],
-      ),
+      body: uid == null
+          ? _buildScrollablePage([_buildLoginRequired(isDark)])
+          : _buildAttemptsList(uid, isDark),
+    );
+  }
+
+  Widget _buildScrollablePage(List<Widget> children) {
+    return ListView(
+      padding: EdgeInsets.zero,
+      children: [
+        const CurvedHeader(
+          title: 'اختباراتي',
+          gradient: AppTheme.brandGradient,
+          leadingIcon: Icons.history_rounded,
+        ),
+        ...children,
+      ],
     );
   }
 
@@ -72,42 +75,51 @@ class MyExamsScreen extends StatelessWidget {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return _buildScrollablePage([
+            const SizedBox(
+              height: 300,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ]);
         }
         if (snapshot.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.cloud_off_rounded,
-                    size: 64,
-                    color: isDark ? Colors.white24 : Colors.black12,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'تعذر تحميل نتائج اختباراتك حالياً.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.cairo(
-                      color: isDark ? Colors.white70 : Colors.black54,
-                      fontWeight: FontWeight.bold,
+          return _buildScrollablePage([
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.cloud_off_rounded,
+                      size: 64,
+                      color: isDark ? Colors.white24 : Colors.black12,
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextButton.icon(
-                    onPressed: () => Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (_) => const MyExamsScreen()),
+                    const SizedBox(height: 16),
+                    Text(
+                      'تعذر تحميل نتائج اختباراتك حالياً.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.cairo(
+                        color: isDark ? Colors.white70 : Colors.black54,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: Text('إعادة المحاولة', style: GoogleFonts.cairo()),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    TextButton.icon(
+                      onPressed: () => Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const MyExamsScreen(),
+                        ),
+                      ),
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: Text('إعادة المحاولة', style: GoogleFonts.cairo()),
+                    ),
+                  ],
+                ),
               ),
             ),
-          );
+          ]);
         }
 
         final docs = snapshot.data?.docs.toList() ?? [];
@@ -117,13 +129,16 @@ class MyExamsScreen extends StatelessWidget {
           return bTime.compareTo(aTime);
         });
         if (docs.isEmpty) {
-          return _buildEmpty(isDark);
+          return _buildScrollablePage([
+            SizedBox(height: 400, child: _buildEmpty(isDark)),
+          ]);
         }
 
         // Summary stats
         final attempts = docs.map((d) => d.data()).toList();
-        final completedAttempts =
-            attempts.where((a) => a['status'] != 'in_progress').toList();
+        final completedAttempts = attempts
+            .where((a) => a['status'] != 'in_progress')
+            .toList();
         final avgScore = completedAttempts.isEmpty
             ? 0
             : (completedAttempts.fold<int>(
@@ -136,18 +151,25 @@ class MyExamsScreen extends StatelessWidget {
             ? 0
             : completedAttempts.fold<int>(
                 0,
-                (best, a) =>
-                    ((a['score'] as num?)?.toInt() ?? 0) > best
-                        ? (a['score'] as num).toInt()
-                        : best,
+                (best, a) => ((a['score'] as num?)?.toInt() ?? 0) > best
+                    ? (a['score'] as num).toInt()
+                    : best,
               );
         final totalStars = attempts.fold<int>(
-            0, (acc, a) => acc + ((a['stars'] as num?)?.toInt() ?? 0));
+          0,
+          (acc, a) => acc + ((a['stars'] as num?)?.toInt() ?? 0),
+        );
 
         final chartData = completedAttempts.reversed.toList();
 
-        return Column(
+        return ListView(
+          padding: EdgeInsets.zero,
           children: [
+            const CurvedHeader(
+              title: 'اختباراتي',
+              gradient: AppTheme.brandGradient,
+              leadingIcon: Icons.history_rounded,
+            ),
             // Summary Cards - بطاقات إحصائية عمودية
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -190,7 +212,7 @@ class MyExamsScreen extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             // Chart Section
             if (chartData.length > 1)
               Container(
@@ -211,43 +233,54 @@ class MyExamsScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('التقدم الزمني',
-                        style: GoogleFonts.cairo(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white70 : Colors.black87)),
+                    Text(
+                      'التقدم الزمني',
+                      style: GoogleFonts.cairo(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     Expanded(
                       child: LineChart(
                         LineChartData(
                           gridData: FlGridData(
-                              show: true,
-                              drawVerticalLine: false,
-                              horizontalInterval: 20,
-                              getDrawingHorizontalLine: (value) => FlLine(
-                                    color: isDark
-                                        ? Colors.white10
-                                        : Colors.grey.shade200,
-                                    strokeWidth: 1,
-                                  )),
+                            show: true,
+                            drawVerticalLine: false,
+                            horizontalInterval: 20,
+                            getDrawingHorizontalLine: (value) => FlLine(
+                              color: isDark
+                                  ? Colors.white10
+                                  : Colors.grey.shade200,
+                              strokeWidth: 1,
+                            ),
+                          ),
                           titlesData: FlTitlesData(
                             leftTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                    showTitles: true,
-                                    reservedSize: 30,
-                                    getTitlesWidget: (val, meta) => Text(
-                                        '${val.toInt()}',
-                                        style: GoogleFonts.outfit(
-                                            fontSize: 10,
-                                            color: isDark
-                                                ? Colors.white54
-                                                : Colors.black54)))),
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 30,
+                                getTitlesWidget: (val, meta) => Text(
+                                  '${val.toInt()}',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 10,
+                                    color: isDark
+                                        ? Colors.white54
+                                        : Colors.black54,
+                                  ),
+                                ),
+                              ),
+                            ),
                             bottomTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false)),
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
                             rightTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false)),
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
                             topTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false)),
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
                           ),
                           borderData: FlBorderData(show: false),
                           minX: 0,
@@ -257,7 +290,8 @@ class MyExamsScreen extends StatelessWidget {
                           lineBarsData: [
                             LineChartBarData(
                               spots: chartData.asMap().entries.map((e) {
-                                final sc = (e.value['score'] as num?)?.toDouble() ?? 0;
+                                final sc =
+                                    (e.value['score'] as num?)?.toDouble() ?? 0;
                                 return FlSpot(e.key.toDouble(), sc);
                               }).toList(),
                               isCurved: true,
@@ -267,7 +301,9 @@ class MyExamsScreen extends StatelessWidget {
                               dotData: FlDotData(show: true),
                               belowBarData: BarAreaData(
                                 show: true,
-                                color: AppTheme.primaryColor.withValues(alpha: 0.15),
+                                color: AppTheme.primaryColor.withValues(
+                                  alpha: 0.15,
+                                ),
                               ),
                             ),
                           ],
@@ -278,18 +314,17 @@ class MyExamsScreen extends StatelessWidget {
                 ),
               ),
 
-            Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                itemCount: docs.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 10),
-                itemBuilder: (context, index) {
-                  final data = docs[index].data();
-                  return _buildAttemptCard(data, isDark);
-                },
-              ),
-            ),
+            ...List.generate(docs.length, (index) {
+              return Padding(
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  index == 0 ? 8 : 5,
+                  16,
+                  index == docs.length - 1 ? 24 : 5,
+                ),
+                child: _buildAttemptCard(docs[index].data(), isDark),
+              );
+            }),
           ],
         );
       },
@@ -341,9 +376,10 @@ class MyExamsScreen extends StatelessWidget {
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-            color: isInProgress
-                ? Colors.orange.withValues(alpha: 0.4)
-                : scoreColor.withValues(alpha: 0.2)),
+          color: isInProgress
+              ? Colors.orange.withValues(alpha: 0.4)
+              : scoreColor.withValues(alpha: 0.2),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.05),
@@ -360,15 +396,21 @@ class MyExamsScreen extends StatelessWidget {
             height: 56,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: (isInProgress ? Colors.orange : scoreColor)
-                  .withValues(alpha: 0.1),
+              color: (isInProgress ? Colors.orange : scoreColor).withValues(
+                alpha: 0.1,
+              ),
               border: Border.all(
-                  color: isInProgress ? Colors.orange : scoreColor, width: 2),
+                color: isInProgress ? Colors.orange : scoreColor,
+                width: 2,
+              ),
             ),
             child: Center(
               child: isInProgress
-                  ? const Icon(Icons.pause_circle_outline_rounded,
-                      color: Colors.orange, size: 26)
+                  ? const Icon(
+                      Icons.pause_circle_outline_rounded,
+                      color: Colors.orange,
+                      size: 26,
+                    )
                   : Text(
                       '$score%',
                       style: GoogleFonts.outfit(
@@ -402,16 +444,21 @@ class MyExamsScreen extends StatelessWidget {
                     if (isInProgress)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.orange.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text('قيد التقدم',
-                            style: GoogleFonts.cairo(
-                                fontSize: 10,
-                                color: Colors.orange,
-                                fontWeight: FontWeight.bold)),
+                        child: Text(
+                          'قيد التقدم',
+                          style: GoogleFonts.cairo(
+                            fontSize: 10,
+                            color: Colors.orange,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                   ],
                 ),
@@ -433,31 +480,52 @@ class MyExamsScreen extends StatelessWidget {
                   Wrap(
                     spacing: 10,
                     children: [
-                      _MiniChip(label: '✓ $correct', color: const Color(0xFF10B981)),
-                      _MiniChip(label: '✗ $wrong', color: const Color(0xFFEF4444)),
-                      _MiniChip(label: 'من $total', color: const Color(0xFF6366F1)),
+                      _MiniChip(
+                        label: '✓ $correct',
+                        color: const Color(0xFF10B981),
+                      ),
+                      _MiniChip(
+                        label: '✗ $wrong',
+                        color: const Color(0xFFEF4444),
+                      ),
+                      _MiniChip(
+                        label: 'من $total',
+                        color: const Color(0xFF6366F1),
+                      ),
                     ],
                   ),
                 ],
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(Icons.timer_outlined, size: 12,
-                        color: isDark ? Colors.white38 : Colors.black38),
+                    Icon(
+                      Icons.timer_outlined,
+                      size: 12,
+                      color: isDark ? Colors.white38 : Colors.black38,
+                    ),
                     const SizedBox(width: 4),
-                    Text(timeStr,
-                        style: GoogleFonts.outfit(
-                            fontSize: 12,
-                            color: isDark ? Colors.white38 : Colors.black38)),
+                    Text(
+                      timeStr,
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        color: isDark ? Colors.white38 : Colors.black38,
+                      ),
+                    ),
                     if (dateStr.isNotEmpty) ...[
                       const SizedBox(width: 10),
-                      Icon(Icons.calendar_today_outlined, size: 11,
-                          color: isDark ? Colors.white38 : Colors.black38),
+                      Icon(
+                        Icons.calendar_today_outlined,
+                        size: 11,
+                        color: isDark ? Colors.white38 : Colors.black38,
+                      ),
                       const SizedBox(width: 3),
-                      Text(dateStr,
-                          style: GoogleFonts.outfit(
-                              fontSize: 11,
-                              color: isDark ? Colors.white38 : Colors.black38)),
+                      Text(
+                        dateStr,
+                        style: GoogleFonts.outfit(
+                          fontSize: 11,
+                          color: isDark ? Colors.white38 : Colors.black38,
+                        ),
+                      ),
                     ],
                   ],
                 ),
@@ -469,34 +537,40 @@ class MyExamsScreen extends StatelessWidget {
     );
   }
 
-  int _calcStars(int score) =>
-      ExamSelectionUtils.starsForScore(score);
+  int _calcStars(int score) => ExamSelectionUtils.starsForScore(score);
 
   Widget _buildEmpty(bool isDark) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.quiz_outlined, size: 80,
-              color: isDark ? Colors.white24 : Colors.black12),
+          Icon(
+            Icons.quiz_outlined,
+            size: 80,
+            color: isDark ? Colors.white24 : Colors.black12,
+          ),
           const SizedBox(height: 16),
-          Text('لم تخض أي اختبار بعد',
-              style: GoogleFonts.cairo(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white54 : Colors.black54)),
+          Text(
+            'لم تخض أي اختبار بعد',
+            style: GoogleFonts.cairo(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white54 : Colors.black54,
+            ),
+          ),
           const SizedBox(height: 8),
-          Text('ابدأ اختبارك الأول من صفحة الاختبارات',
-              style: GoogleFonts.cairo(
-                  fontSize: 14,
-                  color: isDark ? Colors.white38 : Colors.black38)),
+          Text(
+            'ابدأ اختبارك الأول من صفحة الاختبارات',
+            style: GoogleFonts.cairo(
+              fontSize: 14,
+              color: isDark ? Colors.white38 : Colors.black38,
+            ),
+          ),
         ],
       ),
     );
   }
 }
-
-
 
 class _MiniChip extends StatelessWidget {
   final String label;
@@ -513,9 +587,14 @@ class _MiniChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
-      child: Text(label,
-          style: TextStyle(
-              fontSize: 11, color: color, fontWeight: FontWeight.bold)),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          color: color,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 }
@@ -586,4 +665,3 @@ class _StatCard extends StatelessWidget {
     );
   }
 }
-

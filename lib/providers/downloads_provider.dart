@@ -83,11 +83,12 @@ class DownloadsProvider extends ChangeNotifier {
   static const String _downloadsKey = 'downloads_metadata_v2';
 
   final List<DownloadedBook> _downloads = [];
+  late final Future<void> _ready;
 
   List<DownloadedBook> get downloads => List.unmodifiable(_downloads);
 
   DownloadsProvider() {
-    _loadDownloads();
+    _ready = _loadDownloads();
   }
 
   // ─── كتب PDF ────────────────────────────────────────────────────────────
@@ -111,6 +112,7 @@ class DownloadsProvider extends ChangeNotifier {
   }
 
   Future<void> addDownload(DownloadedBook downloaded) async {
+    await _ready;
     _downloads.removeWhere((d) => d.uniqueKey == downloaded.uniqueKey);
     _downloads.insert(0, downloaded);
     notifyListeners();
@@ -118,6 +120,7 @@ class DownloadsProvider extends ChangeNotifier {
   }
 
   Future<void> removeDownload(String uniqueKey) async {
+    await _ready;
     final removed = _downloads.where((d) => d.uniqueKey == uniqueKey).toList();
     _downloads.removeWhere((d) => d.uniqueKey == uniqueKey);
     notifyListeners();
@@ -147,6 +150,7 @@ class DownloadsProvider extends ChangeNotifier {
   }
 
   Future<void> clearAll() async {
+    await _ready;
     final files = _downloads.map((d) => File(d.localPath)).toList();
     _downloads.clear();
     notifyListeners();
@@ -155,5 +159,4 @@ class DownloadsProvider extends ChangeNotifier {
     }
     await _saveDownloads();
   }
-
 }

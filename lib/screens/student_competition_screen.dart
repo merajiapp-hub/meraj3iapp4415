@@ -16,7 +16,7 @@ import '../widgets/geometric_sliver_app_bar.dart';
 // ══════════════════════════════════════════
 class _LeaderboardEntry {
   final String uid;
-  final String name;
+  String name;
   final int points;
   final int booksRead;
   final int quizzesTaken;
@@ -26,7 +26,7 @@ class _LeaderboardEntry {
   final int streakDays;
   final double avgScore;
 
-  const _LeaderboardEntry({
+  _LeaderboardEntry({
     required this.uid,
     required this.name,
     required this.points,
@@ -43,7 +43,7 @@ class _LeaderboardEntry {
     final d = doc.data() as Map<String, dynamic>? ?? {};
     return _LeaderboardEntry(
       uid: doc.id,
-      name: d['name'] ?? 'طالب',
+      name: (d['fullName'] ?? d['displayName'] ?? d['name'] ?? 'طالب مميز').toString(),
       points: (d['points'] ?? 0).toInt(),
       booksRead: (d['booksRead'] ?? 0).toInt(),
       quizzesTaken: (d['quizzesTaken'] ?? 0).toInt(),
@@ -52,6 +52,32 @@ class _LeaderboardEntry {
       profileImageUrl: d['profileImageUrl'],
       streakDays: (d['streakDays'] ?? 0).toInt(),
       avgScore: (d['avgScore'] ?? 0.0).toDouble(),
+    );
+  }
+
+  _LeaderboardEntry copyWith({
+    String? uid,
+    String? name,
+    int? points,
+    int? booksRead,
+    int? quizzesTaken,
+    int? completedTasks,
+    double? progressLevel,
+    String? profileImageUrl,
+    int? streakDays,
+    double? avgScore,
+  }) {
+    return _LeaderboardEntry(
+      uid: uid ?? this.uid,
+      name: name ?? this.name,
+      points: points ?? this.points,
+      booksRead: booksRead ?? this.booksRead,
+      quizzesTaken: quizzesTaken ?? this.quizzesTaken,
+      completedTasks: completedTasks ?? this.completedTasks,
+      progressLevel: progressLevel ?? this.progressLevel,
+      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
+      streakDays: streakDays ?? this.streakDays,
+      avgScore: avgScore ?? this.avgScore,
     );
   }
 
@@ -138,10 +164,30 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
       
       List<_LeaderboardEntry> entries = [];
       for (var d in snap.docs) {
-         final entry = _LeaderboardEntry.fromDoc(d);
-         if (entry.points > 0 || entry.booksRead > 0) {
-            entries.add(entry);
-         }
+        var entry = _LeaderboardEntry.fromDoc(d);
+        final rawName = entry.name;
+        final isPlaceholder = _normalizeLeaderboardName(rawName) == 'طالب متميز';
+
+        if (isPlaceholder) {
+          try {
+            final userDoc = await _firestore.collection('users').doc(d.id).get();
+            final userData = userDoc.data();
+            final userName = _normalizeLeaderboardName(
+              (userData?['fullName'] ?? userData?['name'] ?? userData?['displayName'])?.toString(),
+              fallback: 'طالب متميز',
+            );
+            if (userName != 'طالب متميز') {
+              entry = entry.copyWith(
+                name: userName,
+                profileImageUrl: userData?['profileImageUrl'] ?? entry.profileImageUrl,
+              );
+            }
+          } catch (_) {}
+        }
+
+        if (entry.points > 0 || entry.booksRead > 0) {
+          entries.add(entry);
+        }
       }
 
       // حساب ترتيب المستخدم الحالي
@@ -263,10 +309,44 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
     );
   }
 
+  String _normalizeLeaderboardName(String? sourceName, {String fallback = 'طالب متميز'}) {
+    final cleaned = (sourceName ?? '').trim();
+    if (cleaned.isEmpty) return fallback;
+
+    final lower = cleaned.replaceAll(RegExp(r'\s+'), ' ');
+    final placeholderNames = {
+      'طالب',
+      'طالب متميز',
+      'طالب متميز ',
+      'طالب مميز',
+      'student',
+      'user',
+      'مستخدم',
+    };
+
+    if (placeholderNames.contains(lower)) {
+      return fallback;
+    }
+
+    return cleaned;
+  }
+
+  String _buildStudentNameDisplay(String? sourceName, {String fallback = 'طالب متميز'}) {
+    final resolved = _normalizeLeaderboardName(sourceName, fallback: fallback);
+    if (resolved == 'طالب متميز' && fallback != 'طالب متميز') {
+      return fallback;
+    }
+    return resolved;
+  }
+
   // ── بطاقة "إحصائياتي" ─────────────────────────────────────────────────
   Widget _buildMyStatsCard(
       bool isDark, dynamic profile, String currentUserId) {
     final myE = _myEntry;
+    final displayName = _buildStudentNameDisplay(
+      myE?.name ?? profile.name,
+      fallback: _normalizeLeaderboardName(profile.name, fallback: 'طالب متميز'),
+    );
 
     return AnimatedBuilder(
       animation: _animController,
@@ -318,13 +398,14 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        profile.name,
+                        displayName,
                         style: GoogleFonts.tajawal(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
                         overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
                       const SizedBox(height: 4),
                       Container(
@@ -484,6 +565,13 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
           _buildPodium(top3, isDark, currentUserId),
         ],
 
+        if (_leaderboard.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+            child: _buildWinnerHighlightCard(_leaderboard.first, isDark),
+          ),
+        ],
+
         // ─── قائمة الترتيب العام ────────────────────────────
         if (rest.isNotEmpty) ...[
           Padding(
@@ -507,6 +595,100 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
 
         const SizedBox(height: 40),
       ],
+    );
+  }
+
+  Widget _buildWinnerHighlightCard(_LeaderboardEntry winner, bool isDark) {
+    final winnerName = _buildStudentNameDisplay(
+      winner.name,
+      fallback: 'طالب متميز',
+    );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFFFBBF24),
+            const Color(0xFFF59E0B),
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.18),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
+            ),
+            child: ClipOval(
+              child: winner.profileImageUrl != null
+                  ? CachedNetworkImage(
+                      imageUrl: winner.profileImageUrl!,
+                      fit: BoxFit.cover,
+                      errorWidget: (ctx, err, stk) =>
+                          _defaultAvatar(winner.name, Colors.white),
+                    )
+                  : _defaultAvatar(winner.name, Colors.white),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      'الكرت الأول',
+                      style: GoogleFonts.tajawal(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  winnerName,
+                  style: GoogleFonts.tajawal(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${winner.points} نقطة • ${winner.booksRead} كتاب • ${winner.quizzesTaken} اختبار',
+                  style: GoogleFonts.tajawal(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -613,7 +795,7 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Text(
-            isMe ? 'أنت' : entry.name.split(' ').first,
+            isMe ? 'أنت' : _buildStudentNameDisplay(entry.name, fallback: 'طالب متميز').split(RegExp(r'\s+')).first,
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -783,7 +965,9 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isMe ? 'أنت (${e.name})' : e.name,
+                      isMe
+                          ? 'أنت (${_buildStudentNameDisplay(e.name, fallback: 'طالب متميز')})'
+                          : _buildStudentNameDisplay(e.name, fallback: 'طالب متميز'),
                       style: GoogleFonts.tajawal(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,

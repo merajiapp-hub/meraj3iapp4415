@@ -135,7 +135,9 @@ service cloud.firestore {
     }
 
     match /admin_settings/{document} {
-      allow read: if isAppAdmin();
+      // Feature flags are public to signed-in clients; other admin settings remain private.
+      allow read: if isAppAdmin() ||
+        (isAuthenticated() && document == 'feature_flags');
       allow write: if isAppAdmin();
     }
 
@@ -219,6 +221,17 @@ service cloud.firestore {
     match /subjects/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
     match /remote_config/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
 
+    // Admin dashboard/report aggregate counts for legacy content collections.
+    match /solutions/{solutionId} {
+      allow list: if isAppAdmin();
+    }
+    match /swedd/{documentId} {
+      allow list: if isAppAdmin();
+    }
+    match /swedd_books/{bookId} {
+      allow list: if isAppAdmin();
+    }
+
     // Login activity is written only by the trusted Cloud Function and read by admins.
     match /login_attempts/{attemptId} {
       allow read: if isAppAdmin();
@@ -251,6 +264,32 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow list: if isAppAdmin();
       allow write: if isAppAdmin();
+    }
+
+    // لوحة الشرف: القراءة عامة للمستخدمين المسجلين، والكتابة خاصة بمالك المستند أو الإدارة.
+    match /leaderboard/{userId} {
+      allow get: if isAuthenticated();
+      allow list: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        isOwner(userId) &&
+        request.resource.data.keys().hasOnly([
+          'name', 'points', 'booksRead', 'completedTasks', 'quizzesTaken',
+          'progressLevel', 'profileImageUrl', 'lastActivity', 'createdAt',
+          'streakDays', 'avgScore', 'rank'
+        ]) &&
+        request.resource.data.name is string &&
+        request.resource.data.points is number &&
+        request.resource.data.booksRead is number &&
+        request.resource.data.completedTasks is number &&
+        request.resource.data.quizzesTaken is number &&
+        request.resource.data.progressLevel is number;
+      allow update: if isAuthenticated() && (isOwner(userId) || isAppAdmin()) &&
+        request.resource.data.keys().hasOnly([
+          'name', 'points', 'booksRead', 'completedTasks', 'quizzesTaken',
+          'progressLevel', 'profileImageUrl', 'lastActivity', 'createdAt',
+          'streakDays', 'avgScore', 'rank'
+        ]);
+      allow delete: if isAppAdmin();
     }
 
     // نتائج المسابقات المنشورة تُعرض داخل التطبيق للمستخدمين.

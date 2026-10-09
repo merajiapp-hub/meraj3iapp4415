@@ -17,9 +17,10 @@ class BookDownloadProgress {
 }
 
 class _DownloadTask {
+  _DownloadTask(this.progress);
+
   final CancelToken cancelToken = CancelToken();
-  final StreamController<BookDownloadProgress> progress =
-      StreamController<BookDownloadProgress>.broadcast();
+  final StreamController<BookDownloadProgress> progress;
   late final Future<String> future;
 }
 
@@ -30,25 +31,45 @@ class BookDownloadService {
   final BookCacheService _cache;
   final Dio _dio = Dio();
   static final Map<String, _DownloadTask> _active = {};
+  static final Map<String, StreamController<BookDownloadProgress>>
+  _progressStreams = {};
 
   Stream<BookDownloadProgress> progressFor(String bookKey) {
-    return _active[bookKey]?.progress.stream ?? const Stream.empty();
+    return _progressStreams
+        .putIfAbsent(
+          bookKey,
+          () => StreamController<BookDownloadProgress>.broadcast(),
+        )
+        .stream;
   }
 
   Future<String> getOrDownload(Book book) async {
-    final cached = await _cache.getValidFile(book.uniqueKey);
-    if (cached != null) return cached.path;
+    final activeTask = _active[book.uniqueKey];
+    if (activeTask != null) return activeTask.future;
 
+    final cached = await _cache.getValidFile(book.uniqueKey);
     final current = _active[book.uniqueKey];
     if (current != null) return current.future;
+    if (cached != null) {
+      final unusedProgress = _progressStreams.remove(book.uniqueKey);
+      await unusedProgress?.close();
+      return cached.path;
+    }
 
-    final task = _DownloadTask();
+    final progress = _progressStreams.putIfAbsent(
+      book.uniqueKey,
+      () => StreamController<BookDownloadProgress>.broadcast(),
+    );
+    final task = _DownloadTask(progress);
     _active[book.uniqueKey] = task;
     task.future = _download(book, task);
     try {
       return await task.future;
     } finally {
       _active.remove(book.uniqueKey);
+      if (identical(_progressStreams[book.uniqueKey], task.progress)) {
+        _progressStreams.remove(book.uniqueKey);
+      }
       await task.progress.close();
     }
   }

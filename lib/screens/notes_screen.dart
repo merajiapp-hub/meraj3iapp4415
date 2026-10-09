@@ -169,7 +169,9 @@ class _NotesScreenState extends State<NotesScreen> {
                 return GestureDetector(
                   onTap: () {
                     setState(() => _selectedThemeIndex = index);
-                    Navigator.pop(ctx);
+                    if (Navigator.of(ctx).canPop()) {
+                      Navigator.pop(ctx);
+                    }
                   },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
@@ -205,13 +207,20 @@ class _NotesScreenState extends State<NotesScreen> {
     );
   }
 
+  Color _resolvedThemeColor(bool isDark) {
+    final color = _pageThemes[_selectedThemeIndex];
+    if (isDark) return color;
+
+    final hsl = HSLColor.fromColor(color);
+    return hsl.withLightness((hsl.lightness + 0.18).clamp(0.0, 1.0)).toColor();
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final provider = Provider.of<NotesProvider>(context);
 
-    // Background based on selected theme for dark mode, or light theme gradient for light mode
-    final themeColor = _pageThemes[_selectedThemeIndex];
+    final themeColor = _resolvedThemeColor(isDark);
     final bgGradient = isDark
         ? LinearGradient(
             colors: [themeColor, themeColor.withValues(alpha: 0.6)],
@@ -219,7 +228,10 @@ class _NotesScreenState extends State<NotesScreen> {
             end: Alignment.bottomCenter,
           )
         : LinearGradient(
-            colors: [const Color(0xFFF8FAFF), const Color(0xFFE2E8F0)],
+            colors: [
+              Color.alphaBlend(themeColor.withValues(alpha: 0.18), const Color(0xFFF8FAFF)),
+              Color.alphaBlend(themeColor.withValues(alpha: 0.10), const Color(0xFFE2E8F0)),
+            ],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           );
@@ -770,10 +782,14 @@ class _NotesScreenState extends State<NotesScreen> {
         ? Color(note.color!)
         : (isDark ? const Color(0xFF1E293B) : Colors.white);
 
-    // Auto darken light colors for dark mode readability
     final effectiveCardColor = (isDark && hasColor)
         ? Color.alphaBlend(Colors.black.withValues(alpha: 0.6), cardColor)
         : cardColor;
+
+    final actionColor = isDark ? Colors.white70 : const Color(0xFF334155);
+    final favoriteActionColor = const Color(0xFFF59E0B);
+    final deleteActionColor = const Color(0xFFEF4444);
+    final restoreActionColor = const Color(0xFF10B981);
 
     final textColor = (hasColor && !isDark)
         ? Colors.black87
@@ -791,7 +807,8 @@ class _NotesScreenState extends State<NotesScreen> {
 
     return GestureDetector(
       onTap: () => _openEditor(note: note),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: effectiveCardColor,
@@ -841,12 +858,13 @@ class _NotesScreenState extends State<NotesScreen> {
                     },
                     child: Icon(
                       Icons.restore_rounded,
-                      color: Colors.green,
+                      color: restoreActionColor,
                       size: 24,
                     ),
                   )
                 else ...[
                   GestureDetector(
+                    behavior: HitTestBehavior.opaque,
                     onTap: () {
                       provider.updateNote(
                         note.id,
@@ -857,14 +875,17 @@ class _NotesScreenState extends State<NotesScreen> {
                         color: note.color,
                       );
                     },
-                    child: Icon(
-                      note.isFavorite
-                          ? Icons.star_rounded
-                          : Icons.star_border_rounded,
-                      color: note.isFavorite
-                          ? Colors.orange
-                          : secondaryTextColor,
-                      size: 22,
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(
+                        note.isFavorite
+                            ? Icons.star_rounded
+                            : Icons.star_border_rounded,
+                        color: note.isFavorite
+                            ? favoriteActionColor
+                            : actionColor,
+                        size: 22,
+                      ),
                     ),
                   ),
                 ],
@@ -917,21 +938,29 @@ class _NotesScreenState extends State<NotesScreen> {
                 const SizedBox(width: 8),
                 if (isTrash)
                   GestureDetector(
+                    behavior: HitTestBehavior.opaque,
                     onTap: () =>
                         _confirmPermanentDelete(context, note, provider),
-                    child: Icon(
-                      Icons.delete_forever_rounded,
-                      size: 18,
-                      color: Colors.red[600],
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.delete_forever_rounded,
+                        size: 18,
+                        color: deleteActionColor,
+                      ),
                     ),
                   )
                 else
                   GestureDetector(
+                    behavior: HitTestBehavior.opaque,
                     onTap: () => _confirmDelete(context, note, provider),
-                    child: Icon(
-                      Icons.delete_outline_rounded,
-                      size: 18,
-                      color: Colors.red[300],
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.delete_outline_rounded,
+                        size: 18,
+                        color: deleteActionColor,
+                      ),
                     ),
                   ),
               ],

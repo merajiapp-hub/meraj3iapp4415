@@ -1,39 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'dart:async';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/notifications_provider.dart';
-import '../providers/favorites_provider.dart';
-import '../providers/downloads_provider.dart';
-import '../providers/task_provider.dart';
-import '../providers/reading_provider.dart';
 import '../providers/theme_provider.dart';
-import '../widgets/app_notification.dart';
 
 import '../theme/app_theme.dart';
 import 'search_screen.dart';
-
-import 'settings_screen.dart';
+import 'direct_chat_screen.dart';
 
 import 'profile_screen.dart';
-import 'reviews_screen.dart';
 
-import 'info_screen.dart';
-import 'login_screen.dart';
 import 'stages_screen.dart';
-import 'references_screen.dart';
-import 'contact_screen.dart';
-import 'faq_screen.dart';
-import 'privacy_policy_screen.dart';
-import 'terms_of_use_screen.dart';
 import 'national_exams_screen.dart';
 import 'notifications_screen.dart';
-import 'donations_screen.dart';
-import 'dedication_screen.dart';
-import 'student/reading_history_screen.dart';
 import '../widgets/banner_ad_widget.dart';
 import '../features/smart_calculator/ui/screens/smart_calculator_screen.dart';
 import 'services_screen.dart';
@@ -90,7 +74,11 @@ class _HomePageState extends State<HomePage>
 
     // تحميل صور الكاروزيل مسبقاً لتجنب التأخير عند ظهورها
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      for (final path in ['assets/IM/IM1.jpg', 'assets/IM/IM2.jpg', 'assets/IM/IM3.jpg']) {
+      for (final path in [
+        'assets/IM/IM1.jpg',
+        'assets/IM/IM2.jpg',
+        'assets/IM/IM3.jpg',
+      ]) {
         precacheImage(AssetImage(path), context);
       }
     });
@@ -424,7 +412,6 @@ class _HomePageState extends State<HomePage>
                 ),
               ),
             ),
-
           ],
         ),
       ),
@@ -529,6 +516,68 @@ class _HomePageState extends State<HomePage>
                       ),
                   ],
                 ),
+              ),
+              Consumer<AuthProvider>(
+                builder: (context, auth, _) {
+                  final userId = auth.user?.uid;
+                  if (auth.isGuest || userId == null || userId.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+
+                  final chatRef = FirebaseFirestore.instance
+                      .collection('chats')
+                      .doc('chat_$userId');
+
+                  return StreamBuilder<DocumentSnapshot>(
+                    stream: chatRef.snapshots(),
+                    builder: (context, snapshot) {
+                      final unread = (snapshot.data?['adminUnread'] as int?) ?? 0;
+                      return Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          _homeToolbarButton(
+                            icon: Icons.support_agent_rounded,
+                            color: isDark ? Colors.white : AppTheme.primaryColor,
+                            tooltip: 'الدعم الفني',
+                            onPressed: () async {
+                              await chatRef.update({'adminUnread': 0});
+                              if (!context.mounted) return;
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const DirectChatScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          if (unread > 0)
+                            Positioned(
+                              top: 1,
+                              right: 1,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                constraints: const BoxConstraints(minWidth: 16),
+                                height: 16,
+                                alignment: Alignment.center,
+                                decoration: const BoxDecoration(
+                                  color: Colors.redAccent,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Text(
+                                  unread > 9 ? '9+' : '$unread',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  );
+                },
               ),
             ],
           ),
@@ -637,9 +686,12 @@ class _HomePageState extends State<HomePage>
   // ══════════════════════════════════════════════════════
   Widget _buildUserCard(bool isDark) {
     final auth = context.read<AuthProvider>();
-    final name = widget.isGuest 
-        ? 'زائر' 
-        : (auth.userData?['fullName'] ?? auth.userData?['name'] ?? auth.user?.displayName ?? 'مستخدم');
+    final name = widget.isGuest
+        ? 'زائر'
+        : (auth.userData?['fullName'] ??
+              auth.userData?['name'] ??
+              auth.user?.displayName ??
+              'مستخدم');
     return GestureDetector(
       onTap: widget.isGuest
           ? null
@@ -735,12 +787,32 @@ class _HomePageState extends State<HomePage>
   Widget _buildTopCarousel(bool isDark) {
     final List<Widget> carouselItems = [
       _buildUserCard(isDark),
-      _buildCarouselActionCard('آخر الأخبار', 'تابع أهم وأحدث الأخبار', Icons.newspaper_rounded, const Color(0xFF14B8A6), isDark, () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const NewsScreen()));
-      }),
-      _buildCarouselActionCard('الإعلانات', 'اطلع على الإعلانات الهامة', Icons.campaign_rounded, const Color(0xFFF5A623), isDark, () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const AnnouncementsScreen()));
-      }),
+      _buildCarouselActionCard(
+        'آخر الأخبار',
+        'تابع أهم وأحدث الأخبار',
+        Icons.newspaper_rounded,
+        const Color(0xFF14B8A6),
+        isDark,
+        () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const NewsScreen()),
+          );
+        },
+      ),
+      _buildCarouselActionCard(
+        'الإعلانات',
+        'اطلع على الإعلانات الهامة',
+        Icons.campaign_rounded,
+        const Color(0xFFF5A623),
+        isDark,
+        () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AnnouncementsScreen()),
+          );
+        },
+      ),
       _buildCarouselImageCard('assets/IM/IM1.jpg'),
       _buildCarouselImageCard('assets/IM/IM2.jpg'),
       _buildCarouselImageCard('assets/IM/IM3.jpg'),
@@ -788,7 +860,6 @@ class _HomePageState extends State<HomePage>
       ],
     );
   }
-
 
   Widget _buildCarouselImageCard(String imagePath) {
     return _AnimatedCard(
@@ -849,7 +920,14 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  Widget _buildCarouselActionCard(String title, String subtitle, IconData icon, Color color, bool isDark, VoidCallback onTap) {
+  Widget _buildCarouselActionCard(
+    String title,
+    String subtitle,
+    IconData icon,
+    Color color,
+    bool isDark,
+    VoidCallback onTap,
+  ) {
     return _AnimatedCard(
       onTap: onTap,
       child: Container(
@@ -858,7 +936,7 @@ class _HomePageState extends State<HomePage>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
           gradient: LinearGradient(
-            colors: isDark 
+            colors: isDark
                 ? [color.withValues(alpha: 0.5), color.withValues(alpha: 0.2)]
                 : [color.withValues(alpha: 0.9), color],
             begin: Alignment.topLeft,
@@ -888,13 +966,30 @@ class _HomePageState extends State<HomePage>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(title, style: GoogleFonts.tajawal(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                  Text(
+                    title,
+                    style: GoogleFonts.tajawal(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text(subtitle, style: GoogleFonts.tajawal(fontSize: 13, color: Colors.white70)),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.tajawal(
+                      fontSize: 13,
+                      color: Colors.white70,
+                    ),
+                  ),
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 16),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: Colors.white70,
+              size: 16,
+            ),
           ],
         ),
       ),
@@ -927,8 +1022,6 @@ class _HomePageState extends State<HomePage>
       ],
     );
   }
-
-
 }
 
 // ══════════════════════════════════════════════════════

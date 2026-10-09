@@ -284,70 +284,58 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = (constraints.maxWidth * 0.72).clamp(190.0, 300.0);
-        return SizedBox(
+        final isFirst = slide == _slides.first;
+
+        return Container(
           width: size,
           height: size,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Container(
-                width: size * 0.9,
-                height: size * 0.9,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.055),
-                  shape: BoxShape.circle,
-                ),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppTheme.primaryColor.withValues(alpha: 0.12),
+                AppTheme.secondaryColor.withValues(alpha: 0.10),
+                Colors.white,
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryColor.withValues(alpha: 0.10),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
               ),
-              Positioned(
-                top: size * 0.02,
-                right: size * 0.08,
-                child: Container(
-                  width: size * 0.16,
-                  height: size * 0.16,
-                  decoration: BoxDecoration(
-                    color: AppTheme.lightGreen.withValues(alpha: 0.2),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: size * 0.08,
-                left: size * 0.03,
-                child: Icon(
-                  Icons.auto_awesome_rounded,
-                  color: AppTheme.secondaryColor.withValues(alpha: 0.55),
-                  size: size * 0.13,
-                ),
-              ),
-              if (slide == _slides.first)
-                Image.asset(
-                  'assets/images/logo.png',
-                  width: size * 0.55,
-                  height: size * 0.55,
-                  fit: BoxFit.contain,
-                )
-              else
-                Container(
-                  width: size * 0.46,
-                  height: size * 0.46,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(size * 0.14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.18),
-                        blurRadius: 24,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    icon,
-                    color: AppTheme.primaryColor,
-                    size: size * 0.24,
-                  ),
-                ),
             ],
+          ),
+          child: Center(
+            child: isFirst
+                ? Image.asset(
+                    'assets/images/logo.png',
+                    width: size * 0.56,
+                    height: size * 0.56,
+                    fit: BoxFit.contain,
+                  )
+                : Container(
+                    width: size * 0.52,
+                    height: size * 0.52,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      icon,
+                      color: AppTheme.primaryColor,
+                      size: size * 0.26,
+                    ),
+                  ),
           ),
         );
       },

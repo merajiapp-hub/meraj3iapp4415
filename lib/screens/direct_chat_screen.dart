@@ -310,7 +310,10 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     });
     chatRef.snapshots().listen((snapshot) {
       if (!mounted) return;
-      setState(() => _chatClosed = snapshot.data()?['status'] == 'closed');
+      final data = snapshot.data() ?? <String, dynamic>{};
+      setState(() {
+        _chatClosed = data['status'] == 'closed';
+      });
     });
   }
 
@@ -403,38 +406,64 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   }
 
   Widget _buildWelcomeBanner(bool isDark) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.primaryColor.withValues(alpha: 0.12),
-            AppTheme.primaryColor.withValues(alpha: 0.04),
-          ],
-          begin: Alignment.centerRight,
-          end: Alignment.centerLeft,
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.support_agent_rounded, color: AppTheme.primaryColor, size: 22),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'مرحباً! كيف يمكننا مساعدتك اليوم؟',
-              style: GoogleFonts.tajawal(
-                fontSize: 13,
-                color: AppTheme.primaryColor,
-                fontWeight: FontWeight.w600,
-              ),
-              textDirection: TextDirection.rtl,
+    return StreamBuilder<DocumentSnapshot>(
+      stream: _db.collection('chats').doc(_chatId).snapshots(),
+      builder: (context, snapshot) {
+        final unread = snapshot.data?['adminUnread'] as int? ?? 0;
+        final hasUnread = unread > 0;
+
+        return Container(
+          margin: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppTheme.primaryColor.withValues(alpha: 0.12),
+                AppTheme.primaryColor.withValues(alpha: 0.04),
+              ],
+              begin: Alignment.centerRight,
+              end: Alignment.centerLeft,
             ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.2)),
           ),
-        ],
-      ),
+          child: Row(
+            children: [
+              const Icon(Icons.support_agent_rounded, color: AppTheme.primaryColor, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  hasUnread
+                      ? 'لديك رد جديد من الدعم الفني ($unread)'
+                      : 'مرحباً! كيف يمكننا مساعدتك اليوم؟',
+                  style: GoogleFonts.tajawal(
+                    fontSize: 13,
+                    color: AppTheme.primaryColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textDirection: TextDirection.rtl,
+                ),
+              ),
+              if (hasUnread)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: const BoxDecoration(
+                    color: Colors.redAccent,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    '$unread',
+                    style: GoogleFonts.tajawal(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 

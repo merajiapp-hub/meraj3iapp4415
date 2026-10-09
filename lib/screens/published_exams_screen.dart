@@ -26,7 +26,7 @@ class PublishedExamsScreen extends StatefulWidget {
 
 class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
   String? _competition; // Concours | Brevet | Baccalauréat
-  String? _stream;      // 7D | 7C | 7LM | 7LO  (للبكالوريا فقط)
+  String? _stream; // 7D | 7C | 7LM | 7LO  (للبكالوريا فقط)
   String? _subject;
 
   static const _competitions = ExamSelectionUtils.competitions;
@@ -38,8 +38,9 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
     final uid = context.watch<AuthProvider>().user?.uid;
 
     return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF0F172A) : const Color(0xFFF0F4F8),
+      backgroundColor: isDark
+          ? const Color(0xFF0F172A)
+          : const Color(0xFFF0F4F8),
       body: Column(
         children: [
           CurvedHeader(
@@ -54,9 +55,7 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
               ),
             ),
           ),
-          Expanded(
-            child: _buildBody(isDark, uid),
-          ),
+          Expanded(child: _buildBody(isDark, uid)),
         ],
       ),
     );
@@ -91,7 +90,11 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
         // إعادة ضبط الاختيارات التابعة إذا لم تعد صالحة
         if (_subject != null && !subjects.contains(_subject)) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) setState(() { _subject = null; });
+            if (mounted) {
+              setState(() {
+                _subject = null;
+              });
+            }
           });
         }
 
@@ -99,20 +102,38 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
         final allSubjectExams = _subject != null && _subject!.isNotEmpty
             ? docs.where((doc) {
                 final comp = ExamSelectionUtils.normalizeCompetition(
-                    (doc['competition'] ?? doc['examType'] ?? '').toString());
+                  (doc['competition'] ?? doc['examType'] ?? '').toString(),
+                );
                 if (_competition != null && comp != _competition) return false;
                 if (_competition == 'Baccalauréat' && _stream != null) {
                   final docStream =
-                      (doc['stream'] ?? doc['division'] ?? '').toString().trim();
+                      (doc['stream'] ?? doc['division'] ?? doc['section'] ?? '')
+                          .toString()
+                          .trim();
                   if (docStream != _stream) return false;
                 }
-                if ((doc['subject'] ?? '').toString().trim() != _subject) return false;
+                final docSubject = (doc['subject'] ?? doc['subjectId'] ?? '')
+                    .toString()
+                    .trim();
+                if (docSubject != _subject) return false;
                 return true;
               }).toList()
             : <Map<String, dynamic>>[];
 
-        allSubjectExams.sort((a, b) =>
-            ((a['order'] ?? 999) as num).compareTo((b['order'] ?? 999) as num));
+        allSubjectExams.sort((a, b) {
+          final orderComparison = _quizOrder(
+            a['order'],
+          ).compareTo(_quizOrder(b['order']));
+          if (orderComparison != 0) return orderComparison;
+
+          final titleComparison = (a['title'] ?? '').toString().compareTo(
+            (b['title'] ?? '').toString(),
+          );
+          if (titleComparison != 0) return titleComparison;
+          return (a['_id'] ?? '').toString().compareTo(
+            (b['_id'] ?? '').toString(),
+          );
+        });
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -160,27 +181,46 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
 
             // ── قائمة الاختبارات (الشابيترات) ──
             if (_competition == null)
-              _buildHint('اختر نوع المسابقة للبدء', Icons.school_rounded, isDark)
+              _buildHint(
+                'اختر نوع المسابقة للبدء',
+                Icons.school_rounded,
+                isDark,
+              )
             else if (_competition == 'Baccalauréat' && _stream == null)
               _buildHint('اختر الشعبة', Icons.account_tree_rounded, isDark)
             else if (_subject == null)
-              _buildHint('اختر المادة لعرض الاختبارات', Icons.menu_book_rounded, isDark)
+              _buildHint(
+                'اختر المادة لعرض الاختبارات',
+                Icons.menu_book_rounded,
+                isDark,
+              )
             else if (allSubjectExams.isEmpty)
-              _buildHint('لا توجد شابيترات منشورة لهذه المادة حتى الآن', Icons.quiz_rounded, isDark)
+              _buildHint(
+                'لا توجد شابيترات منشورة لهذه المادة حتى الآن',
+                Icons.quiz_rounded,
+                isDark,
+              )
             else
-              ...allSubjectExams.map((data) => Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: _ExamCard(
-                      data: data,
-                      quizId: data['_id'].toString(),
-                      isDark: isDark,
-                      uid: uid,
-                    ),
-                  )),
+              ...allSubjectExams.map(
+                (data) => Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: _ExamCard(
+                    data: data,
+                    quizId: data['_id'].toString(),
+                    isDark: isDark,
+                    uid: uid,
+                  ),
+                ),
+              ),
           ],
         );
       },
     );
+  }
+
+  int _quizOrder(Object? value) {
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 999999;
   }
 
   Widget _buildHint(String text, IconData icon, bool isDark) {
@@ -188,15 +228,16 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
       padding: const EdgeInsets.symmetric(vertical: 40),
       child: Column(
         children: [
-          Icon(icon,
-              size: 56,
-              color: isDark ? Colors.white24 : Colors.black12),
+          Icon(icon, size: 56, color: isDark ? Colors.white24 : Colors.black12),
           const SizedBox(height: 12),
-          Text(text,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.cairo(
-                  color: isDark ? Colors.white54 : Colors.black38,
-                  fontSize: 15)),
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.cairo(
+              color: isDark ? Colors.white54 : Colors.black38,
+              fontSize: 15,
+            ),
+          ),
         ],
       ),
     );
@@ -209,16 +250,25 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.wifi_off_rounded,
-                size: 56, color: Colors.redAccent),
+            const Icon(
+              Icons.wifi_off_rounded,
+              size: 56,
+              color: Colors.redAccent,
+            ),
             const SizedBox(height: 12),
-            Text('تعذر تحميل الاختبارات',
-                style: GoogleFonts.cairo(
-                    fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(
+              'تعذر تحميل الاختبارات',
+              style: GoogleFonts.cairo(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
             const SizedBox(height: 8),
-            Text(error,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.cairo(color: Colors.grey, fontSize: 12)),
+            Text(
+              error,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.cairo(color: Colors.grey, fontSize: 12),
+            ),
           ],
         ),
       ),
@@ -335,7 +385,9 @@ class _CompTile extends StatelessWidget {
               : (isDark ? const Color(0xFF1E293B) : Colors.grey.shade50),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isSelected ? color : (isDark ? Colors.white12 : Colors.black12),
+            color: isSelected
+                ? color
+                : (isDark ? Colors.white12 : Colors.black12),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -355,15 +407,21 @@ class _CompTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label,
-                      style: GoogleFonts.cairo(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : Colors.black87)),
-                  Text(subtitle,
-                      style: GoogleFonts.cairo(
-                          fontSize: 11,
-                          color: isDark ? Colors.white54 : Colors.black45)),
+                  Text(
+                    label,
+                    style: GoogleFonts.cairo(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.cairo(
+                      fontSize: 11,
+                      color: isDark ? Colors.white54 : Colors.black45,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -409,15 +467,16 @@ class _StreamSelector extends StatelessWidget {
             onTap: () => onChanged(s),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               decoration: BoxDecoration(
                 color: isSelected
                     ? color.withValues(alpha: 0.15)
                     : (isDark ? const Color(0xFF1E293B) : Colors.grey.shade50),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: isSelected ? color : (isDark ? Colors.white12 : Colors.black12),
+                  color: isSelected
+                      ? color
+                      : (isDark ? Colors.white12 : Colors.black12),
                   width: isSelected ? 2 : 1,
                 ),
               ),
@@ -425,8 +484,7 @@ class _StreamSelector extends StatelessWidget {
                 s,
                 style: GoogleFonts.cairo(
                   fontSize: 15,
-                  fontWeight:
-                      isSelected ? FontWeight.bold : FontWeight.w500,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                   color: isSelected
                       ? color
                       : (isDark ? Colors.white70 : Colors.black54),
@@ -466,8 +524,10 @@ class _SubjectSelector extends StatelessWidget {
         title: 'المادة',
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Text('لا توجد مواد لهذا الاختيار',
-              style: GoogleFonts.cairo(color: Colors.grey)),
+          child: Text(
+            'لا توجد مواد لهذا الاختيار',
+            style: GoogleFonts.cairo(color: Colors.grey),
+          ),
         ),
       );
     }
@@ -485,15 +545,16 @@ class _SubjectSelector extends StatelessWidget {
             onTap: () => onChanged(s),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: isSelected
                     ? color.withValues(alpha: 0.12)
                     : (isDark ? const Color(0xFF1E293B) : Colors.grey.shade50),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: isSelected ? color : (isDark ? Colors.white12 : Colors.black12),
+                  color: isSelected
+                      ? color
+                      : (isDark ? Colors.white12 : Colors.black12),
                   width: isSelected ? 2 : 1,
                 ),
               ),
@@ -501,8 +562,7 @@ class _SubjectSelector extends StatelessWidget {
                 s,
                 style: GoogleFonts.cairo(
                   fontSize: 14,
-                  fontWeight:
-                      isSelected ? FontWeight.bold : FontWeight.w500,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                   color: isSelected
                       ? color
                       : (isDark ? Colors.white70 : Colors.black54),
@@ -515,7 +575,6 @@ class _SubjectSelector extends StatelessWidget {
     );
   }
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  بطاقة الاختبار
@@ -538,13 +597,13 @@ class _ExamCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final title = data['title']?.toString() ?? 'اختبار';
     final subject = data['subject']?.toString() ?? '';
-    final chapter =
-        (data['chapter'] ?? data['chapterId'] ?? 'عام').toString();
+    final chapter = (data['chapter'] ?? data['chapterId'] ?? 'عام').toString();
     final totalQ = (data['totalQuestions'] as num?)?.toInt() ?? 0;
     final durationMin = (data['duration'] as num?)?.toInt() ?? 30;
     final difficulty = data['difficulty']?.toString() ?? '';
     final competition = ExamSelectionUtils.normalizeCompetition(
-        (data['competition'] ?? data['examType'] ?? '').toString());
+      (data['competition'] ?? data['examType'] ?? '').toString(),
+    );
     final stream = (data['stream'] ?? data['division'] ?? '').toString();
 
     return Container(
@@ -552,7 +611,8 @@ class _ExamCard extends StatelessWidget {
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-            color: AppTheme.primaryColor.withValues(alpha: 0.25)),
+          color: AppTheme.primaryColor.withValues(alpha: 0.25),
+        ),
         boxShadow: [
           BoxShadow(
             color: AppTheme.primaryColor.withValues(alpha: 0.07),
@@ -576,8 +636,9 @@ class _ExamCard extends StatelessWidget {
                 begin: Alignment.centerRight,
                 end: Alignment.centerLeft,
               ),
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -613,14 +674,16 @@ class _ExamCard extends StatelessWidget {
                 Row(
                   children: [
                     _InfoChip(
-                        icon: Icons.help_outline_rounded,
-                        label: '$totalQ سؤال',
-                        isDark: isDark),
+                      icon: Icons.help_outline_rounded,
+                      label: '$totalQ سؤال',
+                      isDark: isDark,
+                    ),
                     const SizedBox(width: 8),
                     _InfoChip(
-                        icon: Icons.timer_outlined,
-                        label: '$durationMin د',
-                        isDark: isDark),
+                      icon: Icons.timer_outlined,
+                      label: '$durationMin د',
+                      isDark: isDark,
+                    ),
                     if (difficulty.isNotEmpty) ...[
                       const SizedBox(width: 8),
                       _DifficultyBadge(difficulty: difficulty),
@@ -639,17 +702,23 @@ class _ExamCard extends StatelessWidget {
                       )
                     : ElevatedButton.icon(
                         onPressed: () => _startExam(context, durationMin),
-                        icon: const Icon(Icons.play_arrow_rounded,
-                            color: Colors.white),
-                        label: Text('ابدأ الاختبار',
-                            style: GoogleFonts.cairo(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold)),
+                        icon: const Icon(
+                          Icons.play_arrow_rounded,
+                          color: Colors.white,
+                        ),
+                        label: Text(
+                          'ابدأ الاختبار',
+                          style: GoogleFonts.cairo(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primaryColor,
                           minimumSize: const Size.fromHeight(46),
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
               ],
@@ -662,10 +731,10 @@ class _ExamCard extends StatelessWidget {
 
   Future<void> _startExam(BuildContext context, int durationMin) async {
     showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) =>
-            const Center(child: CircularProgressIndicator()));
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
     try {
       final snap = await FirebaseFirestore.instance
           .collection('quizzes')
@@ -675,15 +744,16 @@ class _ExamCard extends StatelessWidget {
           .get();
       final questions = snap.docs
           .map((d) => QuizQuestion.fromMap(d.data(), d.id))
-          .where((q) =>
-              q.question.trim().isNotEmpty && q.options.length >= 2)
+          .where((q) => q.question.trim().isNotEmpty && q.options.length >= 2)
           .toList();
       if (!context.mounted) return;
       Navigator.pop(context);
       if (questions.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('هذا الاختبار لا يحتوي على أسئلة مكتملة')));
+          const SnackBar(
+            content: Text('هذا الاختبار لا يحتوي على أسئلة مكتملة'),
+          ),
+        );
         return;
       }
       Navigator.push(
@@ -702,8 +772,8 @@ class _ExamCard extends StatelessWidget {
       if (!context.mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('تعذر فتح الاختبار، حاول مرة أخرى')));
+        const SnackBar(content: Text('تعذر فتح الاختبار، حاول مرة أخرى')),
+      );
     }
   }
 }
@@ -731,8 +801,9 @@ class _ExamActionButton extends StatelessWidget {
           .where('quizId', isEqualTo: quizId)
           .snapshots(),
       builder: (context, snap) {
-        final attempts =
-            snap.hasData ? snap.data!.docs : <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+        final attempts = snap.hasData
+            ? snap.data!.docs
+            : <QueryDocumentSnapshot<Map<String, dynamic>>>[];
 
         // أفضل نتيجة وآخر نتيجة
         int bestScore = 0;
@@ -773,21 +844,29 @@ class _ExamActionButton extends StatelessWidget {
                       : Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                      color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08)),
+                    color: isDark
+                        ? Colors.white12
+                        : Colors.black.withValues(alpha: 0.08),
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _StatCol(
-                        label: 'المحاولات', value: '$attemptCount', isDark: isDark),
+                      label: 'المحاولات',
+                      value: '$attemptCount',
+                      isDark: isDark,
+                    ),
                     _StatCol(
-                        label: 'أفضل نتيجة',
-                        value: '$bestScore%',
-                        isDark: isDark),
+                      label: 'أفضل نتيجة',
+                      value: '$bestScore%',
+                      isDark: isDark,
+                    ),
                     _StatCol(
-                        label: 'آخر نتيجة',
-                        value: '$lastScore%',
-                        isDark: isDark),
+                      label: 'آخر نتيجة',
+                      value: '$lastScore%',
+                      isDark: isDark,
+                    ),
                     _StarsWidget(stars: stars),
                   ],
                 ),
@@ -800,17 +879,22 @@ class _ExamActionButton extends StatelessWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () => _openExam(context, durationMin,
-                          resumeAttemptId: incompleteAttemptId),
+                      onPressed: () => _openExam(
+                        context,
+                        durationMin,
+                        resumeAttemptId: incompleteAttemptId,
+                      ),
                       icon: const Icon(Icons.restart_alt_rounded),
-                      label: Text('استكمال',
-                          style: GoogleFonts.cairo(
-                              fontWeight: FontWeight.bold)),
+                      label: Text(
+                        'استكمال',
+                        style: GoogleFonts.cairo(fontWeight: FontWeight.bold),
+                      ),
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size(0, 46),
                         side: BorderSide(color: AppTheme.primaryColor),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
@@ -818,17 +902,23 @@ class _ExamActionButton extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () => _openExam(context, durationMin),
-                      icon: const Icon(Icons.play_arrow_rounded,
-                          color: Colors.white),
-                      label: Text('إعادة',
-                          style: GoogleFonts.cairo(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold)),
+                      icon: const Icon(
+                        Icons.play_arrow_rounded,
+                        color: Colors.white,
+                      ),
+                      label: Text(
+                        'إعادة',
+                        style: GoogleFonts.cairo(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryColor,
                         minimumSize: const Size(0, 46),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
@@ -846,13 +936,16 @@ class _ExamActionButton extends StatelessWidget {
                 label: Text(
                   attemptCount > 0 ? 'إعادة الاختبار' : 'ابدأ الاختبار',
                   style: GoogleFonts.cairo(
-                      color: Colors.white, fontWeight: FontWeight.bold),
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor,
                   minimumSize: const Size.fromHeight(46),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
           ],
@@ -861,13 +954,16 @@ class _ExamActionButton extends StatelessWidget {
     );
   }
 
-  Future<void> _openExam(BuildContext context, int durationMin,
-      {String? resumeAttemptId}) async {
+  Future<void> _openExam(
+    BuildContext context,
+    int durationMin, {
+    String? resumeAttemptId,
+  }) async {
     showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) =>
-            const Center(child: CircularProgressIndicator()));
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
     try {
       final snap = await FirebaseFirestore.instance
           .collection('quizzes')
@@ -877,15 +973,16 @@ class _ExamActionButton extends StatelessWidget {
           .get();
       final questions = snap.docs
           .map((d) => QuizQuestion.fromMap(d.data(), d.id))
-          .where((q) =>
-              q.question.trim().isNotEmpty && q.options.length >= 2)
+          .where((q) => q.question.trim().isNotEmpty && q.options.length >= 2)
           .toList();
       if (!context.mounted) return;
       Navigator.pop(context);
       if (questions.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('هذا الاختبار لا يحتوي على أسئلة مكتملة')));
+          const SnackBar(
+            content: Text('هذا الاختبار لا يحتوي على أسئلة مكتملة'),
+          ),
+        );
         return;
       }
       Navigator.push(
@@ -905,13 +1002,11 @@ class _ExamActionButton extends StatelessWidget {
       if (!context.mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('تعذر فتح الاختبار، حاول مرة أخرى')));
+        const SnackBar(content: Text('تعذر فتح الاختبار، حاول مرة أخرى')),
+      );
     }
   }
 }
-
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Widgets مساعدة
@@ -938,7 +1033,8 @@ class _SectionCard extends StatelessWidget {
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-            color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.06)),
+          color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.06),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
@@ -952,15 +1048,20 @@ class _SectionCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon,
-                  size: 18,
-                  color: isDark ? Colors.white54 : Colors.black38),
+              Icon(
+                icon,
+                size: 18,
+                color: isDark ? Colors.white54 : Colors.black38,
+              ),
               const SizedBox(width: 8),
-              Text(title,
-                  style: GoogleFonts.cairo(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white54 : Colors.black38)),
+              Text(
+                title,
+                style: GoogleFonts.cairo(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white54 : Colors.black38,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -987,11 +1088,14 @@ class _Badge extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
-      child: Text(label,
-          style: GoogleFonts.cairo(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: color)),
+      child: Text(
+        label,
+        style: GoogleFonts.cairo(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: color,
+        ),
+      ),
     );
   }
 }
@@ -1001,15 +1105,20 @@ class _InfoChip extends StatelessWidget {
   final String label;
   final bool isDark;
 
-  const _InfoChip(
-      {required this.icon, required this.label, required this.isDark});
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+    required this.isDark,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withValues(alpha: 0.07) : Colors.grey.shade100,
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.07)
+            : Colors.grey.shade100,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -1017,10 +1126,13 @@ class _InfoChip extends StatelessWidget {
         children: [
           Icon(icon, size: 13, color: Colors.grey),
           const SizedBox(width: 4),
-          Text(label,
-              style: GoogleFonts.cairo(
-                  fontSize: 12,
-                  color: isDark ? Colors.white54 : Colors.black45)),
+          Text(
+            label,
+            style: GoogleFonts.cairo(
+              fontSize: 12,
+              color: isDark ? Colors.white54 : Colors.black45,
+            ),
+          ),
         ],
       ),
     );
@@ -1055,11 +1167,14 @@ class _DifficultyBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
-      child: Text(difficulty,
-          style: GoogleFonts.cairo(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: color)),
+      child: Text(
+        difficulty,
+        style: GoogleFonts.cairo(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: color,
+        ),
+      ),
     );
   }
 }
@@ -1069,22 +1184,31 @@ class _StatCol extends StatelessWidget {
   final String value;
   final bool isDark;
 
-  const _StatCol(
-      {required this.label, required this.value, required this.isDark});
+  const _StatCol({
+    required this.label,
+    required this.value,
+    required this.isDark,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(value,
-            style: GoogleFonts.cairo(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black87)),
-        Text(label,
-            style: GoogleFonts.cairo(
-                fontSize: 10,
-                color: isDark ? Colors.white38 : Colors.black38)),
+        Text(
+          value,
+          style: GoogleFonts.cairo(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.cairo(
+            fontSize: 10,
+            color: isDark ? Colors.white38 : Colors.black38,
+          ),
+        ),
       ],
     );
   }

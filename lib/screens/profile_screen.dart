@@ -52,7 +52,11 @@ class _ProfileScreenState extends State<ProfileScreen>
     _animController.forward();
 
     final auth = Provider.of<AuthProvider>(context, listen: false);
-    final fullName = auth.userData?['fullName'] ?? auth.userData?['name'] ?? auth.user?.displayName ?? '';
+    final fullName =
+        auth.userData?['fullName'] ??
+        auth.userData?['name'] ??
+        auth.user?.displayName ??
+        '';
     _nameController.text = fullName.toString();
     _emailController.text = auth.userData?['email'] ?? auth.user?.email ?? '';
     final rawPhone = auth.resolvePhoneValue(auth.userData) ?? '';
@@ -257,19 +261,33 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   void _logout() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final favoritesProvider = Provider.of<FavoritesProvider>(
+      context,
+      listen: false,
+    );
+    final downloadsProvider = Provider.of<DownloadsProvider>(
+      context,
+      listen: false,
+    );
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final readingProvider = Provider.of<ReadingProvider>(
+      context,
+      listen: false,
+    );
     await authProvider.signOut();
 
-    if (mounted) {
-      Provider.of<FavoritesProvider>(context, listen: false).clearAll();
-      Provider.of<DownloadsProvider>(context, listen: false).clearAll();
-      Provider.of<TaskProvider>(context, listen: false).clearAll();
-      Provider.of<ReadingProvider>(context, listen: false).clearAll();
-      AppNotification.showLogout(context);
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (route) => false,
-      );
-    }
+    if (!mounted) return;
+    await favoritesProvider.clearAll();
+    if (!mounted) return;
+    await downloadsProvider.clearAll();
+    if (!mounted) return;
+    taskProvider.clearAll();
+    readingProvider.clearAll();
+    AppNotification.showLogout(context);
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
   }
 
   void _changePassword() async {
@@ -305,7 +323,11 @@ class _ProfileScreenState extends State<ProfileScreen>
     final downloads = Provider.of<DownloadsProvider>(context);
     final auth = Provider.of<AuthProvider>(context);
     final reading = Provider.of<ReadingProvider>(context);
-    final userName = auth.userData?['fullName'] ?? auth.userData?['name'] ?? auth.user?.displayName ?? 'المستخدم';
+    final userName =
+        auth.userData?['fullName'] ??
+        auth.userData?['name'] ??
+        auth.user?.displayName ??
+        'المستخدم';
     final userEmail = auth.userData?['email'] ?? auth.user?.email ?? '';
     final rawPhone = auth.resolvePhoneValue(auth.userData) ?? '';
     final userPhone = AuthProvider.formatPhoneForDisplay(rawPhone);
@@ -410,8 +432,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                 onPressed: _isLoading
                     ? null
                     : (_isEditing
-                        ? _saveProfile
-                        : () => setState(() => _isEditing = true)),
+                          ? _saveProfile
+                          : () => setState(() => _isEditing = true)),
                 icon: Icon(
                   _isEditing ? Icons.check_rounded : Icons.edit_rounded,
                   color: Colors.white,
@@ -531,7 +553,10 @@ class _ProfileScreenState extends State<ProfileScreen>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: isDark
-              ? [AppTheme.surfaceDark, AppTheme.surfaceDark.withValues(alpha: 0.7)]
+              ? [
+                  AppTheme.surfaceDark,
+                  AppTheme.surfaceDark.withValues(alpha: 0.7),
+                ]
               : [Colors.white, const Color(0xFFF4F7FB)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -630,7 +655,11 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Widget _buildInfoCard(bool isDark) {
     final auth = Provider.of<AuthProvider>(context, listen: false);
-    final fullName = auth.userData?['fullName'] ?? auth.userData?['name'] ?? auth.user?.displayName ?? 'غير متوفر';
+    final fullName =
+        auth.userData?['fullName'] ??
+        auth.userData?['name'] ??
+        auth.user?.displayName ??
+        'غير متوفر';
     final email = auth.userData?['email'] ?? auth.user?.email ?? 'غير متوفر';
     final gender = auth.userData?['gender'] ?? 'غير محدد';
     final creationTime = auth.user?.metadata.creationTime;
@@ -641,7 +670,10 @@ class _ProfileScreenState extends State<ProfileScreen>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: isDark
-              ? [AppTheme.surfaceDark, AppTheme.surfaceDark.withValues(alpha: 0.7)]
+              ? [
+                  AppTheme.surfaceDark,
+                  AppTheme.surfaceDark.withValues(alpha: 0.7),
+                ]
               : [Colors.white, const Color(0xFFF4F7FB)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
