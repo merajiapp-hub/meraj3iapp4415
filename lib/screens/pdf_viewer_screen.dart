@@ -29,6 +29,7 @@ class PdfViewerScreen extends StatefulWidget {
   final String? stageName;
   final String? sectionName;
   final Book? book;
+  final bool useLatestRemoteUrl;
 
   const PdfViewerScreen({
     super.key,
@@ -38,6 +39,7 @@ class PdfViewerScreen extends StatefulWidget {
     this.stageName,
     this.sectionName,
     this.book,
+    this.useLatestRemoteUrl = false,
   });
 
   @override
@@ -118,13 +120,6 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.book != null) {
         final stats = Provider.of<StatisticsProvider>(context, listen: false);
-        final isUploaded = widget.book!.section == 'uploaded';
-        stats.incrementBookStat(
-          widget.book!.uniqueKey,
-          'openCount',
-          isUploaded: isUploaded,
-          docId: isUploaded ? widget.book!.id : null,
-        );
         final reading = Provider.of<ReadingProvider>(context, listen: false);
         if (reading.getSession(widget.book!.uniqueKey) == null) {
           stats.incrementUserStat('readBooks');
@@ -375,7 +370,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
       }
     }
 
-    if (widget.book != null && mounted) {
+    if (!widget.useLatestRemoteUrl && widget.book != null && mounted) {
       final downloads = Provider.of<DownloadsProvider>(context, listen: false);
       final path = downloads.getLocalPath(widget.book!.uniqueKey);
       if (path != null) {
@@ -536,14 +531,6 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
           await dbProvider.addDownload(db);
 
           if (!isAlreadyDownloaded) {
-            // Update Stats
-            final isUploaded = widget.book!.section == 'uploaded';
-            statsProvider.incrementBookStat(
-              widget.book!.uniqueKey,
-              'downloadCount',
-              isUploaded: isUploaded,
-              docId: isUploaded ? widget.book!.id : null,
-            );
             statsProvider.incrementUserStat('downloadedBooks');
           }
         }

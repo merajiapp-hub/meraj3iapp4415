@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
+import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_drawer.dart';
 import 'home_page.dart';
@@ -9,6 +11,7 @@ import 'notes_screen.dart';
 import 'task_manager_screen.dart';
 import 'downloads_screen.dart';
 import 'favorites_screen.dart';
+import 'login_screen.dart';
 
 class MainScreen extends StatefulWidget {
   final bool isGuest;
@@ -21,6 +24,8 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   bool _exitToastShown = false;
+  bool _retryingProfileSetup = false;
+  bool _redirectingToLogin = false;
 
   late List<Widget> _pages;
 
@@ -116,8 +121,72 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  Future<void> _retryProfileSetup() async {
+    if (_retryingProfileSetup) return;
+    setState(() => _retryingProfileSetup = true);
+    try {
+      await context.read<AuthProvider>().retryProfileSetup();
+    } finally {
+      if (mounted) setState(() => _retryingProfileSetup = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+
+    if (!widget.isGuest && !auth.isAuthenticated) {
+      if (!_redirectingToLogin) {
+        _redirectingToLogin = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+            (route) => false,
+          );
+        });
+      }
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (!widget.isGuest && !auth.profileReady) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.cloud_off_rounded, size: 48),
+                const SizedBox(height: 16),
+                const Text(
+                  'تعذر تجهيز ملف الحساب. تحقق من اتصالك ثم أعد المحاولة.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: _retryingProfileSetup ? null : _retryProfileSetup,
+                  icon: _retryingProfileSetup
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh_rounded),
+                  label: Text(
+                    _retryingProfileSetup
+                        ? 'جارٍ إعادة المحاولة...'
+                        : 'إعادة المحاولة',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) {

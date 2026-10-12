@@ -16,6 +16,7 @@ import '../screens/donations_screen.dart';
 import '../screens/dedication_screen.dart';
 import '../screens/contact_screen.dart';
 import '../screens/terms_of_use_screen.dart';
+import '../screens/login_screen.dart';
 
 class AppDrawer extends StatelessWidget {
   final bool isGuest;
@@ -241,11 +242,12 @@ class AppDrawer extends StatelessWidget {
                     ),
                     'تسجيل الخروج',
                     () {
+                      final pageContext = context;
                       final isDark =
                           Theme.of(context).brightness == Brightness.dark;
                       showDialog(
                         context: context,
-                        builder: (context) {
+                        builder: (dialogContext) {
                           return AlertDialog(
                             backgroundColor: isDark
                                 ? AppTheme.surfaceDark
@@ -275,7 +277,7 @@ class AppDrawer extends StatelessWidget {
                             ),
                             actions: [
                               TextButton(
-                                onPressed: () => Navigator.pop(context),
+                                onPressed: () => Navigator.pop(dialogContext),
                                 child: Text(
                                   'إلغاء',
                                   style: GoogleFonts.tajawal(
@@ -286,12 +288,39 @@ class AppDrawer extends StatelessWidget {
                               ),
                               ElevatedButton(
                                 onPressed: () async {
-                                  Navigator.pop(context);
+                                  Navigator.pop(dialogContext);
                                   final authProvider = Provider.of<AuthProvider>(
-                                    context,
+                                    pageContext,
                                     listen: false,
                                   );
-                                  await authProvider.signOut();
+                                  try {
+                                    await authProvider.signOut();
+                                  } catch (e) {
+                                    debugPrint('[Drawer] Logout failed: $e');
+                                    if (pageContext.mounted) {
+                                      ScaffoldMessenger.of(pageContext)
+                                          .showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'تعذر تسجيل الخروج. أعد المحاولة: $e',
+                                                style: GoogleFonts.tajawal(),
+                                              ),
+                                              backgroundColor: Colors.redAccent,
+                                            ),
+                                          );
+                                    }
+                                    return;
+                                  }
+                                  if (pageContext.mounted) {
+                                    Navigator.of(
+                                      pageContext,
+                                    ).pushAndRemoveUntil(
+                                      MaterialPageRoute(
+                                        builder: (_) => const LoginScreen(),
+                                      ),
+                                      (route) => false,
+                                    );
+                                  }
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.redAccent,

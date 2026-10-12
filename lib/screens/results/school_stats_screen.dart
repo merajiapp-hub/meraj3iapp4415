@@ -14,6 +14,7 @@ class SchoolStatsScreen extends StatefulWidget {
   final double passScore;
   final double maxScore;
   final String scoreLabel;
+  final bool isFirstSession;
 
   const SchoolStatsScreen({
     super.key,
@@ -25,6 +26,7 @@ class SchoolStatsScreen extends StatefulWidget {
     required this.passScore,
     required this.maxScore,
     required this.scoreLabel,
+    this.isFirstSession = false,
   });
 
   @override
@@ -94,11 +96,19 @@ class _SchoolStatsScreenState extends State<SchoolStatsScreen> {
     _absent = _schoolStudents.where((r) => r.isAbsent).length;
     _expelled = _schoolStudents.where((r) => r.isExpelled).length;
 
-    _passRate = _total > 0 ? (_passed / _total * 100) : 0.0;
+    final complementary =
+        widget.examType == ExamType.bac && widget.isFirstSession
+        ? _schoolStudents.where((student) => student.isComplementary).length
+        : 0;
+    _passRate = ResultsService.passRate(
+      passed: _passed,
+      failed: _failed,
+      complementary: complementary,
+    );
 
     _topScore = 0.0;
     for (final r in _schoolStudents) {
-      if (r.score != null && r.score! > _topScore) {
+      if ((r.isPassed || r.isFailed) && r.score != null && r.score! > _topScore) {
         _topScore = r.score!;
       }
     }
@@ -111,17 +121,38 @@ class _SchoolStatsScreenState extends State<SchoolStatsScreen> {
       final s = map[r.school]!;
       s.total++;
       if (r.isPassed) s.passed++;
+      if (r.isFailed) s.failed++;
+      if (r.isComplementary &&
+          widget.examType == ExamType.bac &&
+          widget.isFirstSession) {
+        s.complementary++;
+      }
     }
 
     final sorted = map.values.toList()
       ..sort((a, b) {
         if (b.passRate != a.passRate) return b.passRate.compareTo(a.passRate);
-        return b.passed.compareTo(a.passed);
+        final passed = b.passed.compareTo(a.passed);
+        return passed != 0 ? passed : a.name.compareTo(b.name);
       });
 
     _totalSchools = sorted.length;
-    final idx = sorted.indexWhere((s) => s.name == widget.schoolName);
-    _schoolRank = idx >= 0 ? idx + 1 : 1;
+    final schoolIndex = sorted.indexWhere((s) => s.name == widget.schoolName);
+    if (schoolIndex < 0) {
+      _schoolRank = 1;
+    } else {
+      final school = sorted[schoolIndex];
+      _schoolRank =
+          sorted
+              .where(
+                (candidate) =>
+                    candidate.passRate > school.passRate ||
+                    (candidate.passRate == school.passRate &&
+                        candidate.passed > school.passed),
+              )
+              .length +
+          1;
+    }
   }
 
   @override
@@ -253,7 +284,7 @@ class _SchoolStatsScreenState extends State<SchoolStatsScreen> {
                                 textBaseline: TextBaseline.alphabetic,
                                 children: [
                                   Text(
-                                    '#$_schoolRank',
+                                    '$_schoolRank',
                                     style: GoogleFonts.outfit(
                                       fontSize: 24,
                                       fontWeight: FontWeight.bold,
@@ -352,6 +383,7 @@ class _SchoolStatsScreenState extends State<SchoolStatsScreen> {
                       passScore: widget.passScore,
                       maxScore: widget.maxScore,
                       scoreLabel: widget.scoreLabel,
+                      isFirstSession: widget.isFirstSession,
                       examType: widget.examType,
                     ),
                     const SizedBox(height: 20),
@@ -501,6 +533,7 @@ class _SchoolStatsScreenState extends State<SchoolStatsScreen> {
                   allResults: widget.allResults,
                   examType: widget.examType,
                   title: widget.schoolName,
+                  isFirstSession: widget.isFirstSession,
                 ),
               ),
             );
@@ -589,7 +622,13 @@ class _SchoolSummary {
   final String name;
   int total = 0;
   int passed = 0;
-  double get passRate => total > 0 ? (passed / total * 100) : 0.0;
+  int failed = 0;
+  int complementary = 0;
+  double get passRate => ResultsService.passRate(
+    passed: passed,
+    failed: failed,
+    complementary: complementary,
+  );
 
   _SchoolSummary({required this.name});
 }

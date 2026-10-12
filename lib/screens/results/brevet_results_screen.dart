@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/results_service.dart';
+import '../../theme/app_theme.dart';
 import 'results_list_screen.dart';
 
 class BrevetResultsScreen extends StatelessWidget {
@@ -22,12 +23,7 @@ class BrevetResultsScreen extends StatelessWidget {
       title: title,
       csvUrl: csvUrl,
       examType: ExamType.brevet,
-      gradient: overrideGradient ??
-          const LinearGradient(
-            colors: [Color(0xFF059669), Color(0xFF047857)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+      gradient: overrideGradient ?? AppTheme.brandGradient,
       emoji: overrideEmoji ?? '📚',
       passScore: 10,
       maxScore: 20,

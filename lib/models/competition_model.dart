@@ -49,15 +49,16 @@ class CompetitionModel {
     final rawLink = json['link'] ?? json['url'] ?? json['resultsUrl'];
     final hasExplicitPublished =
         json.containsKey('is_published') ||
+        json.containsKey('isPublished') ||
         json.containsKey('isActive') ||
         json.containsKey('active');
     final publishedValue = json.containsKey('is_published')
-      ? json['is_published']
-      : (json.containsKey('isPublished')
-          ? json['isPublished']
-          : (json.containsKey('isActive')
-            ? json['isActive']
-            : json['active']));
+        ? json['is_published']
+        : (json.containsKey('isPublished')
+              ? json['isPublished']
+              : (json.containsKey('isActive')
+                    ? json['isActive']
+                    : json['active']));
 
     // تحديد ما إذا كانت الدورة الأولى:
     // - إذا كان الحقل 'session' == '1' أو 'first' أو 'اول' → دورة أولى
@@ -65,11 +66,20 @@ class CompetitionModel {
     // - إذا كان النوع complementary → دورة ثانية دائماً
     bool isFirstSession = false;
     if (type == CompetitionType.bac) {
-      final sessionVal = (json['session'] ?? '').toString().toLowerCase().trim();
+      final sessionVal = (json['session'] ?? '')
+          .toString()
+          .toLowerCase()
+          .trim();
       final k = key.toLowerCase();
-      if (sessionVal == '2' || sessionVal == 'second' || sessionVal == 'deuxieme' || sessionVal == 'ثاني') {
+      if (sessionVal == '2' ||
+          sessionVal == 'second' ||
+          sessionVal == 'deuxieme' ||
+          sessionVal == 'ثاني') {
         isFirstSession = false;
-      } else if (k.contains('session2') || k.contains('session_2') || k.contains('rattrapage') || k.contains('second')) {
+      } else if (k.contains('session2') ||
+          k.contains('session_2') ||
+          k.contains('rattrapage') ||
+          k.contains('second')) {
         isFirstSession = false;
       } else {
         // بكالوريا بدون تحديد دورة = دورة أولى افتراضياً
@@ -107,31 +117,45 @@ class CompetitionModel {
   // ─── حدّد نوع المسابقة من المفتاح ─────────────────────────────────
 
   static CompetitionType _inferType(String key, Map<String, dynamic> json) {
-    // أولاً: إذا أرسل المستخدم النوع صراحةً
-    if (json['type'] is String) {
-      switch ((json['type'] as String).toLowerCase()) {
-        case 'concours':
-          return CompetitionType.concours;
-        case 'brevet':
-          return CompetitionType.brevet;
-        case 'bac':
-          return CompetitionType.bac;
-        case 'complementary':
-          return CompetitionType.complementary;
-        case 'excellence':
-          return CompetitionType.excellence;
-        default:
-          return CompetitionType.generic;
-      }
+    final explicitType = json['type']?.toString().toLowerCase().trim() ?? '';
+    final keyAndTitle = '$key ${json['title'] ?? ''}'.toLowerCase();
+    final source = '$explicitType $keyAndTitle';
+    final isComplementary =
+        source.contains('complementary') ||
+        source.contains('rattrapage') ||
+        source.contains('session2') ||
+        source.contains('session 2') ||
+        source.contains('تكميلي') ||
+        source.contains('التكميلية') ||
+        source.contains('الدورة الثانية');
+
+    if (explicitType == 'excellence') return CompetitionType.excellence;
+    if (explicitType == 'concours') return CompetitionType.concours;
+    if (explicitType == 'brevet') return CompetitionType.brevet;
+    if (explicitType == 'bac' && !isComplementary) {
+      return CompetitionType.bac;
     }
-    // ثانياً: استنتاج من المفتاح
-    final k = key.toLowerCase();
-    if (k.contains('excellence')) return CompetitionType.excellence;
-    if (k.startsWith('concours')) return CompetitionType.concours;
-    if (k.startsWith('brevet')) return CompetitionType.brevet;
-    if (k.startsWith('bac')) return CompetitionType.bac;
-    if (k.contains('complementary') || k.contains('rattrapage')) {
+    if (explicitType == 'complementary' || isComplementary) {
       return CompetitionType.complementary;
+    }
+    if (source.contains('excellence') || source.contains('امتياز')) {
+      return CompetitionType.excellence;
+    }
+    if (source.contains('concours') || source.contains('كونكور')) {
+      return CompetitionType.concours;
+    }
+    if (source.contains('brevet') ||
+        source.contains('bepc') ||
+        source.contains('بريف')) {
+      return CompetitionType.brevet;
+    }
+    if (source.contains('baccalaureat') ||
+        source.contains('baccalauréat') ||
+        source.contains('bac') ||
+        source.contains('باك') ||
+        source.contains('بكالوريا') ||
+        source.contains('الباكلوريا')) {
+      return CompetitionType.bac;
     }
     return CompetitionType.generic;
   }

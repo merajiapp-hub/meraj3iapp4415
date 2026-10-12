@@ -120,6 +120,17 @@ class _SplashScreenState extends State<SplashScreen>
 
     // تحقق من تسجيل الدخول
     if (authProvider.user != null) {
+      if (!authProvider.profileReady) {
+        try {
+          await authProvider.refreshAccountStatus();
+          if (!authProvider.profileReady && mounted) {
+            debugPrint('[Splash] User profile not ready yet; proceeding to home with fallback guard.');
+          }
+        } catch (e) {
+          debugPrint('[Splash] Profile refresh failed: $e');
+        }
+      }
+
       // التحقق البيومتري إذا كان مفعّلاً
       bool biometricsEnabled = false;
       try {

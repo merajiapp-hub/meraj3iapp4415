@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -84,10 +85,22 @@ class _SignupScreenState extends State<SignupScreen>
     final password = _passwordController.text.trim();
     final confirmPassword = _confirmPasswordController.text.trim();
 
-    if (name.isEmpty || familyName.isEmpty || phone.isEmpty || password.isEmpty) {
+    if (name.isEmpty ||
+        familyName.isEmpty ||
+        phone.isEmpty ||
+        password.isEmpty) {
       AppNotification.show(
         context,
         'الرجاء تعبئة الاسم الأول والاسم العائلي ورقم الهاتف وكلمة المرور',
+        isError: true,
+      );
+      return;
+    }
+
+    if (!AuthProvider.isValidMauritanianPhone(phone)) {
+      AppNotification.show(
+        context,
+        'رقم الهاتف يجب أن يكون موريتانيًا من 8 أرقام ويبدأ بـ 2 أو 3 أو 4',
         isError: true,
       );
       return;
@@ -166,7 +179,10 @@ class _SignupScreenState extends State<SignupScreen>
                 position: _slideAnim,
                 child: Center(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 24,
+                    ),
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 460),
                       child: SingleChildScrollView(
@@ -287,6 +303,10 @@ class _SignupScreenState extends State<SignupScreen>
             textColor: textColor,
             hintColor: hintColor,
             keyboardType: TextInputType.phone,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(8),
+            ],
           ),
           const SizedBox(height: 12),
           Container(
@@ -301,7 +321,10 @@ class _SignupScreenState extends State<SignupScreen>
               child: DropdownButton<String>(
                 isExpanded: true,
                 value: _selectedGender,
-                icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF4F6660)),
+                icon: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Color(0xFF4F6660),
+                ),
                 dropdownColor: Colors.white,
                 style: GoogleFonts.tajawal(
                   fontSize: 14,
@@ -314,7 +337,9 @@ class _SignupScreenState extends State<SignupScreen>
                     child: Row(
                       children: [
                         Icon(
-                          value == 'ذكر' ? Icons.male_rounded : Icons.female_rounded,
+                          value == 'ذكر'
+                              ? Icons.male_rounded
+                              : Icons.female_rounded,
                           size: 20,
                           color: const Color(0xFF52615C),
                         ),
@@ -343,7 +368,8 @@ class _SignupScreenState extends State<SignupScreen>
             hintColor: hintColor,
             isPassword: true,
             showToggle: true,
-            toggleVisibility: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+            toggleVisibility: () =>
+                setState(() => _isPasswordVisible = !_isPasswordVisible),
             isVisible: _isPasswordVisible,
           ),
           const SizedBox(height: 12),
@@ -357,7 +383,9 @@ class _SignupScreenState extends State<SignupScreen>
             hintColor: hintColor,
             isPassword: true,
             showToggle: true,
-            toggleVisibility: () => setState(() => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
+            toggleVisibility: () => setState(
+              () => _isConfirmPasswordVisible = !_isConfirmPasswordVisible,
+            ),
             isVisible: _isConfirmPasswordVisible,
           ),
           const SizedBox(height: 16),
@@ -369,15 +397,15 @@ class _SignupScreenState extends State<SignupScreen>
                 height: 20,
                 child: Checkbox(
                   value: _acceptTerms,
-                  onChanged: (value) => setState(() => _acceptTerms = value ?? false),
+                  onChanged: (value) =>
+                      setState(() => _acceptTerms = value ?? false),
                   fillColor: WidgetStateProperty.resolveWith(
-                    (states) => states.contains(WidgetState.selected) ? accent : Colors.transparent,
+                    (states) => states.contains(WidgetState.selected)
+                        ? accent
+                        : Colors.transparent,
                   ),
                   checkColor: Colors.white,
-                  side: const BorderSide(
-                    color: Color(0xFF9EB9B1),
-                    width: 1.4,
-                  ),
+                  side: const BorderSide(color: Color(0xFF9EB9B1), width: 1.4),
                 ),
               ),
               const SizedBox(width: 8),
@@ -395,7 +423,9 @@ class _SignupScreenState extends State<SignupScreen>
                     GestureDetector(
                       onTap: () => Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const TermsOfUseScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const TermsOfUseScreen(),
+                        ),
                       ),
                       child: Text(
                         'الشروط',
@@ -416,7 +446,9 @@ class _SignupScreenState extends State<SignupScreen>
                     GestureDetector(
                       onTap: () => Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const PrivacyPolicyScreen(),
+                        ),
                       ),
                       child: Text(
                         'سياسة الخصوصية',
@@ -482,6 +514,7 @@ class _SignupScreenState extends State<SignupScreen>
     VoidCallback? toggleVisibility,
     bool isVisible = false,
     TextInputType keyboardType = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return Container(
       height: 58,
@@ -493,20 +526,30 @@ class _SignupScreenState extends State<SignupScreen>
       child: TextField(
         controller: controller,
         keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
         obscureText: isPassword && !isVisible,
         textAlign: TextAlign.right,
-        style: GoogleFonts.tajawal(color: textColor, fontSize: 14, fontWeight: FontWeight.w500),
+        style: GoogleFonts.tajawal(
+          color: textColor,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: GoogleFonts.tajawal(color: hintColor, fontSize: 13.5),
           filled: false,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 16,
+          ),
           prefixIcon: Icon(icon, color: const Color(0xFF4F6660), size: 20),
           suffixIcon: showToggle
               ? IconButton(
                   padding: EdgeInsets.zero,
                   icon: Icon(
-                    isVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                    isVisible
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
                     color: const Color(0xFF52615C),
                     size: 20,
                   ),
@@ -530,10 +573,7 @@ class _SignupScreenState extends State<SignupScreen>
       children: [
         Text(
           'هل لديك حساب بالفعل؟',
-          style: GoogleFonts.tajawal(
-            color: mutedColor,
-            fontSize: 13,
-          ),
+          style: GoogleFonts.tajawal(color: mutedColor, fontSize: 13),
         ),
         TextButton(
           onPressed: _safeBack,

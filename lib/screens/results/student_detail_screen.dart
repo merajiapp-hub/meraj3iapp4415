@@ -26,6 +26,7 @@ class StudentDetailScreen extends StatefulWidget {
   final List<StudentResult> allResults;
   final ExamType examType;
   final String title;
+  final bool isFirstSession;
 
   const StudentDetailScreen({
     super.key,
@@ -38,6 +39,7 @@ class StudentDetailScreen extends StatefulWidget {
     required this.allResults,
     required this.examType,
     this.title = '',
+    this.isFirstSession = false,
   });
 
   @override
@@ -97,6 +99,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
     final s = widget.student;
     if (s.score == null) return;
     final all = widget.allResults;
+    int rankWithin(Iterable<StudentResult> candidates) =>
+        candidates.where((result) => result.score! > s.score!).length + 1;
 
     // تحديد المجموعة التي سيتم الترتيب ضمنها (ناجحون أو تكميليون)
     final bool Function(StudentResult) rankFilter;
@@ -113,38 +117,46 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
       // لا نحسب الترتيب
     } else {
       // ترتيب وطني
-      final nationalList = all.where(rankFilter).toList()
-        ..sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
-      final idxNat = nationalList.indexWhere((r) => r.id == s.id);
-      if (idxNat >= 0) _rankNational = idxNat + 1;
+      final nationalList = all.where(rankFilter);
+      if (nationalList.any((r) => identical(r, s))) {
+        _rankNational = rankWithin(nationalList);
+      }
 
       // ترتيب الولاية
       if (s.wilaya.isNotEmpty) {
-        final wilayaList = all.where((r) => r.wilaya == s.wilaya && rankFilter(r)).toList()
-          ..sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
-        final idxWil = wilayaList.indexWhere((r) => r.id == s.id);
-        if (idxWil >= 0) _rankWilaya = idxWil + 1;
+        final wilayaList = all.where(
+          (r) => r.wilaya == s.wilaya && rankFilter(r),
+        );
+        if (wilayaList.any((r) => identical(r, s))) {
+          _rankWilaya = rankWithin(wilayaList);
+        }
       }
 
       // ترتيب المركز
       if (s.center.isNotEmpty) {
-        final centerList = all.where((r) => r.center == s.center && rankFilter(r)).toList()
-          ..sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
-        final idxCen = centerList.indexWhere((r) => r.id == s.id);
-        if (idxCen >= 0) _rankCenter = idxCen + 1;
+        final centerList = all.where(
+          (r) => r.center == s.center && rankFilter(r),
+        );
+        if (centerList.any((r) => identical(r, s))) {
+          _rankCenter = rankWithin(centerList);
+        }
       }
 
       // ترتيب المدرسة
       if (s.school.isNotEmpty) {
-        final schoolList = all.where((r) => r.school == s.school && rankFilter(r)).toList()
-          ..sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
-        final idxSch = schoolList.indexWhere((r) => r.id == s.id);
-        if (idxSch >= 0) _rankSchool = idxSch + 1;
+        final schoolList = all.where(
+          (r) => r.school == s.school && rankFilter(r),
+        );
+        if (schoolList.any((r) => identical(r, s))) {
+          _rankSchool = rankWithin(schoolList);
+        }
       }
     }
 
     // حساب مقارنة النتائج الوطنية
-    final scoredAll = all.where((r) => r.score != null).toList();
+    final scoredAll = all
+        .where((r) => (r.isPassed || r.isFailed) && r.score != null)
+        .toList();
     if (scoredAll.isNotEmpty) {
       _topNationalScore = scoredAll.map((e) => e.score!).reduce(math.max);
       final sum = scoredAll.map((e) => e.score!).reduce((a, b) => a + b);
@@ -720,6 +732,7 @@ ${_rankNational != null ? '🏆 الترتيب الوطني: $_rankNational' : '
                       passScore: widget.passScore,
                       maxScore: widget.maxScore,
                       scoreLabel: widget.scoreLabel,
+                      isFirstSession: widget.isFirstSession,
                     ),
                   ),
                 ),

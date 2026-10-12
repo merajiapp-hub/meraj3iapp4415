@@ -1,12 +1,23 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/app_settings.dart';
 
 class AppConfigProvider extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   SharedPreferences? _prefs;
+  StreamSubscription<User?>? _authSubscription;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _featureFlagsSubscription;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _maintenanceSubscription;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _appSettingsSubscription;
 
   bool _maintenanceMode = false;
   String _maintenanceMessage =
@@ -53,9 +64,30 @@ class AppConfigProvider extends ChangeNotifier {
   Future<void> _init() async {
     _prefs = await SharedPreferences.getInstance();
     _loadFromCache();
+    _authSubscription = _auth.authStateChanges().listen(
+      _handleAuthState,
+      onError: (Object error) {
+        debugPrint('[AppConfig] Auth state listener failed: $error');
+      },
+    );
+  }
+
+  void _handleAuthState(User? user) {
+    _cancelFirestoreListeners();
+    if (user == null) return;
+
     _listenToFeatureFlags();
     _listenToMaintenanceMode();
     _listenToAppSettings();
+  }
+
+  void _cancelFirestoreListeners() {
+    unawaited(_featureFlagsSubscription?.cancel());
+    unawaited(_maintenanceSubscription?.cancel());
+    unawaited(_appSettingsSubscription?.cancel());
+    _featureFlagsSubscription = null;
+    _maintenanceSubscription = null;
+    _appSettingsSubscription = null;
   }
 
   void _loadFromCache() {
@@ -104,7 +136,7 @@ class AppConfigProvider extends ChangeNotifier {
   }
 
   void _listenToFeatureFlags() {
-    _firestore
+    _featureFlagsSubscription = _firestore
         .collection('admin_settings')
         .doc('feature_flags')
         .snapshots()
@@ -129,7 +161,7 @@ class AppConfigProvider extends ChangeNotifier {
   }
 
   void _listenToMaintenanceMode() {
-    _firestore
+    _maintenanceSubscription = _firestore
         .collection('app_settings')
         .doc('maintenance')
         .snapshots()
@@ -151,7 +183,7 @@ class AppConfigProvider extends ChangeNotifier {
   }
 
   void _listenToAppSettings() {
-    _firestore
+    _appSettingsSubscription = _firestore
         .collection('app_config')
         .doc('settings')
         .snapshots()
@@ -207,5 +239,13 @@ class AppConfigProvider extends ChangeNotifier {
 
   bool isFeatureEnabled(String featureKey) {
     return _featureFlags[featureKey] ?? false;
+  }
+
+  @override
+  void dispose() {
+    unawaited(_authSubscription?.cancel());
+    _authSubscription = null;
+    _cancelFirestoreListeners();
+    super.dispose();
   }
 }

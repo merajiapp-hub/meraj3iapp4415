@@ -13,9 +13,11 @@ class AnnouncementsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
-    final backgroundColor = isDark ? AppTheme.backgroundDark : AppTheme.backgroundLight;
+    final backgroundColor = isDark
+        ? AppTheme.backgroundDark
+        : AppTheme.backgroundLight;
     final textPrimary = isDark ? Colors.white : const Color(0xFF0A1A15);
-    final textSecondary = isDark ? Colors.white70 : const Color(0xFF4A5568);
+    final textSecondary = isDark ? Colors.white70 : const Color(0xFF52645E);
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -34,10 +36,19 @@ class AnnouncementsScreen extends StatelessWidget {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: AppTheme.primaryColor,
+                    ),
+                  );
                 }
                 if (snapshot.hasError) {
-                  return const Center(child: Text('حدث خطأ أثناء جلب الإعلانات.'));
+                  return Center(
+                    child: Text(
+                      'حدث خطأ أثناء جلب الإعلانات.',
+                      style: GoogleFonts.tajawal(color: textSecondary),
+                    ),
+                  );
                 }
 
                 final docs = (snapshot.data?.docs ?? []).where((doc) {
@@ -50,11 +61,28 @@ class AnnouncementsScreen extends StatelessWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.campaign_rounded, size: 64, color: isDark ? Colors.white30 : Colors.black26),
+                        Icon(
+                          Icons.campaign_rounded,
+                          size: 64,
+                          color: AppTheme.primaryColor.withValues(alpha: 0.35),
+                        ),
                         const SizedBox(height: 16),
-                        Text('لا يوجد إعلانات', style: GoogleFonts.tajawal(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary)),
+                        Text(
+                          'لا يوجد إعلانات',
+                          style: GoogleFonts.tajawal(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: textPrimary,
+                          ),
+                        ),
                         const SizedBox(height: 8),
-                        Text('لم يتم نشر أي إعلانات حتى الآن.', style: GoogleFonts.tajawal(fontSize: 14, color: textSecondary)),
+                        Text(
+                          'لم يتم نشر أي إعلانات حتى الآن.',
+                          style: GoogleFonts.tajawal(
+                            fontSize: 14,
+                            color: textSecondary,
+                          ),
+                        ),
                       ],
                     ),
                   );
@@ -63,7 +91,8 @@ class AnnouncementsScreen extends StatelessWidget {
                 return ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: docs.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 16),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 16),
                   itemBuilder: (context, index) {
                     final data = docs[index].data() as Map<String, dynamic>;
                     final title = data['title']?.toString() ?? 'بدون عنوان';
@@ -91,24 +120,19 @@ class AnnouncementsScreen extends StatelessWidget {
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(24),
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: isDark
-                                ? [
-                                    AppTheme.primaryColor.withValues(alpha: 0.72),
-                                    AppTheme.secondaryColor.withValues(alpha: 0.55),
-                                  ]
-                                : [
-                                    AppTheme.primaryColor.withValues(alpha: 0.92),
-                                    AppTheme.secondaryColor.withValues(alpha: 0.78),
-                                  ],
+                          color: isDark ? AppTheme.surfaceDark : Colors.white,
+                          border: Border.all(
+                            color: AppTheme.primaryColor.withValues(
+                              alpha: isDark ? 0.24 : 0.12,
+                            ),
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: AppTheme.primaryColor.withValues(alpha: isDark ? 0.25 : 0.16),
-                              blurRadius: 14,
-                              offset: const Offset(0, 6),
+                              color: AppTheme.primaryColor.withValues(
+                                alpha: isDark ? 0.12 : 0.07,
+                              ),
+                              blurRadius: 16,
+                              offset: const Offset(0, 7),
                             ),
                           ],
                         ),
@@ -120,22 +144,31 @@ class AnnouncementsScreen extends StatelessWidget {
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.18),
+                                    color: AppTheme.primaryColor.withValues(
+                                      alpha: isDark ? 0.22 : 0.1,
+                                    ),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(Icons.campaign_rounded, color: Colors.white, size: 24),
+                                  child: Icon(
+                                    Icons.campaign_rounded,
+                                    color: isDark
+                                        ? AppTheme.lightGreen
+                                        : AppTheme.primaryColor,
+                                    size: 24,
+                                  ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         title,
                                         style: GoogleFonts.tajawal(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 16,
-                                          color: Colors.white,
+                                          color: textPrimary,
                                         ),
                                       ),
                                       const SizedBox(height: 4),
@@ -143,13 +176,19 @@ class AnnouncementsScreen extends StatelessWidget {
                                         dateStr,
                                         style: GoogleFonts.tajawal(
                                           fontSize: 12,
-                                          color: Colors.white70,
+                                          color: textSecondary,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
-                                const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 16),
+                                Icon(
+                                  Icons.arrow_forward_ios_rounded,
+                                  color: AppTheme.primaryColor.withValues(
+                                    alpha: 0.65,
+                                  ),
+                                  size: 16,
+                                ),
                               ],
                             ),
                             if (body.isNotEmpty) ...[
@@ -160,7 +199,7 @@ class AnnouncementsScreen extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.tajawal(
                                   fontSize: 14,
-                                  color: Colors.white.withValues(alpha: 0.9),
+                                  color: textSecondary,
                                   height: 1.6,
                                 ),
                               ),
@@ -196,10 +235,15 @@ class _AnnouncementDetailScreen extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? AppTheme.backgroundDark : AppTheme.backgroundLight,
+      backgroundColor: isDark
+          ? AppTheme.backgroundDark
+          : AppTheme.backgroundLight,
       body: Column(
         children: [
-          CurvedHeader(title: 'تفاصيل الإعلان', gradient: AppTheme.brandGradient),
+          CurvedHeader(
+            title: 'تفاصيل الإعلان',
+            gradient: AppTheme.brandGradient,
+          ),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
@@ -221,7 +265,10 @@ class _AnnouncementDetailScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: AppTheme.primaryColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(999),
@@ -250,7 +297,9 @@ class _AnnouncementDetailScreen extends StatelessWidget {
                       style: GoogleFonts.tajawal(
                         fontSize: 16,
                         height: 1.9,
-                        color: isDark ? Colors.white70 : const Color(0xFF334155),
+                        color: isDark
+                            ? Colors.white70
+                            : const Color(0xFF334155),
                       ),
                     ),
                   ],

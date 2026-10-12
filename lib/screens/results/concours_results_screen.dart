@@ -19,7 +19,7 @@ class ConcoursResultsScreen extends StatelessWidget {
       title: title,
       csvUrl: csvUrl,
       examType: ExamType.concours,
-      gradient: AppTheme.primaryGradient,
+      gradient: AppTheme.brandGradient,
       emoji: '🏆',
       passScore: 85,
       maxScore: 200,

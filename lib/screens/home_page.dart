@@ -170,10 +170,63 @@ class _HomePageState extends State<HomePage>
     });
   }
 
+  Widget _buildProfileLoadingState(bool isDark) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.surfaceDark : Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.08),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                'جارٍ تجهيز بياناتك...',
+                style: GoogleFonts.tajawal(
+                  color: isDark ? Colors.white : AppTheme.primaryColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: () {
+                  final auth = context.read<AuthProvider>();
+                  if (auth.user != null) {
+                    auth.retryProfileSetup();
+                  }
+                },
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text('إعادة المحاولة', style: GoogleFonts.tajawal()),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final size = MediaQuery.of(context).size;
+    final auth = context.watch<AuthProvider>();
+
+    if (!widget.isGuest && auth.user != null && !auth.profileReady) {
+      return _buildProfileLoadingState(isDark);
+    }
 
     return PopScope(
       canPop: false,
@@ -528,20 +581,24 @@ class _HomePageState extends State<HomePage>
                       .collection('chats')
                       .doc('chat_$userId');
 
-                  return StreamBuilder<DocumentSnapshot>(
+                  return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                     stream: chatRef.snapshots(),
                     builder: (context, snapshot) {
-                      final unread = (snapshot.data?['adminUnread'] as int?) ?? 0;
+                      final chatData = snapshot.data?.data();
+                      final unreadValue = chatData?['adminUnread'];
+                      final unread = unreadValue is num
+                          ? unreadValue.toInt()
+                          : 0;
                       return Stack(
                         clipBehavior: Clip.none,
                         children: [
                           _homeToolbarButton(
                             icon: Icons.support_agent_rounded,
-                            color: isDark ? Colors.white : AppTheme.primaryColor,
+                            color: isDark
+                                ? Colors.white
+                                : AppTheme.primaryColor,
                             tooltip: 'الدعم الفني',
-                            onPressed: () async {
-                              await chatRef.update({'adminUnread': 0});
-                              if (!context.mounted) return;
+                            onPressed: () {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -555,7 +612,9 @@ class _HomePageState extends State<HomePage>
                               top: 1,
                               right: 1,
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
                                 constraints: const BoxConstraints(minWidth: 16),
                                 height: 16,
                                 alignment: Alignment.center,
@@ -791,7 +850,7 @@ class _HomePageState extends State<HomePage>
         'آخر الأخبار',
         'تابع أهم وأحدث الأخبار',
         Icons.newspaper_rounded,
-        const Color(0xFF14B8A6),
+        AppTheme.primaryColor,
         isDark,
         () {
           Navigator.push(
@@ -804,7 +863,7 @@ class _HomePageState extends State<HomePage>
         'الإعلانات',
         'اطلع على الإعلانات الهامة',
         Icons.campaign_rounded,
-        const Color(0xFFF5A623),
+        AppTheme.lightGreen,
         isDark,
         () {
           Navigator.push(
@@ -935,18 +994,19 @@ class _HomePageState extends State<HomePage>
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
-          gradient: LinearGradient(
-            colors: isDark
-                ? [color.withValues(alpha: 0.5), color.withValues(alpha: 0.2)]
-                : [color.withValues(alpha: 0.9), color],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+          color: isDark ? AppTheme.surfaceDark : Colors.white,
+          border: Border.all(
+            color: AppTheme.primaryColor.withValues(
+              alpha: isDark ? 0.24 : 0.12,
+            ),
           ),
           boxShadow: [
             BoxShadow(
-              color: color.withValues(alpha: 0.2),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
+              color: AppTheme.primaryColor.withValues(
+                alpha: isDark ? 0.14 : 0.08,
+              ),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -955,10 +1015,14 @@ class _HomePageState extends State<HomePage>
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
+                color: color.withValues(alpha: isDark ? 0.2 : 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: Colors.white, size: 28),
+              child: Icon(
+                icon,
+                color: isDark ? AppTheme.lightGreen : AppTheme.primaryColor,
+                size: 28,
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -971,7 +1035,7 @@ class _HomePageState extends State<HomePage>
                     style: GoogleFonts.tajawal(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: isDark ? Colors.white : AppTheme.primaryColor,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -979,15 +1043,15 @@ class _HomePageState extends State<HomePage>
                     subtitle,
                     style: GoogleFonts.tajawal(
                       fontSize: 13,
-                      color: Colors.white70,
+                      color: isDark ? Colors.white70 : const Color(0xFF52645E),
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               Icons.arrow_forward_ios_rounded,
-              color: Colors.white70,
+              color: AppTheme.primaryColor.withValues(alpha: 0.65),
               size: 16,
             ),
           ],

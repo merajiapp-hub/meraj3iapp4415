@@ -26,6 +26,22 @@ class AuthProvider extends ChangeNotifier {
 
   static const String _defaultPhoneCountryCode = '222';
 
+  static String _nationalPhoneDigits(String value) {
+    final clean = value.trim();
+    if (!RegExp(r'^\+?[\d\s()-]+$').hasMatch(clean)) return '';
+
+    final digits = clean.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.startsWith('00222')) return digits.substring(5);
+    if (digits.startsWith('222') && digits.length == 11) {
+      return digits.substring(3);
+    }
+    return digits;
+  }
+
+  static bool isValidMauritanianPhone(String value) {
+    return RegExp(r'^[234][0-9]{7}$').hasMatch(_nationalPhoneDigits(value));
+  }
+
   static String normalizePhoneValue(String value) {
     var digits = value.trim().replaceAll(RegExp(r'[^0-9+]'), '');
     if (digits.isEmpty) return '';
@@ -51,16 +67,16 @@ class AuthProvider extends ChangeNotifier {
     return '+$digits';
   }
 
-  /// يحوّل الرقم المعيَّر (+2220XXXXXXXX) إلى صيغة عرض مقروءة (0XXXXXXXX)
+  /// يعرض الرقم الوطني دون صفر بادئ أو رمز الدولة.
   static String formatPhoneForDisplay(String? normalized) {
     if (normalized == null || normalized.trim().isEmpty) return '';
     var digits = normalized.trim().replaceAll(RegExp(r'[^0-9]'), '');
-    // إزالة رمز الدولة الموريتانية 222
-    if (digits.startsWith('222') && digits.length > 3) {
-      digits = '0${digits.substring(3)}';
-    } else if (digits.startsWith('00222') && digits.length > 5) {
-      digits = '0${digits.substring(5)}';
+    if (digits.startsWith('00222') && digits.length > 5) {
+      digits = digits.substring(5);
+    } else if (digits.startsWith('222') && digits.length > 3) {
+      digits = digits.substring(3);
     }
+    if (digits.startsWith('0')) digits = digits.substring(1);
     return digits;
   }
 
@@ -215,39 +231,60 @@ class AuthProvider extends ChangeNotifier {
     _loadGuestStateBackground();
   }
 
-  // ─── التحقق من صلاحية Admin (Firestore + Custom Claims) ──────────────────
-  // يتحقق من مجموعة admins في Firestore أولاً (لا تحتاج Cloud Functions)
-  // ثم يحاول Custom Claims كاحتياطي (إذا نُشرت Functions لاحقاً)
+  // ─── التحقق من صلاحية Admin ─────────────────────────────────────────────
+  // لا نعتمد على حقول "role" / "isAdmin" القابلة للتعديل من طرف المستخدم لحماية
+  // الوصول إلى لوحة الإدارة. يتم اعتماد قائمة إداريين موثوقين فقط، مع إمكانية
+  // إضافة صلاحيات من Backend أو Firebase Custom Claims في المستقبل.
+  static const Set<String> _trustedAdminEmails = {
+    'mma831770@gmail.com',
+    'abdellahismd@gmail.com',
+  };
+
+  static bool isTrustedAdminEmail(String? email) {
+    final normalized = (email ?? '').trim().toLowerCase();
+    return _trustedAdminEmails.contains(normalized);
+  }
+
+  static bool hasAdminAccess(String? email, {required bool emailVerified}) {
+    return emailVerified && isTrustedAdminEmail(email);
+  }
 
   Future<void> _checkAdminStatus(User user) async {
     try {
       final email = user.email?.trim().toLowerCase();
-      final isKnownAdmin =
-          email == 'mma831770@gmail.com' || email == 'abdellahismd@gmail.com';
+      _isAdmin = hasAdminAccess(email, emailVerified: user.emailVerified);
 
-      if (isKnownAdmin) {
-        _isAdmin = true;
-        debugPrint('[Auth] Admin confirmed via Email for ${user.email}');
+      if (_isAdmin) {
+        debugPrint(
+          '[Auth] Admin confirmed via trusted email for ${user.email}',
+        );
         return;
       }
 
+      // Any user-editable flags like role/isAdmin are ignored here. They can be
+      // used for non-admin data, but they are never treated as a permission grant.
       try {
         final userDoc = await _firestore
             .collection('users')
             .doc(user.uid)
             .get();
         final data = userDoc.data();
-        final role = (data?['role'] ?? data?['userRole'] ?? '')
+        final savedRole = (data?['role'] ?? data?['userRole'] ?? '')
             .toString()
+            .trim()
             .toLowerCase();
         final isAdminFlag = data?['isAdmin'] == true;
-        _isAdmin = role == 'admin' || isAdminFlag;
-        debugPrint(
-          '[Auth] Admin status from Firestore: $_isAdmin for ${user.email}',
-        );
+        if (savedRole == 'admin' || isAdminFlag) {
+          debugPrint(
+            '[Auth] Ignored client-editable admin flags for ${user.email}; only trusted email list grants admin access.',
+          );
+        }
       } catch (_) {
-        _isAdmin = false;
+        // Ignore Firestore read errors; normal users must never be promoted to admin
+        // simply because their own record is missing or incomplete.
       }
+
+      _isAdmin = false;
     } catch (e) {
       debugPrint('[Auth] Error checking admin status: $e');
       _isAdmin = false;
@@ -286,18 +323,18 @@ class AuthProvider extends ChangeNotifier {
     _user = _user ?? _auth.currentUser;
     _initialized = true;
     if (_user != null && !_profileReady) {
-        try {
-          await ensureUserDocument(_user!, provider: _providerForUser(_user!));
-          await refreshAccountStatus();
-        } catch (e) {
-          debugPrint('[Auth] Initial profile provisioning failed: $e');
-          debugPrint(
-            '[Auth] Profile is not ready yet; preserving Firebase session.',
-          );
-        }
+      try {
+        await ensureUserDocument(_user!, provider: _providerForUser(_user!));
+        await refreshAccountStatus();
+      } catch (e) {
+        debugPrint('[Auth] Initial profile provisioning failed: $e');
+        debugPrint(
+          '[Auth] Profile is not ready yet; preserving Firebase session.',
+        );
       }
-      _initialized = true;
-      return _user;
+    }
+    _initialized = true;
+    return _user;
   }
 
   Future<bool> refreshAccountStatus() async {
@@ -314,8 +351,15 @@ class AuthProvider extends ChangeNotifier {
           .timeout(const Duration(seconds: 10));
 
       final data = doc.data();
-      _userData = data ?? _userData;
-      final snapshot = normalizeAccountStatus(data ?? _userData);
+      if (!doc.exists || data == null) {
+        throw FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'profile-not-created',
+          message: 'ملف المستخدم غير موجود',
+        );
+      }
+      _userData = data;
+      final snapshot = normalizeAccountStatus(data);
       _isAccountSuspended = snapshot.isSuspended;
       _profileReady = true;
 
@@ -342,6 +386,30 @@ class AuthProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('[Auth] refreshAccountStatus error: $e');
       _isAccountSuspended = false;
+      _profileReady = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> retryProfileSetup() async {
+    final currentUser = _user ?? _auth.currentUser;
+    if (currentUser == null) return false;
+
+    _user = currentUser;
+    _profileReady = false;
+    notifyListeners();
+
+    try {
+      await ensureUserDocument(
+        currentUser,
+        provider: _providerForUser(currentUser),
+      );
+      await _checkAdminStatus(currentUser);
+      return await refreshAccountStatus();
+    } catch (e) {
+      debugPrint('[Auth] Profile setup retry failed: $e');
+      _profileReady = false;
       notifyListeners();
       return false;
     }
@@ -388,7 +456,7 @@ class AuthProvider extends ChangeNotifier {
           _mustChangePassword = _userData?['mustChangePassword'] == true;
           notifyListeners();
         } else {
-          signOut();
+          await signOut();
           return;
         }
       } catch (e) {
@@ -459,13 +527,18 @@ class AuthProvider extends ChangeNotifier {
           return 'تعذر تحميل ملف المستخدم: ${e.message ?? e.code}';
         }
 
-        await AdminActivityService.log(
-          type: AdminActivityType.userLoggedIn,
-          title: 'تسجيل دخول مستخدم',
-          description: 'قام المستخدم ${cred.user!.email} بتسجيل الدخول',
-          targetUserId: cred.user!.uid,
-          metadata: {'email': cred.user!.email, 'provider': 'email'},
-        );
+        if (hasAdminAccess(
+          cred.user!.email,
+          emailVerified: cred.user!.emailVerified,
+        )) {
+          await AdminActivityService.log(
+            type: AdminActivityType.userLoggedIn,
+            title: 'تسجيل دخول مسؤول',
+            description: 'قام المسؤول ${cred.user!.email} بتسجيل الدخول',
+            targetUserId: cred.user!.uid,
+            metadata: {'email': cred.user!.email, 'provider': 'email'},
+          );
+        }
         LoginActivityService.record(
           result: 'success',
           method: 'email',
@@ -698,6 +771,9 @@ class AuthProvider extends ChangeNotifier {
     String phone,
     String gender,
   ) async {
+    if (!AuthProvider.isValidMauritanianPhone(phone)) {
+      return 'أدخل رقمًا موريتانيًا صحيحًا من 8 أرقام يبدأ بـ 2 أو 3 أو 4.';
+    }
     UserCredential? cred;
     final normalizedPhone = normalizePhone(phone);
     // realEmail = البريد الحقيقي الذي يُخزَّن في Firestore
@@ -714,7 +790,9 @@ class AuthProvider extends ChangeNotifier {
     final provider = realEmail.isNotEmpty ? 'email' : 'phone';
 
     _isRegistering = true;
-    debugPrint('[SignUp] Starting: name=$displayName, phone=$normalizedPhone, email=$realEmail');
+    debugPrint(
+      '[SignUp] Starting: name=$displayName, phone=$normalizedPhone, email=$realEmail',
+    );
 
     try {
       // ── 1. مستخدم مسجل بنفس البريد موجود سابقاً ───────────────────────────
@@ -769,7 +847,9 @@ class AuthProvider extends ChangeNotifier {
       // CRITICAL: يجب إنشاء Auth أولاً قبل أي استعلام Firestore
       // لأن المستخدم يحتاج مصادقة للوصول لقواعد Firestore (allow list: authenticated)
       // Firebase Auth يرفض تلقائياً إذا كان البريد/الهاتف مستخدماً.
-      debugPrint('[SignUp] Creating Firebase Auth account: authEmail=$authEmail');
+      debugPrint(
+        '[SignUp] Creating Firebase Auth account: authEmail=$authEmail',
+      );
       cred = await _auth
           .createUserWithEmailAndPassword(email: authEmail, password: password)
           .timeout(const Duration(seconds: 15));
@@ -782,7 +862,9 @@ class AuthProvider extends ChangeNotifier {
       debugPrint('[SignUp] Auth account created: uid=${newUser.uid}');
 
       // ── 3. تحديث الاسم في Firebase Auth ───────────────────────────────────
-      try { await newUser.updateDisplayName(displayName); } catch (_) {}
+      try {
+        await newUser.updateDisplayName(displayName);
+      } catch (_) {}
 
       // ── 4. التحقق من تكرار رقم الهاتف في Firestore ────────────────────────
       // الآن المستخدم مسجل ويملك صلاحية list
@@ -806,12 +888,18 @@ class AuthProvider extends ChangeNotifier {
           phoneAlreadyExists = legacyCheck.docs.isNotEmpty;
         }
       } catch (queryError) {
-        debugPrint('[SignUp] Duplicate phone check failed (non-critical): $queryError');
+        debugPrint(
+          '[SignUp] Duplicate phone check failed (non-critical): $queryError',
+        );
       }
 
       if (phoneAlreadyExists) {
-        try { await newUser.delete(); } catch (_) {}
-        try { await _auth.signOut(); } catch (_) {}
+        try {
+          await newUser.delete();
+        } catch (_) {}
+        try {
+          await _auth.signOut();
+        } catch (_) {}
         _isRegistering = false;
         return 'رقم الهاتف مستخدم في حساب آخر';
       }
@@ -837,7 +925,9 @@ class AuthProvider extends ChangeNotifier {
         userData.remove('email'); // لا نخزن البريد الداخلي المشوَّه
       }
 
-      debugPrint('[SignUp] Creating Firestore profile: uid=${newUser.uid}, name=$displayName');
+      debugPrint(
+        '[SignUp] Creating Firestore profile: uid=${newUser.uid}, name=$displayName',
+      );
 
       try {
         final savedProfile = await ensureUserDocument(
@@ -850,7 +940,9 @@ class AuthProvider extends ChangeNotifier {
         _profileReady = _userData != null;
         debugPrint('[SignUp] ✅ Profile saved: ${_userData?.keys.toList()}');
       } on FirebaseException catch (firestoreError) {
-        debugPrint('[SignUp] Firestore error: ${firestoreError.code} — ${firestoreError.message}');
+        debugPrint(
+          '[SignUp] Firestore error: ${firestoreError.code} — ${firestoreError.message}',
+        );
         if (firestoreError.code == 'permission-denied') {
           // إعادة المحاولة بعد تحديث Token
           debugPrint('[SignUp] Retrying after token refresh...');
@@ -874,28 +966,38 @@ class AuthProvider extends ChangeNotifier {
             return 'تم إنشاء الحساب لكن تعذر حفظ بياناتك. يرجى إعادة تسجيل الدخول.';
           }
         } else {
-          try { await newUser.delete(); } catch (_) {}
-          try { await _auth.signOut(); } catch (_) {}
+          try {
+            await newUser.delete();
+          } catch (_) {}
+          try {
+            await _auth.signOut();
+          } catch (_) {}
           _isRegistering = false;
           return 'تعذر إكمال إنشاء الملف الشخصي. حاول مجدداً.';
         }
       } catch (firestoreError) {
         debugPrint('[SignUp] ❌ Unexpected error: $firestoreError');
-        try { await newUser.delete(); } catch (_) {}
-        try { await _auth.signOut(); } catch (_) {}
+        try {
+          await newUser.delete();
+        } catch (_) {}
+        try {
+          await _auth.signOut();
+        } catch (_) {}
         _isRegistering = false;
         return 'تعذر إكمال إنشاء ملف الحساب. حاول مجدداً.';
       }
 
       // ── 6. تسجيل النشاط والانتهاء ─────────────────────────────────────────
-      AdminActivityService.log(
-        type: AdminActivityType.userRegistered,
-        title: 'تسجيل مستخدم جديد',
-        description: 'سجل مستخدم جديد باسم: $displayName (${realEmail.isNotEmpty ? realEmail : normalizedPhone})',
-        targetUserId: newUser.uid,
-        targetUserName: displayName,
-        metadata: {'email': realEmail, 'phone': normalizedPhone, 'provider': provider},
-      ).catchError((_) {});
+      if (hasAdminAccess(newUser.email, emailVerified: newUser.emailVerified)) {
+        AdminActivityService.log(
+          type: AdminActivityType.userRegistered,
+          title: 'تسجيل مستخدم إداري',
+          description: 'سجل مسؤول جديد باسم: $displayName',
+          targetUserId: newUser.uid,
+          targetUserName: displayName,
+          metadata: {'email': realEmail, 'provider': provider},
+        ).catchError((_) {});
+      }
 
       await _checkAdminStatus(newUser);
       await refreshAccountStatus();
@@ -963,9 +1065,16 @@ class AuthProvider extends ChangeNotifier {
     final currentUser = _user;
     try {
       await _auth.signOut().timeout(const Duration(seconds: 10));
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[Auth] signOut firebase error: $e');
+      rethrow;
+    }
 
-    if (currentUser != null) {
+    if (currentUser != null &&
+        hasAdminAccess(
+          currentUser.email,
+          emailVerified: currentUser.emailVerified,
+        )) {
       AdminActivityService.log(
         type: AdminActivityType.userLoggedOut,
         title: 'تسجيل خروج مستخدم',
@@ -975,11 +1084,16 @@ class AuthProvider extends ChangeNotifier {
       ).catchError((_) {});
     }
 
-    _isGuest = false;
+    // تحديث الحالة المحلية فوراً لمنع بقاء شاشة التطبيق على حالة مستخدم منشط
+    // بعد تسجيل الخروج، لأن Firebase Auth قد يستغرق بعض الوقت لإرسال حدث authStateChanges.
+    _user = null;
     _userData = null;
+    _isGuest = false;
     _isAdmin = false;
     _mustChangePassword = false;
+    _profileReady = false;
     _isAccountSuspended = false;
+    _isRegistering = false;
     _accountStatusSubscription?.cancel();
     _accountStatusSubscription = null;
     notifyListeners();
@@ -1013,6 +1127,11 @@ class AuthProvider extends ChangeNotifier {
     String? gender,
     String? base64Image,
   }) async {
+    if (phone != null &&
+        phone.trim().isNotEmpty &&
+        !AuthProvider.isValidMauritanianPhone(phone)) {
+      return 'أدخل رقمًا موريتانيًا صحيحًا من 8 أرقام يبدأ بـ 2 أو 3 أو 4.';
+    }
     try {
       if (_user != null) {
         final fullName = [
@@ -1171,7 +1290,12 @@ class AuthProvider extends ChangeNotifier {
     // إنشاء/تحديث مدخل لوحة الشرف دائماً بعد تحميل بيانات المستخدم
     try {
       final savedData = saved.data()!;
-      final name = (savedData['fullName'] ?? savedData['name'] ?? user.displayName ?? 'طالب').toString();
+      final name =
+          (savedData['fullName'] ??
+                  savedData['name'] ??
+                  user.displayName ??
+                  'طالب')
+              .toString();
       final leaderboardRef = _firestore.collection('leaderboard').doc(user.uid);
       final leaderboardDoc = await leaderboardRef.get();
       if (!leaderboardDoc.exists) {

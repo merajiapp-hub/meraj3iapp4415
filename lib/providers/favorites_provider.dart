@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../models/book.dart';
 import 'statistics_provider.dart';
 import 'package:provider/provider.dart';
-import '../services/admin_activity_service.dart';
 
 class FavoritesProvider extends ChangeNotifier {
   static const String _favoritesKey = 'favorite_books_v2';
@@ -42,49 +40,12 @@ class FavoritesProvider extends ChangeNotifier {
     final bool isExist = _favoriteBooks.any(
       (b) => b.uniqueKey == book.uniqueKey,
     );
-    final isUploaded = book.section == 'uploaded';
-    final user = FirebaseAuth.instance.currentUser;
-
     if (isExist) {
       _favoriteBooks.removeWhere((b) => b.uniqueKey == book.uniqueKey);
-      stats.decrementBookStat(
-        book.uniqueKey,
-        'favoriteCount',
-        isUploaded: isUploaded,
-        docId: isUploaded ? book.id : null,
-      );
       stats.decrementUserStat('favoriteBooks');
-
-      if (user != null) {
-        AdminActivityService.log(
-          type: AdminActivityType.bookUnfavorited,
-          title: 'إزالة كتاب من المفضلة',
-          description:
-              'قام المستخدم ${user.email ?? user.uid} بإزالة الكتاب: "${book.title}" من مفضلته',
-          targetUserId: user.uid,
-          metadata: {'bookId': book.id, 'bookTitle': book.title},
-        ).catchError((_) {});
-      }
     } else {
       _favoriteBooks.add(book);
-      stats.incrementBookStat(
-        book.uniqueKey,
-        'favoriteCount',
-        isUploaded: isUploaded,
-        docId: isUploaded ? book.id : null,
-      );
       stats.incrementUserStat('favoriteBooks');
-
-      if (user != null) {
-        AdminActivityService.log(
-          type: AdminActivityType.bookFavorited,
-          title: 'إضافة كتاب للمفضلة',
-          description:
-              'قام المستخدم ${user.email ?? user.uid} بإضافة الكتاب: "${book.title}" إلى مفضلته',
-          targetUserId: user.uid,
-          metadata: {'bookId': book.id, 'bookTitle': book.title},
-        ).catchError((_) {});
-      }
     }
 
     notifyListeners();

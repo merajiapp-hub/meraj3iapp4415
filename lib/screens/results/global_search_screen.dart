@@ -10,20 +10,7 @@ import 'student_detail_screen.dart';
 // ─── Helpers (duplicated from results_home_screen to avoid circular imports) ──
 
 Gradient _gradientFor(CompetitionType type) {
-  switch (type) {
-    case CompetitionType.concours:
-      return AppTheme.deepBlueGradient;
-    case CompetitionType.brevet:
-      return AppTheme.greenGradient;
-    case CompetitionType.bac:
-      return AppTheme.secondaryGradient;
-    case CompetitionType.complementary:
-      return AppTheme.purpleGradient;
-    case CompetitionType.excellence:
-      return const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)]);
-    case CompetitionType.generic:
-      return const LinearGradient(colors: [Color(0xFF0D9488), Color(0xFF0F766E)]);
-  }
+  return AppTheme.brandGradient;
 }
 
 ExamType _examFor(CompetitionType t) {
@@ -322,6 +309,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
             allResults: _cache[comp.rawKey] ?? [],
             examType: item.examType,
             title: comp.title,
+            isFirstSession: comp.isFirstSession,
           ),
         ));
       },
@@ -370,6 +358,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
             scoreLabel: _labelFor(comp.type),
             allResults: r.allResults,
             examType: _examFor(comp.type),
+            isFirstSession: comp.isFirstSession,
           ),
         ),
       ),

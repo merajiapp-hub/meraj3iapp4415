@@ -47,6 +47,9 @@ class StudentResult {
     required this.rawData,
   });
 
+  static String cleanNumberLabel(String value) =>
+      value.replaceAll('#', '').trim();
+
   /// Converts Firestore/CSV values such as int, double, "85" or "85,5"
   /// into one safe numeric value for result classification.
   static double? parseTotalValue(Object? value) {
@@ -101,6 +104,51 @@ class StudentResult {
     return _parseDouble(str);
   }
 
+  static double? _findConcoursTotal(Map<String, String> row) {
+    const totalColumns = [
+      'total_general',
+      'total général',
+      'total general',
+      'totalgeneral',
+      'total_gene',
+      'totalgene',
+      'total_final',
+      'total final',
+      'totalfinal',
+      'grand_total',
+      'grand total',
+      'total_points',
+      'total points',
+      'points_total',
+      'points total',
+      'score_total',
+      'score total',
+      'ptotal',
+      'totale',
+      'total',
+      'المجموع العام',
+      'المجموع النهائي',
+      'المجموع الكلي',
+      'المجموع',
+      'مجموع النقاط',
+    ];
+
+    String normalize(String value) => value
+        .toLowerCase()
+        .trim()
+        .replaceAll('"', '')
+        .replaceAll('\u00a0', '')
+        .replaceAll(RegExp(r'[\s_\-./]'), '');
+
+    final normalizedColumns = totalColumns.map(normalize).toSet();
+    for (final entry in row.entries) {
+      if (!normalizedColumns.contains(normalize(entry.key))) continue;
+      final value = _parseDouble(entry.value);
+      if (value != null) return value;
+    }
+    return null;
+  }
+
   factory StudentResult.fromCsv(Map<String, String> row, ExamType type) {
     // ─── الاسم والرقم ─────────────────────────────────────────────────────
     String name = _findField(row, [
@@ -120,7 +168,7 @@ class StudentResult {
         name = nom;
       }
     }
-    final id = _findField(row, [
+    final id = cleanNumberLabel(_findField(row, [
       'num',
       'matricule',
       'numéro',
@@ -128,7 +176,7 @@ class StudentResult {
       'code',
       'noreg',
       'رقم',
-    ]);
+    ]));
 
     // ─── المدرسة والمركز والولاية ─────────────────────────────────────────
     String school = _findField(row, [
@@ -163,56 +211,9 @@ class StudentResult {
       score = _findNumericField(row, ['mgex']);
       averageScore = score;
     } else if (type == ExamType.concours) {
-      // Concours: المجموع موجود في TOTAL أو غيره — قائمة موسّعة تشمل الحقول الشائعة
-      score = _findNumericField(row, [
-        'total_general',
-        'total général',
-        'total general',
-        'totalgeneral',
-        'total_gene',
-        'totalgene',
-        'المجموع العام',
-        'المجموع النهائي',
-        'المجموع الكلي',
-        'total',
-        'المجموع',
-        'مجموع',
-        'totale',
-        'ptotal',
-        'points_total',
-        'score_total',
-        'score',
-        'note_total',
-        'note',
-        'resultat',
-        'résultat',
-        'moy',
-        'moyenne',
-        'pts',
-        'points',
-        'sum',
-        't_gen',
-        'tgen',
-      ]);
-      // إذا لم نجد المجموع بالأسماء المحددة، ابحث عن أكبر قيمة رقمية في الصف
-      // (المجموع الكلي دائماً هو الأكبر في صف بيانات الكونكور)
-      if (score == null) {
-        double? maxVal;
-        for (final entry in row.entries) {
-          final val = _parseDouble(entry.value.trim());
-          // نبحث عن قيمة بين 21 و 200 (تجنب التقاط معدلات من 20)
-          if (val != null && val > 20 && val <= 200) {
-            if (maxVal == null || val > maxVal) {
-              maxVal = val;
-            }
-          }
-        }
-        // استخدم القيمة الكبرى فقط إذا كانت معقولة كمجموع (تزيد عن 30 لتمييز المجاميع من الدرجات الفردية)
-        if (maxVal != null && maxVal > 30) {
-          score = maxVal;
-        }
-      }
-      // لا نستبدل TOTAL بالمعدل؛ غياب TOTAL يعني أن النتيجة غير صالحة للتصنيف.
+      // Use only explicitly named total columns; averages and ranks are not
+      // interchangeable with the official concours total out of 200.
+      score = _findConcoursTotal(row);
       averageScore = score != null ? (score / 200.0 * 20.0) : null;
     } else if (type == ExamType.brevet) {
       // Brevet: المعدل موجود في Moyg
@@ -277,46 +278,49 @@ class StudentResult {
       }
     } else if (type == ExamType.excellence) {
       if (status.isEmpty) {
-        status = (score != null && score >= 10.0) ? 'ناجح' : 'راسب';
+        status = score == null
+            ? 'بيانات غير صالحة'
+            : (score >= 10.0 ? 'ناجح' : 'راسب');
       }
     } else if (type == ExamType.bac) {
       if (status.isEmpty) {
-        if (score != null) {
-          status = score >= 10.0 ? 'ناجح' : 'راسب';
-        } else {
-          status = 'راسب';
-        }
+        status = score == null
+            ? 'بيانات غير صالحة'
+            : (score >= 10.0 ? 'ناجح' : 'راسب');
       }
-
     } else if (type == ExamType.complementary) {
       if (status.isEmpty || status == 'الدورة التكميلية') {
-        if (score != null) {
-          status = score >= 10.0 ? 'ناجح' : 'راسب';
-        } else {
-          status = 'راسب';
-        }
+        status = score == null
+            ? 'بيانات غير صالحة'
+            : (score >= 10.0 ? 'ناجح' : 'راسب');
       }
     } else if (type == ExamType.brevet) {
       if (status.isEmpty) {
-        if (score != null) {
-          status = score >= 10.0 ? 'ناجح' : 'راسب';
-        } else {
-          status = 'راسب';
-        }
+        status = score == null
+            ? 'بيانات غير صالحة'
+            : (score >= 10.0 ? 'ناجح' : 'راسب');
       }
     } else {
       if (status.isEmpty) {
-        status = (score != null && score >= 10.0) ? 'ناجح' : 'راسب';
+        status = score == null
+            ? 'بيانات غير صالحة'
+            : (score >= 10.0 ? 'ناجح' : 'راسب');
       }
     }
 
+    if (type != ExamType.concours &&
+        score != null &&
+        (score < 0 || score > 20)) {
+      status = 'بيانات غير صالحة';
+    }
+
     // الترتيب من CSV (إن وُجد)
-    final csvRank = _findField(row, [
+    final csvRank = StudentResult.cleanNumberLabel(_findField(row, [
       'rang',
       'classement',
       'rang_wilaya',
       'ترتيب',
-    ]);
+    ]));
 
     return StudentResult(
       id: id,
@@ -351,8 +355,28 @@ class StudentResult {
   }
 
   static String _normalizeStatus(String status, ExamType type) {
-    final lower = status.toLowerCase().trim();
+    final lower = status
+        .toLowerCase()
+        .trim()
+        .replaceAll('-', ' ')
+        .replaceAll('_', ' ');
     if (lower.isEmpty) return '';
+
+    if (lower.contains('non admis') || lower.contains('non admise')) {
+      return 'راسب';
+    }
+
+    if (type == ExamType.bac &&
+        (lower.contains('complémentaire') ||
+            lower.contains('complementaire') ||
+            lower.contains('تكميلي') ||
+            lower.contains('sessionnaire') ||
+            lower.contains('rattrapage') ||
+            lower.contains('session') ||
+            lower.contains('ajourne') ||
+            lower.contains('ajourné'))) {
+      return 'الدورة التكميلية';
+    }
 
     // الناجحون
     if (lower.contains('admis') ||
@@ -374,21 +398,6 @@ class StudentResult {
         lower.contains('مطرود') ||
         lower.contains('expuls')) {
       return 'مطرود';
-    }
-
-    // الدورة التكميلية — حصرياً للبكالوريا الدورة العادية فقط!
-    // Note: Usually 'bac' is normal session and 'complementary' is the other one.
-    if (type == ExamType.bac) {
-      if (lower.contains('complémentaire') ||
-          lower.contains('complementaire') ||
-          lower.contains('تكميلي') ||
-          lower.contains('sessionnaire') ||
-          lower.contains('rattrapage') ||
-          lower.contains('session') ||
-          lower.contains('ajourne') ||
-          lower.contains('ajourné')) {
-        return 'الدورة التكميلية';
-      }
     }
 
     // الراسبون (في الكونكور والابريفة وغيرها، ajourné تعني راسب فقط)
@@ -457,7 +466,7 @@ class _CacheMeta {
 
 class ResultsService {
   // نستخدم ملفات على القرص لـ Cache البيانات الكبيرة بدل SharedPreferences
-  static const _metaPrefix = 'rc_meta_v10_'; // v10 = fix concours score detection: use max value in row (not first value > 20)
+  static const _metaPrefix = 'rc_meta_v10_';
 
   /// 30 دقيقة: Soft Expiry
   static const _cacheSoftMs = 30 * 60 * 1000;
@@ -467,6 +476,38 @@ class ResultsService {
 
   static final Map<String, List<StudentResult>> _memCache = {};
   static final Map<String, Completer<List<StudentResult>>> _inFlight = {};
+
+  static Set<String> statusFilterOptions(
+    ExamType type,
+    Iterable<StudentResult> results,
+  ) {
+    final statuses = results
+        .map((result) => result.status)
+        .where(
+          (status) =>
+              status.isNotEmpty &&
+              !(type == ExamType.concours && status == 'بيانات غير صالحة'),
+        )
+        .toSet();
+    if (type == ExamType.concours) {
+      statuses
+        ..add('ناجح')
+        ..add('راسب');
+    }
+    if (type == ExamType.bac || type == ExamType.brevet) {
+      statuses.add('مطرود');
+    }
+    return statuses;
+  }
+
+  static double passRate({
+    required int passed,
+    required int failed,
+    int complementary = 0,
+  }) {
+    final candidates = passed + failed + complementary;
+    return candidates == 0 ? 0 : passed / candidates * 100;
+  }
 
   // ─── احصل على مجلد الـ Cache ─────────────────────────────────────────────
   static Future<Directory> _getCacheDir() async {
@@ -489,7 +530,7 @@ class ResultsService {
   }) async {
     if (url.isEmpty) return [];
 
-    final cacheKey = '${type.name}_${url.hashCode}_v4';
+    final cacheKey = '${type.name}_${url.hashCode}_v10';
 
     try {
       // طلب مماثل قيد التنفيذ
@@ -511,6 +552,18 @@ class ResultsService {
           _memCache[cacheKey] = diskResult;
           _backgroundRefreshIfNeeded(cacheKey, type, url, onUpdate);
           return diskResult;
+        }
+
+        final legacyResult = await _readLegacyDiskCache(type, url);
+        if (legacyResult != null &&
+            legacyResult.every((result) => result.rawData.isNotEmpty)) {
+          final migratedResults = legacyResult
+              .map((result) => StudentResult.fromCsv(result.rawData, type))
+              .toList();
+          await _saveToDiskCache(cacheKey, type, url, migratedResults, 0, 0);
+          _memCache[cacheKey] = migratedResults;
+          _backgroundRefreshIfNeeded(cacheKey, type, url, onUpdate);
+          return migratedResults;
         }
       }
 
@@ -554,7 +607,7 @@ class ResultsService {
 
   static Future<void> clearCacheForUrl(ExamType type, String url) async {
     if (url.isEmpty) return;
-    final cacheKey = '${type.name}_${url.hashCode}_v4';
+    final cacheKey = '${type.name}_${url.hashCode}_v10';
     _memCache.remove(cacheKey);
     try {
       _deleteCacheFileQuietly(cacheKey);
@@ -729,6 +782,22 @@ class ResultsService {
     } catch (_) {
       return null;
     }
+  }
+
+  static Future<List<StudentResult>?> _readLegacyDiskCache(
+    ExamType type,
+    String url,
+  ) async {
+    final legacyTypes = [
+      type,
+      ...ExamType.values.where((candidate) => candidate != type),
+    ];
+    for (final legacyType in legacyTypes) {
+      final cacheKey = '${legacyType.name}_${url.hashCode}_v4';
+      final results = await _readDiskCache(cacheKey, legacyType, url);
+      if (results != null && results.isNotEmpty) return results;
+    }
+    return null;
   }
 
   static Future<String?> _downloadCsv(String url) async {
@@ -926,7 +995,7 @@ class ResultsService {
     for (final entry in grouped.entries) {
       final branchList = List<StudentResult>.from(entry.value)
         ..sort((a, b) => (b.score ?? -1.0).compareTo(a.score ?? -1.0));
-      
+
       int currentBranchRank = 1;
       for (int i = 0; i < branchList.length; i++) {
         if (i > 0 && branchList[i].score != branchList[i - 1].score) {
@@ -1192,4 +1261,3 @@ class ResultsService {
     }
   }
 }
-

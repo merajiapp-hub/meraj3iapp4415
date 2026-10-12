@@ -65,17 +65,8 @@ class StudentProvider with ChangeNotifier {
           _profile.toMap(),
           SetOptions(merge: true),
         );
-        // Also update the root user document for backwards compatibility
-        await _firestore.collection('users').doc(user.uid).set({
-          'points': _profile.points,
-          'booksRead': _profile.booksRead,
-          'completedTasks': _profile.completedTasks,
-          'quizzesTaken': _profile.quizzesTaken,
-          'progressLevel': _profile.progressLevel,
-          'name': _profile.name, // Ensure name is synced
-        }, SetOptions(merge: true));
-        
-        // Write to dedicated public leaderboard collection to avoid permission issues
+        // User-owned profile stats stay in the private data subcollection.
+        // The public leaderboard has its own narrowly-scoped write rule.
         await _firestore.collection('leaderboard').doc(user.uid).set({
           'points': _profile.points,
           'booksRead': _profile.booksRead,
@@ -164,4 +155,3 @@ class StudentProvider with ChangeNotifier {
     await updateProfile(_profile);
   }
 }
-

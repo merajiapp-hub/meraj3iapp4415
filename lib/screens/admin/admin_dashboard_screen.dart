@@ -9,6 +9,7 @@ import 'monitoring/admin_health_screen.dart';
 import 'logs/admin_audit_logs_screen.dart';
 import 'admin_chat_dashboard_screen.dart';
 import 'admin_login_issues_screen.dart';
+import 'results/admin_results_screen.dart';
 import 'admin_guard.dart';
 // ignore_for_file: unused_import
 
@@ -118,6 +119,15 @@ class _DashboardBody extends StatelessWidget {
           title: 'إدارة الكتب والمحتوى',
           color: const Color(0xFFF59E0B), // Amber
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminBooksScreen())),
+        ),
+        _ActionTile(
+          icon: Icons.emoji_events_rounded,
+          title: 'إدارة نتائج المسابقات',
+          color: const Color(0xFF14B8A6),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AdminResultsScreen()),
+          ),
         ),
         _ActionTile(
           icon: Icons.notifications_active_rounded,

@@ -23,24 +23,25 @@ class MyExamsScreen extends StatelessWidget {
       backgroundColor: isDark
           ? const Color(0xFF0F172A)
           : const Color(0xFFF1F5F9),
-      body: uid == null
-          ? _buildScrollablePage([_buildLoginRequired(isDark)])
-          : _buildAttemptsList(uid, isDark),
+      body: Column(
+        children: [
+          const CurvedHeader(
+            title: 'اختباراتي',
+            gradient: AppTheme.brandGradient,
+            leadingIcon: Icons.history_rounded,
+          ),
+          Expanded(
+            child: uid == null
+                ? _buildLoginRequired(isDark)
+                : _buildAttemptsList(uid, isDark),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildScrollablePage(List<Widget> children) {
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: [
-        const CurvedHeader(
-          title: 'اختباراتي',
-          gradient: AppTheme.brandGradient,
-          leadingIcon: Icons.history_rounded,
-        ),
-        ...children,
-      ],
-    );
+    return ListView(padding: EdgeInsets.zero, children: children);
   }
 
   Widget _buildLoginRequired(bool isDark) {
@@ -165,11 +166,6 @@ class MyExamsScreen extends StatelessWidget {
         return ListView(
           padding: EdgeInsets.zero,
           children: [
-            const CurvedHeader(
-              title: 'اختباراتي',
-              gradient: AppTheme.brandGradient,
-              leadingIcon: Icons.history_rounded,
-            ),
             // Summary Cards - بطاقات إحصائية عمودية
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -392,8 +388,8 @@ class MyExamsScreen extends StatelessWidget {
         children: [
           // دائرة النتيجة أو حالة التقدم
           Container(
-            width: 56,
-            height: 56,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: (isInProgress ? Colors.orange : scoreColor).withValues(
@@ -409,7 +405,7 @@ class MyExamsScreen extends StatelessWidget {
                   ? const Icon(
                       Icons.pause_circle_outline_rounded,
                       color: Colors.orange,
-                      size: 26,
+                      size: 22,
                     )
                   : Text(
                       '$score%',
@@ -421,7 +417,7 @@ class MyExamsScreen extends StatelessWidget {
                     ),
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -433,7 +429,7 @@ class MyExamsScreen extends StatelessWidget {
                         title,
                         style: GoogleFonts.cairo(
                           fontWeight: FontWeight.bold,
-                          fontSize: 15,
+                          fontSize: 14,
                           color: isDark ? Colors.white : Colors.black87,
                         ),
                         maxLines: 1,
@@ -472,13 +468,13 @@ class MyExamsScreen extends StatelessWidget {
                             ? Icons.star_rounded
                             : Icons.star_outline_rounded,
                         color: i < stars ? Colors.amber : Colors.grey.shade400,
-                        size: 14,
+                        size: 12,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Wrap(
-                    spacing: 10,
+                    spacing: 6,
                     children: [
                       _MiniChip(
                         label: '✓ $correct',
@@ -495,7 +491,7 @@ class MyExamsScreen extends StatelessWidget {
                     ],
                   ),
                 ],
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Row(
                   children: [
                     Icon(

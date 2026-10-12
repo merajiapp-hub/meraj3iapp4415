@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -14,28 +16,7 @@ import 'global_search_screen.dart';
 // ─── Gradient helpers per type ──────────────────────────────────────────────
 
 Gradient _gradientForType(CompetitionType type) {
-  switch (type) {
-    case CompetitionType.concours:
-      return AppTheme.deepBlueGradient;
-    case CompetitionType.brevet:
-      return AppTheme.greenGradient;
-    case CompetitionType.bac:
-      return AppTheme.secondaryGradient;
-    case CompetitionType.complementary:
-      return AppTheme.purpleGradient;
-    case CompetitionType.excellence:
-      return const LinearGradient(
-        colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-    case CompetitionType.generic:
-      return const LinearGradient(
-        colors: [Color(0xFF0D9488), Color(0xFF0F766E)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-  }
+  return AppTheme.brandGradient;
 }
 
 ExamType _examTypeFor(CompetitionType t) {
@@ -79,11 +60,34 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
   bool _loading = true;
   String? _error;
   List<CompetitionModel> _competitions = [];
+  StreamSubscription<List<CompetitionModel>>? _competitionsSubscription;
 
   @override
   void initState() {
     super.initState();
+    _competitionsSubscription = RemoteConfigService.instance
+        .watchCompetitions()
+        .listen(
+          (competitions) {
+            if (!mounted) return;
+            setState(() {
+              _competitions = competitions;
+              _loading = false;
+              _error = null;
+            });
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            debugPrint('[ResultsHome] Competition updates failed: $error');
+          },
+        );
     _loadCompetitions();
+  }
+
+  @override
+  void dispose() {
+    final subscription = _competitionsSubscription;
+    if (subscription != null) unawaited(subscription.cancel());
+    super.dispose();
   }
 
   Future<void> _loadCompetitions({bool forceRefresh = false}) async {
@@ -114,6 +118,7 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
       MaterialPageRoute(
         builder: (_) => ResultsListScreen(
           title: comp.title,
+          competitionId: comp.rawKey,
           csvUrl: comp.link,
           examType: _examTypeFor(comp.type),
           gradient: gradient,
@@ -145,6 +150,9 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
     final excellence = _competitions
         .where((c) => c.type == CompetitionType.excellence)
         .toList();
+    final complementary = _competitions
+        .where((c) => c.type == CompetitionType.complementary)
+        .toList();
     final extra = _competitions
         .where((c) => c.type == CompetitionType.generic)
         .toList();
@@ -171,11 +179,7 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                     context,
                     MaterialPageRoute(
                       builder: (_) =>
-                          GlobalSearchScreen(
-                            competitions: _competitions
-                                .where((c) => c.type != CompetitionType.complementary)
-                                .toList(),
-                          ),
+                          GlobalSearchScreen(competitions: _competitions),
                     ),
                   ),
                 ),
@@ -208,6 +212,17 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                             _sectionLabel('📋 المسابقات الأساسية', isDark),
                             const SizedBox(height: 10),
                             _buildDynamicGrid(main, isDark),
+                            const SizedBox(height: 20),
+                          ],
+
+                          // ── الدورة التكميلية للبكالوريا ──
+                          if (complementary.isNotEmpty) ...[
+                            _sectionLabel(
+                              '🔄 البكالوريا - الدورة التكميلية',
+                              isDark,
+                            ),
+                            const SizedBox(height: 10),
+                            _buildDynamicGrid(complementary, isDark),
                             const SizedBox(height: 20),
                           ],
 
@@ -353,23 +368,20 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
   }
 
   Widget _buildDynamicGrid(List<CompetitionModel> items, bool isDark) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: 2.2,
-      children: items.map((comp) {
-        return _buildCompCard(
-          icon: comp.displayIcon,
-          label: comp.title,
-          gradient: _gradientForType(comp.type),
-          published: comp.isPublished,
-          isDark: isDark,
-          onTap: comp.isPublished ? () => _navigateToComp(comp) : null,
-        );
-      }).toList(),
+    return Column(
+      children: [
+        for (final comp in items) ...[
+          _buildCompCard(
+            icon: comp.displayIcon,
+            label: comp.title,
+            gradient: AppTheme.brandGradient,
+            published: comp.isPublished,
+            isDark: isDark,
+            onTap: comp.isPublished ? () => _navigateToComp(comp) : null,
+          ),
+          const SizedBox(height: 8),
+        ],
+      ],
     );
   }
 
@@ -418,7 +430,9 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: comp.isPublished ? color.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
+                        color: comp.isPublished
+                            ? color.withValues(alpha: 0.1)
+                            : Colors.grey.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -478,7 +492,9 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
         separatorBuilder: (context, index) => const SizedBox(width: 8),
         itemBuilder: (_, i) {
           final item = favorites[i];
-          final displayStatus = item.result.isComplementary ? 'مؤهل' : item.result.status;
+          final displayStatus = item.result.isComplementary
+              ? 'مؤهل'
+              : item.result.status;
           final statusColor = item.result.isPassed
               ? const Color(0xFF16A34A)
               : item.result.isComplementary
@@ -496,6 +512,7 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                 MaterialPageRoute(
                   builder: (_) => ResultsListScreen(
                     title: item.title,
+                    competitionId: comp.rawKey,
                     csvUrl: comp.link,
                     examType: item.examType,
                     gradient: _gradientForType(comp.type),
@@ -504,6 +521,7 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                     maxScore: _maxScoreFor(comp.type),
                     scoreLabel: _scoreLabelFor(comp.type),
                     showBranch: _showBranchFor(comp.type),
+                    isFirstSession: comp.isFirstSession,
                     initialSearchQuery: item.result.name.isNotEmpty
                         ? item.result.name
                         : item.result.id,
@@ -634,22 +652,22 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                 ),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   icon,
-                  size: 24,
+                  size: 20,
                   color: published ? Colors.white : Colors.grey[400],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -662,8 +680,7 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                         fontWeight: FontWeight.bold,
                         color: published ? Colors.white : Colors.grey[400],
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      softWrap: true,
                     ),
                     Text(
                       published ? 'النتائج متاحة' : 'قريبًا...',

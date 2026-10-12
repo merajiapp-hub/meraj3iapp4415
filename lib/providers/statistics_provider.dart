@@ -16,22 +16,39 @@ class StatisticsProvider extends ChangeNotifier {
 
   // ─── إحصائيات المستخدم الحقيقية ────────────────────────
   // يتم تحديثها من الـ Providers الأخرى عند استدعاء refreshFromProviders
-  int userReadBooks = 0;       // من ReadingProvider
-  int userCompletedBooks = 0;  // من ReadingProvider
+  int userReadBooks = 0; // من ReadingProvider
+  int userCompletedBooks = 0; // من ReadingProvider
   int userDownloadedBooks = 0; // من DownloadsProvider
-  int userFavoriteBooks = 0;   // من FavoritesProvider
-  int userCompletedTasks = 0;  // من TaskProvider
-  int userTestsTaken = 0;      // من QuizProvider (XP يعكس عدد الإجابات الصحيحة)
-  int userCorrectAnswers = 0;  // من QuizProvider
-  int userWrongAnswers = 0;    // من QuizProvider
-  int userAddedBooks = 0;      // من Firestore
-  int userStreakDays = 0;      // من QuizProvider
+  int userFavoriteBooks = 0; // من FavoritesProvider
+  int userCompletedTasks = 0; // من TaskProvider
+  int userTestsTaken = 0; // من QuizProvider (XP يعكس عدد الإجابات الصحيحة)
+  int userCorrectAnswers = 0; // من QuizProvider
+  int userWrongAnswers = 0; // من QuizProvider
+  int userAddedBooks = 0; // من Firestore
+  int userStreakDays = 0; // من QuizProvider
   int totalReadingSeconds = 0; // من ReadingProvider
 
   // تحديثات يدوية (Firestore)
   double userAvgScore = 0.0;
 
   bool isLoading = false;
+  String? _leaderboardSyncedUid;
+
+  static int calculateLeaderboardPoints({
+    required int correctAnswers,
+    required int completedBooks,
+    required int completedTasks,
+    int storedPoints = 0,
+    int legacyPoints = 0,
+  }) {
+    final calculatedPoints =
+        correctAnswers * 10 + completedBooks * 50 + completedTasks * 5;
+    return [
+      calculatedPoints,
+      storedPoints,
+      legacyPoints,
+    ].reduce((left, right) => left > right ? left : right);
+  }
 
   StatisticsProvider() {
     _initStaticStats();
@@ -69,42 +86,57 @@ class StatisticsProvider extends ChangeNotifier {
     try {
       // نجلب من كلا المصدرين في آنٍ واحد لأفضل أداء
       final results = await Future.wait([
-        _firestore.collection('users').doc(user.uid).collection('data').doc('stats').get(),
+        _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('data')
+            .doc('stats')
+            .get(),
         _firestore.collection('users').doc(user.uid).get(),
       ]);
 
       final statsDoc = results[0];
       final userDoc = results[1];
+      final statsData = statsDoc.data() ?? <String, dynamic>{};
+      final userData = userDoc.data() ?? <String, dynamic>{};
 
       if (statsDoc.exists) {
-        final data = statsDoc.data()!;
-        userReadBooks       = data['readBooks'] ?? 0;
-        totalReadingSeconds = data['readingSeconds'] ?? 0;
-        userCompletedTasks  = data['completedTasks'] ?? 0;
-        userCorrectAnswers  = data['correctAnswers'] ?? 0;
-        userWrongAnswers    = data['wrongAnswers'] ?? 0;
-        userFavoriteBooks   = data['favoriteBooks'] ?? 0;
-        userDownloadedBooks = data['downloadedBooks'] ?? 0;
-        userStreakDays      = data['streakDays'] ?? 0;
-        userCompletedBooks  = data['completedBooks'] ?? 0;
+        userReadBooks = statsData['readBooks'] ?? 0;
+        totalReadingSeconds = statsData['readingSeconds'] ?? 0;
+        userCompletedTasks = statsData['completedTasks'] ?? 0;
+        userCorrectAnswers = statsData['correctAnswers'] ?? 0;
+        userWrongAnswers = statsData['wrongAnswers'] ?? 0;
+        userFavoriteBooks = statsData['favoriteBooks'] ?? 0;
+        userDownloadedBooks = statsData['downloadedBooks'] ?? 0;
+        userStreakDays = statsData['streakDays'] ?? 0;
+        userCompletedBooks = statsData['completedBooks'] ?? 0;
       } else if (userDoc.exists) {
         // استخدام بيانات الوثيقة الرئيسية كاحتياطي
-        final d = userDoc.data() ?? {};
-        userReadBooks       = (d['booksRead'] ?? 0) as int;
-        userCorrectAnswers  = (d['correctAnswers'] ?? 0) as int;
-        userWrongAnswers    = (d['wrongAnswers'] ?? 0) as int;
-        userCompletedTasks  = (d['completedTasks'] ?? 0) as int;
-        userStreakDays      = (d['streakDays'] ?? 0) as int;
+        userReadBooks = (userData['booksRead'] ?? 0) as int;
+        userCorrectAnswers = (userData['correctAnswers'] ?? 0) as int;
+        userWrongAnswers = (userData['wrongAnswers'] ?? 0) as int;
+        userCompletedTasks = (userData['completedTasks'] ?? 0) as int;
+        userStreakDays = (userData['streakDays'] ?? 0) as int;
+        userCompletedBooks = userReadBooks;
       }
 
       // حساب متوسط الدرجات
       final total = userCorrectAnswers + userWrongAnswers;
       if (total > 0) {
-        userAvgScore   = (userCorrectAnswers / total) * 100;
+        userAvgScore = (userCorrectAnswers / total) * 100;
         userTestsTaken = total;
       } else {
-        userAvgScore   = 0.0;
+        userAvgScore = 0.0;
         userTestsTaken = 0;
+      }
+
+      if (_leaderboardSyncedUid != user.uid) {
+        try {
+          await _syncLeaderboard(statsData: statsData, userData: userData);
+          _leaderboardSyncedUid = user.uid;
+        } catch (e) {
+          debugPrint('Error syncing leaderboard after stats fetch: $e');
+        }
       }
 
       notifyListeners();
@@ -157,19 +189,36 @@ class StatisticsProvider extends ChangeNotifier {
           .collection('data')
           .doc('stats')
           .set({
-        'readBooks': userReadBooks,
-        'completedBooks': userCompletedBooks,
-        'downloadedBooks': userDownloadedBooks,
-        'favoriteBooks': userFavoriteBooks,
-        'completedTasks': userCompletedTasks,
-        'correctAnswers': userCorrectAnswers,
-        'wrongAnswers': userWrongAnswers,
-        'streakDays': userStreakDays,
-        'readingSeconds': totalReadingSeconds,
-        'lastUpdated': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true)).catchError((e) {
-        debugPrint('Error syncing stats to Firestore: $e');
-      });
+            'readBooks': userReadBooks,
+            'completedBooks': userCompletedBooks,
+            'downloadedBooks': userDownloadedBooks,
+            'favoriteBooks': userFavoriteBooks,
+            'completedTasks': userCompletedTasks,
+            'correctAnswers': userCorrectAnswers,
+            'wrongAnswers': userWrongAnswers,
+            'streakDays': userStreakDays,
+            'readingSeconds': totalReadingSeconds,
+            'lastUpdated': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true))
+          .then(
+            (_) => _syncLeaderboard(
+              statsData: {
+                'readBooks': userReadBooks,
+                'completedBooks': userCompletedBooks,
+                'downloadedBooks': userDownloadedBooks,
+                'favoriteBooks': userFavoriteBooks,
+                'completedTasks': userCompletedTasks,
+                'correctAnswers': userCorrectAnswers,
+                'wrongAnswers': userWrongAnswers,
+                'streakDays': userStreakDays,
+                'readingSeconds': totalReadingSeconds,
+              },
+              userData: const {},
+            ),
+          )
+          .catchError((e) {
+            debugPrint('Error syncing stats to Firestore: $e');
+          });
     }
   }
 
@@ -181,12 +230,19 @@ class StatisticsProvider extends ChangeNotifier {
         _firestore.collection('books').get(),
         _firestore.collection('uploaded_books').get(),
       ]);
-      final uniqueBooks = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
+      final uniqueBooks =
+          <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
       for (final snapshot in snapshots) {
         for (final doc in snapshot.docs) {
           final data = doc.data();
-          final title = (data['title'] ?? data['name'] ?? '').toString().trim().toLowerCase();
-          final url = (data['url'] ?? data['drive_link'] ?? data['pdfUrl'] ?? '').toString().trim();
+          final title = (data['title'] ?? data['name'] ?? '')
+              .toString()
+              .trim()
+              .toLowerCase();
+          final url =
+              (data['url'] ?? data['drive_link'] ?? data['pdfUrl'] ?? '')
+                  .toString()
+                  .trim();
           final identity = title.isNotEmpty
               ? '$title|$url|${data['section'] ?? data['stage']}|${data['grade'] ?? data['year']}'
               : doc.id;
@@ -199,8 +255,11 @@ class StatisticsProvider extends ChangeNotifier {
       final user = _auth.currentUser;
       if (user != null) {
         userAddedBooks = uniqueBooks.values
-            .where((doc) =>
-                (doc.data()['uploaderId'] ?? doc.data()['userId']) == user.uid)
+            .where(
+              (doc) =>
+                  (doc.data()['uploaderId'] ?? doc.data()['userId']) ==
+                  user.uid,
+            )
             .length;
       }
     } catch (e) {
@@ -247,75 +306,46 @@ class StatisticsProvider extends ChangeNotifier {
       userFavoriteBooks > 0 ||
       userDownloadedBooks > 0;
 
-  // ─── مُحدِّث إحصائيات Firestore القديم (للتوافق) ──────
-  Future<void> incrementBookStat(String uniqueKey, String field,
-      {bool isUploaded = false, String? docId}) async {
-    try {
-      if (isUploaded && docId != null) {
-        await _firestore.collection('uploaded_books').doc(docId).update({
-          field: FieldValue.increment(1),
-        });
-      } else {
-        await _firestore.collection('book_stats').doc(uniqueKey).set({
-          field: FieldValue.increment(1),
-          'lastUpdated': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      }
-    } catch (e) {
-      debugPrint('Error incrementing book stat: $e');
-    }
-  }
-
-  Future<void> decrementBookStat(String uniqueKey, String field,
-      {bool isUploaded = false, String? docId}) async {
-    try {
-      if (isUploaded && docId != null) {
-        await _firestore.collection('uploaded_books').doc(docId).update({
-          field: FieldValue.increment(-1),
-        });
-      } else {
-        await _firestore.collection('book_stats').doc(uniqueKey).set({
-          field: FieldValue.increment(-1),
-          'lastUpdated': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      }
-    } catch (e) {
-      debugPrint('Error decrementing book stat: $e');
-    }
-  }
-
   void _updateLocalUserStat(String field, int value) {
     switch (field) {
-      case 'readBooks': userReadBooks += value; break;
-      case 'completedBooks': userCompletedBooks += value; break;
-      case 'readingSeconds': totalReadingSeconds += value; break;
-      case 'completedTasks': userCompletedTasks += value; break;
-      case 'correctAnswers': userCorrectAnswers += value; break;
-      case 'wrongAnswers': userWrongAnswers += value; break;
-      case 'favoriteBooks': userFavoriteBooks += value; break;
-      case 'downloadedBooks': userDownloadedBooks += value; break;
-      case 'streakDays': userStreakDays += value; break;
+      case 'readBooks':
+        userReadBooks += value;
+        break;
+      case 'completedBooks':
+        userCompletedBooks += value;
+        break;
+      case 'readingSeconds':
+        totalReadingSeconds += value;
+        break;
+      case 'completedTasks':
+        userCompletedTasks += value;
+        break;
+      case 'correctAnswers':
+        userCorrectAnswers += value;
+        break;
+      case 'wrongAnswers':
+        userWrongAnswers += value;
+        break;
+      case 'favoriteBooks':
+        userFavoriteBooks += value;
+        break;
+      case 'downloadedBooks':
+        userDownloadedBooks += value;
+        break;
+      case 'streakDays':
+        userStreakDays += value;
+        break;
     }
-    
+
     final total = userCorrectAnswers + userWrongAnswers;
     if (total > 0) {
       userAvgScore = (userCorrectAnswers / total) * 100;
     } else {
       userAvgScore = 0.0;
     }
-    
+
     notifyListeners();
   }
-
-  /// خريطة: حقل الإحصائيات ← الحقل المقابل في وثيقة المستخدم الرئيسية
-  static const Map<String, String> _userDocFieldMap = {
-    'readBooks': 'booksRead',
-    'completedBooks': 'booksRead',
-    'correctAnswers': 'correctAnswers',
-    'wrongAnswers': 'wrongAnswers',
-    'completedTasks': 'completedTasks',
-    'streakDays': 'streakDays',
-  };
 
   Future<void> incrementUserStat(String field, {int value = 1}) async {
     _updateLocalUserStat(field, value); // تحديث فوري للواجهة
@@ -323,47 +353,14 @@ class StatisticsProvider extends ChangeNotifier {
     final user = _auth.currentUser;
     if (user == null) return;
     try {
-      final batch = _firestore.batch();
-
-      // 1) كتابة في مجموعة data/stats الخاصة
-      batch.set(
-        _firestore.collection('users').doc(user.uid).collection('data').doc('stats'),
-        {field: FieldValue.increment(value), 'lastUpdated': FieldValue.serverTimestamp()},
-        SetOptions(merge: true),
+      await _syncLeaderboard(
+        statsData: const {},
+        userData: const {},
+        changedField: field,
+        delta: value,
       );
-
-      // 2) تحديث وثيقة المستخدم الرئيسية للقراءة الصحيحة في لوحة المتصدرين
-      final Map<String, dynamic> userDocUpdate = {
-        'lastActivity': FieldValue.serverTimestamp(),
-      };
-      if (_userDocFieldMap.containsKey(field)) {
-        userDocUpdate[_userDocFieldMap[field]!] = FieldValue.increment(value);
-      }
-      // نقاط الخبرة: كل إجابة صحيحة = 10 نقاط، كتاب مكتمل = 50
-      if (field == 'correctAnswers') {
-        userDocUpdate['points'] = FieldValue.increment(value * 10);
-      } else if (field == 'completedBooks') {
-        userDocUpdate['points'] = FieldValue.increment(value * 50);
-      } else if (field == 'completedTasks') {
-        userDocUpdate['points'] = FieldValue.increment(value * 5);
-      }
-      // متوسط الدرجات
-      if (field == 'correctAnswers' || field == 'wrongAnswers') {
-        final total = userCorrectAnswers + userWrongAnswers;
-        if (total > 0) {
-          userDocUpdate['avgScore'] = (userCorrectAnswers / total) * 100;
-          userDocUpdate['progressLevel'] = (userCorrectAnswers / total);
-        }
-      }
-      batch.set(
-        _firestore.collection('users').doc(user.uid),
-        userDocUpdate,
-        SetOptions(merge: true),
-      );
-
-      await batch.commit();
     } catch (e) {
-      debugPrint('Error incrementing user stat: $e');
+      debugPrint('Error syncing incremented user stat: $e');
     }
   }
 
@@ -373,36 +370,105 @@ class StatisticsProvider extends ChangeNotifier {
     final user = _auth.currentUser;
     if (user == null) return;
     try {
-      final batch = _firestore.batch();
-
-      batch.set(
-        _firestore.collection('users').doc(user.uid).collection('data').doc('stats'),
-        {field: FieldValue.increment(-value), 'lastUpdated': FieldValue.serverTimestamp()},
-        SetOptions(merge: true),
+      await _syncLeaderboard(
+        statsData: const {},
+        userData: const {},
+        changedField: field,
+        delta: -value,
       );
-
-      final Map<String, dynamic> userDocUpdate = {
-        'lastActivity': FieldValue.serverTimestamp(),
-      };
-      if (_userDocFieldMap.containsKey(field)) {
-        userDocUpdate[_userDocFieldMap[field]!] = FieldValue.increment(-value);
-      }
-      if (field == 'correctAnswers') {
-        userDocUpdate['points'] = FieldValue.increment(-value * 10);
-      } else if (field == 'completedBooks') {
-        userDocUpdate['points'] = FieldValue.increment(-value * 50);
-      } else if (field == 'completedTasks') {
-        userDocUpdate['points'] = FieldValue.increment(-value * 5);
-      }
-      batch.set(
-        _firestore.collection('users').doc(user.uid),
-        userDocUpdate,
-        SetOptions(merge: true),
-      );
-
-      await batch.commit();
     } catch (e) {
-      debugPrint('Error decrementing user stat: $e');
+      debugPrint('Error syncing decremented user stat: $e');
     }
+  }
+
+  Future<void> _syncLeaderboard({
+    required Map<String, dynamic> statsData,
+    required Map<String, dynamic> userData,
+    String? changedField,
+    int? delta,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    int asInt(dynamic value) {
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    final statsRef = _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('data')
+        .doc('stats');
+    final userRef = _firestore.collection('users').doc(user.uid);
+    final leaderboardRef = _firestore.collection('leaderboard').doc(user.uid);
+    await _firestore.runTransaction((transaction) async {
+      final statsSnapshot = await transaction.get(statsRef);
+      final userSnapshot = await transaction.get(userRef);
+      final existing = await transaction.get(leaderboardRef);
+      final currentStats = <String, dynamic>{
+        ...statsData,
+        ...?statsSnapshot.data(),
+      };
+      final currentUserData = <String, dynamic>{
+        ...userData,
+        ...?userSnapshot.data(),
+      };
+      if (changedField != null && delta != null) {
+        currentStats[changedField] = asInt(currentStats[changedField]) + delta;
+        transaction.set(statsRef, {
+          changedField: currentStats[changedField],
+          'lastUpdated': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+      final existingData = existing.data() ?? <String, dynamic>{};
+      final currentName =
+          (currentUserData['fullName'] ??
+                  currentUserData['name'] ??
+                  user.displayName ??
+                  'طالب متميز')
+              .toString()
+              .trim();
+      int stat(String key, {String? fallback}) {
+        return asInt(
+          currentStats[key] ??
+              existingData[key] ??
+              (fallback == null ? null : currentUserData[fallback]),
+        );
+      }
+
+      final correctAnswers = stat('correctAnswers');
+      final completedBooks = stat('completedBooks', fallback: 'booksRead');
+      final completedTasks = stat('completedTasks');
+      final completedTests = stat('completedTests', fallback: 'quizzesTaken');
+      final totalAnswers = correctAnswers + stat('wrongAnswers');
+      final avgScore = totalAnswers == 0
+          ? 0.0
+          : correctAnswers * 100 / totalAnswers;
+      transaction.set(leaderboardRef, {
+        'name': currentName.isEmpty ? 'طالب متميز' : currentName,
+        'points': calculateLeaderboardPoints(
+          correctAnswers: correctAnswers,
+          completedBooks: completedBooks,
+          completedTasks: completedTasks,
+          storedPoints: stat('points'),
+          legacyPoints: asInt(existingData['points']),
+        ),
+        'booksRead': stat('readBooks', fallback: 'booksRead'),
+        'completedTasks': completedTasks,
+        'quizzesTaken': completedTests,
+        'progressLevel': currentStats['progressLevel'] is num
+            ? (currentStats['progressLevel'] as num).toDouble()
+            : 0.0,
+        'avgScore': avgScore,
+        'profileImageUrl':
+            currentUserData['profileImageUrl'] ?? user.photoURL ?? '',
+        'streakDays': stat('streakDays'),
+        'lastActivity': FieldValue.serverTimestamp(),
+        if (existingData['createdAt'] != null)
+          'createdAt': existingData['createdAt'],
+        if (!existing.exists) 'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    });
   }
 }

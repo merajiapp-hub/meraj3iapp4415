@@ -15,7 +15,7 @@ class NewsScreen extends StatelessWidget {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
     final backgroundColor = isDark ? AppTheme.backgroundDark : AppTheme.backgroundLight;
     final textPrimary = isDark ? Colors.white : const Color(0xFF0A1A15);
-    final textSecondary = isDark ? Colors.white70 : const Color(0xFF4A5568);
+    final textSecondary = isDark ? Colors.white70 : const Color(0xFF52645E);
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -34,10 +34,19 @@ class NewsScreen extends StatelessWidget {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: AppTheme.primaryColor,
+                    ),
+                  );
                 }
                 if (snapshot.hasError) {
-                  return const Center(child: Text('حدث خطأ أثناء جلب الأخبار.'));
+                  return Center(
+                    child: Text(
+                      'حدث خطأ أثناء جلب الأخبار.',
+                      style: GoogleFonts.tajawal(color: textSecondary),
+                    ),
+                  );
                 }
 
                 final docs = (snapshot.data?.docs ?? []).where((doc) {
@@ -50,7 +59,11 @@ class NewsScreen extends StatelessWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.newspaper_rounded, size: 64, color: isDark ? Colors.white30 : Colors.black26),
+                        Icon(
+                          Icons.newspaper_rounded,
+                          size: 64,
+                          color: AppTheme.primaryColor.withValues(alpha: 0.35),
+                        ),
                         const SizedBox(height: 16),
                         Text('لا يوجد أخبار', style: GoogleFonts.tajawal(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary)),
                         const SizedBox(height: 8),
@@ -91,24 +104,19 @@ class NewsScreen extends StatelessWidget {
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(24),
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: isDark
-                                ? [
-                                    AppTheme.primaryColor.withValues(alpha: 0.72),
-                                    AppTheme.secondaryColor.withValues(alpha: 0.55),
-                                  ]
-                                : [
-                                    AppTheme.primaryColor.withValues(alpha: 0.92),
-                                    AppTheme.secondaryColor.withValues(alpha: 0.78),
-                                  ],
+                          color: isDark ? AppTheme.surfaceDark : Colors.white,
+                          border: Border.all(
+                            color: AppTheme.primaryColor.withValues(
+                              alpha: isDark ? 0.24 : 0.12,
+                            ),
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: AppTheme.primaryColor.withValues(alpha: isDark ? 0.25 : 0.16),
-                              blurRadius: 14,
-                              offset: const Offset(0, 6),
+                              color: AppTheme.primaryColor.withValues(
+                                alpha: isDark ? 0.12 : 0.07,
+                              ),
+                              blurRadius: 16,
+                              offset: const Offset(0, 7),
                             ),
                           ],
                         ),
@@ -120,10 +128,18 @@ class NewsScreen extends StatelessWidget {
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.18),
+                                    color: AppTheme.primaryColor.withValues(
+                                      alpha: isDark ? 0.22 : 0.1,
+                                    ),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(Icons.newspaper_rounded, color: Colors.white, size: 24),
+                                  child: Icon(
+                                    Icons.newspaper_rounded,
+                                    color: isDark
+                                        ? AppTheme.lightGreen
+                                        : AppTheme.primaryColor,
+                                    size: 24,
+                                  ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
@@ -135,7 +151,7 @@ class NewsScreen extends StatelessWidget {
                                         style: GoogleFonts.tajawal(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 16,
-                                          color: Colors.white,
+                                          color: textPrimary,
                                         ),
                                       ),
                                       const SizedBox(height: 4),
@@ -143,13 +159,19 @@ class NewsScreen extends StatelessWidget {
                                         dateStr,
                                         style: GoogleFonts.tajawal(
                                           fontSize: 12,
-                                          color: Colors.white70,
+                                          color: textSecondary,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
-                                const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 16),
+                                Icon(
+                                  Icons.arrow_forward_ios_rounded,
+                                  color: AppTheme.primaryColor.withValues(
+                                    alpha: 0.65,
+                                  ),
+                                  size: 16,
+                                ),
                               ],
                             ),
                             if (body.isNotEmpty) ...[
@@ -160,7 +182,7 @@ class NewsScreen extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.tajawal(
                                   fontSize: 14,
-                                  color: Colors.white.withValues(alpha: 0.9),
+                                  color: textSecondary,
                                   height: 1.6,
                                 ),
                               ),

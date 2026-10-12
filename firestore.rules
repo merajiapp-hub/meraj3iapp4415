@@ -6,13 +6,27 @@ service cloud.firestore {
     //  دوال مساعدة
     // ═══════════════════════════════════════════════════════════════
 
-    /// يتحقق من أن المستخدم هو أحد المسؤولَين المعتمدَين حصراً
-    function isAdmin() {
+    /// المسؤولان الأساسيان الموثوقان.
+    function isRootAdmin() {
       return request.auth != null &&
         request.auth.token != null &&
         request.auth.token.email != null &&
+        request.auth.token.email_verified == true &&
         (request.auth.token.email == 'mma831770@gmail.com' ||
          request.auth.token.email == 'abdellahismd@gmail.com');
+    }
+
+    /// يمكن للمسؤول الأساسي تفويض حساب بعد تسجيله عبر حقل isAdmin المحمي.
+    /// لا يستطيع مالك الحساب إنشاء هذا الحقل أو تعديله بنفسه.
+    function isDesignatedAdmin() {
+      return request.auth != null &&
+        request.auth.token.email_verified == true &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    function isAdmin() {
+      return isRootAdmin() || isDesignatedAdmin();
     }
 
     /// يتحقق من أن المستخدم الحالي هو صاحب المستند
@@ -20,13 +34,9 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
-    /// يتحقق من أن المستخدم مسؤول فعليًا إما عبر البريد أو عبر ملف المستخدم/role
+    /// صلاحية الإدارة تأتي من البريد الأساسي أو تفويض محفوظ لا يستطيع المستخدم تعديله.
     function isAppAdmin() {
-      return isAdmin() ||
-        (request.auth != null &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
-        (request.auth != null &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
+      return isAdmin();
     }
 
     /// يتحقق من أن المستخدم مسجل الدخول
@@ -64,15 +74,9 @@ service cloud.firestore {
       // القراءة المفردة: المالك أو المسؤول فقط
       allow get: if isOwner(userId) || isAppAdmin();
 
-      // قائمة المستخدمين:
-      // - الإدارة: صلاحية كاملة لعمليات count()/aggregation ولوحة الإدارة.
-      // - المستخدمون المسجلون: يُسمح باستعلامات محدودة (limit <= 1) للتحقق من تكرار
-      //   رقم الهاتف أو البريد عند إنشاء الحساب. بعد createUserWithEmailAndPassword
-      //   يكون Firebase قد سجَّل دخول المستخدم، فهو مسجل حين يُنفَّذ هذا الاستعلام.
-      // ملاحظة أمنية: هذه القاعدة لا تكشف بيانات مستخدمين آخرين؛
-      //   الاستعلام يعيد فقط وجود/عدم وجود مستند بدون البيانات الكاملة.
-      allow list: if isAppAdmin() ||
-        (isAuthenticated() && request.query.limit <= 1);
+      // Enumeration and profile lookups are restricted to admins. The mobile
+      // app must move phone lookup to a trusted backend before these rules ship.
+      allow list: if isAppAdmin();
 
       // إنشاء مستند جديد: المستخدم ينشئ مستنده الخاص فقط عند التسجيل
       // الشروط:
@@ -204,7 +208,11 @@ service cloud.firestore {
       allow read, write: if isAppAdmin();
     }
 
-    match /app_config/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
+    match /app_config/{document=**} {
+      allow read: if isAppAdmin() ||
+        (isAuthenticated() && document == 'settings');
+      allow write: if isAppAdmin();
+    }
     match /news/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
     match /announcements/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
     match /lessons/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
@@ -357,9 +365,6 @@ service cloud.firestore {
         request.resource.data.userId == request.auth.uid &&
         request.resource.data.keys().hasAny(['userId', 'lastMessage']);
       allow update: if isAppAdmin() ||
-        (request.auth != null && request.auth.token.email in [
-          'mma831770@gmail.com', 'abdellahismd@gmail.com'
-        ]) ||
         (isAuthenticated() && resource.data.userId == request.auth.uid &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'userName', 'lastMessage', 'lastMessageAt', 'updatedAt', 'userUnread', 'adminUnread'

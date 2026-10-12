@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
+
+import '../../models/competition_model.dart';
 import '../../services/results_service.dart';
-import '../../services/remote_config_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/results_skeleton.dart';
 import '../../widgets/top_students_section.dart';
@@ -11,6 +14,7 @@ import 'competition_stats_screen.dart';
 
 class ResultsListScreen extends StatefulWidget {
   final String title;
+  final String? competitionId;
   final String csvUrl;
   final ExamType examType;
   final Gradient gradient;
@@ -26,6 +30,7 @@ class ResultsListScreen extends StatefulWidget {
   const ResultsListScreen({
     super.key,
     required this.title,
+    this.competitionId,
     required this.csvUrl,
     required this.examType,
     required this.gradient,
@@ -48,7 +53,10 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
   bool _loading = true;
   bool _backgroundUpdating = false;
   bool _fromCache = false;
+  bool _competitionDisabled = false;
   String? _error;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _publicationSubscription;
 
   final _searchCtrl = TextEditingController();
   String _filterWilaya = '';
@@ -69,6 +77,9 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
   int _statPassed = 0;
   int _statFailed = 0;
   int _statInvalid = 0;
+  int _statComplementary = 0;
+  int _statAbsent = 0;
+  int _statExpelled = 0;
   double _statHighest = 0;
 
   // لتأخير البحث حتى يتوقف المستخدم عن الكتابة (debounce)
@@ -82,13 +93,40 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
       _searchCtrl.text = widget.initialSearchQuery!;
     }
     _searchCtrl.addListener(_onSearchChanged);
+    _watchPublication();
     _load();
+  }
+
+  void _watchPublication() {
+    final competitionId = widget.competitionId;
+    if (competitionId == null) return;
+
+    _publicationSubscription = FirebaseFirestore.instance
+        .collection('competition_results')
+        .doc(competitionId)
+        .snapshots()
+        .listen(
+          (snapshot) {
+            final data = snapshot.data();
+            final isPublished =
+                snapshot.exists &&
+                data != null &&
+                CompetitionModel.fromJson(competitionId, data).isPublished;
+            if (!mounted || _competitionDisabled == !isPublished) return;
+            setState(() => _competitionDisabled = !isPublished);
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            debugPrint('[ResultsList] Publication updates failed: $error');
+          },
+        );
   }
 
   @override
   void dispose() {
     _searchCtrl.dispose();
     _searchDebouncer?.cancel();
+    final subscription = _publicationSubscription;
+    if (subscription != null) unawaited(subscription.cancel());
     super.dispose();
   }
 
@@ -151,7 +189,6 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
 
   Future<void> _onRefresh() async {
     await ResultsService.clearCacheForUrl(widget.examType, widget.csvUrl);
-    RemoteConfigService.instance.invalidateCache();
     await _load(forceRefresh: true);
   }
 
@@ -220,13 +257,18 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
     final newWilayas = <String>{};
     final newCenters = <String>{};
     final newSchools = <String>{};
-    final newStatuses = <String>{};
+    final newStatuses = ResultsService.statusFilterOptions(
+      widget.examType,
+      _allResults,
+    );
 
     // حساب الإحصائيات السريعة هنا (مرة واحدة فقط عند تحديث البيانات)
     int sPassed = 0;
     int sFailed = 0;
     int sInvalid = 0;
     int sComplementary = 0;
+    int sAbsent = 0;
+    int sExpelled = 0;
     double sHighest = 0;
     
     // هل يُظهر التكميلية في هذه الشاشة؟
@@ -249,13 +291,15 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
       if (matchCenter && r.school.isNotEmpty) newSchools.add(r.school);
 
       // الحالات
-      if (r.status.isNotEmpty) newStatuses.add(r.status);
-
       // الإحصائيات
       if (r.isPassed) {
         sPassed++;
       } else if (r.isFailed) {
         sFailed++;
+      } else if (r.isAbsent) {
+        sAbsent++;
+      } else if (r.isExpelled) {
+        sExpelled++;
       } else if (r.isComplementary) {
         sComplementary++;
       } else if (r.isInvalid || r.status.isEmpty) {
@@ -265,11 +309,6 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
       if (r.score != null && !r.isInvalid && r.score! > sHighest) {
         sHighest = r.score!;
       }
-    }
-
-    if (widget.examType == ExamType.concours) {
-      newStatuses.add('ناجح');
-      newStatuses.add('راسب');
     }
 
     setState(() {
@@ -285,7 +324,10 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
           : _allResults.where((r) => !r.isComplementary).length;
       _statPassed = sPassed;
       _statFailed = sFailed;
-      _statInvalid = sInvalid + sComplementary; // تُحسب في "غير مصنّف" عند الإخفاء
+      _statInvalid = sInvalid;
+      _statComplementary = sComplementary;
+      _statAbsent = sAbsent;
+      _statExpelled = sExpelled;
       _statHighest = sHighest;
     });
   }
@@ -295,7 +337,35 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      body: RefreshIndicator(
+      appBar: _competitionDisabled
+          ? AppBar(title: Text(widget.title, style: GoogleFonts.tajawal()))
+          : null,
+      body: _competitionDisabled
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.visibility_off_rounded,
+                      size: 56,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'أوقفت الإدارة عرض هذه النتائج.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.tajawal(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : RefreshIndicator(
         onRefresh: _onRefresh,
         color: (widget.gradient as LinearGradient).colors.first,
         child: CustomScrollView(
@@ -393,11 +463,11 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
                         );
                       },
                       icon: const Icon(Icons.analytics_rounded),
-                      label: Text('عرض الإحصائيات التفصيلية', style: GoogleFonts.tajawal()),
+                      label: Text('الإحصائيات التفصيلية', style: GoogleFonts.tajawal(fontSize: 13)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: (widget.gradient as LinearGradient).colors.first,
                         foregroundColor: Colors.white,
-                        minimumSize: const Size.fromHeight(50),
+                        minimumSize: const Size.fromHeight(38),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
@@ -418,6 +488,7 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
                       passScore: widget.passScore,
                       maxScore: widget.maxScore,
                       scoreLabel: widget.scoreLabel,
+                      isFirstSession: widget.isFirstSession,
                       examType: widget.examType,
                     ),
                   ),
@@ -426,7 +497,7 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
               // Search & Filter
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12),
                   child: Column(
                     children: [
                       _buildSearchBar(isDark),
@@ -510,12 +581,18 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
 
   Widget _buildQuickStats(bool isDark) {
     // عدد النتائج القابلة للتصنيف
-    int classifiable = _statPassed + _statFailed;
-    // نسبة النجاح من القابلين للتصنيف فقط (خطأ 0/0)
-    double passRate = classifiable > 0 ? (_statPassed / classifiable * 100) : 0;
+    final countsComplementary =
+        widget.examType == ExamType.bac && widget.isFirstSession;
+    final classifiable =
+        _statPassed + _statFailed + (countsComplementary ? _statComplementary : 0);
+    final passRate = ResultsService.passRate(
+      passed: _statPassed,
+      failed: _statFailed,
+      complementary: countsComplementary ? _statComplementary : 0,
+    );
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -543,7 +620,7 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
                 isDark: isDark,
               ),
               _StatItem(
-                label: 'نسبة النجاح',
+                label: countsComplementary ? 'نجاح الدورة العادية' : 'نسبة النجاح',
                 value: '${passRate.toStringAsFixed(1)}%',
                 icon: Icons.pie_chart_rounded,
                 color: Colors.green,
@@ -563,16 +640,31 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
             const SizedBox(height: 10),
             ClipRRect(
               borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: classifiable > 0 ? (_statPassed / classifiable) : 0,
-                minHeight: 6,
-                backgroundColor: Colors.red.withValues(alpha: 0.2),
-                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF16A34A)),
+              child: Row(
+                children: [
+                  if (_statPassed > 0)
+                    Expanded(
+                      flex: _statPassed,
+                      child: Container(height: 6, color: const Color(0xFF16A34A)),
+                    ),
+                  if (_statFailed > 0)
+                    Expanded(
+                      flex: _statFailed,
+                      child: Container(height: 6, color: Colors.red),
+                    ),
+                  if (countsComplementary && _statComplementary > 0)
+                    Expanded(
+                      flex: _statComplementary,
+                      child: Container(height: 6, color: Colors.orange),
+                    ),
+                ],
               ),
             ),
             const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              spacing: 12,
+              runSpacing: 6,
               children: [
                 Text(
                   '✓ ناجح: $_statPassed',
@@ -582,18 +674,39 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                if (_statInvalid > 0)
+                if (_statInvalid > 0 && widget.examType != ExamType.concours)
                   Text(
                     '? غير مصنّف: $_statInvalid',
                     style: GoogleFonts.tajawal(
-                      fontSize: 11,
+                      fontSize: 10,
                       color: Colors.deepOrange,
                     ),
                   ),
-                Text(
-                  '✗ راسب: $_statFailed',
-                  style: GoogleFonts.tajawal(
-                    fontSize: 11,
+                if (_statComplementary > 0)
+                  Text(
+                    '↻ مؤهل للتكميلية: $_statComplementary',
+                    style: GoogleFonts.tajawal(
+                      fontSize: 10,
+                      color: Colors.orange,
+                    ),
+                  ),
+                  if (_statAbsent > 0)
+                    Text(
+                      'غائب: $_statAbsent',
+                      style: GoogleFonts.tajawal(fontSize: 10, color: Colors.grey),
+                    ),
+                  if (_statExpelled > 0)
+                    Text(
+                      'مطرود: $_statExpelled',
+                      style: GoogleFonts.tajawal(
+                        fontSize: 10,
+                        color: Colors.purple,
+                      ),
+                    ),
+                  Text(
+                    '✗ راسب: $_statFailed',
+                    style: GoogleFonts.tajawal(
+                      fontSize: 10,
                     color: Colors.red,
                     fontWeight: FontWeight.w600,
                   ),
@@ -852,15 +965,16 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
             allResults: _allResults,
             examType: widget.examType,
             title: widget.title,
+            isFirstSession: widget.isFirstSession,
           ),
         ),
       ),
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        padding: const EdgeInsets.all(7),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E293B) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(13),
           border: Border.all(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.05)
@@ -878,8 +992,8 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
           children: [
             // Status circle
             Container(
-              width: 44,
-              height: 44,
+              width: 30,
+              height: 30,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
@@ -908,13 +1022,13 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
                               : '✗',
                   style: TextStyle(
                     color: statusColor,
-                    fontSize: 18,
+                    fontSize: 13,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             // Info
             Expanded(
               child: Column(
@@ -926,12 +1040,12 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
                         : 'مترشح رقم ${student.id}',
                     style: GoogleFonts.tajawal(
                       fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                      fontSize: 12,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Row(
                     children: [
                       if (student.school.isNotEmpty)
@@ -939,7 +1053,7 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
                           child: Text(
                             student.school,
                             style: GoogleFonts.tajawal(
-                              fontSize: 11,
+                              fontSize: 10,
                               color: Colors.grey[500],
                             ),
                             maxLines: 1,
@@ -949,11 +1063,11 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
                       if (student.school.isNotEmpty &&
                           student.wilaya.isNotEmpty)
                         Text(' • ',
-                            style: TextStyle(color: Colors.grey[400])),
+                            style: TextStyle(                            color: Colors.grey[400], fontSize: 10)),
                       if (student.wilaya.isNotEmpty)
 Flexible(child: Text(student.wilaya,
                           style: GoogleFonts.tajawal(
-                            fontSize: 11,
+                            fontSize: 10,
                             color: Colors.grey[500],), maxLines: 1, overflow: TextOverflow.ellipsis,)),
                     ],
                   ),
@@ -969,15 +1083,15 @@ Flexible(child: Text(student.wilaya,
                     student.score!.toStringAsFixed(2),
                     style: GoogleFonts.outfit(
                       fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                      fontSize: 12,
                       color: statusColor,
                     ),
                   ),
                 Container(
                   margin: const EdgeInsets.only(top: 4),
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
+                    horizontal: 6,
+                    vertical: 2,
                   ),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.12),
@@ -986,7 +1100,7 @@ Flexible(child: Text(student.wilaya,
                   child: Text(
                     student.status,
                     style: GoogleFonts.tajawal(
-                      fontSize: 10,
+                      fontSize: 9,
                       color: statusColor,
                       fontWeight: FontWeight.bold,
                     ),
@@ -1030,7 +1144,7 @@ Flexible(child: Text(student.wilaya,
               textAlign: TextAlign.center,
             ),
             if (hasFilters) ...[
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: () {
                   _searchCtrl.clear();
@@ -1144,7 +1258,7 @@ class _FilterChip extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: isActive ? color.withValues(alpha: 0.12) : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
@@ -1157,14 +1271,14 @@ class _FilterChip extends StatelessWidget {
           children: [
             Icon(
               icon,
-              size: 16,
+              size: 14,
               color: isActive ? color : Colors.grey[500],
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 4),
             Text(
               label,
               style: GoogleFonts.tajawal(
-                fontSize: 13,
+                fontSize: 11,
                 fontWeight:
                     isActive ? FontWeight.bold : FontWeight.normal,
                 color: isActive ? color : Colors.grey[700],
@@ -1225,4 +1339,3 @@ class _StatItem extends StatelessWidget {
     );
   }
 }
-

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/results_service.dart';
+import '../../theme/app_theme.dart';
 import 'results_list_screen.dart';
 
 class ComplementaryResultsScreen extends StatelessWidget {
@@ -18,11 +19,7 @@ class ComplementaryResultsScreen extends StatelessWidget {
       title: title,
       csvUrl: csvUrl,
       examType: ExamType.complementary,
-      gradient: const LinearGradient(
-        colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
+      gradient: AppTheme.brandGradient,
       emoji: '🔄',
       passScore: 10,
       maxScore: 20,

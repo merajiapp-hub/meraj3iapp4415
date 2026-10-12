@@ -11,6 +11,7 @@ class TopStudentsSection extends StatelessWidget {
   final double passScore;
   final double maxScore;
   final String scoreLabel;
+  final bool isFirstSession;
   final ExamType examType;
 
   const TopStudentsSection({
@@ -21,6 +22,7 @@ class TopStudentsSection extends StatelessWidget {
     required this.passScore,
     required this.maxScore,
     required this.scoreLabel,
+    this.isFirstSession = false,
     required this.examType,
   });
 
@@ -92,13 +94,13 @@ class TopStudentsSection extends StatelessWidget {
                     ? 'الأوائل وطنياً'
                     : 'أوائل المسابقة',
                 style: GoogleFonts.tajawal(
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -159,18 +161,19 @@ class TopStudentsSection extends StatelessWidget {
               scoreLabel: scoreLabel,
               allResults: students,
               examType: examType,
+              isFirstSession: isFirstSession,
             ),
           ),
         );
       },
       borderRadius: BorderRadius.circular(20),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 30,
+              height: 30,
               decoration: BoxDecoration(
                 color: rankColor.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
@@ -180,14 +183,14 @@ class TopStudentsSection extends StatelessWidget {
                 child: Text(
                   '$rank',
                   style: GoogleFonts.outfit(
-                    fontSize: 18,
+                    fontSize: 15,
                     fontWeight: FontWeight.bold,
                     color: rankColor,
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -196,16 +199,16 @@ class TopStudentsSection extends StatelessWidget {
                     student.name.isNotEmpty ? student.name : 'مترشح رقم ${student.id}',
                     style: GoogleFonts.tajawal(
                       fontWeight: FontWeight.bold,
-                      fontSize: 15,
+                      fontSize: 13,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (student.school.isNotEmpty || student.wilaya.isNotEmpty) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       [if (student.school.isNotEmpty) student.school, if (student.wilaya.isNotEmpty) student.wilaya].join(' • '),
-                      style: GoogleFonts.tajawal(fontSize: 12, color: Colors.grey[500]),
+                      style: GoogleFonts.tajawal(fontSize: 10, color: Colors.grey[500]),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -213,9 +216,9 @@ class TopStudentsSection extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: (gradient as LinearGradient).colors.first.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
@@ -225,7 +228,7 @@ class TopStudentsSection extends StatelessWidget {
                   Text(
                     displayScore,
                     style: GoogleFonts.outfit(
-                      fontSize: 16,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: (gradient as LinearGradient).colors.first,
                     ),

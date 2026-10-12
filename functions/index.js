@@ -4,8 +4,9 @@ const crypto = require("crypto");
 
 admin.initializeApp();
 
-// Helper to check if caller is an admin
-const checkAdmin = (context) => {
+// Verify administrator status using trusted claims, root identities, or the
+// admin-managed user flag (which client rules do not allow users to edit).
+const checkAdmin = async (context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError(
         "unauthenticated",
@@ -13,13 +14,22 @@ const checkAdmin = (context) => {
     );
   }
   const allowedEmails = ["mma831770@gmail.com", "abdellahismd@gmail.com"];
-  if (context.auth.token.admin !== true &&
-      !allowedEmails.includes(context.auth.token.email)) {
-    throw new functions.https.HttpsError(
-        "permission-denied",
-        "You must be an administrator to execute this operation."
-    );
+  if (context.auth.token.admin === true) return;
+  if (context.auth.token.email_verified === true &&
+      allowedEmails.includes(String(context.auth.token.email || "").toLowerCase())) return;
+
+  if (context.auth.token.email_verified === true) {
+    const profile = await admin.firestore()
+        .collection("users")
+        .doc(context.auth.uid)
+        .get();
+    if (profile.data()?.isAdmin === true) return;
   }
+
+  throw new functions.https.HttpsError(
+      "permission-denied",
+      "You must be an administrator to execute this operation."
+  );
 };
 
 // Helper for audit logs
@@ -264,7 +274,7 @@ const deleteSubcollections = async (docRef) => {
  * - Records audit log
  */
 exports.suspendUser = functions.https.onCall(async (data, context) => {
-  checkAdmin(context);
+  await checkAdmin(context);
   const { uid, reason, note } = data;
   if (!uid || typeof uid !== "string") {
     throw new functions.https.HttpsError("invalid-argument", "Valid UID is required");
@@ -323,7 +333,7 @@ exports.suspendUser = functions.https.onCall(async (data, context) => {
  * - Records audit log
  */
 exports.reactivateUser = functions.https.onCall(async (data, context) => {
-  checkAdmin(context);
+  await checkAdmin(context);
   const { uid } = data;
   if (!uid || typeof uid !== "string") {
     throw new functions.https.HttpsError("invalid-argument", "Valid UID is required");
@@ -379,7 +389,7 @@ exports.reactivateUser = functions.https.onCall(async (data, context) => {
  * Force password change for a user.
  */
 exports.requirePasswordChange = functions.https.onCall(async (data, context) => {
-  checkAdmin(context);
+  await checkAdmin(context);
   const { uid } = data;
   if (!uid) throw new functions.https.HttpsError("invalid-argument", "UID is required");
 
@@ -411,7 +421,7 @@ exports.requirePasswordChange = functions.https.onCall(async (data, context) => 
  * Step 8: Write final audit log
  */
 exports.deleteUserAdmin = functions.https.onCall(async (data, context) => {
-  checkAdmin(context);
+  await checkAdmin(context);
   const { uid } = data;
   if (!uid || typeof uid !== "string") {
     throw new functions.https.HttpsError("invalid-argument", "Valid UID is required");
@@ -467,7 +477,6 @@ exports.deleteUserAdmin = functions.https.onCall(async (data, context) => {
   } catch (e) {
     if (e.code !== "auth/user-not-found") throw e;
   }
-
   // Step 5 & 6: Delete Firestore subcollections then main doc
   const snap = await userRef.get();
   if (snap.exists) {
@@ -514,7 +523,7 @@ exports.deleteUserAdmin = functions.https.onCall(async (data, context) => {
  * Send Admin Notification via FCM
  */
 exports.sendAdminNotification = functions.https.onCall(async (data, context) => {
-  checkAdmin(context);
+  await checkAdmin(context);
   const { title, body, topic, uid, dataPayload, type, targetAll } = data;
   if (!title || (!targetAll && !uid && !topic)) {
     throw new functions.https.HttpsError(

@@ -467,7 +467,7 @@ class _StreamSelector extends StatelessWidget {
             onTap: () => onChanged(s),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
               decoration: BoxDecoration(
                 color: isSelected
                     ? color.withValues(alpha: 0.15)
@@ -483,7 +483,7 @@ class _StreamSelector extends StatelessWidget {
               child: Text(
                 s,
                 style: GoogleFonts.cairo(
-                  fontSize: 15,
+                  fontSize: 14,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                   color: isSelected
                       ? color
@@ -545,7 +545,7 @@ class _SubjectSelector extends StatelessWidget {
             onTap: () => onChanged(s),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
               decoration: BoxDecoration(
                 color: isSelected
                     ? color.withValues(alpha: 0.12)
@@ -561,7 +561,7 @@ class _SubjectSelector extends StatelessWidget {
               child: Text(
                 s,
                 style: GoogleFonts.cairo(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                   color: isSelected
                       ? color
@@ -609,15 +609,15 @@ class _ExamCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: AppTheme.primaryColor.withValues(alpha: 0.25),
         ),
         boxShadow: [
           BoxShadow(
             color: AppTheme.primaryColor.withValues(alpha: 0.07),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -626,7 +626,7 @@ class _ExamCard extends StatelessWidget {
         children: [
           // ─ رأس البطاقة ─
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 9),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
@@ -637,7 +637,7 @@ class _ExamCard extends StatelessWidget {
                 end: Alignment.centerLeft,
               ),
               borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(20),
+                top: Radius.circular(16),
               ),
             ),
             child: Column(
@@ -646,12 +646,12 @@ class _ExamCard extends StatelessWidget {
                 Text(
                   chapter.isNotEmpty ? chapter : title,
                   style: GoogleFonts.cairo(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Wrap(
                   spacing: 6,
                   runSpacing: 4,
@@ -668,7 +668,7 @@ class _ExamCard extends StatelessWidget {
 
           // ─ تفاصيل الاختبار ─
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            padding: const EdgeInsets.fromLTRB(12, 9, 12, 12),
             child: Column(
               children: [
                 Row(
@@ -678,19 +678,19 @@ class _ExamCard extends StatelessWidget {
                       label: '$totalQ سؤال',
                       isDark: isDark,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     _InfoChip(
                       icon: Icons.timer_outlined,
                       label: '$durationMin د',
                       isDark: isDark,
                     ),
                     if (difficulty.isNotEmpty) ...[
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       _DifficultyBadge(difficulty: difficulty),
                     ],
                   ],
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
 
                 // زر الاختبار + إحصائيات المستخدم
                 uid != null
@@ -705,19 +705,24 @@ class _ExamCard extends StatelessWidget {
                         icon: const Icon(
                           Icons.play_arrow_rounded,
                           color: Colors.white,
+                          size: 18,
                         ),
                         label: Text(
                           'ابدأ الاختبار',
                           style: GoogleFonts.cairo(
+                            fontSize: 13,
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primaryColor,
-                          minimumSize: const Size.fromHeight(46),
+                          minimumSize: const Size.fromHeight(42),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          visualDensity: VisualDensity.compact,
+                          tapTargetSize: MaterialTapTargetSize.padded,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                         ),
                       ),
@@ -836,8 +841,8 @@ class _ExamActionButton extends StatelessWidget {
             // إحصائيات سابقة
             if (attemptCount > 0) ...[
               Container(
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(9),
+                margin: const EdgeInsets.only(bottom: 8),
                 decoration: BoxDecoration(
                   color: isDark
                       ? Colors.white.withValues(alpha: 0.04)
@@ -884,16 +889,22 @@ class _ExamActionButton extends StatelessWidget {
                         durationMin,
                         resumeAttemptId: incompleteAttemptId,
                       ),
-                      icon: const Icon(Icons.restart_alt_rounded),
+                      icon: const Icon(Icons.restart_alt_rounded, size: 18),
                       label: Text(
                         'استكمال',
-                        style: GoogleFonts.cairo(fontWeight: FontWeight.bold),
+                        style: GoogleFonts.cairo(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(0, 46),
+                        minimumSize: const Size(0, 40),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        visualDensity: VisualDensity.compact,
+                        tapTargetSize: MaterialTapTargetSize.padded,
                         side: BorderSide(color: AppTheme.primaryColor),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                     ),
@@ -905,19 +916,24 @@ class _ExamActionButton extends StatelessWidget {
                       icon: const Icon(
                         Icons.play_arrow_rounded,
                         color: Colors.white,
+                        size: 18,
                       ),
                       label: Text(
                         'إعادة',
                         style: GoogleFonts.cairo(
+                          fontSize: 13,
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryColor,
-                        minimumSize: const Size(0, 46),
+                        minimumSize: const Size(0, 40),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        visualDensity: VisualDensity.compact,
+                        tapTargetSize: MaterialTapTargetSize.padded,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                     ),
@@ -932,19 +948,24 @@ class _ExamActionButton extends StatelessWidget {
                       ? Icons.replay_rounded
                       : Icons.play_arrow_rounded,
                   color: Colors.white,
+                  size: 18,
                 ),
                 label: Text(
                   attemptCount > 0 ? 'إعادة الاختبار' : 'ابدأ الاختبار',
                   style: GoogleFonts.cairo(
+                    fontSize: 13,
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor,
-                  minimumSize: const Size.fromHeight(46),
+                  minimumSize: const Size.fromHeight(42),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  visualDensity: VisualDensity.compact,
+                  tapTargetSize: MaterialTapTargetSize.padded,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
               ),

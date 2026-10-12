@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/app_config_provider.dart';
 import '../providers/auth_provider.dart';
@@ -19,7 +20,8 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen>
+    with TickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
@@ -27,6 +29,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   bool _isPasswordVisible = false;
   bool _rememberMe = false;
   bool _canCheckBiometrics = false;
+  bool _biometricsEnabled = false;
   List<BiometricType> _availableBiometrics = [];
   final _secureStorage = const FlutterSecureStorage();
 
@@ -43,7 +46,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
     _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeIn);
     _slideAnim = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic));
+        .animate(
+          CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
+        );
 
     _animController.forward();
     _loadSavedCredentials();
@@ -62,7 +67,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     bool canCheckBiometrics = false;
     List<BiometricType> availableBiometrics = [];
     try {
-      canCheckBiometrics = await auth.canCheckBiometrics || await auth.isDeviceSupported();
+      canCheckBiometrics =
+          await auth.canCheckBiometrics || await auth.isDeviceSupported();
       if (canCheckBiometrics) {
         availableBiometrics = await auth.getAvailableBiometrics();
       }
@@ -72,11 +78,20 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
     final savedEmail = await _secureStorage.read(key: 'saved_email');
     final savedPassword = await _secureStorage.read(key: 'saved_password');
-    final hasSaved = savedEmail != null && savedEmail.isNotEmpty && savedPassword != null;
+    final hasSaved =
+        savedEmail != null && savedEmail.isNotEmpty && savedPassword != null;
+    var biometricsEnabled = false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      biometricsEnabled = prefs.getBool('biometrics_enabled') ?? false;
+    } catch (e) {
+      debugPrint('Biometrics preference read error: $e');
+    }
 
     if (!mounted) return;
     setState(() {
       _canCheckBiometrics = canCheckBiometrics;
+      _biometricsEnabled = biometricsEnabled;
       _availableBiometrics = availableBiometrics;
       if (hasSaved) {
         _rememberMe = true;
@@ -86,7 +101,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     });
 
     // Auto-trigger biometric authentication if credentials are saved
-    if (canCheckBiometrics && hasSaved) {
+    if (canCheckBiometrics && biometricsEnabled && hasSaved) {
       await Future.delayed(const Duration(milliseconds: 500));
       if (mounted) {
         _authenticateWithBiometrics(auto: true);
@@ -95,6 +110,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   Future<void> _authenticateWithBiometrics({bool auto = false}) async {
+    if (!_biometricsEnabled || !_canCheckBiometrics) return;
     final LocalAuthentication auth = LocalAuthentication();
     try {
       final authenticated = await auth.authenticate(
@@ -111,7 +127,11 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     } on PlatformException catch (e) {
       debugPrint('Biometric error: ${e.code} — ${e.message}');
       if (!auto && mounted) {
-        AppNotification.show(context, 'تعذر التحقق البيومتري: ${e.message}', isError: true);
+        AppNotification.show(
+          context,
+          'تعذر التحقق البيومتري: ${e.message}',
+          isError: true,
+        );
       }
     } catch (e) {
       if (!auto && mounted) {
@@ -127,7 +147,11 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     final pass = _passwordController.text.trim();
 
     if (email.isEmpty || pass.isEmpty) {
-      AppNotification.show(context, 'الرجاء إدخال البريد الإلكتروني وكلمة المرور', isError: true);
+      AppNotification.show(
+        context,
+        'الرجاء إدخال البريد الإلكتروني وكلمة المرور',
+        isError: true,
+      );
       return;
     }
 
@@ -135,7 +159,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     String? error;
-    
+
     final cleanInput = email.replaceAll(RegExp(r'[^0-9+]'), '');
     if (cleanInput.length >= 8 && RegExp(r'^[0-9+]+$').hasMatch(email.trim())) {
       error = await authProvider.signInWithPhone(email, pass);
@@ -207,7 +231,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: Text(
             'استعادة كلمة المرور',
             style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
@@ -252,7 +278,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       }
 
                       setDialogState(() => isSending = true);
-                      final auth = Provider.of<AuthProvider>(context, listen: false);
+                      final auth = Provider.of<AuthProvider>(
+                        context,
+                        listen: false,
+                      );
                       final error = await auth.resetPassword(email);
 
                       if (!ctx.mounted) return;
@@ -304,7 +333,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 position: _slideAnim,
                 child: Center(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 24,
+                    ),
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 440),
                       child: SingleChildScrollView(
@@ -342,10 +374,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         SizedBox(
           width: 160,
           height: 160,
-          child: Image.asset(
-            'assets/images/logo.png',
-            fit: BoxFit.contain,
-          ),
+          child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
         ),
         const SizedBox(height: 18),
         Text(
@@ -415,7 +444,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
             hintColor: hintColor,
             isPassword: true,
             showToggle: true,
-            toggleVisibility: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+            toggleVisibility: () =>
+                setState(() => _isPasswordVisible = !_isPasswordVisible),
             isVisible: _isPasswordVisible,
           ),
           const SizedBox(height: 14),
@@ -429,9 +459,12 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     height: 20,
                     child: Checkbox(
                       value: _rememberMe,
-                      onChanged: (value) => setState(() => _rememberMe = value ?? false),
+                      onChanged: (value) =>
+                          setState(() => _rememberMe = value ?? false),
                       fillColor: WidgetStateProperty.resolveWith(
-                        (states) => states.contains(WidgetState.selected) ? accent : Colors.transparent,
+                        (states) => states.contains(WidgetState.selected)
+                            ? accent
+                            : Colors.transparent,
                       ),
                       checkColor: Colors.white,
                       side: const BorderSide(
@@ -503,7 +536,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   ),
                 ),
               ),
-              if (_canCheckBiometrics) ...[
+              if (_canCheckBiometrics && _biometricsEnabled) ...[
                 const SizedBox(width: 12),
                 Column(
                   children: [
@@ -511,7 +544,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       height: 56,
                       width: 56,
                       child: ElevatedButton(
-                        onPressed: _isLoading ? null : _authenticateWithBiometrics,
+                        onPressed: _isLoading
+                            ? null
+                            : _authenticateWithBiometrics,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: fieldColor,
                           foregroundColor: accent,
@@ -542,7 +577,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     ),
                   ],
                 ),
-              ]
+              ],
             ],
           ),
         ],
@@ -576,18 +611,27 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         keyboardType: keyboardType,
         obscureText: isPassword && !isVisible,
         textAlign: TextAlign.right,
-        style: GoogleFonts.tajawal(color: textColor, fontSize: 14, fontWeight: FontWeight.w500),
+        style: GoogleFonts.tajawal(
+          color: textColor,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: GoogleFonts.tajawal(color: hintColor, fontSize: 13.5),
           filled: false,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 16,
+          ),
           prefixIcon: Icon(icon, color: const Color(0xFF4F6660), size: 20),
           suffixIcon: showToggle
               ? IconButton(
                   padding: EdgeInsets.zero,
                   icon: Icon(
-                    isVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                    isVisible
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
                     color: const Color(0xFF52615C),
                     size: 20,
                   ),
@@ -611,10 +655,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       children: [
         Text(
           'ليس لديك حساب؟',
-          style: GoogleFonts.tajawal(
-            color: mutedColor,
-            fontSize: 13,
-          ),
+          style: GoogleFonts.tajawal(color: mutedColor, fontSize: 13),
         ),
         TextButton(
           onPressed: () {
@@ -646,14 +687,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
     return TextButton.icon(
       onPressed: _isLoading ? null : _loginAsGuest,
-      style: TextButton.styleFrom(
-        foregroundColor: primaryColor,
-      ),
-      icon: Icon(
-        Icons.person_outline_rounded,
-        size: 20,
-        color: primaryColor,
-      ),
+      style: TextButton.styleFrom(foregroundColor: primaryColor),
+      icon: Icon(Icons.person_outline_rounded, size: 20, color: primaryColor),
       label: Text(
         'المتابعة كزائر',
         style: GoogleFonts.tajawal(

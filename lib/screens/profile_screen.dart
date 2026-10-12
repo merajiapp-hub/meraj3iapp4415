@@ -274,7 +274,18 @@ class _ProfileScreenState extends State<ProfileScreen>
       context,
       listen: false,
     );
-    await authProvider.signOut();
+    try {
+      await authProvider.signOut();
+    } catch (e) {
+      if (mounted) {
+        AppNotification.show(
+          context,
+          'تعذر تسجيل الخروج. أعد المحاولة: $e',
+          isError: true,
+        );
+      }
+      return;
+    }
 
     if (!mounted) return;
     await favoritesProvider.clearAll();

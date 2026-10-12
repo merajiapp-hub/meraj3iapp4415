@@ -13,6 +13,7 @@ class CompetitionStatsScreen extends StatefulWidget {
   final List<StudentResult> allResults;
   final ExamType examType;
   final Gradient gradient;
+
   /// بكالوريا فقط: true = الدورة الأولى ، false = الدورة الثانية أو مسابقة أخرى
   final bool isFirstSession;
 
@@ -77,13 +78,30 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
     final failed = widget.allResults.where((r) => r.isFailed).length;
     final absent = widget.allResults.where((r) => r.isAbsent).length;
     final expelled = widget.allResults.where((r) => r.isExpelled).length;
-    final complementary = widget.examType == ExamType.bac
+    final countsComplementary =
+        widget.examType == ExamType.bac && widget.isFirstSession;
+    final complementary = countsComplementary
         ? widget.allResults.where((r) => r.isComplementary).length
         : 0;
+    final invalid = widget.allResults
+        .where(
+          (r) =>
+              r.isInvalid ||
+              !(r.isPassed ||
+                  r.isFailed ||
+                  r.isAbsent ||
+                  r.isExpelled ||
+                  r.isComplementary),
+        )
+        .length;
 
-    final classifiable = passed + failed;
-    final passRate = classifiable > 0 ? (passed / classifiable * 100) : 0.0;
-    final failRate = classifiable > 0 ? (failed / classifiable * 100) : 0.0;
+    final classifiable = passed + failed + complementary;
+    final passRate = ResultsService.passRate(
+      passed: passed,
+      failed: failed,
+      complementary: complementary,
+    );
+    final failRate = classifiable > 0 ? failed / classifiable * 100 : 0.0;
     final absentRate = total > 0 ? (absent / total * 100) : 0.0;
     final expelledRate = total > 0 ? (expelled / total * 100) : 0.0;
     final complementaryRate = total > 0 ? (complementary / total * 100) : 0.0;
@@ -91,7 +109,9 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
     // أعلى نقطة/معدل
     double topScore = 0.0;
     for (final r in widget.allResults) {
-      if (!r.isInvalid && r.score != null && r.score! > topScore) {
+      if ((r.isPassed || r.isFailed) &&
+          r.score != null &&
+          r.score! > topScore) {
         topScore = r.score!;
       }
     }
@@ -113,11 +133,13 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
       if (r.isFailed) sc.failed++;
       if (r.isAbsent) sc.absent++;
       if (r.isExpelled) sc.expelled++;
-      if (r.isComplementary) sc.complementary++;
-      if (!r.isInvalid && r.score != null && r.score! > sc.topScore) {
+      if (r.isComplementary && countsComplementary) sc.complementary++;
+      if ((r.isPassed || r.isFailed) &&
+          r.score != null &&
+          r.score! > sc.topScore) {
         sc.topScore = r.score!;
       }
-      if (!r.isInvalid && r.score != null) {
+      if ((r.isPassed || r.isFailed) && r.score != null) {
         sc.scoreTotal += r.score!;
         sc.scoredCount++;
       }
@@ -127,7 +149,11 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
 
     // إسناد ترتيب المدارس
     for (int i = 0; i < sortedSchools.length; i++) {
-      sortedSchools[i].rank = i + 1;
+      final tiedWithPrevious =
+          i > 0 && _sameSchoolRank(sortedSchools[i - 1], sortedSchools[i]);
+      sortedSchools[i].rank = tiedWithPrevious
+          ? sortedSchools[i - 1].rank
+          : i + 1;
     }
 
     // ─── إحصائيات الولايات ───
@@ -141,8 +167,10 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
       if (r.isFailed) w.failed++;
       if (r.isAbsent) w.absent++;
       if (r.isExpelled) w.expelled++;
-      if (r.isComplementary) w.complementary++;
-      if (!r.isInvalid && r.score != null && r.score! > w.topScore) {
+      if (r.isComplementary && countsComplementary) w.complementary++;
+      if ((r.isPassed || r.isFailed) &&
+          r.score != null &&
+          r.score! > w.topScore) {
         w.topScore = r.score!;
       }
     }
@@ -152,11 +180,23 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
         if (b.passRate != a.passRate) {
           return b.passRate.compareTo(a.passRate);
         }
-        return b.passed.compareTo(a.passed);
+        final passedComparison = b.passed.compareTo(a.passed);
+        final totalComparison = passedComparison != 0
+            ? passedComparison
+            : a.total.compareTo(b.total);
+        return totalComparison != 0
+            ? totalComparison
+            : a.name.compareTo(b.name);
       });
 
     for (int i = 0; i < sortedWilayas.length; i++) {
-      sortedWilayas[i].rank = i + 1;
+      final tiedWithPrevious =
+          i > 0 &&
+          sortedWilayas[i].passRate == sortedWilayas[i - 1].passRate &&
+          sortedWilayas[i].passed == sortedWilayas[i - 1].passed;
+      sortedWilayas[i].rank = tiedWithPrevious
+          ? sortedWilayas[i - 1].rank
+          : i + 1;
     }
 
     // ─── الطلاب المؤهلون: يظهر هذا القسم في بكالوريا الدورة الأولى فقط ───
@@ -190,7 +230,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
           unselectedLabelColor: Colors.white70,
           labelStyle: GoogleFonts.tajawal(
             fontWeight: FontWeight.bold,
-            fontSize: 13,
+            fontSize: 11,
           ),
           isScrollable: true,
           tabs: [
@@ -224,9 +264,11 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
             total: total,
             passed: passed,
             failed: failed,
+            classifiable: classifiable,
             absent: absent,
             expelled: expelled,
             complementary: complementary,
+            invalid: invalid,
             passRate: passRate,
             failRate: failRate,
             absentRate: absentRate,
@@ -280,9 +322,11 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
     required int total,
     required int passed,
     required int failed,
+    required int classifiable,
     required int absent,
     required int expelled,
     required int complementary,
+    required int invalid,
     required double passRate,
     required double failRate,
     required double absentRate,
@@ -293,14 +337,18 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
     required double maxScore,
     required List<StudentResult> topStudents,
   }) {
+    final passedShare = total > 0 ? passed / total * 100 : 0.0;
+    final failedShare = total > 0 ? failed / total * 100 : 0.0;
+    final invalidShare = total > 0 ? (invalid / total * 100) : 0.0;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // البطاقة الرئيسية لنسبة النجاح
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               gradient: widget.gradient,
               borderRadius: BorderRadius.circular(22),
@@ -314,17 +362,21 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
             ),
             child: Column(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  spacing: 12,
+                  runSpacing: 4,
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'نسبة النجاح الإجمالية',
+                          complementary > 0
+                              ? 'نسبة نجاح الدورة العادية'
+                              : 'نسبة النجاح الإجمالية',
                           style: GoogleFonts.tajawal(
                             color: Colors.white70,
-                            fontSize: 13,
+                            fontSize: 12,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -332,14 +384,14 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                           '${passRate.toStringAsFixed(1)}%',
                           style: GoogleFonts.outfit(
                             color: Colors.white,
-                            fontSize: 34,
+                            fontSize: 30,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ],
                     ),
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
@@ -347,40 +399,66 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                       child: const Icon(
                         Icons.emoji_events_rounded,
                         color: Colors.white,
-                        size: 36,
+                        size: 30,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
-                  child: LinearProgressIndicator(
-                    value: (passed + failed) > 0 ? (passed / (passed + failed)) : 0,
-                    minHeight: 8,
-                    backgroundColor: Colors.white.withValues(alpha: 0.2),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      Color(0xFF4ADE80),
-                    ),
+                  child: Row(
+                    children: [
+                      if (passed > 0)
+                        Expanded(
+                          flex: passed,
+                          child: Container(
+                            height: 6,
+                            color: const Color(0xFF4ADE80),
+                          ),
+                        ),
+                      if (failed > 0)
+                        Expanded(
+                          flex: failed,
+                          child: Container(
+                            height: 6,
+                            color: Colors.red.shade300,
+                          ),
+                        ),
+                      if (complementary > 0)
+                        Expanded(
+                          flex: complementary,
+                          child: Container(
+                            height: 6,
+                            color: Colors.orange.shade300,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                const SizedBox(height: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      '$passed ناجح من أصل ${passed + failed} مصنف',
+                      complementary > 0
+                          ? '$passed ناجح من $classifiable (يشمل المؤهلين للتكميلية)'
+                          : '$passed ناجح من أصل $classifiable مترشح',
                       style: GoogleFonts.tajawal(
                         color: Colors.white,
-                        fontSize: 12,
+                        fontSize: 10,
                         fontWeight: FontWeight.w500,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 4),
                     Text(
                       'أعلى $scoreLabel: ${topScore.toStringAsFixed(2)} / ${maxScore.toInt()}',
+                      textAlign: TextAlign.end,
                       style: GoogleFonts.outfit(
                         color: Colors.white,
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -407,7 +485,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
             mainAxisSpacing: 12,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            childAspectRatio: 1.4,
+            childAspectRatio: 1.65,
             children: [
               _buildMetricCard(
                 title: 'إجمالي المترشحين',
@@ -449,6 +527,25 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                   percent: '${expelledRate.toStringAsFixed(1)}%',
                   icon: Icons.block_rounded,
                   color: Colors.purple,
+                  isDark: isDark,
+                ),
+              if (complementary > 0)
+                _buildMetricCard(
+                  title: 'المؤهلون للتكميلية',
+                  value: '$complementary',
+                  percent: '${complementaryRate.toStringAsFixed(1)}%',
+                  icon: Icons.refresh_rounded,
+                  color: Colors.orange,
+                  isDark: isDark,
+                ),
+              if (invalid > 0)
+                _buildMetricCard(
+                  title: 'بيانات غير صالحة',
+                  value: '$invalid',
+                  percent:
+                      '${(total > 0 ? invalid / total * 100 : 0).toStringAsFixed(1)}%',
+                  icon: Icons.error_outline_rounded,
+                  color: Colors.blueGrey,
                   isDark: isDark,
                 ),
               _buildMetricCard(
@@ -507,7 +604,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                             PieChartSectionData(
                               color: const Color(0xFF16A34A),
                               value: passed.toDouble(),
-                              title: '${passRate.toStringAsFixed(0)}%',
+                              title: '${passedShare.toStringAsFixed(0)}%',
                               titleStyle: GoogleFonts.outfit(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
@@ -519,7 +616,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                             PieChartSectionData(
                               color: Colors.red,
                               value: failed.toDouble(),
-                              title: '${failRate.toStringAsFixed(0)}%',
+                              title: '${failedShare.toStringAsFixed(0)}%',
                               titleStyle: GoogleFonts.outfit(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
@@ -545,6 +642,18 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                               color: Colors.grey,
                               value: absent.toDouble(),
                               title: '${absentRate.toStringAsFixed(0)}%',
+                              titleStyle: GoogleFonts.outfit(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              radius: 30,
+                            ),
+                          if (invalid > 0)
+                            PieChartSectionData(
+                              color: Colors.blueGrey,
+                              value: invalid.toDouble(),
+                              title: '${invalidShare.toStringAsFixed(0)}%',
                               titleStyle: GoogleFonts.outfit(
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
@@ -580,13 +689,13 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                         _buildLegendItem(
                           'ناجح ($passed)',
                           const Color(0xFF16A34A),
-                          '${passRate.toStringAsFixed(1)}%',
+                          '${passedShare.toStringAsFixed(1)}%',
                         ),
                       if (failed > 0)
                         _buildLegendItem(
                           'راسب ($failed)',
                           Colors.red,
-                          '${failRate.toStringAsFixed(1)}%',
+                          '${failedShare.toStringAsFixed(1)}%',
                         ),
                       if (absent > 0)
                         _buildLegendItem(
@@ -599,6 +708,18 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                           'مطرود ($expelled)',
                           Colors.purple,
                           '${expelledRate.toStringAsFixed(1)}%',
+                        ),
+                      if (complementary > 0)
+                        _buildLegendItem(
+                          'مؤهل للتكميلية ($complementary)',
+                          Colors.orange,
+                          '${complementaryRate.toStringAsFixed(1)}%',
+                        ),
+                      if (invalid > 0)
+                        _buildLegendItem(
+                          'بيانات غير صالحة ($invalid)',
+                          Colors.blueGrey,
+                          '${invalidShare.toStringAsFixed(1)}%',
                         ),
                     ],
                   ),
@@ -693,7 +814,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
               student.name,
               style: GoogleFonts.tajawal(
                 fontWeight: FontWeight.bold,
-                fontSize: 14,
+                fontSize: 13,
               ),
             ),
             subtitle: Column(
@@ -742,7 +863,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                     gradient: widget.gradient,
                     emoji: '🏆',
                     passScore: widget.examType == ExamType.concours
-                        ? 100.0
+                        ? 85.0
                         : 10.0,
                     maxScore: widget.examType == ExamType.concours
                         ? 200.0
@@ -752,6 +873,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                         : 'المعدل',
                     allResults: widget.allResults,
                     examType: widget.examType,
+                    isFirstSession: widget.isFirstSession,
                   ),
                 ),
               );
@@ -771,7 +893,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
     required bool isDark,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -820,11 +942,11 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             value,
             style: GoogleFonts.outfit(
-              fontSize: 18,
+              fontSize: 17,
               fontWeight: FontWeight.bold,
               color: color,
             ),
@@ -832,7 +954,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
           Text(
             title,
             style: GoogleFonts.tajawal(
-              fontSize: 11,
+              fontSize: 10,
               color: isDark ? Colors.grey[400] : Colors.grey[600],
             ),
             maxLines: 1,
@@ -893,29 +1015,26 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
 
     // أفضل 10 مدارس للرسم البياني
     final top10 = schools.take(10).toList();
-    final totalParticipants = schools.fold<int>(
-      0,
-      (sum, school) => sum + school.total,
+    final totalParticipants = widget.allResults.length;
+    final totalPassed = widget.allResults.where((r) => r.isPassed).length;
+    final totalFailed = widget.allResults.where((r) => r.isFailed).length;
+    final complementary =
+        widget.examType == ExamType.bac && widget.isFirstSession
+        ? widget.allResults.where((result) => result.isComplementary).length
+        : 0;
+    final overallPassRate = ResultsService.passRate(
+      passed: totalPassed,
+      failed: totalFailed,
+      complementary: complementary,
     );
-    final totalPassed = schools.fold<int>(
-      0,
-      (sum, school) => sum + school.passed,
-    );
-    final totalFailed = schools.fold<int>(
-      0,
-      (sum, school) => sum + school.failed,
-    );
-    final overallPassRate = totalParticipants > 0
-        ? totalPassed / totalParticipants * 100
-        : 0.0;
     final averagePassRate = schools.isNotEmpty
-      ? schools.fold<double>(0, (sum, school) => sum + school.passRate) /
-          schools.length
-      : 0.0;
+        ? schools.fold<double>(0, (sum, school) => sum + school.passRate) /
+              schools.length
+        : 0.0;
     final highestPassRate = schools.isEmpty ? 0.0 : schools.first.passRate;
     final lowestPassRate = schools.isEmpty
-      ? 0.0
-      : schools.map((school) => school.passRate).reduce(math.min);
+        ? 0.0
+        : schools.map((school) => school.passRate).reduce(math.min);
 
     // استخدام NestedScrollView لجعل الرسم البياني وحقل البحث يتمرران مع القائمة
     return ScrollConfiguration(
@@ -972,7 +1091,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                       Text(
                         '📊 نسب نجاح أفضل ${top10.length} مدارس',
                         style: GoogleFonts.tajawal(
-                          fontSize: 14,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -1010,7 +1129,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                                     return Padding(
                                       padding: const EdgeInsets.only(top: 4),
                                       child: Text(
-                                        '#${idx + 1}',
+                                        '${idx + 1}',
                                         style: GoogleFonts.outfit(
                                           fontSize: 10,
                                           fontWeight: FontWeight.bold,
@@ -1283,10 +1402,22 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
               _buildSummaryValue('المشاركون', '$participants'),
               _buildSummaryValue('الناجحون', '$passed'),
               _buildSummaryValue('الراسبون', '$failed'),
-              _buildSummaryValue('نسبة النجاح', '${passRate.toStringAsFixed(1)}%'),
-              _buildSummaryValue('متوسط المدارس', '${averagePassRate.toStringAsFixed(1)}%'),
-              _buildSummaryValue('الأعلى', '${highestPassRate.toStringAsFixed(1)}%'),
-              _buildSummaryValue('الأقل', '${lowestPassRate.toStringAsFixed(1)}%'),
+              _buildSummaryValue(
+                'نسبة النجاح',
+                '${passRate.toStringAsFixed(1)}%',
+              ),
+              _buildSummaryValue(
+                'متوسط المدارس',
+                '${averagePassRate.toStringAsFixed(1)}%',
+              ),
+              _buildSummaryValue(
+                'الأعلى',
+                '${highestPassRate.toStringAsFixed(1)}%',
+              ),
+              _buildSummaryValue(
+                'الأقل',
+                '${lowestPassRate.toStringAsFixed(1)}%',
+              ),
             ],
           ),
         ],
@@ -1315,18 +1446,32 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
   }
 
   int _compareSchools(_SchoolData a, _SchoolData b) {
-    switch (_schoolSort) {
-      case _SchoolSort.passRateAsc:
-        return a.passRate.compareTo(b.passRate);
-      case _SchoolSort.passedDesc:
-        return b.passed.compareTo(a.passed);
-      case _SchoolSort.totalDesc:
-        return b.total.compareTo(a.total);
-      case _SchoolSort.rank:
-      case _SchoolSort.passRateDesc:
-        final rate = b.passRate.compareTo(a.passRate);
-        return rate != 0 ? rate : b.passed.compareTo(a.passed);
+    final primary = switch (_schoolSort) {
+      _SchoolSort.passRateAsc => a.passRate.compareTo(b.passRate),
+      _SchoolSort.passedDesc => b.passed.compareTo(a.passed),
+      _SchoolSort.totalDesc => b.total.compareTo(a.total),
+      _SchoolSort.rank ||
+      _SchoolSort.passRateDesc => b.passRate.compareTo(a.passRate),
+    };
+    if (primary != 0) return primary;
+    if (_schoolSort == _SchoolSort.passRateDesc ||
+        _schoolSort == _SchoolSort.rank) {
+      final passed = b.passed.compareTo(a.passed);
+      if (passed != 0) return passed;
+      final total = b.total.compareTo(a.total);
+      if (total != 0) return total;
     }
+    return a.name.compareTo(b.name);
+  }
+
+  bool _sameSchoolRank(_SchoolData a, _SchoolData b) {
+    return switch (_schoolSort) {
+      _SchoolSort.passRateAsc => a.passRate == b.passRate,
+      _SchoolSort.passedDesc => a.passed == b.passed,
+      _SchoolSort.totalDesc => a.total == b.total,
+      _SchoolSort.rank || _SchoolSort.passRateDesc =>
+        a.passRate == b.passRate && a.passed == b.passed && a.total == b.total,
+    };
   }
 
   Widget _buildSchoolCard({
@@ -1373,6 +1518,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                   schoolName: school.name,
                   allResults: widget.allResults,
                   examType: widget.examType,
+                  isFirstSession: widget.isFirstSession,
                   gradient: widget.gradient,
                   emoji: '🏫',
                   passScore: widget.examType == ExamType.concours ? 85.0 : 10.0,
@@ -1383,7 +1529,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
             );
           },
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(11),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1402,7 +1548,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                       ),
                       child: Center(
                         child: Text(
-                          '#${school.rank}',
+                          '${school.rank}',
                           style: GoogleFonts.outfit(
                             fontWeight: FontWeight.bold,
                             fontSize: 12,
@@ -1461,8 +1607,10 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                 const SizedBox(height: 10),
 
                 // تفاصيل المدرسة: مشاركين، ناجحين، راسبين، غائبين، أعلى معدل
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                Wrap(
+                  alignment: WrapAlignment.spaceAround,
+                  spacing: 14,
+                  runSpacing: 10,
                   children: [
                     _buildMiniBadge(
                       'المشاركين',
@@ -1515,7 +1663,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
         ),
         Text(
           label,
-          style: GoogleFonts.tajawal(fontSize: 10, color: Colors.grey[500]),
+          style: GoogleFonts.tajawal(fontSize: 9, color: Colors.grey[500]),
         ),
       ],
     );
@@ -1545,11 +1693,10 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                   wilayaName: w.name,
                   allResults: widget.allResults,
                   examType: widget.examType,
+                  isFirstSession: widget.isFirstSession,
                   gradient: widget.gradient,
                   emoji: '📍',
-                  passScore: widget.examType == ExamType.concours
-                      ? 100.0
-                      : 10.0,
+                  passScore: widget.examType == ExamType.concours ? 85.0 : 10.0,
                   maxScore: maxScore,
                   scoreLabel: scoreLabel,
                 ),
@@ -1586,7 +1733,7 @@ class _CompetitionStatsScreenState extends State<CompetitionStatsScreen>
                   ),
                   child: Center(
                     child: Text(
-                      '#${w.rank}',
+                      '${w.rank}',
                       style: GoogleFonts.outfit(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
@@ -1923,10 +2070,12 @@ class _SchoolData {
   double scoreTotal = 0.0;
   int scoredCount = 0;
 
-  double get passRate => total > 0 ? (passed / total * 100) : 0.0;
+  int get classified => passed + failed + complementary;
+  double get passRate => classified > 0 ? (passed / classified * 100) : 0.0;
   double get failRate => total > 0 ? (failed / total * 100) : 0.0;
   double? get averageScore => scoredCount > 0 ? scoreTotal / scoredCount : null;
-  String get averageScoreLabel => averageScore?.toStringAsFixed(2) ?? 'غير متوفر';
+  String get averageScoreLabel =>
+      averageScore?.toStringAsFixed(2) ?? 'غير متوفر';
 
   _SchoolData({required this.name, required this.wilaya});
 }
@@ -1942,7 +2091,8 @@ class _WilayaData {
   int complementary = 0;
   double topScore = 0.0;
 
-  double get passRate => total > 0 ? (passed / total * 100) : 0.0;
+  int get classified => passed + failed + complementary;
+  double get passRate => classified > 0 ? (passed / classified * 100) : 0.0;
 
   _WilayaData({required this.name});
 }

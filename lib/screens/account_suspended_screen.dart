@@ -84,7 +84,9 @@ class AccountSuspendedScreen extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: Colors.red.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.red.withValues(alpha: 0.4)),
+                            border: Border.all(
+                              color: Colors.red.withValues(alpha: 0.4),
+                            ),
                           ),
                           child: RichText(
                             textAlign: TextAlign.center,
@@ -138,10 +140,14 @@ class AccountSuspendedScreen extends StatelessWidget {
                             child: ElevatedButton.icon(
                               onPressed: () async {
                                 final ok = await auth.refreshAccountStatus();
-                                if (ok && !auth.isAccountSuspended && context.mounted) {
+                                if (ok &&
+                                    !auth.isAccountSuspended &&
+                                    context.mounted) {
                                   Navigator.pushAndRemoveUntil(
                                     context,
-                                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                                    MaterialPageRoute(
+                                      builder: (_) => const LoginScreen(),
+                                    ),
                                     (route) => false,
                                   );
                                 }
@@ -151,7 +157,9 @@ class AccountSuspendedScreen extends StatelessWidget {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.teal,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
                               ),
                             ),
                           ),
@@ -163,9 +171,14 @@ class AccountSuspendedScreen extends StatelessWidget {
                           Expanded(
                             child: OutlinedButton.icon(
                               onPressed: () async {
-                                final uri = Uri.parse('mailto:support@meraj3i.com?subject=حساب%20موقوف');
+                                final uri = Uri.parse(
+                                  'mailto:support@meraj3i.com?subject=حساب%20موقوف',
+                                );
                                 if (await canLaunchUrl(uri)) {
-                                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                  await launchUrl(
+                                    uri,
+                                    mode: LaunchMode.externalApplication,
+                                  );
                                 }
                               },
                               icon: const Icon(Icons.headset_mic_outlined),
@@ -173,7 +186,9 @@ class AccountSuspendedScreen extends StatelessWidget {
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.white,
                                 side: const BorderSide(color: Colors.white24),
-                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
                               ),
                             ),
                           ),
@@ -184,17 +199,35 @@ class AccountSuspendedScreen extends StatelessWidget {
                         width: double.infinity,
                         child: TextButton.icon(
                           onPressed: () async {
-                            await auth.signOut();
+                            try {
+                              await auth.signOut();
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'تعذر تسجيل الخروج. أعد المحاولة: $e',
+                                    ),
+                                  ),
+                                );
+                              }
+                              return;
+                            }
                             if (context.mounted) {
                               Navigator.pushAndRemoveUntil(
                                 context,
-                                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                                MaterialPageRoute(
+                                  builder: (_) => const LoginScreen(),
+                                ),
                                 (route) => false,
                               );
                             }
                           },
                           icon: const Icon(Icons.logout, color: Colors.white70),
-                          label: const Text('تسجيل الخروج', style: TextStyle(color: Colors.white70)),
+                          label: const Text(
+                            'تسجيل الخروج',
+                            style: TextStyle(color: Colors.white70),
+                          ),
                         ),
                       ),
                     ],

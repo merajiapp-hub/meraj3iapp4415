@@ -12,6 +12,7 @@ class WilayaStatsScreen extends StatefulWidget {
   final double passScore;
   final double maxScore;
   final String scoreLabel;
+  final bool isFirstSession;
 
   const WilayaStatsScreen({
     super.key,
@@ -23,6 +24,7 @@ class WilayaStatsScreen extends StatefulWidget {
     required this.passScore,
     required this.maxScore,
     required this.scoreLabel,
+    this.isFirstSession = false,
   });
 
   @override
@@ -78,12 +80,23 @@ class _WilayaStatsScreenState extends State<WilayaStatsScreen> {
 
     _total = _wilayaStudents.length;
     _passed = _wilayaStudents.where((s) => s.isPassed).length;
+    final failed = _wilayaStudents.where((s) => s.isFailed).length;
+    final complementary =
+        widget.examType == ExamType.bac && widget.isFirstSession
+        ? _wilayaStudents.where((s) => s.isComplementary).length
+        : 0;
 
-    _passRate = _total > 0 ? (_passed / _total * 100) : 0.0;
+    _passRate = ResultsService.passRate(
+      passed: _passed,
+      failed: failed,
+      complementary: complementary,
+    );
 
     _topScore = 0.0;
     for (final r in _wilayaStudents) {
-      if (r.score != null && r.score! > _topScore) {
+      if ((r.isPassed || r.isFailed) &&
+          r.score != null &&
+          r.score! > _topScore) {
         _topScore = r.score!;
       }
     }
@@ -95,17 +108,38 @@ class _WilayaStatsScreenState extends State<WilayaStatsScreen> {
       final s = map[r.wilaya]!;
       s.total++;
       if (r.isPassed) s.passed++;
+      if (r.isFailed) s.failed++;
+      if (r.isComplementary &&
+          widget.examType == ExamType.bac &&
+          widget.isFirstSession) {
+        s.complementary++;
+      }
     }
 
     final sorted = map.values.toList()
       ..sort((a, b) {
         if (b.passRate != a.passRate) return b.passRate.compareTo(a.passRate);
-        return b.passed.compareTo(a.passed);
+        final passed = b.passed.compareTo(a.passed);
+        return passed != 0 ? passed : a.name.compareTo(b.name);
       });
 
     _totalWilayas = sorted.length;
-    final idx = sorted.indexWhere((s) => s.name == widget.wilayaName);
-    _wilayaRank = idx >= 0 ? idx + 1 : 1;
+    final wilayaIndex = sorted.indexWhere((s) => s.name == widget.wilayaName);
+    if (wilayaIndex < 0) {
+      _wilayaRank = 1;
+    } else {
+      final wilaya = sorted[wilayaIndex];
+      _wilayaRank =
+          sorted
+              .where(
+                (candidate) =>
+                    candidate.passRate > wilaya.passRate ||
+                    (candidate.passRate == wilaya.passRate &&
+                        candidate.passed > wilaya.passed),
+              )
+              .length +
+          1;
+    }
   }
 
   @override
@@ -120,7 +154,11 @@ class _WilayaStatsScreenState extends State<WilayaStatsScreen> {
             pinned: true,
             elevation: 0,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+              icon: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
               onPressed: () => Navigator.pop(context),
             ),
             flexibleSpace: FlexibleSpaceBar(
@@ -138,10 +176,16 @@ class _WilayaStatsScreenState extends State<WilayaStatsScreen> {
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                                color: Colors.black.withValues(
+                                  alpha: isDark ? 0.2 : 0.03,
+                                ),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.map_rounded, color: Colors.white, size: 28),
+                              child: const Icon(
+                                Icons.map_rounded,
+                                color: Colors.white,
+                                size: 28,
+                              ),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -159,8 +203,15 @@ class _WilayaStatsScreenState extends State<WilayaStatsScreen> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   Text(
-                                    'إحصائيات الولاية - ${widget.examType == ExamType.bac ? 'الباكلوريا' : widget.examType == ExamType.brevet ? 'ختم الدروس الإعدادية' : 'مسابقة دخول الإعدادية'}',
-                                    style: GoogleFonts.tajawal(color: Colors.white70, fontSize: 13),
+                                    'إحصائيات الولاية - ${widget.examType == ExamType.bac
+                                        ? 'الباكلوريا'
+                                        : widget.examType == ExamType.brevet
+                                        ? 'ختم الدروس الإعدادية'
+                                        : 'مسابقة دخول الإعدادية'}',
+                                    style: GoogleFonts.tajawal(
+                                      color: Colors.white70,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -189,16 +240,16 @@ class _WilayaStatsScreenState extends State<WilayaStatsScreen> {
             ),
           ),
           SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final student = _filteredStudents[index];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: _buildStudentCard(student, isDark),
-                );
-              },
-              childCount: _filteredStudents.length,
-            ),
+            delegate: SliverChildBuilderDelegate((context, index) {
+              final student = _filteredStudents[index];
+              return Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
+                child: _buildStudentCard(student, isDark),
+              );
+            }, childCount: _filteredStudents.length),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
@@ -211,30 +262,77 @@ class _WilayaStatsScreenState extends State<WilayaStatsScreen> {
       children: [
         Row(
           children: [
-            Expanded(child: _buildStatCard('المرتبة وطنياً', '$_wilayaRank', 'من $_totalWilayas ولاية', Colors.amber, Icons.emoji_events_rounded, isDark)),
+            Expanded(
+              child: _buildStatCard(
+                'المرتبة وطنياً',
+                '$_wilayaRank',
+                'من $_totalWilayas ولاية',
+                Colors.amber,
+                Icons.emoji_events_rounded,
+                isDark,
+              ),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: _buildStatCard('نسبة النجاح', '${_passRate.toStringAsFixed(2)}%', '$_passed ناجح', const Color(0xFF16A34A), Icons.percent_rounded, isDark)),
+            Expanded(
+              child: _buildStatCard(
+                'نسبة النجاح',
+                '${_passRate.toStringAsFixed(2)}%',
+                '$_passed ناجح',
+                const Color(0xFF16A34A),
+                Icons.percent_rounded,
+                isDark,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _buildStatCard('أعلى ${widget.scoreLabel}', _topScore.toStringAsFixed(2), 'من ${widget.maxScore.toInt()}', const Color(0xFF3B82F6), Icons.star_rounded, isDark)),
+            Expanded(
+              child: _buildStatCard(
+                'أعلى ${widget.scoreLabel}',
+                _topScore.toStringAsFixed(2),
+                'من ${widget.maxScore.toInt()}',
+                const Color(0xFF3B82F6),
+                Icons.star_rounded,
+                isDark,
+              ),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: _buildStatCard('إجمالي المترشحين', '$_total', '', Colors.purple, Icons.people_alt_rounded, isDark)),
+            Expanded(
+              child: _buildStatCard(
+                'إجمالي المترشحين',
+                '$_total',
+                '',
+                Colors.purple,
+                Icons.people_alt_rounded,
+                isDark,
+              ),
+            ),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildStatCard(String title, String value, String subtitle, Color color, IconData icon, bool isDark) {
+  Widget _buildStatCard(
+    String title,
+    String value,
+    String subtitle,
+    Color color,
+    IconData icon,
+    bool isDark,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.05)
+              : const Color(0xFFE2E8F0),
+        ),
         boxShadow: [
           BoxShadow(
             color: color.withValues(alpha: 0.12),
@@ -248,12 +346,29 @@ class _WilayaStatsScreenState extends State<WilayaStatsScreen> {
         children: [
           Icon(icon, color: color, size: 24),
           const SizedBox(height: 12),
-          Text(title, style: GoogleFonts.tajawal(color: Colors.grey, fontSize: 13)),
+          Text(
+            title,
+            style: GoogleFonts.tajawal(color: Colors.grey, fontSize: 13),
+          ),
           const SizedBox(height: 4),
-          Text(value, style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 20, color: isDark ? Colors.white : Colors.black87)),
+          Text(
+            value,
+            style: GoogleFonts.outfit(
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
           if (subtitle.isNotEmpty) ...[
             const SizedBox(height: 4),
-            Text(subtitle, style: GoogleFonts.tajawal(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+            Text(
+              subtitle,
+              style: GoogleFonts.tajawal(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ],
       ),
@@ -265,7 +380,11 @@ class _WilayaStatsScreenState extends State<WilayaStatsScreen> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.05)
+              : const Color(0xFFE2E8F0),
+        ),
       ),
       child: TextField(
         controller: _searchCtrl,
@@ -274,7 +393,10 @@ class _WilayaStatsScreenState extends State<WilayaStatsScreen> {
           hintStyle: GoogleFonts.tajawal(color: Colors.grey, fontSize: 14),
           prefixIcon: const Icon(Icons.search_rounded, color: Colors.grey),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
         ),
       ),
     );
@@ -285,15 +407,27 @@ class _WilayaStatsScreenState extends State<WilayaStatsScreen> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.05)
+              : const Color(0xFFE2E8F0),
+        ),
       ),
       child: ListTile(
-        title: Text(student.name, style: GoogleFonts.tajawal(fontWeight: FontWeight.bold)),
-        subtitle: Text(student.school, style: GoogleFonts.tajawal(fontSize: 12, color: Colors.grey)),
+        title: Text(
+          student.name,
+          style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          student.school,
+          style: GoogleFonts.tajawal(fontSize: 12, color: Colors.grey),
+        ),
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: student.isPassed ? const Color(0xFF16A34A).withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
+            color: student.isPassed
+                ? const Color(0xFF16A34A).withValues(alpha: 0.1)
+                : Colors.red.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
@@ -316,6 +450,7 @@ class _WilayaStatsScreenState extends State<WilayaStatsScreen> {
                 passScore: widget.passScore,
                 maxScore: widget.maxScore,
                 scoreLabel: widget.scoreLabel,
+                isFirstSession: widget.isFirstSession,
                 allResults: widget.allResults,
               ),
             ),
@@ -330,6 +465,12 @@ class _WilayaSummary {
   final String name;
   int total = 0;
   int passed = 0;
-  double get passRate => total > 0 ? (passed / total * 100) : 0.0;
+  int failed = 0;
+  int complementary = 0;
+  double get passRate => ResultsService.passRate(
+    passed: passed,
+    failed: failed,
+    complementary: complementary,
+  );
   _WilayaSummary({required this.name});
 }

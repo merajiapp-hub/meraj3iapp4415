@@ -3,6 +3,7 @@
 // أي مفتاح جديد في competitions_data يظهر تلقائياً
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/competition_model.dart';
@@ -18,11 +19,6 @@ class RemoteConfigService {
   bool _initialized = false;
   bool _initializing = false;
   final Completer<void> _initCompleter = Completer<void>();
-
-  // Cache في الذاكرة
-  List<CompetitionModel>? _cached;
-  DateTime? _cachedAt;
-  static const _cacheDuration = Duration(minutes: 10);
 
   // ─── بيانات احتياطية ───────────────────────────────────────────────
   static const Map<String, Map<String, dynamic>> _fallbackData = {
@@ -81,7 +77,7 @@ class RemoteConfigService {
       await _rc.setDefaults({
         'competitions_data': jsonEncode(_buildDefaultJson()),
       });
-      unawaited(_rc.fetchAndActivate());
+      unawaited(refreshInBackground());
     } catch (_) {
       // فشل التهيئة لا يوقف التطبيق
     } finally {
@@ -98,14 +94,6 @@ class RemoteConfigService {
   Future<List<CompetitionModel>> fetchCompetitions({
     bool forceRefresh = false,
   }) async {
-    // Cache
-    if (!forceRefresh &&
-        _cached != null &&
-        _cachedAt != null &&
-        DateTime.now().difference(_cachedAt!) < _cacheDuration) {
-      return _cached!;
-    }
-
     QuerySnapshot<Map<String, dynamic>>? firestoreSnapshot;
     try {
       // Read the collection first. The project contains documents written by
@@ -120,21 +108,7 @@ class RemoteConfigService {
     }
 
     if (firestoreSnapshot != null) {
-      final result =
-          firestoreSnapshot.docs
-              .map((doc) => CompetitionModel.fromJson(doc.id, doc.data()))
-              .where(
-                (competition) =>
-                    competition.isPublished &&
-                    _isValidLink(competition.link),
-              )
-              .toList()
-            ..sort((a, b) {
-              final order = a.order.compareTo(b.order);
-              return order != 0 ? order : a.rawKey.compareTo(b.rawKey);
-            });
-      _cached = result;
-      _cachedAt = DateTime.now();
+      final result = _publishedCompetitions(firestoreSnapshot.docs);
       // Firestore is authoritative, including the legitimate empty state.
       return result;
     }
@@ -146,17 +120,36 @@ class RemoteConfigService {
       final raw = _rc.getString('competitions_data');
       if (raw.isNotEmpty) {
         final Map<String, dynamic> parsed = jsonDecode(raw);
-        final result = _parseAllCompetitions(parsed);
-        _cached = result;
-        _cachedAt = DateTime.now();
-        return result;
+        return _parseAllCompetitions(parsed);
       }
     } catch (_) {}
 
-    final fallback = _fallbackCompetitions();
-    _cached = fallback;
-    _cachedAt = DateTime.now();
-    return fallback;
+    return _fallbackCompetitions();
+  }
+
+  Stream<List<CompetitionModel>> watchCompetitions() {
+    return _firestore
+        .collection('competition_results')
+        .snapshots()
+        .map((snapshot) => _publishedCompetitions(snapshot.docs));
+  }
+
+  List<CompetitionModel> _publishedCompetitions(
+    Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    final result =
+        docs
+            .map((doc) => CompetitionModel.fromJson(doc.id, doc.data()))
+            .where(
+              (competition) =>
+                  competition.isPublished && _isValidLink(competition.link),
+            )
+            .toList()
+          ..sort((a, b) {
+            final order = a.order.compareTo(b.order);
+            return order != 0 ? order : a.rawKey.compareTo(b.rawKey);
+          });
+    return result;
   }
 
   static bool _isValidLink(String value) {
@@ -169,13 +162,9 @@ class RemoteConfigService {
   Future<void> refreshInBackground() async {
     try {
       await _rc.fetchAndActivate();
-      _cached = null;
-    } catch (_) {}
-  }
-
-  void invalidateCache() {
-    _cached = null;
-    _cachedAt = null;
+    } catch (error) {
+      debugPrint('[RemoteConfig] Background refresh failed: $error');
+    }
   }
 
   // ─── Private ────────────────────────────────────────────────────────
@@ -209,8 +198,4 @@ class RemoteConfigService {
   Map<String, dynamic> _buildDefaultJson() {
     return Map.from(_fallbackData);
   }
-}
-
-void unawaited(Future<void> future) {
-  future.catchError((_) {});
 }
