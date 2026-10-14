@@ -15,7 +15,7 @@ class _GraphingScreenState extends State<GraphingScreen> {
   String _input = 'x^2';
   List<GraphPoint> _points = [];
   String _error = '';
-  
+
   // Viewport bounds
   final double _minX = -10;
   final double _maxX = 10;
@@ -53,7 +53,7 @@ class _GraphingScreenState extends State<GraphingScreen> {
         maxX: _maxX,
         steps: 300,
       );
-      
+
       // Calculate dynamic Y bounds
       double minY = double.infinity;
       double maxY = double.negativeInfinity;
@@ -61,7 +61,7 @@ class _GraphingScreenState extends State<GraphingScreen> {
         if (p.y < minY) minY = p.y;
         if (p.y > maxY) maxY = p.y;
       }
-      
+
       // Add padding to Y bounds
       if (points.isNotEmpty && minY != double.infinity) {
         double padding = (maxY - minY) * 0.1;
@@ -115,13 +115,15 @@ class _GraphingScreenState extends State<GraphingScreen> {
                     color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
-                  )
+                  ),
                 ],
               ),
               padding: const EdgeInsets.all(16),
               child: _points.isEmpty && _error.isEmpty
                   ? _buildEmptyState(textCol)
-                  : (_error.isNotEmpty ? _buildErrorState() : _buildChart(textCol, accent)),
+                  : (_error.isNotEmpty
+                        ? _buildErrorState()
+                        : _buildChart(textCol, accent)),
             ),
           ),
 
@@ -134,43 +136,44 @@ class _GraphingScreenState extends State<GraphingScreen> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: accent.withValues(alpha: 0.5)),
             ),
-            child: Row(
-              children: [
-                Text(
-                  'f(x) = ',
-                  style: TextStyle(
-                    color: accent,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 22,
-                    fontFamily: 'Tajawal',
+            child: Directionality(
+              textDirection: TextDirection.ltr,
+              child: Row(
+                children: [
+                  Text(
+                    'f(x) = ',
+                    style: TextStyle(
+                      color: accent,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 22,
+                      fontFamily: 'Tajawal',
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    reverse: true,
-                    child: Text(
-                      _input.isEmpty ? '_' : _input,
-                      textDirection: TextDirection.ltr,
-                      style: TextStyle(
-                        fontSize: 26,
-                        color: _input.isEmpty ? Colors.grey : textCol,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2,
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      reverse: false,
+                      child: Text(
+                        _input.isEmpty ? '_' : _input,
+                        textDirection: TextDirection.ltr,
+                        textAlign: TextAlign.left,
+                        style: TextStyle(
+                          fontSize: 26,
+                          color: _input.isEmpty ? Colors.grey : textCol,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 2,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 12),
 
           // ── Math Keyboard ──
-          Expanded(
-            flex: 5,
-            child: _buildSmartKeyboard(isDark),
-          ),
+          Expanded(flex: 5, child: _buildSmartKeyboard(isDark)),
         ],
       ),
     );
@@ -181,11 +184,18 @@ class _GraphingScreenState extends State<GraphingScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.show_chart_rounded, size: 60, color: textCol.withValues(alpha: 0.2)),
+          Icon(
+            Icons.show_chart_rounded,
+            size: 60,
+            color: textCol.withValues(alpha: 0.2),
+          ),
           const SizedBox(height: 12),
           Text(
             'أدخل دالة لرسمها',
-            style: GoogleFonts.tajawal(color: textCol.withValues(alpha: 0.5), fontSize: 18),
+            style: GoogleFonts.tajawal(
+              color: textCol.withValues(alpha: 0.5),
+              fontSize: 18,
+            ),
           ),
         ],
       ),
@@ -232,17 +242,22 @@ class _GraphingScreenState extends State<GraphingScreen> {
               FlLine(color: textCol.withValues(alpha: 0.12), strokeWidth: 1),
         ),
         titlesData: FlTitlesData(
-          rightTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 44,
               getTitlesWidget: (v, _) => Text(
                 v.toStringAsFixed(v.abs() < 10 ? 1 : 0),
-                style: TextStyle(color: textCol.withValues(alpha: 0.6), fontSize: 10),
+                style: TextStyle(
+                  color: textCol.withValues(alpha: 0.6),
+                  fontSize: 10,
+                ),
               ),
             ),
           ),
@@ -252,7 +267,10 @@ class _GraphingScreenState extends State<GraphingScreen> {
               reservedSize: 28,
               getTitlesWidget: (v, _) => Text(
                 v.toStringAsFixed(v.abs() < 10 ? 1 : 0),
-                style: TextStyle(color: textCol.withValues(alpha: 0.6), fontSize: 10),
+                style: TextStyle(
+                  color: textCol.withValues(alpha: 0.6),
+                  fontSize: 10,
+                ),
               ),
             ),
           ),
@@ -261,25 +279,29 @@ class _GraphingScreenState extends State<GraphingScreen> {
           show: true,
           border: Border.all(color: textCol.withValues(alpha: 0.2)),
         ),
-        lineBarsData: segments.map((seg) => LineChartBarData(
-          spots: seg,
-          isCurved: true,
-          color: accent,
-          barWidth: 2.5,
-          isStrokeCapRound: true,
-          dotData: const FlDotData(show: false),
-          belowBarData: BarAreaData(
-            show: true,
-            color: accent.withValues(alpha: 0.1),
-          ),
-        )).toList(),
+        lineBarsData: segments
+            .map(
+              (seg) => LineChartBarData(
+                spots: seg,
+                isCurved: true,
+                color: accent,
+                barWidth: 2.5,
+                isStrokeCapRound: true,
+                dotData: const FlDotData(show: false),
+                belowBarData: BarAreaData(
+                  show: true,
+                  color: accent.withValues(alpha: 0.1),
+                ),
+              ),
+            )
+            .toList(),
       ),
     );
   }
 
   Widget _buildSmartKeyboard(bool isDark) {
     final surface = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
-    
+
     final rows = [
       ['x', '^', '√', '(', ')', 'AC', 'DEL'],
       ['sin', 'cos', 'tan', '7', '8', '9', '÷'],
@@ -291,23 +313,22 @@ class _GraphingScreenState extends State<GraphingScreen> {
     return Container(
       color: surface,
       padding: const EdgeInsets.fromLTRB(8, 12, 8, 20),
-      child: Column(
-        children: rows.map((row) {
-          return Expanded(
-            child: Row(
-              children: row.map((key) {
-                // Determine flexibility for special keys
-                int flex = (key == 'رسم' || key == 'AC' || key == 'DEL') ? 2 : 1;
-                if (row.last == key && key == '+') flex = 1; // standard
-                
-                return Expanded(
-                  flex: flex,
-                  child: _buildKey(key, isDark),
-                );
-              }).toList(),
-            ),
-          );
-        }).toList(),
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: Column(
+          children: rows.map((row) {
+            return Expanded(
+              child: Row(
+                children: row.map((key) {
+                  final flex = (key == 'رسم' || key == 'AC' || key == 'DEL')
+                      ? 2
+                      : 1;
+                  return Expanded(flex: flex, child: _buildKey(key, isDark));
+                }).toList(),
+              ),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -315,8 +336,20 @@ class _GraphingScreenState extends State<GraphingScreen> {
   Widget _buildKey(String label, bool isDark) {
     final isAction = label == '=';
     final isDelete = label == 'DEL' || label == 'AC';
-    final isNumber = ['0','1','2','3','4','5','6','7','8','9','.'].contains(label);
-    
+    final isNumber = [
+      '0',
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+      '6',
+      '7',
+      '8',
+      '9',
+      '.',
+    ].contains(label);
+
     Color bgColor = isDark ? const Color(0xFF334155) : Colors.white;
     Color textColor = isDark ? Colors.white : Colors.black87;
 

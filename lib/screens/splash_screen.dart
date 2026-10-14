@@ -195,8 +195,7 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Container(
-        color: Colors.white,
+      body: SafeArea(
         child: Stack(
           children: [
             Positioned.fill(
@@ -208,37 +207,38 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
             Center(
-              child: Transform.translate(
-                offset: const Offset(0, -45),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                  AnimatedBuilder(
-                    animation: _logoController,
-                    builder: (context, child) => FadeTransition(
-                      opacity: _logoFade,
-                      child: ScaleTransition(
-                        scale: _logoScale,
-                        child: Image.asset(
-                          'assets/images/logo.png',
-                          width: 230,
-                          height: 230,
-                          filterQuality: FilterQuality.high,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Icon(
-                            Icons.school_rounded,
-                            size: 100,
-                            color: AppTheme.primaryColor,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 360),
+                  child: Transform.translate(
+                    offset: const Offset(0, -30),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        AnimatedBuilder(
+                          animation: _logoController,
+                          builder: (context, child) => FadeTransition(
+                            opacity: _logoFade,
+                            child: ScaleTransition(
+                              scale: _logoScale,
+                              child: Image.asset(
+                                'assets/images/logo.png',
+                                width: 230,
+                                height: 230,
+                                filterQuality: FilterQuality.high,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Icon(
+                                  Icons.school_rounded,
+                                  size: 100,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                  Transform.translate(
-                    offset: const Offset(0, -10),
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 22),
+                        const SizedBox(height: 12),
                         FadeTransition(
                           opacity: _taglineFade,
                           child: SlideTransition(
@@ -255,7 +255,7 @@ class _SplashScreenState extends State<SplashScreen>
                             ),
                           ),
                         ),
-                        const SizedBox(height: 7),
+                        const SizedBox(height: 8),
                         FadeTransition(
                           opacity: _taglineFade,
                           child: SlideTransition(
@@ -271,63 +271,70 @@ class _SplashScreenState extends State<SplashScreen>
                             ),
                           ),
                         ),
-                        const SizedBox(height: 28),
-                      ],
-                    ),
-                  ),
-
-                  if (_showBiometricRetry) ...[
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      margin: const EdgeInsets.symmetric(horizontal: 40),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        color: AppTheme.backgroundLight,
-                        border: Border.all(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.14),
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          const Icon(Icons.fingerprint,
-                              size: 52, color: AppTheme.primaryColor),
-                          const SizedBox(height: 12),
-                          Text(
-                            'التحقق البيومتري مطلوب',
-                            style: GoogleFonts.tajawal(
-                              color: AppTheme.accentColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                        if (_showBiometricRetry) ...[
+                          const SizedBox(height: 24),
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            margin: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              color: AppTheme.backgroundLight,
+                              border: Border.all(
+                                color: AppTheme.primaryColor.withValues(alpha: 0.14),
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              setState(() {
-                                _showBiometricRetry = false;
-                                _navigating = false;
-                              });
-                              _proceed();
-                            },
-                            icon: const Icon(Icons.refresh_rounded),
-                            label: Text('إعادة المحاولة',
-                                style: GoogleFonts.tajawal(
-                                    fontWeight: FontWeight.bold)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryColor,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 28, vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14)),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.fingerprint,
+                                  size: 52,
+                                  color: AppTheme.primaryColor,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'التحقق البيومتري مطلوب',
+                                  style: GoogleFonts.tajawal(
+                                    color: AppTheme.accentColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                ElevatedButton.icon(
+                                  onPressed: () {
+                                    setState(() {
+                                      _showBiometricRetry = false;
+                                      _navigating = false;
+                                    });
+                                    _proceed();
+                                  },
+                                  icon: const Icon(Icons.refresh_rounded),
+                                  label: Text(
+                                    'إعادة المحاولة',
+                                    style: GoogleFonts.tajawal(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.primaryColor,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 28,
+                                      vertical: 14,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
-                      ),
+                      ],
                     ),
-                  ] else ...[
-                  ],
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -335,7 +342,7 @@ class _SplashScreenState extends State<SplashScreen>
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: 225,
+                bottom: 120,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [

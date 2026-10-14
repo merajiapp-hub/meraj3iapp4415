@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:async';
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -21,6 +22,7 @@ import 'package:share_plus/share_plus.dart';
 import '../services/book_cache_service.dart';
 import '../services/book_download_service.dart';
 import '../services/drive_url_service.dart';
+import '../widgets/drive_pdf_preview.dart';
 
 class PdfViewerScreen extends StatefulWidget {
   final String pdfUrl;
@@ -106,10 +108,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
     _toolbarAnimController.value = 1.0;
 
     // تشغيل الفحص وتحميل بيانات الصفحات بالتوازي — تحسين السرعة
-    Future.wait([
-      _checkLocalFile(),
-      _loadSavedData(),
-    ]);
+    Future.wait([_checkLocalFile(), _loadSavedData()]);
 
     if (widget.pdfUrl.contains('/drive/folders/')) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -282,8 +281,10 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
                 onTap: () {
                   Navigator.pop(ctx);
                   if (!reading.isRead(book.uniqueKey)) {
-                    Provider.of<StatisticsProvider>(context, listen: false)
-                        .incrementUserStat('completedBooks');
+                    Provider.of<StatisticsProvider>(
+                      context,
+                      listen: false,
+                    ).incrementUserStat('completedBooks');
                   }
                   reading.markAsCompleted(book);
                   AppNotification.show(context, 'تم حفظه في المقروءات ✅');
@@ -324,13 +325,24 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   }
 
   String _getDirectLink(String url) {
+    if (kIsWeb && DriveUrlService.isDriveUrl(url)) {
+      return DriveUrlService.buildPreviewUrl(url);
+    }
     final direct = DriveUrlService.buildDirectDownloadUrl(url);
     return direct.isEmpty ? url : direct;
+  }
+
+  String _getBrowserUrl(String url) {
+    if (DriveUrlService.isDriveUrl(url)) {
+      return DriveUrlService.buildWebOpenUrl(url);
+    }
+    return url;
   }
 
   Future<void> _launchUrl(String url) async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     if (auth.isGuest) {
+      if (!mounted) return;
       AppNotification.show(
         context,
         'يرجى تسجيل الدخول لفتح الروابط الخارجية',
@@ -338,8 +350,31 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
       );
       return;
     }
-    final uri = Uri.parse(url);
+    final safeUrl = _getBrowserUrl(url);
+    final uri = Uri.tryParse(safeUrl);
+    if (uri == null) {
+      if (!mounted) return;
+      AppNotification.show(
+        context,
+        'الرابط غير صالح لفتح الكتاب.',
+        isError: true,
+      );
+      return;
+    }
+    if (kIsWeb) {
+      final opened = await launchUrl(uri, mode: LaunchMode.platformDefault);
+      if (!mounted) return;
+      if (!opened) {
+        AppNotification.show(
+          context,
+          'تعذر فتح الرابط في المتصفح. تأكد من صلاحية الوصول إلى الملف.',
+          isError: true,
+        );
+      }
+      return;
+    }
     if (await canLaunchUrl(uri)) {
+      if (!mounted) return;
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
@@ -353,6 +388,17 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
       _isCheckingLocalFile = true;
       _loadingStage = 'جاري التحقق من الملف المحفوظ...';
     });
+
+    if (kIsWeb &&
+        DriveUrlService.isDriveUrl(widget.pdfUrl) &&
+        !widget.pdfUrl.contains('/drive/folders/')) {
+      setState(() {
+        _isCheckingLocalFile = false;
+        _isOpening = false;
+        _loadingStage = 'جاري فتح معاينة الكتاب...';
+      });
+      return;
+    }
 
     // Only resolve an explicitly supplied/local offline file here. Opening a
     // remote book must never promote it into the offline download cache.
@@ -489,7 +535,33 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
           )
         : true;
 
-    if (confirm != true) return;
+    if (confirm != true || !mounted) return;
+
+    if (kIsWeb) {
+      final downloadUrl = DriveUrlService.isDriveUrl(widget.pdfUrl)
+          ? DriveUrlService.buildDirectDownloadUrl(widget.pdfUrl)
+          : widget.pdfUrl;
+      final downloadUri = Uri.tryParse(downloadUrl);
+      if (downloadUri == null ||
+          (downloadUri.scheme != 'http' && downloadUri.scheme != 'https')) {
+        AppNotification.show(context, 'رابط التحميل غير صالح.', isError: true);
+        return;
+      }
+
+      final opened = await launchUrl(
+        downloadUri,
+        mode: LaunchMode.platformDefault,
+      );
+      if (!mounted) return;
+      if (!opened) {
+        AppNotification.show(
+          context,
+          'تعذر بدء التحميل. تحقق من صلاحية الوصول إلى الملف.',
+          isError: true,
+        );
+      }
+      return;
+    }
 
     setState(() {
       _isDownloading = true;
@@ -527,7 +599,9 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
             listen: false,
           );
 
-          final isAlreadyDownloaded = dbProvider.isDownloaded(widget.book!.uniqueKey);
+          final isAlreadyDownloaded = dbProvider.isDownloaded(
+            widget.book!.uniqueKey,
+          );
           await dbProvider.addDownload(db);
 
           if (!isAlreadyDownloaded) {
@@ -701,8 +775,10 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
                   tooltip: isRead ? 'مقروء' : 'تعيين كمقروء',
                   onPressed: () {
                     if (!isRead) {
-                      Provider.of<StatisticsProvider>(context, listen: false)
-                          .incrementUserStat('completedBooks');
+                      Provider.of<StatisticsProvider>(
+                        context,
+                        listen: false,
+                      ).incrementUserStat('completedBooks');
                       reading.markAsCompleted(widget.book!);
                       AppNotification.show(
                         context,
@@ -1091,6 +1167,40 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   }
 
   Widget _buildPdfView() {
+    if (kIsWeb &&
+        DriveUrlService.isDriveUrl(widget.pdfUrl) &&
+        !widget.pdfUrl.contains('/drive/folders/')) {
+      final preview = DrivePdfPreview(url: widget.pdfUrl);
+      if (_isNightMode) {
+        return ColorFiltered(
+          colorFilter: const ColorFilter.matrix([
+            -1,
+            0,
+            0,
+            0,
+            255,
+            0,
+            -1,
+            0,
+            0,
+            255,
+            0,
+            0,
+            -1,
+            0,
+            255,
+            0,
+            0,
+            0,
+            1,
+            0,
+          ]),
+          child: preview,
+        );
+      }
+      return preview;
+    }
+
     if (_isCheckingLocalFile) {
       return const Center(
         child: CircularProgressIndicator(color: AppTheme.primaryColor),
@@ -1192,7 +1302,12 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
           }
         },
         onDocumentLoadFailed: (details) {
-          if (mounted) setState(() { _isOpening = false; _openFailed = true; });
+          if (mounted) {
+            setState(() {
+              _isOpening = false;
+              _openFailed = true;
+            });
+          }
         },
       );
     } else if (widget.pdfUrl.isEmpty) {

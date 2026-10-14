@@ -16,8 +16,8 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen>
   late TabController _tabs;
   int _rowsA = 2, _colsA = 2;
   int _rowsB = 2;
-  late List<List<TextEditingController>> _ctrlA;
-  late List<List<TextEditingController>> _ctrlB;
+  List<List<TextEditingController>> _ctrlA = [];
+  List<List<TextEditingController>> _ctrlB = [];
   String _result = '';
 
   @override
@@ -45,6 +45,11 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen>
   }
 
   void _initCtrlA() {
+    for (final row in _ctrlA) {
+      for (final controller in row) {
+        controller.dispose();
+      }
+    }
     _ctrlA = List.generate(
       _rowsA,
       (i) => List.generate(_colsA, (j) => TextEditingController(text: '0')),
@@ -52,6 +57,11 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen>
   }
 
   void _initCtrlB() {
+    for (final row in _ctrlB) {
+      for (final controller in row) {
+        controller.dispose();
+      }
+    }
     _ctrlB = List.generate(
       _rowsB,
       (i) => List.generate(_rowsB, (j) => TextEditingController(text: '0')),
@@ -213,7 +223,7 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen>
                     value: rows,
                     isExpanded: true,
                     isDense: true,
-                    itemHeight: 40,
+                    itemHeight: 48,
                     menuMaxHeight: 144,
                     borderRadius: BorderRadius.circular(10),
                     items: [2, 3, 4]
@@ -248,7 +258,7 @@ class _MatrixEditorScreenState extends State<MatrixEditorScreen>
                       value: cols,
                       isExpanded: true,
                       isDense: true,
-                      itemHeight: 40,
+                      itemHeight: 48,
                       menuMaxHeight: 144,
                       borderRadius: BorderRadius.circular(10),
                       items: [2, 3, 4]

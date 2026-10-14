@@ -1,6 +1,22 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/drive_url_service.dart';
 
+bool _isNationalExamSection(String section) {
+  final normalized = section.toLowerCase();
+  return normalized.contains('امتحان') ||
+      normalized.contains('concours') ||
+      normalized.contains('brevet') ||
+      normalized.contains('bac');
+}
+
+bool _isSolutionCategory(String category) {
+  final normalized = category.trim().toLowerCase();
+  return normalized == 'الحل' ||
+      normalized == 'الحلول' ||
+      normalized == 'solution' ||
+      normalized == 'solutions';
+}
+
 class Book {
   final String id;
   final String title;
@@ -11,6 +27,8 @@ class Book {
   final String subject; // المادة (رياضيات، عربية...)
   final String url; // الرابط الأصلي — لا يُعدَّل أبداً
   final String solutionUrl;
+  final String documentType;
+  final String examKey;
   final String coverUrl;
   final String uploaderId;
   // حقول إضافية للدعم الذكي
@@ -19,7 +37,8 @@ class Book {
   final String? linkStatus;
   final bool isActive;
   final DateTime? addedAt;
-  
+  final int order;
+
   // New fields for hierarchical categories
   final String? categoryId;
   final List<String>? categoryPath;
@@ -35,6 +54,8 @@ class Book {
     this.subject = '',
     required this.url,
     this.solutionUrl = '',
+    this.documentType = 'book',
+    this.examKey = '',
     this.coverUrl = '',
     this.uploaderId = '',
     this.originalDriveUrl,
@@ -42,6 +63,7 @@ class Book {
     this.linkStatus,
     this.isActive = true,
     this.addedAt,
+    this.order = 0,
     this.categoryId,
     this.categoryPath,
     this.categoryIds = const [],
@@ -103,7 +125,8 @@ class Book {
 
   factory Book.fromMap(Map<String, dynamic> map, String documentId) {
     DateTime? addedAt;
-    final rawDate = map['uploadDate'] ??
+    final rawDate =
+        map['uploadDate'] ??
         map['createdAt'] ??
         map['created_at'] ??
         map['addedAt'] ??
@@ -121,18 +144,103 @@ class Book {
     String value(String key, [String fallback = '']) =>
         (map[key] ?? fallback).toString().trim();
 
-    final rawSection = value('section', value('stage'));
-    final rawGrade = value('grade', value('year'));
-    final rawCategory = value('category', value('type', value('bookType')));
-    final rawSubject = value('subject', value('material'));
-    final rawUrl = value('url', value('drive_link', value('pdfUrl', value('fileUrl', value('downloadUrl')))));
-    
+    String readFirstString(List<String> keys, [String fallback = '']) {
+      for (final key in keys) {
+        final raw = map[key];
+        if (raw == null) continue;
+        final text = raw.toString().trim();
+        if (text.isNotEmpty) return text;
+      }
+      return fallback;
+    }
+
+    int readOrder({int fallback = 0}) {
+      final rawOrder =
+          map['order'] ??
+          map['sortOrder'] ??
+          map['position'] ??
+          map['sequence'] ??
+          map['bookOrder'];
+      if (rawOrder is num) {
+        return rawOrder.toInt();
+      }
+      if (rawOrder is String) {
+        final parsed = int.tryParse(rawOrder.trim());
+        if (parsed != null) return parsed;
+      }
+      return fallback;
+    }
+
+    final rawSection = readFirstString([
+      'section',
+      'stage',
+      'sectionName',
+      'stageName',
+      'sectionTitle',
+      'pageTitle',
+      'page',
+    ], value('sectionId'));
+    final rawGrade = readFirstString([
+      'grade',
+      'year',
+      'gradeName',
+      'yearName',
+      'gradeTitle',
+    ], value('gradeId'));
+    final rawCategory = readFirstString([
+      'category',
+      'type',
+      'bookType',
+      'categoryName',
+      'pageType',
+    ], value('categoryId'));
+    final rawSubject = readFirstString([
+      'subject',
+      'material',
+      'subjectName',
+      'materialName',
+      'subjectTitle',
+      'pageName',
+    ]);
+    final rawUrl = value(
+      'url',
+      value(
+        'drive_link',
+        value('pdfUrl', value('fileUrl', value('downloadUrl'))),
+      ),
+    );
+    final rawSolutionUrl = readFirstString([
+      'solutionUrl',
+      'solution_url',
+      'solutionURL',
+      'answerUrl',
+      'answer_url',
+      'answersUrl',
+      'answers_url',
+      'correctionUrl',
+      'correction_url',
+    ]);
+    final rawDocumentType = readFirstString([
+      'documentType',
+      'document_type',
+      'examDocumentType',
+    ]);
+    final rawExamKey = readFirstString(['examKey', 'exam_key']);
+    final documentType = rawDocumentType.isNotEmpty
+        ? rawDocumentType
+        : _isNationalExamSection(rawSection)
+        ? (_isSolutionCategory(rawCategory) ? 'solution' : 'exam')
+        : 'book';
+
     List<String>? parsedCategoryPath;
     if (map['categoryPath'] != null) {
       if (map['categoryPath'] is List) {
         parsedCategoryPath = List<String>.from(map['categoryPath']);
       } else if (map['categoryPath'] is String) {
-        parsedCategoryPath = (map['categoryPath'] as String).split(',').map((e) => e.trim()).toList();
+        parsedCategoryPath = (map['categoryPath'] as String)
+            .split(',')
+            .map((e) => e.trim())
+            .toList();
       }
     }
 
@@ -145,10 +253,20 @@ class Book {
       category: rawCategory,
       subject: rawSubject,
       url: rawUrl,
-      solutionUrl: value('solutionUrl'),
-      coverUrl: value('coverUrl', value('imageUrl', value('thumbnailUrl'))),
+      solutionUrl: rawSolutionUrl,
+      documentType: documentType,
+      examKey: rawExamKey,
+      coverUrl: readFirstString([
+        'coverUrl',
+        'cover_url',
+        'imageUrl',
+        'image_url',
+        'thumbnailUrl',
+        'thumbnail_url',
+      ]),
       uploaderId: value('uploaderId', value('userId')),
-      originalDriveUrl: value('originalDriveUrl', value('url', value('drive_link'))).isEmpty
+      originalDriveUrl:
+          value('originalDriveUrl', value('url', value('drive_link'))).isEmpty
           ? null
           : value('originalDriveUrl', value('url', value('drive_link'))),
       extractedFileId: value('extractedFileId').isEmpty
@@ -157,6 +275,7 @@ class Book {
       linkStatus: value('linkStatus').isEmpty ? null : value('linkStatus'),
       isActive: map['is_active'] ?? map['isActive'] ?? true,
       addedAt: addedAt,
+      order: readOrder(),
       categoryId: map['categoryId'] as String?,
       categoryPath: parsedCategoryPath,
       categoryIds: map['categoryIds'] != null
@@ -176,13 +295,18 @@ class Book {
       'subject': subject,
       'url': url,
       'solutionUrl': solutionUrl,
+      'solution_url': solutionUrl,
+      'documentType': documentType,
+      'examKey': examKey,
       'coverUrl': coverUrl,
+      'cover_url': coverUrl,
       'uploaderId': uploaderId,
       'originalDriveUrl': originalDriveUrl ?? url,
       'extractedFileId': extractedFileId ?? resolvedFileId,
       'linkStatus': linkStatus,
       'is_active': isActive,
       'isActive': isActive,
+      'order': order,
       if (categoryId != null) 'categoryId': categoryId,
       if (categoryPath != null) 'categoryPath': categoryPath,
     };
@@ -192,13 +316,19 @@ class Book {
   Book copyWith({
     String? title,
     String? url,
+    String? originalDriveUrl,
+    String? solutionUrl,
+    String? documentType,
+    String? examKey,
     String? coverUrl,
     String? linkStatus,
     String? extractedFileId,
     String? category,
     String? grade,
+    int? order,
     String? categoryId,
     List<String>? categoryPath,
+    List<String>? categoryIds,
   }) {
     return Book(
       id: id, // ← id لا يتغير أبداً
@@ -209,16 +339,20 @@ class Book {
       category: category ?? this.category,
       subject: subject,
       url: url ?? this.url,
-      solutionUrl: solutionUrl,
+      solutionUrl: solutionUrl ?? this.solutionUrl,
+      documentType: documentType ?? this.documentType,
+      examKey: examKey ?? this.examKey,
       coverUrl: coverUrl ?? this.coverUrl,
       uploaderId: uploaderId,
-      originalDriveUrl: originalDriveUrl ?? this.url,
+      originalDriveUrl: originalDriveUrl ?? this.originalDriveUrl ?? this.url,
       extractedFileId: extractedFileId ?? this.extractedFileId,
       linkStatus: linkStatus ?? this.linkStatus,
       isActive: isActive,
       addedAt: addedAt,
+      order: order ?? this.order,
       categoryId: categoryId ?? this.categoryId,
       categoryPath: categoryPath ?? this.categoryPath,
+      categoryIds: categoryIds ?? this.categoryIds,
     );
   }
 

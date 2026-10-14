@@ -66,28 +66,68 @@ class _BookCardState extends State<BookCard> {
 
   IconData _computeSubjectIcon() {
     final s = (widget.book.subject + widget.book.title).toLowerCase();
-    if (s.contains('رياضيات') || s.contains('math')) return Icons.calculate_rounded;
-    if (s.contains('فرنسية') || s.contains('français')) return Icons.translate_rounded;
-    if (s.contains('علوم') || s.contains('science')) return Icons.science_rounded;
-    if (s.contains('إسلامية') || s.contains('تربية إسلامية')) return Icons.mosque_rounded;
-    if (s.contains('تاريخ')) return Icons.history_edu_rounded;
-    if (s.contains('جغرافيا')) return Icons.public_rounded;
-    if (s.contains('مدنية')) return Icons.balance_rounded;
-    if (s.contains('إيقاظ') || s.contains('سلوك')) return Icons.lightbulb_rounded;
-    if (s.contains('أناشيد')) return Icons.music_note_rounded;
-    if (s.contains('فلسفة')) return Icons.psychology_rounded;
-    if (s.contains('عربية') || s.contains('arabic')) return Icons.auto_stories_rounded;
+    if (s.contains('رياضيات') || s.contains('math')) {
+      return Icons.calculate_rounded;
+    }
+    if (s.contains('فرنسية') || s.contains('français')) {
+      return Icons.translate_rounded;
+    }
+    if (s.contains('علوم') || s.contains('science')) {
+      return Icons.science_rounded;
+    }
+    if (s.contains('إسلامية') || s.contains('تربية إسلامية')) {
+      return Icons.mosque_rounded;
+    }
+    if (s.contains('تاريخ')) {
+      return Icons.history_edu_rounded;
+    }
+    if (s.contains('جغرافيا')) {
+      return Icons.public_rounded;
+    }
+    if (s.contains('مدنية')) {
+      return Icons.balance_rounded;
+    }
+    if (s.contains('إيقاظ') || s.contains('سلوك')) {
+      return Icons.lightbulb_rounded;
+    }
+    if (s.contains('أناشيد')) {
+      return Icons.music_note_rounded;
+    }
+    if (s.contains('فلسفة')) {
+      return Icons.psychology_rounded;
+    }
+    if (s.contains('عربية') || s.contains('arabic')) {
+      return Icons.auto_stories_rounded;
+    }
     return Icons.menu_book_rounded;
   }
+
+  bool get _isExam {
+    final labels =
+        '${widget.book.section} ${widget.book.category} ${widget.book.title}'
+            .toLowerCase();
+    return labels.contains('امتحان') ||
+        labels.contains('الامتحان') ||
+        labels.contains('concours') ||
+        labels.contains('brevet') ||
+        labels.contains('bac');
+  }
+
+  bool get _hasSolution => widget.book.solutionUrl.trim().isNotEmpty;
 
   Future<void> _downloadBook() async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     if (auth.isGuest || auth.user == null) {
-      AppNotification.show(context, 'يرجى تسجيل الدخول أولاً لتتمكن من تنزيل الكتب.', isError: true);
+      AppNotification.show(
+        context,
+        'يرجى تسجيل الدخول أولاً لتتمكن من تنزيل الكتب.',
+        isError: true,
+      );
       return;
     }
 
-    if (widget.book.url.isEmpty || widget.book.url.contains('/drive/folders/')) {
+    if (widget.book.url.isEmpty ||
+        widget.book.url.contains('/drive/folders/')) {
       AppNotification.show(context, 'الرابط غير متوفر', isError: true);
       return;
     }
@@ -132,37 +172,266 @@ class _BookCardState extends State<BookCard> {
     } catch (e) {
       if (mounted) {
         if (e is SocketException) {
-          AppNotification.show(context, 'تحقق من اتصالك بالإنترنت', isError: true);
+          AppNotification.show(
+            context,
+            'تحقق من اتصالك بالإنترنت',
+            isError: true,
+          );
         } else {
-          AppNotification.show(context, 'خطأ: ${e.toString().split('\n').first}', isError: true);
+          AppNotification.show(
+            context,
+            'خطأ: ${e.toString().split('\n').first}',
+            isError: true,
+          );
         }
       }
       debugPrint('Download error: $e');
     } finally {
       _progressSubscription?.cancel();
       _progressSubscription = null;
-      if (mounted) setState(() { _isDownloading = false; _downloadProgress = 0; });
+      if (mounted) {
+        setState(() {
+          _isDownloading = false;
+          _downloadProgress = 0;
+        });
+      }
     }
   }
 
-  void _openBook() {
+  void _showPreviewSheet() {
+    final accentColor = (widget.gradient as LinearGradient).colors.first;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetContext).size.height * 0.8,
+          ),
+          decoration: BoxDecoration(
+            color: widget.isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 52,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'معاينة الكتاب',
+                          textAlign: TextAlign.right,
+                          style: GoogleFonts.tajawal(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: widget.isDark
+                                ? Colors.white
+                                : const Color(0xFF0F172A),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(sheetContext),
+                        icon: const Icon(Icons.close_rounded),
+                        color: widget.isDark ? Colors.white70 : Colors.black87,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: widget.isDark
+                          ? const Color(0xFF111827)
+                          : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _BookCover(
+                          thumbnailUrl: _cachedThumbnailUrl,
+                          fallbackIcon: _subjectIcon,
+                          accentColor: accentColor,
+                          isDark: widget.isDark,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Directionality(
+                            textDirection: TextDirection.rtl,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.book.title,
+                                  style: GoogleFonts.tajawal(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: widget.isDark
+                                        ? Colors.white
+                                        : const Color(0xFF0F172A),
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 6),
+                                if (widget.book.subject.isNotEmpty)
+                                  Text(
+                                    widget.book.subject,
+                                    style: GoogleFonts.tajawal(
+                                      fontSize: 12,
+                                      color: accentColor,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  children: [
+                                    _buildBadge(widget.book.grade, accentColor),
+                                    _buildBadge(
+                                      widget.book.section,
+                                      accentColor,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    height: 180,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topRight,
+                        end: Alignment.bottomLeft,
+                        colors: [
+                          accentColor.withValues(
+                            alpha: widget.isDark ? 0.22 : 0.12,
+                          ),
+                          accentColor.withValues(
+                            alpha: widget.isDark ? 0.08 : 0.04,
+                          ),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Directionality(
+                      textDirection: TextDirection.rtl,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.visibility_rounded,
+                                color: accentColor,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'معاينة داخل الصفحة',
+                                style: GoogleFonts.tajawal(
+                                  fontWeight: FontWeight.bold,
+                                  color: widget.isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'هذا الكتاب مرتبط بالمجموعة الحالية وبنفس القسم/الصفحة المحددة، ولا يتم إنشاؤه كصفحة مستقلة.',
+                            style: GoogleFonts.tajawal(
+                              fontSize: 13,
+                              color: widget.isDark
+                                  ? Colors.white70
+                                  : const Color(0xFF334155),
+                              height: 1.7,
+                            ),
+                          ),
+                          const Spacer(),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: () {
+                                    Navigator.pop(sheetContext);
+                                    _openBook();
+                                  },
+                                  icon: const Icon(Icons.open_in_new_rounded),
+                                  label: const Text('فتح الكتاب'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _openBook({bool openSolution = false}) {
+    final book = openSolution
+        ? widget.book.copyWith(
+            title: 'حل ${widget.book.title}',
+            url: widget.book.solutionUrl,
+            originalDriveUrl: widget.book.solutionUrl,
+            extractedFileId: '',
+          )
+        : widget.book;
+
     Navigator.push(
       context,
       PageRouteBuilder(
         pageBuilder: (_, animation, _) => PdfViewerScreen(
-          pdfUrl: widget.book.url,
-          title: widget.book.title,
-          stageName: widget.book.section,
-          sectionName: widget.book.category,
-          book: widget.book,
+          pdfUrl: book.url,
+          title: book.title,
+          stageName: book.section,
+          sectionName: book.category,
+          book: book,
         ),
         transitionsBuilder: (_, animation, _, child) => FadeTransition(
           opacity: animation,
           child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 0.04),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
+            position:
+                Tween<Offset>(
+                  begin: const Offset(0, 0.04),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(parent: animation, curve: Curves.easeOut),
+                ),
             child: child,
           ),
         ),
@@ -199,7 +468,7 @@ class _BookCardState extends State<BookCard> {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           splashColor: accentColor.withValues(alpha: 0.08),
-          onTap: _openBook,
+          onTap: _isExam ? _openBook : _showPreviewSheet,
           child: Column(
             children: [
               // ── شريط لوني علوي ──
@@ -216,126 +485,191 @@ class _BookCardState extends State<BookCard> {
               // ── المحتوى الرئيسي ──
               Padding(
                 padding: const EdgeInsets.all(10),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ── غلاف الكتاب ──
-                    _BookCover(
-                      thumbnailUrl: _cachedThumbnailUrl,
-                      fallbackIcon: _subjectIcon,
-                      accentColor: accentColor,
-                      isDark: widget.isDark,
-                    ),
-                    const SizedBox(width: 10),
-                    // ── معلومات الكتاب ──
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Directionality(
-                            textDirection: TextDirection.rtl,
-                            child: Text(
-                              widget.book.title,
-                              style: GoogleFonts.tajawal(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12.5,
-                                color: widget.isDark ? Colors.white : const Color(0xFF0F172A),
-                                height: 1.4,
-                              ),
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (widget.book.subject.isNotEmpty &&
-                              widget.book.subject != widget.book.title) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              widget.book.subject,
-                              style: GoogleFonts.tajawal(
-                                fontSize: 10,
-                                color: accentColor,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                          const SizedBox(height: 5),
-                          Wrap(
-                            spacing: 4,
-                            runSpacing: 3,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _BookCover(
+                          thumbnailUrl: _cachedThumbnailUrl,
+                          fallbackIcon: _subjectIcon,
+                          accentColor: accentColor,
+                          isDark: widget.isDark,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildBadge(widget.book.grade, accentColor),
-                              if (widget.showStage) _buildBadge(widget.book.section, accentColor),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          // ── أزرار الإجراءات ──
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Consumer<ReadingProvider>(
-                                builder: (_, reading, _) {
-                                  final isRead = reading.isRead(widget.book.uniqueKey);
-                                  if (!isRead) return const SizedBox.shrink();
-                                  return const Padding(
-                                    padding: EdgeInsets.only(left: 4),
-                                    child: Icon(Icons.check_circle_rounded,
-                                        color: Color(0xFF16A34A), size: 16),
-                                  );
-                                },
+                              Directionality(
+                                textDirection: TextDirection.rtl,
+                                child: Text(
+                                  widget.book.title,
+                                  style: GoogleFonts.tajawal(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12.5,
+                                    color: widget.isDark
+                                        ? Colors.white
+                                        : const Color(0xFF0F172A),
+                                    height: 1.4,
+                                  ),
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                              Consumer<DownloadsProvider>(
-                                builder: (_, downloads, _) {
-                                  final isDownloaded = downloads.isDownloaded(widget.book.uniqueKey);
-                                  if (_isDownloading) {
-                                    return SizedBox(
-                                      width: 26,
-                                      height: 26,
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(5),
-                                        child: CircularProgressIndicator(
-                                          value: _downloadProgress > 0 ? _downloadProgress : null,
-                                          strokeWidth: 2,
-                                          color: accentColor,
+                              if (widget.book.subject.isNotEmpty &&
+                                  widget.book.subject != widget.book.title) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  widget.book.subject,
+                                  style: GoogleFonts.tajawal(
+                                    fontSize: 10,
+                                    color: accentColor,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                              const SizedBox(height: 5),
+                              Wrap(
+                                spacing: 4,
+                                runSpacing: 3,
+                                children: [
+                                  _buildBadge(widget.book.grade, accentColor),
+                                  if (widget.showStage)
+                                    _buildBadge(
+                                      widget.book.section,
+                                      accentColor,
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Consumer<ReadingProvider>(
+                                    builder: (_, reading, _) {
+                                      final isRead = reading.isRead(
+                                        widget.book.uniqueKey,
+                                      );
+                                      if (!isRead) {
+                                        return const SizedBox.shrink();
+                                      }
+                                      return const Padding(
+                                        padding: EdgeInsets.only(left: 4),
+                                        child: Icon(
+                                          Icons.check_circle_rounded,
+                                          color: Color(0xFF16A34A),
+                                          size: 16,
                                         ),
-                                      ),
-                                    );
-                                  }
-                                  return _ActionIconBtn(
-                                    icon: isDownloaded
-                                        ? Icons.download_done_rounded
-                                        : Icons.download_rounded,
-                                    color: isDownloaded
-                                        ? const Color(0xFF16A34A)
-                                        : (widget.isDark ? Colors.grey[500]! : Colors.grey[400]!),
-                                    tooltip: isDownloaded ? 'تم التنزيل' : 'تنزيل',
-                                    onTap: _downloadBook,
-                                  );
-                                },
-                              ),
-                              Consumer<FavoritesProvider>(
-                                builder: (_, favorites, _) {
-                                  final isFav = favorites.isFavorite(widget.book.uniqueKey);
-                                  return _ActionIconBtn(
-                                    icon: isFav
-                                        ? Icons.favorite_rounded
-                                        : Icons.favorite_outline_rounded,
-                                    color: isFav
-                                        ? Colors.red
-                                        : (widget.isDark
-                                            ? Colors.grey[500]!
-                                            : Colors.grey[400]!),
-                                    tooltip: isFav ? 'إزالة من المفضلة' : 'أضف للمفضلة',
-                                    onTap: () => favorites.toggleFavorite(context, widget.book),
-                                  );
-                                },
+                                      );
+                                    },
+                                  ),
+                                  Consumer<DownloadsProvider>(
+                                    builder: (_, downloads, _) {
+                                      final isDownloaded = downloads
+                                          .isDownloaded(widget.book.uniqueKey);
+                                      if (_isDownloading) {
+                                        return SizedBox(
+                                          width: 26,
+                                          height: 26,
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(5),
+                                            child: CircularProgressIndicator(
+                                              value: _downloadProgress > 0
+                                                  ? _downloadProgress
+                                                  : null,
+                                              strokeWidth: 2,
+                                              color: accentColor,
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                      return _ActionIconBtn(
+                                        icon: isDownloaded
+                                            ? Icons.download_done_rounded
+                                            : Icons.download_rounded,
+                                        color: isDownloaded
+                                            ? const Color(0xFF16A34A)
+                                            : (widget.isDark
+                                                  ? Colors.grey[500]!
+                                                  : Colors.grey[400]!),
+                                        tooltip: isDownloaded
+                                            ? 'تم التنزيل'
+                                            : 'تنزيل',
+                                        onTap: _downloadBook,
+                                      );
+                                    },
+                                  ),
+                                  Consumer<FavoritesProvider>(
+                                    builder: (_, favorites, _) {
+                                      final isFav = favorites.isFavorite(
+                                        widget.book.uniqueKey,
+                                      );
+                                      return _ActionIconBtn(
+                                        icon: isFav
+                                            ? Icons.favorite_rounded
+                                            : Icons.favorite_outline_rounded,
+                                        color: isFav
+                                            ? Colors.red
+                                            : (widget.isDark
+                                                  ? Colors.grey[500]!
+                                                  : Colors.grey[400]!),
+                                        tooltip: isFav
+                                            ? 'إزالة من المفضلة'
+                                            : 'أضف للمفضلة',
+                                        onTap: () => favorites.toggleFavorite(
+                                          context,
+                                          widget.book,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  if (!_isExam)
+                                    _ActionIconBtn(
+                                      icon: Icons.visibility_rounded,
+                                      color: widget.isDark
+                                          ? Colors.grey[500]!
+                                          : Colors.grey[400]!,
+                                      tooltip: 'معاينة داخل الصفحة',
+                                      onTap: _showPreviewSheet,
+                                    ),
+                                ],
                               ),
                             ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_isExam) ...[
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _ExamDocumentButton(
+                              label: 'الامتحان',
+                              icon: Icons.assignment_rounded,
+                              backgroundColor: const Color(0xFF1D4ED8),
+                              onTap: _openBook,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _ExamDocumentButton(
+                              label: _hasSolution ? 'الحل' : 'الحل غير متوفر',
+                              icon: Icons.fact_check_rounded,
+                              backgroundColor: const Color(0xFF0F766E),
+                              onTap: _hasSolution
+                                  ? () => _openBook(openSolution: true)
+                                  : null,
+                              isEnabled: _hasSolution,
+                            ),
                           ),
                         ],
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -381,6 +715,56 @@ class _BookCardState extends State<BookCard> {
 }
 
 // ── غلاف الكتاب ──────────────────────────────────────────────────────────────
+
+class _ExamDocumentButton extends StatelessWidget {
+  const _ExamDocumentButton({
+    required this.label,
+    required this.icon,
+    required this.backgroundColor,
+    required this.onTap,
+    this.isEnabled = true,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color backgroundColor;
+  final VoidCallback? onTap;
+  final bool isEnabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 38,
+      child: FilledButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 16),
+        label: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: GoogleFonts.tajawal(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        style: FilledButton.styleFrom(
+          backgroundColor: isEnabled
+              ? backgroundColor
+              : const Color(0xFF475569),
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: const Color(0xFF475569),
+          disabledForegroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ),
+    );
+  }
+}
 
 class _BookCover extends StatelessWidget {
   final String? thumbnailUrl;

@@ -4,6 +4,23 @@ import '../../engines/calculus_engine.dart';
 import '../../engines/equation_solver.dart';
 import '../../engines/statistics_engine.dart';
 
+List<double> parseMathLabNumbers(String input) {
+  final trimmed = input.trim();
+  if (trimmed.isEmpty) return [];
+  final hasSemicolonSeparator = trimmed.contains(';');
+  final tokens = hasSemicolonSeparator
+      ? trimmed.split(RegExp(r'[;\s]+'))
+      : trimmed.split(RegExp(r'[,\s]+'));
+  return tokens
+      .where((token) => token.isNotEmpty)
+      .map(
+        (token) => double.parse(
+          hasSemicolonSeparator ? token.replaceAll(',', '.') : token,
+        ),
+      )
+      .toList();
+}
+
 class AdvancedMathLabScreen extends StatefulWidget {
   const AdvancedMathLabScreen({super.key});
 
@@ -94,11 +111,7 @@ class _AdvancedMathLabScreenState extends State<AdvancedMathLabScreen> {
     setState(() {});
   }
 
-  List<double> _numbers(String input) => input
-      .split(RegExp(r'[,;\s]+'))
-      .where((value) => value.trim().isNotEmpty)
-      .map((value) => double.parse(value.replaceAll(',', '.')))
-      .toList();
+  List<double> _numbers(String input) => parseMathLabNumbers(input);
 
   String _complexList(List<dynamic> values) => values.isEmpty
       ? 'Aucune solution réelle ou complexe.'
@@ -134,6 +147,7 @@ class _AdvancedMathLabScreenState extends State<AdvancedMathLabScreen> {
             selected: {_tool},
             onSelectionChanged: (value) => setState(() {
               _tool = value.first;
+              _activeController = null;
               _result = '';
               _error = null;
             }),
@@ -232,7 +246,7 @@ class _AdvancedMathLabScreenState extends State<AdvancedMathLabScreen> {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(color: surface, borderRadius: BorderRadius.circular(18), border: Border.all(color: accent.withValues(alpha: 0.45))),
-      child: SelectableText(value, textDirection: TextDirection.rtl, style: GoogleFonts.tajawal(fontSize: 17, height: 1.7, color: isDark ? Colors.white : Colors.black87)),
+      child: SelectableText(value, textDirection: TextDirection.ltr, style: GoogleFonts.tajawal(fontSize: 17, height: 1.7, color: isDark ? Colors.white : Colors.black87)),
     );
   }
 }

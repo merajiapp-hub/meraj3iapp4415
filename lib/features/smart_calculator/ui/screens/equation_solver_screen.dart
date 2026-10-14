@@ -263,32 +263,39 @@ class _EquationSolverScreenState extends State<EquationSolverScreen>
                           offset: const Offset(0, 4))
                     ],
                   ),
-                  child: Row(
-                    children: [
-                      Text('f = ',
+                  child: Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: Row(
+                      children: [
+                        Text(
+                          'f = ',
                           style: GoogleFonts.outfit(
-                              color: accent,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20)),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          reverse: true,
-                          child: Text(
-                            _input.isEmpty ? widget.hintText : _input,
-                            textDirection: TextDirection.ltr,
-                            style: GoogleFonts.outfit(
-                              fontSize: 26,
-                              color: _input.isEmpty
-                                  ? Colors.grey.withValues(alpha: 0.4)
-                                  : textCol,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 1.5,
+                            color: accent,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                          ),
+                        ),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            reverse: false,
+                            child: Text(
+                              _input.isEmpty ? widget.hintText : _input,
+                              textDirection: TextDirection.ltr,
+                              textAlign: TextAlign.left,
+                              style: GoogleFonts.outfit(
+                                fontSize: 26,
+                                color: _input.isEmpty
+                                    ? Colors.grey.withValues(alpha: 0.4)
+                                    : textCol,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1.5,
+                              ),
                             ),
                           ),
                         ),
+                      ],
                       ),
-                    ],
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -417,17 +424,20 @@ class _EquationSolverScreenState extends State<EquationSolverScreen>
     return Container(
       color: kbBg,
       padding: const EdgeInsets.fromLTRB(6, 8, 6, 20),
-      child: Column(
-        children: rows.map((row) {
-          return Row(
-            children: row.map((rawKey) {
-              final parts = rawKey.split('→');
-              final display = parts[0];
-              final value = parts.length > 1 ? parts[1] : parts[0];
-              return Expanded(child: _buildKey(display, value, isDark));
-            }).toList(),
-          );
-        }).toList(),
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: Column(
+          children: rows.map((row) {
+            return Row(
+              children: row.map((rawKey) {
+                final parts = rawKey.split('→');
+                final display = parts[0];
+                final value = parts.length > 1 ? parts[1] : parts[0];
+                return Expanded(child: _buildKey(display, value, isDark));
+              }).toList(),
+            );
+          }).toList(),
+        ),
       ),
     );
   }

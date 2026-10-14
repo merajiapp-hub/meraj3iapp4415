@@ -124,7 +124,7 @@ class _ConversionsScreenState extends State<ConversionsScreen> {
         child: DropdownButton<String>(
           value: value,
           isExpanded: true,
-          itemHeight: 44,
+          itemHeight: 48,
           menuMaxHeight: 192,
           menuWidth: null,
           borderRadius: BorderRadius.circular(12),

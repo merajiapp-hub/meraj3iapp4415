@@ -54,17 +54,85 @@ class DriveUrlService {
   }
 
   static String buildDirectDownloadUrl(String? url) {
+    if (!isDriveUrl(url) || _isFolderUrl(url)) {
+      return (url ?? '').trim();
+    }
     final fileId = extractFileId(url);
     if (fileId == null || fileId.isEmpty) {
       return (url ?? '').trim();
     }
-    return 'https://drive.google.com/uc?export=view&id=$fileId';
+    final query = <String, String>{
+      'export': 'download',
+      'id': fileId,
+      'confirm': 't',
+    };
+    final resourceKey = _resourceKey(url);
+    if (resourceKey != null) query['resourcekey'] = resourceKey;
+    return Uri.https('drive.google.com', '/uc', query).toString();
+  }
+
+  static String buildPreviewUrl(String? url) {
+    if (!isDriveUrl(url) || _isFolderUrl(url)) {
+      return (url ?? '').trim();
+    }
+    final fileId = extractFileId(url);
+    if (fileId == null || fileId.isEmpty) {
+      return (url ?? '').trim();
+    }
+    final query = <String, String>{'usp': 'sharing'};
+    final resourceKey = _resourceKey(url);
+    if (resourceKey != null) query['resourcekey'] = resourceKey;
+    return Uri.https(
+      'drive.google.com',
+      '/file/d/$fileId/view',
+      query,
+    ).toString();
+  }
+
+  static String buildEmbedUrl(String? url) {
+    if (!isDriveUrl(url) || _isFolderUrl(url)) {
+      return (url ?? '').trim();
+    }
+    final fileId = extractFileId(url);
+    if (fileId == null || fileId.isEmpty) {
+      return (url ?? '').trim();
+    }
+    final resourceKey = _resourceKey(url);
+    return Uri.https(
+      'drive.google.com',
+      '/file/d/$fileId/preview',
+      resourceKey == null ? null : {'resourcekey': resourceKey},
+    ).toString();
+  }
+
+  static String? _resourceKey(String? url) {
+    return Uri.tryParse(url?.trim() ?? '')?.queryParameters['resourcekey'];
+  }
+
+  static String buildWebOpenUrl(String? url) {
+    if (url == null || url.trim().isEmpty) return '';
+    if (!isDriveUrl(url)) return url.trim();
+    final previewUrl = buildPreviewUrl(url);
+    return previewUrl.isNotEmpty ? previewUrl : url.trim();
+  }
+
+  static bool _isFolderUrl(String? url) {
+    final uri = Uri.tryParse(url?.trim() ?? '');
+    return uri?.pathSegments.contains('folders') ?? false;
   }
 
   /// هل الرابط رابط Google Drive؟
   static bool isDriveUrl(String? url) {
     if (url == null || url.trim().isEmpty) return false;
-    return url.contains('drive.google.com') || url.contains('docs.google.com');
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null ||
+        (uri.scheme != 'http' && uri.scheme != 'https')) {
+      return false;
+    }
+    final host = uri.host.toLowerCase();
+    return host == 'drive.google.com' ||
+        host == 'docs.google.com' ||
+        host == 'drive.usercontent.google.com';
   }
 
   /// توليد رابط الصورة المصغرة من FILE_ID
