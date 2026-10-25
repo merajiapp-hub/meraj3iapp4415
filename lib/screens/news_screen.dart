@@ -22,7 +22,9 @@ class _NewsScreenState extends State<NewsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
-    final backgroundColor = isDark ? AppTheme.backgroundDark : AppTheme.backgroundLight;
+    final backgroundColor = isDark
+        ? AppTheme.backgroundDark
+        : AppTheme.backgroundLight;
     final textPrimary = isDark ? Colors.white : const Color(0xFF0A1A15);
     final textSecondary = isDark ? Colors.white70 : const Color(0xFF52645E);
 
@@ -84,9 +86,22 @@ class _NewsScreenState extends State<NewsScreen> {
                           color: AppTheme.primaryColor.withValues(alpha: 0.35),
                         ),
                         const SizedBox(height: 16),
-                        Text('لا يوجد أخبار', style: GoogleFonts.tajawal(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary)),
+                        Text(
+                          'لا يوجد أخبار',
+                          style: GoogleFonts.tajawal(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: textPrimary,
+                          ),
+                        ),
                         const SizedBox(height: 8),
-                        Text('لم يتم نشر أي أخبار حتى الآن.', style: GoogleFonts.tajawal(fontSize: 14, color: textSecondary)),
+                        Text(
+                          'لم يتم نشر أي أخبار حتى الآن.',
+                          style: GoogleFonts.tajawal(
+                            fontSize: 14,
+                            color: textSecondary,
+                          ),
+                        ),
                       ],
                     ),
                   );
@@ -96,7 +111,9 @@ class _NewsScreenState extends State<NewsScreen> {
                     ? docs.indexWhere((doc) => doc.id == widget.selectedId)
                     : -1;
 
-                if (widget.selectedId != null && !_detailOpened && selectedIndex != -1) {
+                if (widget.selectedId != null &&
+                    !_detailOpened &&
+                    selectedIndex != -1) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     if (!mounted) return;
                     final item = docs[selectedIndex];
@@ -122,9 +139,13 @@ class _NewsScreenState extends State<NewsScreen> {
                 }
 
                 return ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
                   itemCount: docs.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 12),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final data = docs[index].data() as Map<String, dynamic>;
                     final title = data['title']?.toString() ?? 'بدون عنوان';
@@ -133,10 +154,12 @@ class _NewsScreenState extends State<NewsScreen> {
                     final dateStr = ts != null
                         ? DateFormat('dd MMMM yyyy', 'ar').format(ts.toDate())
                         : '';
-                    final isNew = ts != null && DateTime.now().difference(ts.toDate()).inDays <= 3;
+                    final isNew =
+                        ts != null &&
+                        DateTime.now().difference(ts.toDate()).inDays <= 3;
 
                     return InkWell(
-                      borderRadius: BorderRadius.circular(28),
+                      borderRadius: BorderRadius.circular(20),
                       onTap: () {
                         Navigator.push(
                           context,
@@ -150,19 +173,16 @@ class _NewsScreenState extends State<NewsScreen> {
                         );
                       },
                       child: Container(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(28),
+                          borderRadius: BorderRadius.circular(20),
                           gradient: LinearGradient(
                             colors: isDark
                                 ? [
                                     AppTheme.surfaceDark,
                                     const Color(0xFF173A33),
                                   ]
-                                : [
-                                    Colors.white,
-                                    const Color(0xFFE9F8F4),
-                                  ],
+                                : [Colors.white, const Color(0xFFE9F8F4)],
                             begin: Alignment.topRight,
                             end: Alignment.bottomLeft,
                           ),
@@ -177,8 +197,8 @@ class _NewsScreenState extends State<NewsScreen> {
                               color: AppTheme.primaryColor.withValues(
                                 alpha: isDark ? 0.12 : 0.08,
                               ),
-                              blurRadius: 16,
-                              offset: const Offset(0, 8),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
@@ -188,27 +208,30 @@ class _NewsScreenState extends State<NewsScreen> {
                               top: -10,
                               left: -10,
                               child: Container(
-                                width: 92,
-                                height: 92,
+                                width: 68,
+                                height: 68,
                                 decoration: BoxDecoration(
-                                  color: AppTheme.primaryColor.withValues(alpha: 0.05),
+                                  color: AppTheme.primaryColor.withValues(
+                                    alpha: 0.05,
+                                  ),
                                   shape: BoxShape.circle,
                                 ),
                               ),
                             ),
                             Padding(
-                              padding: const EdgeInsets.only(left: 12, right: 4),
+                              padding: const EdgeInsets.only(left: 8, right: 2),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
                                     children: [
                                       Container(
-                                        padding: const EdgeInsets.all(10),
+                                        padding: const EdgeInsets.all(8),
                                         decoration: BoxDecoration(
-                                          color: AppTheme.primaryColor.withValues(
-                                            alpha: isDark ? 0.2 : 0.1,
-                                          ),
+                                          color: AppTheme.primaryColor
+                                              .withValues(
+                                                alpha: isDark ? 0.2 : 0.1,
+                                              ),
                                           shape: BoxShape.circle,
                                         ),
                                         child: Icon(
@@ -216,20 +239,21 @@ class _NewsScreenState extends State<NewsScreen> {
                                           color: isDark
                                               ? AppTheme.lightGreen
                                               : AppTheme.primaryColor,
-                                          size: 22,
+                                          size: 18,
                                         ),
                                       ),
-                                      const SizedBox(width: 12),
+                                      const SizedBox(width: 8),
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 10,
                                           vertical: 5,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: AppTheme.primaryColor.withValues(
-                                            alpha: 0.11,
+                                          color: AppTheme.primaryColor
+                                              .withValues(alpha: 0.11),
+                                          borderRadius: BorderRadius.circular(
+                                            999,
                                           ),
-                                          borderRadius: BorderRadius.circular(999),
                                         ),
                                         child: Text(
                                           'أخبار',
@@ -248,8 +272,12 @@ class _NewsScreenState extends State<NewsScreen> {
                                             vertical: 4,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: Colors.redAccent.withValues(alpha: 0.14),
-                                            borderRadius: BorderRadius.circular(999),
+                                            color: Colors.redAccent.withValues(
+                                              alpha: 0.14,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              999,
+                                            ),
                                           ),
                                           child: Text(
                                             'جديد',
@@ -262,16 +290,16 @@ class _NewsScreenState extends State<NewsScreen> {
                                         ),
                                     ],
                                   ),
-                                  const SizedBox(height: 14),
+                                  const SizedBox(height: 9),
                                   Text(
                                     title,
                                     style: GoogleFonts.tajawal(
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 16,
+                                      fontSize: 15,
                                       color: textPrimary,
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 5),
                                   Text(
                                     dateStr,
                                     style: GoogleFonts.tajawal(
@@ -280,25 +308,25 @@ class _NewsScreenState extends State<NewsScreen> {
                                     ),
                                   ),
                                   if (body.isNotEmpty) ...[
-                                    const SizedBox(height: 12),
+                                    const SizedBox(height: 7),
                                     Text(
                                       body,
-                                      maxLines: 2,
+                                      maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: GoogleFonts.tajawal(
-                                        fontSize: 13,
+                                        fontSize: 12,
                                         color: textSecondary,
                                         height: 1.6,
                                       ),
                                     ),
                                   ],
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 7),
                                   Row(
                                     children: [
                                       Text(
                                         'اقرأ المزيد',
                                         style: GoogleFonts.tajawal(
-                                          fontSize: 12,
+                                          fontSize: 11,
                                           fontWeight: FontWeight.bold,
                                           color: AppTheme.primaryColor,
                                         ),
@@ -307,7 +335,7 @@ class _NewsScreenState extends State<NewsScreen> {
                                       Icon(
                                         Icons.arrow_forward_ios_rounded,
                                         color: AppTheme.primaryColor,
-                                        size: 14,
+                                        size: 12,
                                       ),
                                     ],
                                   ),
@@ -334,14 +362,20 @@ class _NewsDetailScreen extends StatelessWidget {
   final String body;
   final String date;
 
-  const _NewsDetailScreen({required this.title, required this.body, required this.date});
+  const _NewsDetailScreen({
+    required this.title,
+    required this.body,
+    required this.date,
+  });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? AppTheme.backgroundDark : AppTheme.backgroundLight,
+      backgroundColor: isDark
+          ? AppTheme.backgroundDark
+          : AppTheme.backgroundLight,
       body: Column(
         children: [
           CurvedHeader(title: 'تفاصيل الخبر', gradient: AppTheme.brandGradient),
@@ -366,7 +400,10 @@ class _NewsDetailScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: AppTheme.primaryColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(999),
@@ -395,7 +432,9 @@ class _NewsDetailScreen extends StatelessWidget {
                       style: GoogleFonts.tajawal(
                         fontSize: 16,
                         height: 1.9,
-                        color: isDark ? Colors.white70 : const Color(0xFF334155),
+                        color: isDark
+                            ? Colors.white70
+                            : const Color(0xFF334155),
                       ),
                     ),
                   ],

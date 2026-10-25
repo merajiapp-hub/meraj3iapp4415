@@ -128,10 +128,10 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                 }
 
                 return ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   itemCount: docs.length,
                   separatorBuilder: (context, index) =>
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final data = docs[index].data() as Map<String, dynamic>;
                     final title = data['title']?.toString() ?? 'بدون عنوان';
@@ -143,7 +143,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                     final isNew = ts != null && DateTime.now().difference(ts.toDate()).inDays <= 3;
 
                     return InkWell(
-                      borderRadius: BorderRadius.circular(28),
+                      borderRadius: BorderRadius.circular(20),
                       onTap: () {
                         Navigator.push(
                           context,
@@ -157,9 +157,9 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                         );
                       },
                       child: Container(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(28),
+                          borderRadius: BorderRadius.circular(20),
                           gradient: LinearGradient(
                             colors: isDark
                                 ? [
@@ -184,8 +184,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                               color: AppTheme.primaryColor.withValues(
                                 alpha: isDark ? 0.12 : 0.08,
                               ),
-                              blurRadius: 16,
-                              offset: const Offset(0, 8),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
@@ -195,8 +195,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                               top: -10,
                               left: -10,
                               child: Container(
-                                width: 92,
-                                height: 92,
+                                width: 68,
+                                height: 68,
                                 decoration: BoxDecoration(
                                   color: AppTheme.primaryColor.withValues(alpha: 0.05),
                                   shape: BoxShape.circle,
@@ -204,14 +204,14 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                               ),
                             ),
                             Padding(
-                              padding: const EdgeInsets.only(left: 12, right: 4),
+                              padding: const EdgeInsets.only(left: 8, right: 2),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
                                     children: [
                                       Container(
-                                        padding: const EdgeInsets.all(10),
+                                        padding: const EdgeInsets.all(8),
                                         decoration: BoxDecoration(
                                           color: AppTheme.primaryColor.withValues(
                                             alpha: isDark ? 0.2 : 0.1,
@@ -223,10 +223,10 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                                           color: isDark
                                               ? AppTheme.lightGreen
                                               : AppTheme.primaryColor,
-                                          size: 22,
+                                          size: 18,
                                         ),
                                       ),
-                                      const SizedBox(width: 12),
+                                      const SizedBox(width: 8),
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 10,
@@ -269,16 +269,16 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                                         ),
                                     ],
                                   ),
-                                  const SizedBox(height: 14),
+                                  const SizedBox(height: 9),
                                   Text(
                                     title,
                                     style: GoogleFonts.tajawal(
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 16,
+                                      fontSize: 15,
                                       color: textPrimary,
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 5),
                                   Text(
                                     dateStr,
                                     style: GoogleFonts.tajawal(
@@ -287,25 +287,25 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                                     ),
                                   ),
                                   if (body.isNotEmpty) ...[
-                                    const SizedBox(height: 12),
+                                    const SizedBox(height: 7),
                                     Text(
                                       body,
-                                      maxLines: 2,
+                                      maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: GoogleFonts.tajawal(
-                                        fontSize: 13,
+                                        fontSize: 12,
                                         color: textSecondary,
                                         height: 1.6,
                                       ),
                                     ),
                                   ],
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 7),
                                   Row(
                                     children: [
                                       Text(
                                         'اقرأ المزيد',
                                         style: GoogleFonts.tajawal(
-                                          fontSize: 12,
+                                          fontSize: 11,
                                           fontWeight: FontWeight.bold,
                                           color: AppTheme.primaryColor,
                                         ),
@@ -314,7 +314,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                                       Icon(
                                         Icons.arrow_forward_ios_rounded,
                                         color: AppTheme.primaryColor,
-                                        size: 14,
+                                        size: 12,
                                       ),
                                     ],
                                   ),

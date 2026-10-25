@@ -190,6 +190,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           builder: (context, provider, _) => CurvedHeader(
             title: 'الإشعارات',
             gradient: AppTheme.brandGradient,
+            height: 58,
             trailing: provider.notifications.isEmpty
                 ? null
                 : IconButton(
@@ -219,11 +220,11 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     };
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Column(
         children: [
           Container(
-            height: 50,
+            height: 44,
             decoration: BoxDecoration(
               color: isDark ? AppTheme.surfaceDark : Colors.white,
               borderRadius: BorderRadius.circular(16),
@@ -267,9 +268,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               style: GoogleFonts.tajawal(fontSize: 14),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 7),
           SizedBox(
-            height: 38,
+            height: 34,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: _filterOptions.length,
@@ -334,22 +335,22 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.all(28),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: AppTheme.primaryColor.withValues(alpha: 0.08),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.notifications_none_rounded,
-                  size: 64,
+                  size: 48,
                   color: AppTheme.primaryColor,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
               Text(
                 emptyMessage,
                 style: GoogleFonts.tajawal(
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: isDark ? Colors.white70 : const Color(0xFF475569),
                 ),
@@ -358,7 +359,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               Text(
                 emptySubtitle,
                 style: GoogleFonts.tajawal(
-                  fontSize: 14,
+                  fontSize: 12,
                   color: Colors.grey[500],
                 ),
               ),
@@ -512,13 +513,13 @@ class _NotificationCardState extends State<_NotificationCard>
       key: Key(n.id),
       direction: DismissDirection.startToEnd,
       background: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
           color: Colors.redAccent.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(20),
         ),
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         child: const Icon(Icons.delete_rounded, color: Colors.redAccent),
       ),
       onDismissed: (_) => widget.onDelete(),
@@ -533,10 +534,24 @@ class _NotificationCardState extends State<_NotificationCard>
             _openRelatedScreen(context);
           },
           child: Container(
-            margin: const EdgeInsets.only(bottom: 12),
+            margin: const EdgeInsets.only(bottom: 8),
             decoration: BoxDecoration(
-              color: widget.isDark ? AppTheme.surfaceDark : Colors.white,
-              borderRadius: BorderRadius.circular(20),
+              gradient: LinearGradient(
+                begin: AlignmentDirectional.centerStart,
+                end: AlignmentDirectional.centerEnd,
+                colors: n.isRead
+                    ? [
+                        widget.isDark ? AppTheme.surfaceDark : Colors.white,
+                        widget.isDark ? AppTheme.surfaceDark : Colors.white,
+                      ]
+                    : [
+                        n.typeColor.withValues(
+                          alpha: widget.isDark ? 0.17 : 0.09,
+                        ),
+                        widget.isDark ? AppTheme.surfaceDark : Colors.white,
+                      ],
+              ),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: n.isRead
                     ? (widget.isDark
@@ -554,22 +569,22 @@ class _NotificationCardState extends State<_NotificationCard>
               ],
             ),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(11),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // أيقونة النوع
                   Container(
-                    width: 48,
-                    height: 48,
+                    width: 40,
+                    height: 40,
                     decoration: BoxDecoration(
                       color: n.typeColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        Icon(n.typeIcon, color: n.typeColor, size: 24),
+                        Icon(n.typeIcon, color: n.typeColor, size: 20),
                         if (!n.isRead)
                           Positioned(
                             top: 6,
@@ -592,7 +607,7 @@ class _NotificationCardState extends State<_NotificationCard>
                       ],
                     ),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 10),
                   // المحتوى
                   Expanded(
                     child: Column(
@@ -603,8 +618,10 @@ class _NotificationCardState extends State<_NotificationCard>
                             Expanded(
                               child: Text(
                                 n.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.tajawal(
-                                  fontSize: 15,
+                                  fontSize: 14,
                                   fontWeight: n.isRead
                                       ? FontWeight.w600
                                       : FontWeight.bold,
@@ -635,20 +652,20 @@ class _NotificationCardState extends State<_NotificationCard>
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 4),
                         Text(
                           n.body,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.tajawal(
-                            fontSize: 13,
+                            fontSize: 12,
                             color: widget.isDark
                                 ? Colors.white60
                                 : const Color(0xFF64748B),
-                            height: 1.5,
+                            height: 1.35,
                           ),
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 5),
                         Row(
                           children: [
                             Icon(
@@ -660,7 +677,7 @@ class _NotificationCardState extends State<_NotificationCard>
                             Text(
                               _formatDate(n.timestamp),
                               style: GoogleFonts.tajawal(
-                                fontSize: 11,
+                                fontSize: 10,
                                 color: Colors.grey[400],
                               ),
                             ),
@@ -669,14 +686,14 @@ class _NotificationCardState extends State<_NotificationCard>
                               Text(
                                 '● غير مقروء',
                                 style: GoogleFonts.tajawal(
-                                  fontSize: 11,
+                                  fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                   color: n.typeColor,
                                 ),
                               ),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 1),
                         Align(
                           alignment: AlignmentDirectional.centerStart,
                           child: TextButton.icon(
@@ -703,6 +720,10 @@ class _NotificationCardState extends State<_NotificationCard>
                             style: TextButton.styleFrom(
                               foregroundColor: AppTheme.primaryColor,
                               visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                             ),
                           ),
                         ),
@@ -719,8 +740,8 @@ class _NotificationCardState extends State<_NotificationCard>
                     ),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(
-                      minWidth: 28,
-                      minHeight: 28,
+                      minWidth: 24,
+                      minHeight: 24,
                     ),
                   ),
                 ],

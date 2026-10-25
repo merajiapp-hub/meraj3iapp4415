@@ -7,7 +7,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/notification_service.dart';
 import '../screens/notification_details_screen.dart';
 import '../main.dart' show navigatorKey;
-import '../theme/app_theme.dart';
 import '../models/announcement_data.dart';
 
 enum NotificationType {
@@ -84,7 +83,16 @@ class AppNotificationModel {
     }
   }
 
-  Color get typeColor => AppTheme.primaryColor;
+  Color get typeColor => switch (type) {
+    NotificationType.general => const Color(0xFF0F9D8A),
+    NotificationType.update => const Color(0xFF3977D5),
+    NotificationType.reminder => const Color(0xFFE39A32),
+    NotificationType.system => const Color(0xFF805AD5),
+    NotificationType.news => const Color(0xFF2585C5),
+    NotificationType.announcement => const Color(0xFF139B72),
+    NotificationType.chatReply => const Color(0xFF5364C8),
+    NotificationType.certificate => const Color(0xFFBD8A25),
+  };
 
   Map<String, dynamic> toJson() => {
     'id': id,
