@@ -5,6 +5,7 @@ import '../models/book.dart';
 import '../services/content_service.dart';
 import '../widgets/book_card.dart';
 import '../widgets/geometric_sliver_app_bar.dart';
+import '../utils/academic_order.dart';
 
 class BooksListScreen extends StatefulWidget {
   final String stageTitle;
@@ -107,20 +108,7 @@ class _BooksListScreenState extends State<BooksListScreen> {
 
   List<String> _computeGrades(List<Book> books) {
     final grades = books.map((b) => b.grade).toSet().toList();
-    grades.sort((a, b) {
-      int getVal(String s) {
-        if (s.contains('الأولى')) return 1;
-        if (s.contains('الثانية')) return 2;
-        if (s.contains('الثالثة')) return 3;
-        if (s.contains('الرابعة')) return 4;
-        if (s.contains('الخامسة')) return 5;
-        if (s.contains('السادسة')) return 6;
-        if (s.contains('السابعة')) return 7;
-        return 99;
-      }
-
-      return getVal(a).compareTo(getVal(b));
-    });
+    grades.sort(compareAcademicLabels);
     return grades;
   }
 

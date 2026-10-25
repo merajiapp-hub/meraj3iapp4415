@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,7 +7,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/student_provider.dart';
-import '../providers/statistics_provider.dart';
 import '../widgets/geometric_sliver_app_bar.dart';
 
 // ══════════════════════════════════════════
@@ -18,24 +16,18 @@ class _LeaderboardEntry {
   final String uid;
   String name;
   final int points;
-  final int booksRead;
-  final int quizzesTaken;
-  final int completedTasks;
-  final double progressLevel;
+  final int verifiedExamCount;
+  final int verifiedCorrectAnswers;
   final String? profileImageUrl;
-  final int streakDays;
   final double avgScore;
 
   _LeaderboardEntry({
     required this.uid,
     required this.name,
     required this.points,
-    required this.booksRead,
-    required this.quizzesTaken,
-    required this.completedTasks,
-    required this.progressLevel,
+    required this.verifiedExamCount,
+    required this.verifiedCorrectAnswers,
     this.profileImageUrl,
-    this.streakDays = 0,
     this.avgScore = 0,
   });
 
@@ -43,50 +35,21 @@ class _LeaderboardEntry {
     final d = doc.data() as Map<String, dynamic>? ?? {};
     return _LeaderboardEntry(
       uid: doc.id,
-      name: (d['fullName'] ?? d['displayName'] ?? d['name'] ?? 'طالب مميز').toString(),
+      name: (d['name'] ?? 'طالب مميز').toString(),
       points: (d['points'] ?? 0).toInt(),
-      booksRead: (d['booksRead'] ?? 0).toInt(),
-      quizzesTaken: (d['quizzesTaken'] ?? 0).toInt(),
-      completedTasks: (d['completedTasks'] ?? 0).toInt(),
-      progressLevel: (d['progressLevel'] ?? 0.0).toDouble(),
+      verifiedExamCount: (d['verifiedExamCount'] ?? 0).toInt(),
+      verifiedCorrectAnswers: (d['verifiedCorrectAnswers'] ?? 0).toInt(),
       profileImageUrl: d['profileImageUrl'],
-      streakDays: (d['streakDays'] ?? 0).toInt(),
       avgScore: (d['avgScore'] ?? 0.0).toDouble(),
     );
   }
 
-  _LeaderboardEntry copyWith({
-    String? uid,
-    String? name,
-    int? points,
-    int? booksRead,
-    int? quizzesTaken,
-    int? completedTasks,
-    double? progressLevel,
-    String? profileImageUrl,
-    int? streakDays,
-    double? avgScore,
-  }) {
-    return _LeaderboardEntry(
-      uid: uid ?? this.uid,
-      name: name ?? this.name,
-      points: points ?? this.points,
-      booksRead: booksRead ?? this.booksRead,
-      quizzesTaken: quizzesTaken ?? this.quizzesTaken,
-      completedTasks: completedTasks ?? this.completedTasks,
-      progressLevel: progressLevel ?? this.progressLevel,
-      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
-      streakDays: streakDays ?? this.streakDays,
-      avgScore: avgScore ?? this.avgScore,
-    );
-  }
-
   String get levelTitle {
-    if (points >= 2000) return 'بطل MERAJ3I 🏆';
-    if (points >= 1000) return 'متفوق ⭐';
+    if (points >= 2000) return 'متفوق MERAJ3I 🏆';
+    if (points >= 1000) return 'متميز ⭐';
     if (points >= 500) return 'طالب متقدم 📈';
-    if (points >= 200) return 'قارئ نشيط 📚';
-    if (points >= 50) return 'مجتهد 💪';
+    if (points >= 200) return 'مجتهد 💪';
+    if (points >= 50) return 'مثابر ✨';
     return 'مبتدئ 🌱';
   }
 
@@ -107,7 +70,8 @@ class StudentCompetitionScreen extends StatefulWidget {
   const StudentCompetitionScreen({super.key});
 
   @override
-  State<StudentCompetitionScreen> createState() => _StudentCompetitionScreenState();
+  State<StudentCompetitionScreen> createState() =>
+      _StudentCompetitionScreenState();
 }
 
 class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
@@ -120,10 +84,8 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
   _LeaderboardEntry? _myEntry;
   int _myRank = 0;
   bool _isLoading = true;
+  final bool _rankingUnavailable = true;
   String? _errorMsg;
-  Timer? _refreshTimer;
-
-
 
   @override
   void initState() {
@@ -138,7 +100,6 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
   @override
   void dispose() {
     _animController.dispose();
-    _refreshTimer?.cancel();
     super.dispose();
   }
 
@@ -149,51 +110,31 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
       _isLoading = true;
       _errorMsg = null;
     });
+    if (_rankingUnavailable) {
+      setState(() => _isLoading = false);
+      return;
+    }
 
     try {
-      final currentUserId =
-          Provider.of<AuthProvider>(context, listen: false).user?.uid;
+      final currentUserId = Provider.of<AuthProvider>(
+        context,
+        listen: false,
+      ).user?.uid;
 
-
-      Query query = _firestore
-          .collection('leaderboard')
+      final snap = await _firestore
+          .collection('honor_board')
           .orderBy('points', descending: true)
-          .limit(100);
+          .limit(100)
+          .get();
 
-      final snap = await query.get();
-      
-      List<_LeaderboardEntry> entries = [];
-      for (var d in snap.docs) {
-        var entry = _LeaderboardEntry.fromDoc(d);
-        final rawName = entry.name;
-        final isPlaceholder = _normalizeLeaderboardName(rawName) == 'طالب متميز';
+      final entries = snap.docs
+          .map(_LeaderboardEntry.fromDoc)
+          .where((entry) => entry.points > 0)
+          .toList();
 
-        if (isPlaceholder) {
-          try {
-            final userDoc = await _firestore.collection('users').doc(d.id).get();
-            final userData = userDoc.data();
-            final userName = _normalizeLeaderboardName(
-              (userData?['fullName'] ?? userData?['name'] ?? userData?['displayName'])?.toString(),
-              fallback: 'طالب متميز',
-            );
-            if (userName != 'طالب متميز') {
-              entry = entry.copyWith(
-                name: userName,
-                profileImageUrl: userData?['profileImageUrl'] ?? entry.profileImageUrl,
-              );
-            }
-          } catch (_) {}
-        }
-
-        if (entry.points > 0 || entry.booksRead > 0) {
-          entries.add(entry);
-        }
-      }
-
-      // حساب ترتيب المستخدم الحالي
       int myRank = 0;
       _LeaderboardEntry? myEntry;
-      for (int i = 0; i < entries.length; i++) {
+      for (var i = 0; i < entries.length; i++) {
         if (entries[i].uid == currentUserId) {
           myRank = i + 1;
           myEntry = entries[i];
@@ -201,19 +142,21 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
         }
       }
 
-      // إذا لم يُجد المستخدم ضمن أفضل 100 — جلب بياناته منفرداً
       if (myEntry == null && currentUserId != null) {
-        final myDoc =
-            await _firestore.collection('leaderboard').doc(currentUserId).get();
+        final myDoc = await _firestore
+            .collection('honor_board')
+            .doc(currentUserId)
+            .get();
         if (myDoc.exists) {
           myEntry = _LeaderboardEntry.fromDoc(myDoc);
-          // تقدير الترتيب
-          final countSnap = await _firestore
-              .collection('leaderboard')
-              .where('points', isGreaterThan: myEntry.points)
-              .count()
-              .get();
-          myRank = (countSnap.count ?? 0) + 1;
+          if (myEntry.points > 0) {
+            final countSnap = await _firestore
+                .collection('honor_board')
+                .where('points', isGreaterThan: myEntry.points)
+                .count()
+                .get();
+            myRank = (countSnap.count ?? 0) + 1;
+          }
         }
       }
 
@@ -225,40 +168,45 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
         _isLoading = false;
       });
       _animController.forward(from: 0);
-    } on FirebaseException catch (e) {
+    } on FirebaseException catch (error) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        if (e.code == 'permission-denied') {
-          _errorMsg = 'صلاحيات قراءة لوحة الشرف غير متاحة. يرجى تحديث قواعد البيانات.';
-        } else if (e.code == 'failed-precondition') {
-          _errorMsg = 'يتطلب الاستعلام بناء فهرس (Index) في Firebase.';
-        } else {
-          _errorMsg = 'تعذر تحميل الترتيب حالياً: ${e.message}';
-        }
+        _errorMsg = error.code == 'permission-denied'
+            ? 'صلاحيات قراءة لوحة الشرف غير متاحة. يرجى تحديث قواعد البيانات.'
+            : error.code == 'failed-precondition'
+            ? 'يتطلب الاستعلام بناء فهرس (Index) في Firebase.'
+            : 'تعذر تحميل الترتيب حالياً: ${error.message}';
       });
-      debugPrint('Leaderboard FirebaseException: ${e.code} - ${e.message}');
-    } catch (e) {
+      debugPrint(
+        'Leaderboard FirebaseException: ${error.code} - ${error.message}',
+      );
+    } catch (error) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
         _errorMsg = 'حدث خطأ غير متوقع أثناء تحميل الترتيب.';
       });
-      debugPrint('Leaderboard error: $e');
+      debugPrint('Leaderboard error: $error');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final currentUserId =
-        Provider.of<AuthProvider>(context, listen: false).user?.uid;
-    final studentProfile =
-        Provider.of<StudentProvider>(context, listen: false).profile;
+    final currentUserId = Provider.of<AuthProvider>(
+      context,
+      listen: false,
+    ).user?.uid;
+    final studentProfile = Provider.of<StudentProvider>(
+      context,
+      listen: false,
+    ).profile;
 
     return Scaffold(
-      backgroundColor:
-          isDark ? AppTheme.backgroundDark : AppTheme.backgroundLight,
+      backgroundColor: isDark
+          ? AppTheme.backgroundDark
+          : AppTheme.backgroundLight,
       body: RefreshIndicator(
         onRefresh: _loadLeaderboard,
         color: AppTheme.primaryColor,
@@ -275,13 +223,14 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
             // تمت إزالة التبويبات (الأسبوع/الشهر) لعدم توفر بيانات تاريخية دقيقة لحساب النقاط المكتسبة أسبوعياً
 
             // ─── بطاقة إحصائياتي ─────────────────────────────
-            if (currentUserId != null)
+            if (!_rankingUnavailable && currentUserId != null)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: _buildMyStatsCard(
-                      isDark, studentProfile, currentUserId),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
+                  child: _buildMyStatsCard(isDark, studentProfile),
                 ),
               ),
 
@@ -296,12 +245,13 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
                         ),
                       ),
                     )
+                  : _rankingUnavailable
+                  ? _buildUnavailableWidget(isDark)
                   : _errorMsg != null
-                      ? _buildErrorWidget()
-                      : _leaderboard.isEmpty
-                          ? _buildEmptyWidget(isDark)
-                          : _buildLeaderboardContent(
-                              isDark, currentUserId),
+                  ? _buildErrorWidget()
+                  : _leaderboard.isEmpty
+                  ? _buildEmptyWidget(isDark)
+                  : _buildLeaderboardContent(isDark, currentUserId),
             ),
           ],
         ),
@@ -309,7 +259,45 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
     );
   }
 
-  String _normalizeLeaderboardName(String? sourceName, {String fallback = 'طالب متميز'}) {
+  Widget _buildUnavailableWidget(bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 64, 24, 80),
+      child: Column(
+        children: [
+          Icon(
+            Icons.lock_clock_rounded,
+            color: AppTheme.primaryColor,
+            size: 54,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'لوحة الشرف متوقفة مؤقتًا',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.tajawal(
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'على خطة Firebase المجانية (Spark)، لا يتوفر خادم موثوق لاحتساب النقاط. أوقفنا الترتيب بدل عرض نقاط يمكن تعديلها من التطبيق. ستعود اللوحة عند توفير احتساب خادمي موثوق.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.tajawal(
+              color: isDark ? Colors.white70 : const Color(0xFF64748B),
+              fontSize: 14,
+              height: 1.7,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _normalizeLeaderboardName(
+    String? sourceName, {
+    String fallback = 'طالب متميز',
+  }) {
     final cleaned = (sourceName ?? '').trim();
     if (cleaned.isEmpty) return fallback;
 
@@ -331,7 +319,10 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
     return cleaned;
   }
 
-  String _buildStudentNameDisplay(String? sourceName, {String fallback = 'طالب متميز'}) {
+  String _buildStudentNameDisplay(
+    String? sourceName, {
+    String fallback = 'طالب متميز',
+  }) {
     final resolved = _normalizeLeaderboardName(sourceName, fallback: fallback);
     if (resolved == 'طالب متميز' && fallback != 'طالب متميز') {
       return fallback;
@@ -340,8 +331,7 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
   }
 
   // ── بطاقة "إحصائياتي" ─────────────────────────────────────────────────
-  Widget _buildMyStatsCard(
-      bool isDark, dynamic profile, String currentUserId) {
+  Widget _buildMyStatsCard(bool isDark, dynamic profile) {
     final myE = _myEntry;
     final displayName = _buildStudentNameDisplay(
       myE?.name ?? profile.name,
@@ -378,8 +368,10 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
                   height: 58,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border:
-                        Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      width: 2,
+                    ),
                   ),
                   child: ClipOval(
                     child: myE?.profileImageUrl != null
@@ -410,7 +402,9 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
                       const SizedBox(height: 4),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 3),
+                          horizontal: 10,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
@@ -456,31 +450,27 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildMyStatChip(
-                    Icons.star_rounded,
-                    '${myE?.points ?? profile.points}',
-                    'نقطة'),
-                Builder(builder: (ctx) {
-                  final sp = context.watch<StatisticsProvider>();
-                  return _buildMyStatChip(
-                      Icons.menu_book_rounded,
-                      '${sp.userCompletedBooks > 0 ? sp.userCompletedBooks : (myE?.booksRead ?? profile.booksRead)}',
-                      'كتاب');
-                }),
-                Builder(builder: (ctx) {
-                  final sp = context.watch<StatisticsProvider>();
-                  return _buildMyStatChip(
-                      Icons.task_alt_rounded,
-                      '${sp.userCompletedTasks > 0 ? sp.userCompletedTasks : (myE?.completedTasks ?? profile.completedTasks)}',
-                      'مهمة');
-                }),
-                Builder(builder: (ctx) {
-                  final sp = context.watch<StatisticsProvider>();
-                  return _buildMyStatChip(
-                      Icons.quiz_rounded,
-                      '${sp.userTestsTaken > 0 ? sp.userTestsTaken : (myE?.quizzesTaken ?? profile.quizzesTaken)}',
-                      'اختبار');
-                }),
+                  Icons.star_rounded,
+                  '${myE?.points ?? 0}',
+                  'نقطة مصححة',
+                ),
+                _buildMyStatChip(
+                  Icons.quiz_rounded,
+                  '${myE?.verifiedExamCount ?? 0}',
+                  'اختبار',
+                ),
+                _buildMyStatChip(
+                  Icons.check_circle_rounded,
+                  '${myE?.verifiedCorrectAnswers ?? 0}',
+                  'إجابة صحيحة',
+                ),
               ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'النقاط مبنية على أفضل نتيجة في كل اختبار منشور، بعد إعادة تصحيح الإجابات على الخادم.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.tajawal(color: Colors.white70, fontSize: 11),
             ),
             // ─── رسالة تحفيزية ──────────────────────────────
             if (_myRank > 1 && _leaderboard.length > 1) ...[
@@ -612,10 +602,7 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFFFBBF24),
-            const Color(0xFFF59E0B),
-          ],
+          colors: [const Color(0xFFFBBF24), const Color(0xFFF59E0B)],
         ),
         boxShadow: [
           BoxShadow(
@@ -633,7 +620,10 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white.withValues(alpha: 0.18),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.5),
+                width: 2,
+              ),
             ),
             child: ClipOval(
               child: winner.profileImageUrl != null
@@ -653,7 +643,11 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 18),
+                    const Icon(
+                      Icons.workspace_premium_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       'الكرت الأول',
@@ -678,7 +672,7 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${winner.points} نقطة • ${winner.booksRead} كتاب • ${winner.quizzesTaken} اختبار',
+                  '${winner.points} نقطة مصححة • ${winner.verifiedExamCount} اختبار • ${winner.verifiedCorrectAnswers} إجابة صحيحة',
                   style: GoogleFonts.tajawal(
                     color: Colors.white.withValues(alpha: 0.9),
                     fontSize: 12,
@@ -693,7 +687,11 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
   }
 
   // ── المنصة (Podium) ────────────────────────────────────────────────────
-  Widget _buildPodium(List<_LeaderboardEntry> top, bool isDark, String? currentUserId) {
+  Widget _buildPodium(
+    List<_LeaderboardEntry> top,
+    bool isDark,
+    String? currentUserId,
+  ) {
     const goldColor = Color(0xFFFBBF24);
     const silverColor = Color(0xFF94A3B8);
     const bronzeColor = Color(0xFFCD7F32);
@@ -712,7 +710,9 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
       animation: _animController,
       builder: (context, child) => Transform.translate(
         offset: Offset(
-            0, 40 * (1 - Curves.easeOutQuart.transform(_animController.value))),
+          0,
+          40 * (1 - Curves.easeOutQuart.transform(_animController.value)),
+        ),
         child: Opacity(
           opacity: Curves.easeIn.transform(_animController.value.clamp(0, 1)),
           child: child,
@@ -759,8 +759,11 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
         if (rank == 1)
           const Padding(
             padding: EdgeInsets.only(bottom: 4),
-            child: Icon(Icons.workspace_premium_rounded,
-                color: Color(0xFFFBBF24), size: 32),
+            child: Icon(
+              Icons.workspace_premium_rounded,
+              color: Color(0xFFFBBF24),
+              size: 32,
+            ),
           ),
         // صورة المستخدم
         Container(
@@ -769,8 +772,9 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-                color: isMe ? Colors.white : color,
-                width: isMe ? 3 : 2.5),
+              color: isMe ? Colors.white : color,
+              width: isMe ? 3 : 2.5,
+            ),
             boxShadow: [
               BoxShadow(
                 color: color.withValues(alpha: 0.4),
@@ -795,7 +799,12 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Text(
-            isMe ? 'أنت' : _buildStudentNameDisplay(entry.name, fallback: 'طالب متميز').split(RegExp(r'\s+')).first,
+            isMe
+                ? 'أنت'
+                : _buildStudentNameDisplay(
+                    entry.name,
+                    fallback: 'طالب متميز',
+                  ).split(RegExp(r'\s+')).first,
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -830,8 +839,7 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
           height: podiumHeight,
           margin: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             gradient: LinearGradient(
               colors: [
                 color.withValues(alpha: 0.3),
@@ -840,8 +848,7 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
-            border: Border.all(
-                color: color.withValues(alpha: 0.4), width: 1.5),
+            border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
             boxShadow: [
               BoxShadow(
                 color: color.withValues(alpha: 0.15),
@@ -864,10 +871,17 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
               // معلومات إضافية مختصرة
               if (rank == 1) ...[
                 const SizedBox(height: 4),
-                Icon(Icons.menu_book_rounded, size: 14, color: color.withValues(alpha: 0.7)),
+                Icon(
+                  Icons.menu_book_rounded,
+                  size: 14,
+                  color: color.withValues(alpha: 0.7),
+                ),
                 Text(
-                  '${entry.booksRead} كتب',
-                  style: GoogleFonts.tajawal(fontSize: 10, color: color.withValues(alpha: 0.8)),
+                  '${entry.verifiedExamCount} اختبارات',
+                  style: GoogleFonts.tajawal(
+                    fontSize: 10,
+                    color: color.withValues(alpha: 0.8),
+                  ),
                 ),
               ],
             ],
@@ -878,17 +892,18 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
   }
 
   // ── كرت الترتيب العام ────────────────────────────────────────────────
-  Widget _buildRankCard(
-      _LeaderboardEntry e, int rank, bool isMe, bool isDark) {
+  Widget _buildRankCard(_LeaderboardEntry e, int rank, bool isMe, bool isDark) {
     return AnimatedBuilder(
       animation: _animController,
       builder: (context, child) => Transform.translate(
         offset: Offset(
-            0,
-            30 *
-                (1 -
-                    Curves.easeOut.transform(
-                        (_animController.value - 0.3).clamp(0, 1)))),
+          0,
+          30 *
+              (1 -
+                  Curves.easeOut.transform(
+                    (_animController.value - 0.3).clamp(0, 1),
+                  )),
+        ),
         child: Opacity(
           opacity: ((_animController.value - 0.2) / 0.8).clamp(0, 1),
           child: child,
@@ -902,8 +917,7 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
               : (isDark ? AppTheme.surfaceDark : Colors.white),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color:
-                isMe ? AppTheme.primaryColor : Colors.transparent,
+            color: isMe ? AppTheme.primaryColor : Colors.transparent,
             width: isMe ? 1.5 : 0,
           ),
           boxShadow: [
@@ -967,7 +981,10 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
                     Text(
                       isMe
                           ? 'أنت (${_buildStudentNameDisplay(e.name, fallback: 'طالب متميز')})'
-                          : _buildStudentNameDisplay(e.name, fallback: 'طالب متميز'),
+                          : _buildStudentNameDisplay(
+                              e.name,
+                              fallback: 'طالب متميز',
+                            ),
                       style: GoogleFonts.tajawal(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
@@ -1028,22 +1045,23 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
           Text(
             _errorMsg ?? 'حدث خطأ غير متوقع.',
             textAlign: TextAlign.center,
-            style: GoogleFonts.tajawal(
-                fontSize: 15, color: Colors.grey[600]),
+            style: GoogleFonts.tajawal(fontSize: 15, color: Colors.grey[600]),
           ),
           const SizedBox(height: 20),
           ElevatedButton.icon(
             onPressed: _loadLeaderboard,
             icon: const Icon(Icons.refresh_rounded),
-            label: Text('إعادة المحاولة',
-                style: GoogleFonts.tajawal(fontWeight: FontWeight.bold)),
+            label: Text(
+              'إعادة المحاولة',
+              style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
           ),
         ],
@@ -1057,14 +1075,16 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
       padding: const EdgeInsets.all(40),
       child: Column(
         children: [
-          Icon(Icons.workspace_premium_outlined,
-              size: 80, color: Colors.grey[400]),
+          Icon(
+            Icons.workspace_premium_outlined,
+            size: 80,
+            color: Colors.grey[400],
+          ),
           const SizedBox(height: 16),
           Text(
-            'لا يوجد نشاط بعد في هذه الفترة.\nابدأ القراءة والاختبارات لتتصدر القائمة!',
+            'لا توجد نتائج محتسبة في لوحة الشرف بعد.\nأكمل اختباراً منشوراً لتظهر نقاطك بعد إعادة تصحيح الإجابات على الخادم.',
             textAlign: TextAlign.center,
-            style: GoogleFonts.tajawal(
-                fontSize: 15, color: Colors.grey[500]),
+            style: GoogleFonts.tajawal(fontSize: 15, color: Colors.grey[500]),
           ),
         ],
       ),
@@ -1073,8 +1093,7 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
 
   // ── الصورة الافتراضية ────────────────────────────────────────────────
   Widget _defaultAvatar(String name, Color color) {
-    final initial =
-        name.isNotEmpty ? name.trim()[0].toUpperCase() : '?';
+    final initial = name.isNotEmpty ? name.trim()[0].toUpperCase() : '?';
     return Container(
       color: color.withValues(alpha: 0.15),
       child: Center(

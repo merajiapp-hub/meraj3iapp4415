@@ -1,9 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/book.dart';
-import '../data/books_data.dart';
 
-/// الخدمة المركزية لجلب المحتوى من Firestore
-/// تدعم الجلب بحسب المرحلة والتصنيف مع fallback للبيانات المحلية
+/// الخدمة المركزية لجلب المحتوى من Firestore.
 class ContentService {
   static final _db = FirebaseFirestore.instance;
 
@@ -68,39 +66,16 @@ class ContentService {
     String section, {
     String? category,
   }) async {
-    try {
-      final snap = await _db.collection(_booksCol).get();
-      final firestoreBooks = snap.docs
-          .map((d) => Book.fromMap(d.data(), d.id))
-          .where((book) => book.isActive)
-          .where((book) => _matchesSection(book, section))
-          .where((book) => _matchesCategory(book, category))
-          .toList();
+    final snap = await _db.collection(_booksCol).get();
+    final firestoreBooks = snap.docs
+        .map((d) => Book.fromMap(d.data(), d.id))
+        .where((book) => book.isActive)
+        .where((book) => _matchesSection(book, section))
+        .where((book) => _matchesCategory(book, category))
+        .toList();
 
-      firestoreBooks.sort(_compareBooksByOrder);
-      if (firestoreBooks.isNotEmpty) return firestoreBooks;
-
-      // fallback للبيانات المحلية إذا لم تكن Firestore مُهيأة بعد
-      return _localFallback(section, category);
-    } catch (e) {
-      // عند أي خطأ، استخدم البيانات المحلية
-      return _localFallback(section, category);
-    }
-  }
-
-  static List<Book> _localFallback(String section, String? category) {
-    final books = BooksData.allBooks.where((b) {
-      if (b.section != section) return false;
-      if (category != null && category.isNotEmpty) {
-        if (category == 'الدروس' || category == 'التمارين') {
-          return b.category.contains('التمارين') ||
-              b.category.contains('الدروس');
-        }
-        return b.category.contains(category);
-      }
-      return true;
-    }).toList();
-    return books;
+    firestoreBooks.sort(_compareBooksByOrder);
+    return firestoreBooks;
   }
 
   // ── الامتحانات الوطنية من Firestore ─────────────────────────────
@@ -178,15 +153,11 @@ class ContentService {
 
   // ── إحصاءات عامة ─────────────────────────────────────────────────
   static Future<int> countBooks() async {
-    try {
-      final snap = await _db
-          .collection(_booksCol)
-          .where('isActive', isEqualTo: true)
-          .count()
-          .get();
-      return snap.count ?? 0;
-    } catch (_) {
-      return BooksData.allBooks.where((b) => b.isActive).length;
-    }
+    final snap = await _db
+        .collection(_booksCol)
+        .where('isActive', isEqualTo: true)
+        .count()
+        .get();
+    return snap.count ?? 0;
   }
 }

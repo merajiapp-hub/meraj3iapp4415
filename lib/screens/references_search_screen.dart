@@ -45,7 +45,14 @@ class _ReferencesSearchScreenState extends State<ReferencesSearchScreen>
       final snapshot = await FirebaseFirestore.instance.collection('books').get();
       if (mounted) {
         setState(() {
-          _allBooks = snapshot.docs.map((d) => Book.fromMap(d.data(), d.id)).toList();
+          _allBooks = snapshot.docs
+              .where((d) {
+                final data = d.data();
+                final isActive = data['isActive'] ?? data['is_active'] ?? data['isShared'] ?? true;
+                return isActive != false;
+              })
+              .map((d) => Book.fromMap(d.data(), d.id))
+              .toList();
           _isLoading = false;
         });
       }

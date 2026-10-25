@@ -50,10 +50,16 @@ AccountStatusSnapshot normalizeAccountStatus(
       .trim()
       .toLowerCase();
   final instructedSuspended = data?['isSuspended'] == true;
-  final legacySuspended = rawStatus == 'suspended';
+  final legacySuspended = rawStatus == 'suspended' ||
+      rawStatus == 'deleted' ||
+      rawStatus == 'inactive' ||
+      rawStatus == 'disabled';
+  final disabled = data?['disabled'] == true || data?['isDisabled'] == true;
+  final notActive = data?['isActive'] == false || data?['is_active'] == false;
+  final deleted = data?['deleted'] == true || data?['isDeleted'] == true;
   final suspensionEndAt = _readDateTime(data?['suspensionEndAt']);
 
-  bool isSuspended = instructedSuspended || legacySuspended;
+  bool isSuspended = instructedSuspended || legacySuspended || disabled || notActive || deleted;
 
   if (suspensionEndAt != null && isSuspended && suspensionEndAt.isBefore(referenceNow)) {
     isSuspended = false;
@@ -65,7 +71,7 @@ AccountStatusSnapshot normalizeAccountStatus(
   return AccountStatusSnapshot(
     isSuspended: isSuspended,
     accountStatus: accountStatus,
-    reason: reason,
+    reason: reason.isNotEmpty ? reason : (deleted ? 'تم حذف الحساب' : (disabled || notActive ? 'تم إيقاف الحساب' : '')),
     suspensionStartAt: _readDateTime(data?['suspensionStartAt']),
     suspensionEndAt: suspensionEndAt,
     suspendedAt: _readDateTime(data?['suspendedAt']),

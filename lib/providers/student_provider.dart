@@ -27,7 +27,7 @@ class StudentProvider with ChangeNotifier {
       _profile = StudentProfile.fromJson(profileData);
       notifyListeners();
     }
-    
+
     // المزامنة التلقائية مع Firestore إذا كان المستخدم مسجلاً الدخول
     _syncWithFirestore();
   }
@@ -36,12 +36,17 @@ class StudentProvider with ChangeNotifier {
     final user = _auth.currentUser;
     if (user != null) {
       try {
-        final doc = await _firestore.collection('users').doc(user.uid).collection('data').doc('profile').get();
+        final doc = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('data')
+            .doc('profile')
+            .get();
         if (doc.exists && doc.data() != null) {
           // دمج البيانات من Firestore (Firestore هو المصدر الأساسي)
           _profile = StudentProfile.fromMap(doc.data()!);
           notifyListeners();
-          
+
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('student_profile', _profile.toJson());
         }
@@ -54,28 +59,19 @@ class StudentProvider with ChangeNotifier {
   Future<void> updateProfile(StudentProfile newProfile) async {
     _profile = newProfile;
     notifyListeners();
-    
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('student_profile', _profile.toJson());
 
-      final user = _auth.currentUser;
+    final user = _auth.currentUser;
     if (user != null) {
       try {
-        await _firestore.collection('users').doc(user.uid).collection('data').doc('profile').set(
-          _profile.toMap(),
-          SetOptions(merge: true),
-        );
-        // User-owned profile stats stay in the private data subcollection.
-        // The public leaderboard has its own narrowly-scoped write rule.
-        await _firestore.collection('leaderboard').doc(user.uid).set({
-          'points': _profile.points,
-          'booksRead': _profile.booksRead,
-          'completedTasks': _profile.completedTasks,
-          'quizzesTaken': _profile.quizzesTaken,
-          'progressLevel': _profile.progressLevel,
-          'name': _profile.name,
-          'lastActivity': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('data')
+            .doc('profile')
+            .set(_profile.toMap(), SetOptions(merge: true));
       } catch (e) {
         debugPrint('Error updating profile in Firestore: $e');
       }
@@ -112,8 +108,8 @@ class StudentProvider with ChangeNotifier {
     await calculatePointsAndUpdate();
   }
 
-  /// حساب النقاط الحقيقي والمتوازن ─ لا يسمح بالتلاعب من الجهة العميلة
-  /// النقاط تُرسل مباشرة إلى Firestore كـ server-validated sum
+  /// Keeps the legacy profile totals local; verified ranking points are
+  /// calculated by the backend from completed published exams.
   Future<void> calculatePointsAndUpdate() async {
     // ─── صيغة النقاط المتوازنة ───────────────────────────────
     // كتاب مقروء:      +50 نقطة
@@ -122,7 +118,8 @@ class StudentProvider with ChangeNotifier {
     // مستوى التقدم:    حتى +100 نقطة إضافية
     // ─────────────────────────────────────────────────────────
 
-    final int basePoints = (_profile.booksRead * 50) +
+    final int basePoints =
+        (_profile.booksRead * 50) +
         (_profile.completedTasks * 20) +
         (_profile.quizzesTaken * 10) +
         (_profile.progressLevel * 100).toInt();
@@ -135,19 +132,6 @@ class StudentProvider with ChangeNotifier {
     _profile.points = basePoints + bonusPoints;
 
     await updateProfile(_profile);
-
-    // تحديث lastActivity لدعم التصفية الزمنية في لوحة الشرف
-    final user = _auth.currentUser;
-    if (user != null) {
-      try {
-        await _firestore.collection('users').doc(user.uid).set({
-          'lastActivity': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-        await _firestore.collection('leaderboard').doc(user.uid).set({
-          'lastActivity': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      } catch (_) {}
-    }
   }
 
   Future<void> addPoints(int amount) async {

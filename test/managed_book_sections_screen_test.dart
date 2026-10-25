@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meraj3i/data/books_data.dart';
-import 'package:meraj3i/data/competitions_books.dart';
 import 'package:meraj3i/models/book.dart';
 import 'package:meraj3i/screens/managed_book_sections_screen.dart';
+import 'package:meraj3i/utils/academic_order.dart';
 
 Book _book({
   required String id,
@@ -31,6 +31,13 @@ Book _book({
 }
 
 void main() {
+  test('orders Arabic numbered sections in sequence', () {
+    final sections = ['القسم الثالث', 'القسم الأول', 'القسم الثاني']
+      ..sort(compareAcademicLabels);
+
+    expect(sections, ['القسم الأول', 'القسم الثاني', 'القسم الثالث']);
+  });
+
   group('national competition ordering', () {
     test('orders Concours before Brevet before Bac', () {
       expect(competitionGroupSortOrder('Concours 2025'), 0);
@@ -39,7 +46,10 @@ void main() {
       expect(competitionGroupSortOrder('Bac 2025'), 2);
       expect(competitionGroupSortOrder('بكالوريا 2025'), 2);
       expect(competitionGroupSortOrder('السنة السابعة ثانوية'), 2);
-      expect(competitionGroupSortOrder('السنة السابعة ثانوية (الباكالوريا)'), 2);
+      expect(
+        competitionGroupSortOrder('السنة السابعة ثانوية (الباكالوريا)'),
+        2,
+      );
       expect(competitionSubjectSortOrder('اللغة العربية'), 0);
       expect(competitionSubjectSortOrder('اللغة الفرنسية'), 1);
       expect(competitionSubjectSortOrder('الرياضيات'), 2);
@@ -47,55 +57,38 @@ void main() {
       expect(competitionYearSort('Brevet 2023'), 2023);
     });
 
-    test('fills missing Firestore solution URLs from bundled exam data', () {
-      final bundled = CompetitionsBooks.books.firstWhere(
-        (book) => book.solutionUrl.isNotEmpty,
-      );
-      final firestoreBook = Book(
-        id: 'firestore-${bundled.id}',
-        title: bundled.title,
+    test('keeps Firestore solution URLs and does not use bundled links', () {
+      final existingSolution = _book(
+        id: 'existing-solution',
         section: BooksData.sCompetitions,
-        grade: bundled.grade,
-        category: bundled.category,
-        subject: bundled.subject,
-        url: 'https://example.com/exam.pdf',
+        grade: 'Concours 2077',
+        category: 'الامتحانات',
+      ).copyWith(solutionUrl: 'https://example.com/firestore-solution.pdf');
+      final swedd = _book(
+        id: 'swedd-no-solution',
+        section: BooksData.sSwedd,
+        grade: 'الثالثة إعدادية',
+        category: 'الكتب المدرسية',
+      );
+      final noSolution = _book(
+        id: 'no-solution',
+        section: BooksData.sCompetitions,
+        grade: 'Concours 2077',
+        category: 'الامتحانات',
+        subject: 'Mathematics',
+        examKey: 'concours 2077::mathematics',
       );
 
-      final enriched = attachBundledCompetitionSolutions([firestoreBook]);
+      final enriched = attachManagedCompetitionSolutions([
+        existingSolution,
+        swedd,
+        noSolution,
+      ]);
 
-      expect(enriched.single.id, firestoreBook.id);
-      expect(enriched.single.url, firestoreBook.url);
-      expect(enriched.single.solutionUrl, bundled.solutionUrl);
+      expect(enriched[0].solutionUrl, existingSolution.solutionUrl);
+      expect(enriched[1].solutionUrl, isEmpty);
+      expect(enriched[2].solutionUrl, isEmpty);
     });
-
-    test(
-      'keeps existing Firestore solution URLs and does not enrich other pages',
-      () {
-        final bundled = CompetitionsBooks.books.firstWhere(
-          (book) => book.solutionUrl.isNotEmpty,
-        );
-        final existingSolution = _book(
-          id: 'existing-solution',
-          section: BooksData.sCompetitions,
-          grade: bundled.grade,
-          category: bundled.category,
-        ).copyWith(solutionUrl: 'https://example.com/firestore-solution.pdf');
-        final swedd = _book(
-          id: 'swedd-no-solution',
-          section: BooksData.sSwedd,
-          grade: bundled.grade,
-          category: bundled.category,
-        );
-
-        final enriched = attachBundledCompetitionSolutions([
-          existingSolution,
-          swedd,
-        ]);
-
-        expect(enriched[0].solutionUrl, existingSolution.solutionUrl);
-        expect(enriched[1].solutionUrl, isEmpty);
-      },
-    );
 
     test('joins a separately classified solution to its exam and hides it', () {
       const examKey = 'concours 2077::mathematiques';
@@ -119,7 +112,7 @@ void main() {
         url: 'https://example.com/solution.pdf',
       );
 
-      final attached = attachBundledCompetitionSolutions([exam, solution]);
+      final attached = attachManagedCompetitionSolutions([exam, solution]);
 
       expect(attached, hasLength(1));
       expect(attached.single.id, exam.id);
@@ -133,34 +126,29 @@ void main() {
       );
     });
 
-    test('does not fall back to bundled solution after admin disables it', () {
-      final bundled = CompetitionsBooks.books.firstWhere(
-        (book) => book.solutionUrl.isNotEmpty,
-      );
-      final examKey =
-          '${bundled.grade.trim().toLowerCase()}::${bundled.subject.trim().toLowerCase()}';
+    test('does not use a disabled Firestore solution', () {
       final exam = _book(
-        id: 'managed-${bundled.id}',
+        id: 'managed-exam',
         section: BooksData.sCompetitions,
-        grade: bundled.grade,
-        category: bundled.category,
-        subject: bundled.subject,
+        grade: 'Concours 2077',
+        category: 'الامتحانات',
+        subject: 'Mathematics',
         documentType: 'exam',
-        examKey: examKey,
+        examKey: 'concours 2077::mathematics',
       );
       final disabledSolution = _book(
-        id: 'disabled-${bundled.id}',
+        id: 'disabled-solution',
         section: BooksData.sCompetitions,
-        grade: bundled.grade,
-        category: bundled.category,
-        subject: bundled.subject,
+        grade: exam.grade,
+        category: exam.category,
+        subject: exam.subject,
         documentType: 'solution',
-        examKey: examKey,
+        examKey: exam.examKey,
         isActive: false,
         url: 'https://example.com/disabled-solution.pdf',
       );
 
-      final attached = attachBundledCompetitionSolutions([
+      final attached = attachManagedCompetitionSolutions([
         exam,
         disabledSolution,
       ]);

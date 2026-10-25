@@ -6,6 +6,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/exam_selection_utils.dart';
 import '../data/quiz_models.dart';
 import '../theme/app_theme.dart';
+import 'package:provider/provider.dart';
+import '../providers/statistics_provider.dart';
+import '../providers/student_provider.dart';
 import 'exam_result_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -82,12 +85,9 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
         if (doc.exists) {
           final data = doc.data()!;
           // استعادة الإجابات السابقة
-          final savedAnswers =
-              (data['answers'] as Map<String, dynamic>? ?? {});
-          final remainingSeconds =
-              (data['remainingSeconds'] as num?)?.toInt();
-          final lastQuestion =
-              (data['currentQuestion'] as num?)?.toInt() ?? 0;
+          final savedAnswers = (data['answers'] as Map<String, dynamic>? ?? {});
+          final remainingSeconds = (data['remainingSeconds'] as num?)?.toInt();
+          final lastQuestion = (data['currentQuestion'] as num?)?.toInt() ?? 0;
 
           if (mounted) {
             setState(() {
@@ -103,7 +103,9 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
             });
             // الانتقال إلى السؤال الأخير
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted && lastQuestion > 0 && lastQuestion < widget.questions.length) {
+              if (mounted &&
+                  lastQuestion > 0 &&
+                  lastQuestion < widget.questions.length) {
                 _pageController.jumpToPage(lastQuestion);
                 setState(() => _currentPage = lastQuestion);
               }
@@ -116,19 +118,20 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
     } else {
       // إنشاء محاولة جديدة
       try {
-        final ref =
-            await FirebaseFirestore.instance.collection('exam_attempts').add({
-          'userId': widget.uid,
-          'quizId': widget.quizId,
-          'quizTitle': widget.quizTitle,
-          'status': 'in_progress',
-          'answers': <String, int>{},
-          'currentQuestion': 0,
-          'remainingSeconds': _secondsLeft,
-          'totalQuestions': widget.questions.length,
-          'startedAt': FieldValue.serverTimestamp(),
-          'lastSavedAt': FieldValue.serverTimestamp(),
-        });
+        final ref = await FirebaseFirestore.instance
+            .collection('exam_attempts')
+            .add({
+              'userId': widget.uid,
+              'quizId': widget.quizId,
+              'quizTitle': widget.quizTitle,
+              'status': 'in_progress',
+              'answers': <String, int>{},
+              'currentQuestion': 0,
+              'remainingSeconds': _secondsLeft,
+              'totalQuestions': widget.questions.length,
+              'startedAt': FieldValue.serverTimestamp(),
+              'lastSavedAt': FieldValue.serverTimestamp(),
+            });
         _attemptId = ref.id;
       } catch (e) {
         debugPrint('Failed to create attempt: $e');
@@ -149,14 +152,12 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
           .collection('exam_attempts')
           .doc(_attemptId)
           .update({
-        'answers': {
-          for (final e in _answers.entries) '${e.key}': e.value
-        },
-        'currentQuestion': _currentPage,
-        'remainingSeconds': _secondsLeft,
-        'lastSavedAt': FieldValue.serverTimestamp(),
-        'status': 'in_progress',
-      });
+            'answers': {for (final e in _answers.entries) '${e.key}': e.value},
+            'currentQuestion': _currentPage,
+            'remainingSeconds': _secondsLeft,
+            'lastSavedAt': FieldValue.serverTimestamp(),
+            'status': 'in_progress',
+          });
     } catch (e) {
       debugPrint('Auto-save failed: $e');
     }
@@ -221,11 +222,14 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
         final confirm = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Text('إنهاء الاختبار؟',
-                style: GoogleFonts.cairo(fontWeight: FontWeight.bold),
-                textDirection: TextDirection.rtl),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: Text(
+              'إنهاء الاختبار؟',
+              style: GoogleFonts.cairo(fontWeight: FontWeight.bold),
+              textDirection: TextDirection.rtl,
+            ),
             content: Text(
               'لم تجب على $unanswered سؤال بعد.\nهل أنت متأكد من إنهاء الاختبار؟',
               style: GoogleFonts.cairo(),
@@ -233,17 +237,21 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
             ),
             actions: [
               TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: Text('متابعة', style: GoogleFonts.cairo())),
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text('متابعة', style: GoogleFonts.cairo()),
+              ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 onPressed: () => Navigator.pop(ctx, true),
-                child: Text('إنهاء',
-                    style: GoogleFonts.cairo(color: Colors.white)),
+                child: Text(
+                  'إنهاء',
+                  style: GoogleFonts.cairo(color: Colors.white),
+                ),
               ),
             ],
           ),
@@ -283,8 +291,7 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
     }
 
     final unanswered = widget.questions.length - _answers.length;
-    final timeTaken =
-        widget.durationMinutes * 60 - _secondsLeft;
+    final timeTaken = widget.durationMinutes * 60 - _secondsLeft;
     final score = widget.questions.isEmpty
         ? 0
         : (correct / widget.questions.length * 100).round();
@@ -318,9 +325,10 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
               .update(payload);
         } else {
           // إنشاء مستند جديد
-          await FirebaseFirestore.instance
-              .collection('exam_attempts')
-              .add({...payload, 'startedAt': FieldValue.serverTimestamp()});
+          await FirebaseFirestore.instance.collection('exam_attempts').add({
+            ...payload,
+            'startedAt': FieldValue.serverTimestamp(),
+          });
         }
       } catch (e) {
         debugPrint('Failed to save final attempt: $e');
@@ -328,6 +336,20 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
     }
 
     if (!mounted) return;
+
+    try {
+      final stats = Provider.of<StatisticsProvider>(context, listen: false);
+      stats.recordExamResult(correctAnswers: correct, wrongAnswers: wrong);
+    } catch (e) {
+      debugPrint('Error updating stats from exam: $e');
+    }
+
+    try {
+      final student = Provider.of<StudentProvider>(context, listen: false);
+      student.incrementQuizzesTaken(score.toDouble());
+    } catch (e) {
+      debugPrint('Error updating student profile from exam: $e');
+    }
 
     Navigator.pushReplacement(
       context,
@@ -360,24 +382,33 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
         final confirm = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Text('الخروج من الاختبار؟',
-                style: GoogleFonts.cairo(fontWeight: FontWeight.bold),
-                textDirection: TextDirection.rtl),
-            content: Text('سيتم حفظ تقدمك تلقائياً، يمكنك الاستكمال لاحقاً.',
-                style: GoogleFonts.cairo(),
-                textDirection: TextDirection.rtl),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: Text(
+              'الخروج من الاختبار؟',
+              style: GoogleFonts.cairo(fontWeight: FontWeight.bold),
+              textDirection: TextDirection.rtl,
+            ),
+            content: Text(
+              'سيتم حفظ تقدمك تلقائياً، يمكنك الاستكمال لاحقاً.',
+              style: GoogleFonts.cairo(),
+              textDirection: TextDirection.rtl,
+            ),
             actions: [
               TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: Text('متابعة', style: GoogleFonts.cairo())),
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text('متابعة', style: GoogleFonts.cairo()),
+              ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor),
+                  backgroundColor: AppTheme.primaryColor,
+                ),
                 onPressed: () => Navigator.pop(ctx, true),
-                child:
-                    Text('حفظ وخروج', style: GoogleFonts.cairo(color: Colors.white)),
+                child: Text(
+                  'حفظ وخروج',
+                  style: GoogleFonts.cairo(color: Colors.white),
+                ),
               ),
             ],
           ),
@@ -389,8 +420,9 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
         }
       },
       child: Scaffold(
-        backgroundColor:
-            isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+        backgroundColor: isDark
+            ? const Color(0xFF0F172A)
+            : const Color(0xFFF1F5F9),
         body: SafeArea(
           child: Column(
             children: [
@@ -425,41 +457,54 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
               children: [
                 // التايمر
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: _timerColor.withValues(alpha: 0.25),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _timerColor.withValues(alpha: 0.6)),
+                    border: Border.all(
+                      color: _timerColor.withValues(alpha: 0.6),
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.timer_outlined,
-                          color: _timerColor, size: 16),
+                      Icon(Icons.timer_outlined, color: _timerColor, size: 16),
                       const SizedBox(width: 4),
-                      Text(_formattedTime,
-                          style: GoogleFonts.cairo(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15)),
+                      Text(
+                        _formattedTime,
+                        style: GoogleFonts.cairo(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 const Spacer(),
                 // عنوان الاختبار
                 Flexible(
-                  child: Text(widget.quizTitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.cairo(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14)),
+                  child: Text(
+                    widget.quizTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.cairo(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
                 ),
                 const Spacer(),
                 // رقم السؤال الحالي
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
@@ -467,9 +512,10 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
                   child: Text(
                     '${_currentPage + 1}/${widget.questions.length}',
                     style: GoogleFonts.cairo(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14),
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
               ],
@@ -486,16 +532,16 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
                   child: LinearProgressIndicator(
                     value: progress,
                     backgroundColor: Colors.white.withValues(alpha: 0.25),
-                    valueColor:
-                        const AlwaysStoppedAnimation<Color>(Colors.white),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Colors.white,
+                    ),
                     minHeight: 6,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'تم الإجابة على ${_answers.length} من ${widget.questions.length} سؤال',
-                  style: GoogleFonts.cairo(
-                      color: Colors.white70, fontSize: 11),
+                  style: GoogleFonts.cairo(color: Colors.white70, fontSize: 11),
                 ),
               ],
             ),
@@ -537,19 +583,25 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
                     ? Border.all(color: Colors.white, width: 2)
                     : null,
                 boxShadow: isCurrent
-                    ? [BoxShadow(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.4),
-                        blurRadius: 6)]
+                    ? [
+                        BoxShadow(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.4),
+                          blurRadius: 6,
+                        ),
+                      ]
                     : null,
               ),
               child: Center(
-                child: Text('${index + 1}',
-                    style: GoogleFonts.cairo(
-                        color: (isCurrent || isAnswered)
-                            ? Colors.white
-                            : (isDark ? Colors.white54 : Colors.black54),
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold)),
+                child: Text(
+                  '${index + 1}',
+                  style: GoogleFonts.cairo(
+                    color: (isCurrent || isAnswered)
+                        ? Colors.white
+                        : (isDark ? Colors.white54 : Colors.black54),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
           );
@@ -586,35 +638,44 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 10,
-              offset: const Offset(0, -4)),
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, -4),
+          ),
         ],
       ),
       child: Row(
         children: [
           OutlinedButton.icon(
-            onPressed:
-                _currentPage > 0 ? () => _goToQuestion(_currentPage - 1) : null,
+            onPressed: _currentPage > 0
+                ? () => _goToQuestion(_currentPage - 1)
+                : null,
             icon: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
             label: Text('السابق', style: GoogleFonts.cairo()),
             style: OutlinedButton.styleFrom(
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
           const Spacer(),
           if (_currentPage < widget.questions.length - 1)
             ElevatedButton.icon(
               onPressed: () => _goToQuestion(_currentPage + 1),
-              icon: const Icon(Icons.arrow_back_ios_rounded,
-                  size: 14, color: Colors.white),
-              label: Text('التالي',
-                  style: GoogleFonts.cairo(color: Colors.white)),
+              icon: const Icon(
+                Icons.arrow_back_ios_rounded,
+                size: 14,
+                color: Colors.white,
+              ),
+              label: Text(
+                'التالي',
+                style: GoogleFonts.cairo(color: Colors.white),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             )
           else
@@ -625,16 +686,26 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.check_circle_outline_rounded,
-                      color: Colors.white),
-              label: Text('إنهاء الاختبار',
-                  style: GoogleFonts.cairo(
-                      color: Colors.white, fontWeight: FontWeight.bold)),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.check_circle_outline_rounded,
+                      color: Colors.white,
+                    ),
+              label: Text(
+                'إنهاء الاختبار',
+                style: GoogleFonts.cairo(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF10B981),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
         ],
@@ -678,11 +749,15 @@ class _QuestionCard extends StatelessWidget {
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                  color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08)),
+                color: isDark
+                    ? Colors.white12
+                    : Colors.black.withValues(alpha: 0.08),
+              ),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
-                    blurRadius: 10)
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+                  blurRadius: 10,
+                ),
               ],
             ),
             child: Column(
@@ -691,18 +766,22 @@ class _QuestionCard extends StatelessWidget {
                 Text(
                   'السؤال ${index + 1} من $total',
                   style: GoogleFonts.cairo(
-                      fontSize: 11,
-                      color: AppTheme.primaryColor,
-                      fontWeight: FontWeight.bold),
+                    fontSize: 11,
+                    color: AppTheme.primaryColor,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 8),
-                Text(question.question,
-                    style: GoogleFonts.cairo(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
-                        height: 1.6),
-                    textDirection: TextDirection.rtl),
+                Text(
+                  question.question,
+                  style: GoogleFonts.cairo(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
+                    height: 1.6,
+                  ),
+                  textDirection: TextDirection.rtl,
+                ),
               ],
             ),
           ),
@@ -719,10 +798,14 @@ class _QuestionCard extends StatelessWidget {
                 duration: const Duration(milliseconds: 200),
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? AppTheme.primaryColor.withValues(alpha: isDark ? 0.25 : 0.10)
+                      ? AppTheme.primaryColor.withValues(
+                          alpha: isDark ? 0.25 : 0.10,
+                        )
                       : (isDark ? const Color(0xFF1E293B) : Colors.white),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
@@ -742,44 +825,48 @@ class _QuestionCard extends StatelessWidget {
                         color: isSelected
                             ? AppTheme.primaryColor
                             : (isDark
-                                ? Colors.white.withValues(alpha: 0.07)
-                                : Colors.grey.shade100),
+                                  ? Colors.white.withValues(alpha: 0.07)
+                                  : Colors.grey.shade100),
                         border: isSelected
                             ? null
                             : Border.all(
-                                color: isDark
-                                    ? Colors.white24
-                                    : Colors.black12),
+                                color: isDark ? Colors.white24 : Colors.black12,
+                              ),
                       ),
                       child: Center(
                         child: isSelected
-                            ? const Icon(Icons.check_rounded,
-                                color: Colors.white, size: 16)
+                            ? const Icon(
+                                Icons.check_rounded,
+                                color: Colors.white,
+                                size: 16,
+                              )
                             : Text(
                                 String.fromCharCode(0x0041 + i), // A,B,C,D...
                                 style: GoogleFonts.cairo(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                    color: isDark
-                                        ? Colors.white54
-                                        : Colors.black38),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: isDark
+                                      ? Colors.white54
+                                      : Colors.black38,
+                                ),
                               ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(opt,
-                          style: GoogleFonts.cairo(
-                              fontSize: 14,
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                              color: isSelected
-                                  ? AppTheme.primaryColor
-                                  : (isDark
-                                      ? Colors.white70
-                                      : Colors.black87)),
-                          textDirection: TextDirection.rtl),
+                      child: Text(
+                        opt,
+                        style: GoogleFonts.cairo(
+                          fontSize: 14,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: isSelected
+                              ? AppTheme.primaryColor
+                              : (isDark ? Colors.white70 : Colors.black87),
+                        ),
+                        textDirection: TextDirection.rtl,
+                      ),
                     ),
                   ],
                 ),

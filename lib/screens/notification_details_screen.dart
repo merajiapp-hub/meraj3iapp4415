@@ -1,13 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/notifications_provider.dart';
 import '../theme/app_theme.dart';
 import 'package:intl/intl.dart';
+import 'announcements_screen.dart';
+import 'honor_certificate_screen.dart';
+import 'news_screen.dart';
+import 'direct_chat_screen.dart';
 
 class NotificationDetailsScreen extends StatelessWidget {
   final AppNotificationModel notification;
 
   const NotificationDetailsScreen({super.key, required this.notification});
+
+  Future<void> _openExternalLink(BuildContext context) async {
+    final uri = Uri.tryParse(notification.targetId ?? '');
+    if (uri == null ||
+        !uri.hasAuthority ||
+        uri.host.isEmpty ||
+        !const {'http', 'https'}.contains(uri.scheme.toLowerCase())) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('رابط الإشعار غير صالح.')));
+      return;
+    }
+
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
+        context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تعذر فتح الرابط.')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -141,6 +166,67 @@ class NotificationDetailsScreen extends StatelessWidget {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 24),
+                  if (notification.targetType != null) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          if (notification.targetType == 'externalUrl') {
+                            await _openExternalLink(context);
+                            return;
+                          }
+                          final page = switch (notification.targetType) {
+                            'news' => NewsScreen(
+                              selectedId: notification.targetId,
+                            ),
+                            'announcement' => AnnouncementsScreen(
+                              selectedId: notification.targetId,
+                            ),
+                            'chat' => const DirectChatScreen(),
+                            'certificate' =>
+                              notification.targetId == null
+                                  ? null
+                                  : HonorCertificateScreen(
+                                      certificateId: notification.targetId!,
+                                    ),
+                            _ => null,
+                          };
+                          if (page != null) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => page),
+                            );
+                          }
+                        },
+                        icon: Icon(notification.typeIcon, size: 18),
+                        label: Text(
+                          notification.targetType == 'news'
+                              ? 'فتح الأخبار'
+                              : notification.targetType == 'announcement'
+                              ? 'فتح الإعلانات'
+                              : notification.targetType == 'chat'
+                              ? 'فتح المحادثة'
+                              : notification.targetType == 'certificate'
+                              ? 'عرض الشهادة'
+                              : notification.targetType == 'externalUrl'
+                              ? 'فتح رابط الشهادة'
+                              : 'فتح الصفحة',
+                          style: GoogleFonts.tajawal(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

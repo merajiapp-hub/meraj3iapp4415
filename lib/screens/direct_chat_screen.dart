@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../models/support_chat_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/curved_header.dart';
 
@@ -23,11 +24,13 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   bool _sending = false;
   String _uid = '';
   String _userName = 'مستخدم';
+  String _userEmail = '';
   String _chatId = '';
   bool _chatReady = false;
   final Set<String> _seenMessageIds = <String>{};
   bool _messageStreamInitialized = false;
   bool _chatClosed = false;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _chatSubscription;
 
   // Selection state
   final Set<String> _selectedMessageIds = <String>{};
@@ -57,13 +60,14 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     setState(() {
       _uid = user.uid;
       final ud = auth.userData;
+      _userEmail = (ud?['email']?.toString() ?? user.email ?? '').trim();
       _userName = ud?['fullName']?.toString().trim().isNotEmpty == true
           ? ud!['fullName'].toString().trim()
           : ud?['name']?.toString().trim().isNotEmpty == true
-              ? ud!['name'].toString().trim()
-              : user.displayName?.trim().isNotEmpty == true
-                  ? user.displayName!.trim()
-                  : user.email ?? 'مستخدم';
+          ? ud!['name'].toString().trim()
+          : user.displayName?.trim().isNotEmpty == true
+          ? user.displayName!.trim()
+          : user.email ?? 'مستخدم';
       _chatId = 'chat_${user.uid}';
     });
 
@@ -88,6 +92,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   @override
   void dispose() {
     _selectionTimer?.cancel();
+    _chatSubscription?.cancel();
     _ctrl.dispose();
     _scroll.dispose();
     super.dispose();
@@ -147,7 +152,10 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
           children: [
             const Icon(Icons.delete_outline_rounded, color: Colors.red),
             const SizedBox(width: 8),
-            Text('حذف الرسائل', style: GoogleFonts.tajawal(fontWeight: FontWeight.bold)),
+            Text(
+              'حذف الرسائل',
+              style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         content: Column(
@@ -203,7 +211,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
             content: Text('تم حذف الرسائل بنجاح', style: GoogleFonts.tajawal()),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
       }
@@ -211,10 +221,15 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تعذر حذف الرسائل، حاول مرة أخرى', style: GoogleFonts.tajawal()),
+            content: Text(
+              'تعذر حذف الرسائل، حاول مرة أخرى',
+              style: GoogleFonts.tajawal(),
+            ),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
       }
@@ -235,7 +250,10 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     if (text.isEmpty) return;
     setState(() => _sending = true);
     try {
-      await _db.collection('chats').doc(_chatId).collection('messages').add({
+      final chatRef = _db.collection('chats').doc(_chatId);
+      final messageRef = chatRef.collection('messages').doc();
+      final batch = _db.batch();
+      batch.set(messageRef, {
         'text': text,
         'senderId': _uid,
         'senderName': _userName,
@@ -243,13 +261,31 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
         'createdAt': FieldValue.serverTimestamp(),
         'isRead': false,
       });
-      await _db.collection('chats').doc(_chatId).set({
+      batch.set(chatRef, {
         'lastMessage': text,
         'lastMessageAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'userUnread': 0,
         'adminUnread': FieldValue.increment(1),
       }, SetOptions(merge: true));
+      batch.set(
+        _db
+            .collection('admin_notifications')
+            .doc(messageRef.id),
+        {
+          'type': 'support_message',
+          'chatId': _chatId,
+          'messageId': messageRef.id,
+          'userId': _uid,
+          'userName': _userName,
+          'userEmail': _userEmail,
+          'excerpt': text.length <= 160 ? text : text.substring(0, 160),
+          'readBy': <String, dynamic>{},
+          'eventAt': FieldValue.serverTimestamp(),
+          'createdAt': FieldValue.serverTimestamp(),
+        },
+      );
+      await batch.commit();
       _ctrl.clear();
       await Future.delayed(const Duration(milliseconds: 200));
       if (_scroll.hasClients) {
@@ -276,7 +312,10 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تعذر إرسال الرسالة: $e', style: GoogleFonts.tajawal()),
+            content: Text(
+              'تعذر إرسال الرسالة: $e',
+              style: GoogleFonts.tajawal(),
+            ),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
@@ -308,7 +347,8 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       _chatClosed = chat.data()?['status'] == 'closed';
       _chatReady = true;
     });
-    chatRef.snapshots().listen((snapshot) {
+    await _chatSubscription?.cancel();
+    _chatSubscription = chatRef.snapshots().listen((snapshot) {
       if (!mounted) return;
       final data = snapshot.data() ?? <String, dynamic>{};
       setState(() {
@@ -365,7 +405,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       // KEY FIX: resizeToAvoidBottomInset = true (default) ensures scaffold
       // automatically shrinks body when keyboard appears, keeping input at bottom
       resizeToAvoidBottomInset: true,
-      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+      backgroundColor: isDark
+          ? const Color(0xFF0F172A)
+          : const Color(0xFFF1F5F9),
       body: Column(
         children: [
           CurvedHeader(
@@ -373,30 +415,30 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                 ? '${_selectedMessageIds.length} محددة'
                 : 'الدعم الفني',
             subtitle: 'فريق MERAJ3I',
-            gradient: isDark ? AppTheme.deepBlueGradient : AppTheme.brandGradient,
+            gradient: isDark
+                ? AppTheme.deepBlueGradient
+                : AppTheme.brandGradient,
           ),
           Expanded(
             child: SafeArea(
               top: false,
               child: Column(
-          children: [
-            // Welcome Banner - only show when not in selection mode
-            if (!_selectionMode)
-              _buildWelcomeBanner(isDark),
+                children: [
+                  // Welcome Banner - only show when not in selection mode
+                  if (!_selectionMode) _buildWelcomeBanner(isDark),
 
-            // Selection action bar
-            if (_selectionMode)
-              _buildSelectionBar(isDark),
+                  // Selection action bar
+                  if (_selectionMode) _buildSelectionBar(isDark),
 
-            // Messages list - takes remaining space
-            Expanded(child: _buildMessagesList(isDark)),
+                  // Messages list - takes remaining space
+                  Expanded(child: _buildMessagesList(isDark)),
 
-            // Input area - stays at bottom above keyboard
-            if (_chatClosed)
-              _buildClosedBanner(isDark)
-            else
-              _buildInputBar(isDark),
-          ],
+                  // Input area - stays at bottom above keyboard
+                  if (_chatClosed)
+                    _buildClosedBanner(isDark)
+                  else
+                    _buildInputBar(isDark),
+                ],
               ),
             ),
           ),
@@ -409,7 +451,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     return StreamBuilder<DocumentSnapshot>(
       stream: _db.collection('chats').doc(_chatId).snapshots(),
       builder: (context, snapshot) {
-        final unread = snapshot.data?['adminUnread'] as int? ?? 0;
+        final unread = SupportChatState.unreadRepliesForUser(
+          snapshot.data?.data() as Map<String, dynamic>?,
+        );
         final hasUnread = unread > 0;
 
         return Container(
@@ -425,11 +469,17 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
               end: Alignment.centerLeft,
             ),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.2)),
+            border: Border.all(
+              color: AppTheme.primaryColor.withValues(alpha: 0.2),
+            ),
           ),
           child: Row(
             children: [
-              const Icon(Icons.support_agent_rounded, color: AppTheme.primaryColor, size: 22),
+              const Icon(
+                Icons.support_agent_rounded,
+                color: AppTheme.primaryColor,
+                size: 22,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -446,7 +496,10 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
               ),
               if (hasUnread)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
                   decoration: const BoxDecoration(
                     color: Colors.redAccent,
                     shape: BoxShape.circle,
@@ -483,7 +536,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
           ),
           const Spacer(),
           TextButton(
-            onPressed: _allOwnSelected ? _clearMessageSelection : _selectAllOwnMessages,
+            onPressed: _allOwnSelected
+                ? _clearMessageSelection
+                : _selectAllOwnMessages,
             child: Text(
               _allOwnSelected ? 'إلغاء تحديد الكل' : 'تحديد الكل',
               style: GoogleFonts.tajawal(fontSize: 13),
@@ -496,7 +551,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             icon: const Icon(Icons.delete_outline_rounded, size: 16),
             label: Text('حذف', style: GoogleFonts.tajawal(fontSize: 13)),
@@ -507,7 +564,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   }
 
   Widget _buildMessagesList(bool isDark) {
-    if (_chatId.isEmpty) return const Center(child: CircularProgressIndicator());
+    if (_chatId.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
     return StreamBuilder<QuerySnapshot>(
       stream: _db
@@ -525,10 +584,14 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
         // Update own message IDs for selection
         _ownMessageIds
           ..clear()
-          ..addAll(docs.where((doc) {
-            final data = doc.data() as Map<String, dynamic>;
-            return data['isAdmin'] != true && data['isDeleted'] != true;
-          }).map((doc) => doc.id));
+          ..addAll(
+            docs
+                .where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  return data['isAdmin'] != true && data['isDeleted'] != true;
+                })
+                .map((doc) => doc.id),
+          );
 
         _playIncomingSound(docs);
 
@@ -590,10 +653,18 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                   ? () => _toggleMessageSelection(messageId)
                   : null,
               // Long press starts 3-second timer
-              onLongPressStart: canSelect ? (_) => _startLongPress(messageId) : null,
+              onLongPressStart: canSelect
+                  ? (_) => _startLongPress(messageId)
+                  : null,
               onLongPressEnd: canSelect ? (_) => _cancelLongPress() : null,
               onLongPressCancel: canSelect ? _cancelLongPress : null,
-              child: _buildBubble(d, messageId, isMe, isDark, selected: selected),
+              child: _buildBubble(
+                d,
+                messageId,
+                isMe,
+                isDark,
+                selected: selected,
+              ),
             );
           },
         );
@@ -618,14 +689,20 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
-        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isMe
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe) ...[
             CircleAvatar(
               radius: 15,
               backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
-              child: const Icon(Icons.support_agent_rounded, size: 14, color: AppTheme.primaryColor),
+              child: const Icon(
+                Icons.support_agent_rounded,
+                size: 14,
+                color: AppTheme.primaryColor,
+              ),
             ),
             const SizedBox(width: 6),
           ],
@@ -636,7 +713,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
               child: Checkbox(
                 value: selected,
                 onChanged: (_) => _toggleMessageSelection(messageId),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
+                ),
               ),
             ),
           Flexible(
@@ -649,7 +728,10 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
               decoration: BoxDecoration(
                 gradient: isMe && !isDeleted
                     ? LinearGradient(
-                        colors: [AppTheme.primaryColor, AppTheme.primaryColor.withValues(alpha: 0.85)],
+                        colors: [
+                          AppTheme.primaryColor,
+                          AppTheme.primaryColor.withValues(alpha: 0.85),
+                        ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       )
@@ -657,13 +739,17 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                 color: isDeleted
                     ? Colors.grey.withValues(alpha: 0.2)
                     : isMe
-                        ? null
-                        : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                    ? null
+                    : (isDark ? const Color(0xFF1E293B) : Colors.white),
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(16),
                   topRight: const Radius.circular(16),
-                  bottomLeft: isMe ? const Radius.circular(16) : const Radius.circular(4),
-                  bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(16),
+                  bottomLeft: isMe
+                      ? const Radius.circular(16)
+                      : const Radius.circular(4),
+                  bottomRight: isMe
+                      ? const Radius.circular(4)
+                      : const Radius.circular(16),
                 ),
                 border: selected
                     ? Border.all(color: AppTheme.primaryColor, width: 2.5)
@@ -679,13 +765,19 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                       ],
               ),
               child: Column(
-                crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                crossAxisAlignment: isMe
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
                 children: [
                   if (isDeleted)
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.block_rounded, size: 13, color: Colors.grey[400]),
+                        Icon(
+                          Icons.block_rounded,
+                          size: 13,
+                          color: Colors.grey[400],
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           'تم حذف هذه الرسالة',
@@ -704,7 +796,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                       style: GoogleFonts.tajawal(
                         fontSize: 14,
                         height: 1.4,
-                        color: isMe ? Colors.white : (isDark ? Colors.white : const Color(0xFF1E293B)),
+                        color: isMe
+                            ? Colors.white
+                            : (isDark ? Colors.white : const Color(0xFF1E293B)),
                       ),
                     ),
                   if (!isDeleted) ...[
@@ -753,14 +847,22 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
               textInputAction: TextInputAction.newline,
               decoration: InputDecoration(
                 hintText: 'اكتب رسالتك...',
-                hintStyle: GoogleFonts.tajawal(color: Colors.grey, fontSize: 14),
+                hintStyle: GoogleFonts.tajawal(
+                  color: Colors.grey,
+                  fontSize: 14,
+                ),
                 filled: true,
-                fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                fillColor: isDark
+                    ? const Color(0xFF0F172A)
+                    : const Color(0xFFF8FAFC),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
               ),
               style: GoogleFonts.tajawal(fontSize: 14),
             ),
@@ -788,10 +890,17 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                       child: SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
                       ),
                     )
-                  : const Icon(Icons.send_rounded, color: Colors.white, size: 22),
+                  : const Icon(
+                      Icons.send_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
             ),
           ),
         ],
@@ -807,7 +916,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       child: Text(
         'تم إغلاق هذه المحادثة من الدعم الفني.',
         textAlign: TextAlign.center,
-        style: GoogleFonts.tajawal(color: isDark ? Colors.white70 : Colors.black54),
+        style: GoogleFonts.tajawal(
+          color: isDark ? Colors.white70 : Colors.black54,
+        ),
       ),
     );
   }

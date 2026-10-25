@@ -9,6 +9,7 @@ class BooksData {
   static const String sPrimary = 'المرحلة الابتدائية';
   static const String sMiddle = 'المرحلة الإعدادية';
   static const String sHighSc = 'المرحلة الثانوية - الشعب العلمية';
+  static const String sSecondary = sHighSc;
   static const String sHighMath = 'المرحلة الثانوية - شعبة الرياضيات';
   static const String sHighLit = 'المرحلة الثانوية - شعبة الآداب العصرية';
   static const String sHighOrig = 'المرحلة الثانوية - شعبة الآداب الأصلية';

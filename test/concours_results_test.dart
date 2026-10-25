@@ -221,4 +221,44 @@ void main() {
     expect(result.isPassed, isFalse);
     expect(result.isFailed, isFalse);
   });
+
+  test('bac eligible-for-complementary decisions are matched to the complementary session', () {
+    final result = StudentResult.fromCsv({
+      'NAME': 'Eligible student',
+      'MOY_BAC': '8.5',
+      'DECISION': 'Moyen mais éligible à la session de rattrapage',
+    }, ExamType.bac);
+
+    expect(result.status, 'الدورة التكميلية');
+    expect(result.isComplementary, isTrue);
+    expect(result.isFailed, isFalse);
+    expect(result.isPassed, isFalse);
+  });
+
+  test('bac below the complementary threshold is treated as failed even if a complementary decision exists', () {
+    final result = StudentResult.fromCsv({
+      'NAME': 'Below complementary threshold',
+      'MOY_BAC': '7.9',
+      'DECISION': 'Admis à la session complémentaire',
+    }, ExamType.bac);
+
+    expect(result.status, 'راسب');
+    expect(result.isFailed, isTrue);
+    expect(result.isComplementary, isFalse);
+    expect(result.isPassed, isFalse);
+  });
+
+  test('bac score 8.0 is the first complementary threshold', () {
+    final complementary = StudentResult.fromCsv({
+      'NAME': 'Complementary edge',
+      'MOY_BAC': '8.0',
+    }, ExamType.bac);
+    final failed = StudentResult.fromCsv({
+      'NAME': 'Failed edge',
+      'MOY_BAC': '7.9',
+    }, ExamType.bac);
+
+    expect(complementary.status, 'الدورة التكميلية');
+    expect(failed.status, 'راسب');
+  });
 }

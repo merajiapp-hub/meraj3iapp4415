@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../data/books_data.dart';
 import '../models/book.dart';
+import '../services/content_service.dart';
 import '../theme/app_theme.dart';
 import 'books_library_screen.dart';
 
@@ -11,17 +11,6 @@ class SelectStageScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final stages = [
-      BooksData.sPrimary,
-      BooksData.sMiddle,
-      BooksData.sHighSc,
-      BooksData.sHighMath,
-      BooksData.sHighLit,
-      BooksData.sHighOrig,
-      BooksData.sCompetitions,
-      BooksData.sSwedd,
-    ];
-
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
@@ -31,60 +20,104 @@ class SelectStageScreen extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16.0),
-        itemCount: stages.length,
-        itemBuilder: (context, index) {
-          final stage = stages[index];
-          return Card(
-            elevation: 0,
-            color: Colors.white,
-            margin: const EdgeInsets.only(bottom: 12.0),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 12,
-              ),
-              leading: const SizedBox(
-                width: 44,
-                height: 44,
-                child: Icon(
-                  Icons.school_rounded,
-                  color: AppTheme.primaryColor,
-                  size: 36,
+      body: StreamBuilder<List<Book>>(
+        stream: ContentService.watchBooksBySection(''),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  'تعذر تحميل المراحل من الإدارة: ${snapshot.error}',
+                  textAlign: TextAlign.center,
                 ),
               ),
-              title: Text(
-                stage,
-                style: GoogleFonts.tajawal(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+            );
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final books = snapshot.data!;
+          final stages = books.map((book) => book.section).toSet().toList()
+            ..sort(_compareStages);
+          if (stages.isEmpty) {
+            return const Center(
+              child: Text('لا توجد مراحل أو كتب متاحة حاليًا.'),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: stages.length,
+            itemBuilder: (context, index) {
+              final stage = stages[index];
+              return Card(
+                elevation: 0,
+                color: Colors.white,
+                margin: const EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
-              ),
-              trailing: const Icon(
-                Icons.arrow_forward_ios,
-                size: 14,
-                color: Colors.grey,
-              ),
-              onTap: () {
-                List<Book> filteredBooks = BooksData.allBooks
-                    .where((b) => b.section == stage)
-                    .toList();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        BooksLibraryScreen(stage: stage, books: filteredBooks),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
                   ),
-                );
-              },
-            ),
+                  leading: const SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: Icon(
+                      Icons.school_rounded,
+                      color: AppTheme.primaryColor,
+                      size: 36,
+                    ),
+                  ),
+                  title: Text(
+                    stage,
+                    style: GoogleFonts.tajawal(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  trailing: const Icon(
+                    Icons.arrow_forward_ios,
+                    size: 14,
+                    color: Colors.grey,
+                  ),
+                  onTap: () {
+                    final stageBooks = books
+                        .where((book) => book.section == stage)
+                        .toList();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            BooksLibraryScreen(stage: stage, books: stageBooks),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
           );
         },
       ),
     );
+  }
+
+  int _compareStages(String a, String b) {
+    int rank(String stage) {
+      final value = stage.toLowerCase();
+      if (value.contains('ابتدائي')) return 0;
+      if (value.contains('إعدادي') || value.contains('اعدادي')) return 1;
+      if (value.contains('ثانوي')) return 2;
+      if (value.contains('امتحان') || value.contains('concours')) return 3;
+      if (value.contains('swedd')) return 4;
+      return 5;
+    }
+
+    final stageOrder = rank(a).compareTo(rank(b));
+    return stageOrder != 0 ? stageOrder : a.compareTo(b);
   }
 }

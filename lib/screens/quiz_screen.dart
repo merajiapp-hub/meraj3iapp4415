@@ -13,6 +13,7 @@ import '../providers/quiz_provider.dart';
 import '../data/quiz_models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/statistics_provider.dart';
+import '../providers/student_provider.dart';
 import '../widgets/curved_header.dart';
 
 class QuizScreen extends StatefulWidget {
@@ -172,12 +173,19 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
     final pct = (_correctAnswers / total * 100).round();
 
     if (mounted) {
-      final stats = Provider.of<StatisticsProvider>(context, listen: false);
-      stats.incrementUserStat('completedTests', value: 1);
-      if (_correctAnswers > 0) {
-        stats.incrementUserStat('correctAnswers', value: _correctAnswers);
-        stats.incrementUserStat('points', value: _correctAnswers * 10);
+      try {
+        final stats = Provider.of<StatisticsProvider>(context, listen: false);
+        stats.recordExamResult(
+          correctAnswers: _correctAnswers,
+          wrongAnswers: _wrongAnswers,
+        );
+      } catch (e) {
+        debugPrint('Error recording quiz result: $e');
       }
+      try {
+        final student = Provider.of<StudentProvider>(context, listen: false);
+        student.incrementQuizzesTaken(pct.toDouble());
+      } catch (_) {}
     }
 
     Navigator.pushReplacement(

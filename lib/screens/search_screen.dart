@@ -1,8 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../data/books_data.dart';
 import '../models/book.dart';
+import '../services/content_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/geometric_sliver_app_bar.dart';
 import 'pdf_viewer_screen.dart';
@@ -18,7 +20,11 @@ class _SearchScreenState extends State<SearchScreen>
     with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+  StreamSubscription<List<Book>>? _booksSubscription;
+  List<Book> _allBooks = [];
   List<Book> _searchResults = [];
+  bool _booksLoading = true;
+  String? _booksError;
   bool _isSearching = false;
   String _activeFilter = 'الكل';
 
@@ -46,10 +52,38 @@ class _SearchScreenState extends State<SearchScreen>
     );
     _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeIn);
     _animController.forward();
+    _subscribeToBooks();
+  }
+
+  void _subscribeToBooks() {
+    _booksSubscription?.cancel();
+    setState(() {
+      _booksLoading = true;
+      _booksError = null;
+    });
+    _booksSubscription = ContentService.watchBooksBySection('').listen(
+      (books) {
+        if (!mounted) return;
+        setState(() {
+          _allBooks = books;
+          _booksLoading = false;
+          _booksError = null;
+        });
+        _onSearchChanged(_searchController.text);
+      },
+      onError: (Object error) {
+        if (!mounted) return;
+        setState(() {
+          _booksLoading = false;
+          _booksError = 'تعذر تحميل الكتب من الإدارة: $error';
+        });
+      },
+    );
   }
 
   @override
   void dispose() {
+    _booksSubscription?.cancel();
     _searchController.dispose();
     _focusNode.dispose();
     _animController.dispose();
@@ -68,10 +102,11 @@ class _SearchScreenState extends State<SearchScreen>
     final searchLower = query.toLowerCase();
     setState(() {
       _isSearching = true;
-      _searchResults = BooksData.allBooks.where((book) {
+      _searchResults = _allBooks.where((book) {
         // Filter by section
         if (_activeFilter != 'الكل') {
-          if (_activeFilter == 'ابتدائي' && !book.section.contains('الابتدائي')) {
+          if (_activeFilter == 'ابتدائي' &&
+              !book.section.contains('الابتدائي')) {
             return false;
           }
           if (_activeFilter == 'إعدادي' && !book.section.contains('الإعدادي')) {
@@ -242,7 +277,31 @@ class _SearchScreenState extends State<SearchScreen>
               ),
 
             // Results / Empty states
-            if (!_isSearching && _searchController.text.isEmpty)
+            if (_booksLoading)
+              const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_booksError != null)
+              SliverFillRemaining(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(_booksError!, textAlign: TextAlign.center),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: _subscribeToBooks,
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('إعادة المحاولة'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            else if (!_isSearching && _searchController.text.isEmpty)
               SliverToBoxAdapter(child: _buildInitialState())
             else if (_searchResults.isEmpty && _isSearching)
               SliverFillRemaining(child: _buildNoResultsState())
@@ -382,7 +441,7 @@ class _SearchScreenState extends State<SearchScreen>
             ),
           ),
           const SizedBox(height: 12),
-          ...BooksData.allBooks
+          ..._allBooks
               .take(5)
               .map(
                 (b) => Container(
@@ -422,7 +481,9 @@ class _SearchScreenState extends State<SearchScreen>
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.25),
+                            color: AppTheme.primaryColor.withValues(
+                              alpha: 0.25,
+                            ),
                             blurRadius: 6,
                             offset: const Offset(0, 3),
                           ),
@@ -637,9 +698,7 @@ class _SearchScreenState extends State<SearchScreen>
               height: 3,
               decoration: const BoxDecoration(
                 gradient: AppTheme.primaryGradient,
-                borderRadius: BorderRadius.vertical(
-                  bottom: Radius.circular(4),
-                ),
+                borderRadius: BorderRadius.vertical(bottom: Radius.circular(4)),
               ),
             ),
           ),

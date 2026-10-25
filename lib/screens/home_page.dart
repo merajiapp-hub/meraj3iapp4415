@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
 import 'dart:async';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/notifications_provider.dart';
 import '../providers/theme_provider.dart';
+import '../models/announcement_data.dart';
 
 import '../theme/app_theme.dart';
 import 'search_screen.dart';
@@ -47,10 +49,12 @@ class _HomePageState extends State<HomePage>
   );
   int _carouselIndex = 0;
   Timer? _carouselTimer;
+  late final Future<List<_HighlightItem>> _latestHighlightsFuture;
 
   @override
   void initState() {
     super.initState();
+    _latestHighlightsFuture = _fetchLatestHighlights();
 
     _animController = AnimationController(
       vsync: this,
@@ -307,6 +311,9 @@ class _HomePageState extends State<HomePage>
                         _buildSectionHeader('الخدمات الرئيسية', isDark),
                         const SizedBox(height: 14),
 
+                        _buildLatestHighlights(isDark),
+
+                        const SizedBox(height: 20),
                         // ── Grid الأزرار الرئيسية ──
                         RepaintBoundary(
                           child: _buildMainServicesGrid(size, isDark),
@@ -1063,6 +1070,100 @@ class _HomePageState extends State<HomePage>
   // ══════════════════════════════════════════════════════
   //  عنوان القسم
   // ══════════════════════════════════════════════════════
+  Widget _buildLatestHighlights(bool isDark) {
+    return FutureBuilder<List<_HighlightItem>>(
+      future: _latestHighlightsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Text('تعذر تحميل الأخبار والإعلانات. تحقق من الاتصال.'),
+          );
+        }
+        if (!snapshot.hasData ||
+            snapshot.data == null ||
+            snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final items = snapshot.data!;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            _buildSectionHeader('آخر الأخبار والإعلانات', isDark),
+            const SizedBox(height: 12),
+            ...items.map((item) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _HighlightCard(
+                item: item,
+                isDark: isDark,
+              ),
+            )),
+            const SizedBox(height: 8),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<List<_HighlightItem>> _fetchLatestHighlights() async {
+    final annSnap = await FirebaseFirestore.instance
+        .collection('announcements')
+        .orderBy('createdAt', descending: true)
+        .get();
+
+    final items = <_HighlightItem>[];
+    for (final doc in annSnap.docs.where(
+      (doc) => AnnouncementData.isActive(doc.data()),
+    ).take(2)) {
+      final data = doc.data();
+      final date = (data['createdAt'] is Timestamp)
+          ? (data['createdAt'] as Timestamp).toDate()
+          : DateTime.now();
+      items.add(
+        _HighlightItem(
+          id: 'announcement_${doc.id}',
+          type: 'announcement',
+          title: data['title']?.toString() ?? 'إعلان جديد',
+          body: AnnouncementData.body(data),
+          date: date,
+        ),
+      );
+    }
+
+    QuerySnapshot<Map<String, dynamic>>? newsSnap;
+    try {
+      newsSnap = await FirebaseFirestore.instance
+        .collection('news')
+        .orderBy('publishedAt', descending: true)
+        .get();
+    } on FirebaseException catch (error) {
+      debugPrint('Unable to load news for home highlights: $error');
+    }
+
+    for (final doc in (newsSnap?.docs ?? [])
+        .where((doc) => doc.data()['isPublished'] == true)
+        .take(2)) {
+      final data = doc.data();
+      final date = (data['publishedAt'] is Timestamp)
+          ? (data['publishedAt'] as Timestamp).toDate()
+          : DateTime.now();
+      items.add(
+        _HighlightItem(
+          id: 'news_${doc.id}',
+          type: 'news',
+          title: data['title']?.toString() ?? 'خبر جديد',
+        body: data['body']?.toString() ?? '',
+          date: date,
+        ),
+      );
+    }
+
+    items.sort((a, b) => b.date.compareTo(a.date));
+    return items.take(3).toList();
+  }
+
   Widget _buildSectionHeader(String title, bool isDark) {
     return Row(
       children: [
@@ -1084,6 +1185,139 @@ class _HomePageState extends State<HomePage>
           ),
         ),
       ],
+    );
+  }
+}
+
+class _HighlightItem {
+  final String id;
+  final String type;
+  final String title;
+  final String body;
+  final DateTime date;
+
+  const _HighlightItem({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.body,
+    required this.date,
+  });
+}
+
+class _HighlightCard extends StatelessWidget {
+  final _HighlightItem item;
+  final bool isDark;
+
+  const _HighlightCard({
+    required this.item,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isNew = DateTime.now().difference(item.date).inDays <= 3;
+    final color = item.type == 'news' ? AppTheme.primaryColor : AppTheme.lightGreen;
+    final icon = item.type == 'news' ? Icons.newspaper_rounded : Icons.campaign_rounded;
+    final page = item.type == 'news' ? const NewsScreen() : const AnnouncementsScreen();
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => page),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.surfaceDark : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: color.withValues(alpha: isDark ? 0.24 : 0.12),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: isDark ? 0.12 : 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: isDark ? 0.18 : 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.tajawal(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: isDark ? Colors.white : const Color(0xFF0A1A15),
+                          ),
+                        ),
+                      ),
+                      if (isNew)
+                        Container(
+                          margin: const EdgeInsets.only(right: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            'جديد',
+                            style: GoogleFonts.tajawal(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.redAccent,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    item.body,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.tajawal(
+                      fontSize: 12,
+                      color: isDark ? Colors.white70 : const Color(0xFF52645E),
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    DateFormat('dd MMM yyyy', 'ar').format(item.date),
+                    style: GoogleFonts.tajawal(
+                      fontSize: 10,
+                      color: isDark ? Colors.white54 : const Color(0xFF718096),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppTheme.primaryColor),
+          ],
+        ),
+      ),
     );
   }
 }

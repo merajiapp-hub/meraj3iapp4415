@@ -6,9 +6,19 @@ import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/curved_header.dart';
+import '../models/announcement_data.dart';
 
-class AnnouncementsScreen extends StatelessWidget {
-  const AnnouncementsScreen({super.key});
+class AnnouncementsScreen extends StatefulWidget {
+  final String? selectedId;
+
+  const AnnouncementsScreen({super.key, this.selectedId});
+
+  @override
+  State<AnnouncementsScreen> createState() => _AnnouncementsScreenState();
+}
+
+class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
+  bool _detailOpened = false;
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +63,7 @@ class AnnouncementsScreen extends StatelessWidget {
 
                 final docs = (snapshot.data?.docs ?? []).where((doc) {
                   final data = doc.data() as Map<String, dynamic>;
-                  return data['isActive'] == true;
+                  return AnnouncementData.isActive(data);
                 }).toList();
 
                 if (docs.isEmpty) {
@@ -88,22 +98,52 @@ class AnnouncementsScreen extends StatelessWidget {
                   );
                 }
 
-                return ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: docs.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 16),
-                  itemBuilder: (context, index) {
-                    final data = docs[index].data() as Map<String, dynamic>;
+                final selectedIndex = widget.selectedId != null
+                    ? docs.indexWhere((doc) => doc.id == widget.selectedId)
+                    : -1;
+
+                if (widget.selectedId != null && !_detailOpened && selectedIndex != -1) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!mounted) return;
+                    final item = docs[selectedIndex];
+                    final data = item.data() as Map<String, dynamic>;
                     final title = data['title']?.toString() ?? 'بدون عنوان';
-                    final body = data['body']?.toString() ?? '';
+                    final body = AnnouncementData.body(data);
                     final ts = data['createdAt'] as Timestamp?;
                     final dateStr = ts != null
                         ? DateFormat('dd MMMM yyyy', 'ar').format(ts.toDate())
                         : '';
+                    setState(() => _detailOpened = true);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => _AnnouncementDetailScreen(
+                          title: title,
+                          body: body,
+                          date: dateStr,
+                        ),
+                      ),
+                    );
+                  });
+                }
+
+                return ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  itemCount: docs.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final data = docs[index].data() as Map<String, dynamic>;
+                    final title = data['title']?.toString() ?? 'بدون عنوان';
+                    final body = AnnouncementData.body(data);
+                    final ts = data['createdAt'] as Timestamp?;
+                    final dateStr = ts != null
+                        ? DateFormat('dd MMMM yyyy', 'ar').format(ts.toDate())
+                        : '';
+                    final isNew = ts != null && DateTime.now().difference(ts.toDate()).inDays <= 3;
 
                     return InkWell(
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(28),
                       onTap: () {
                         Navigator.push(
                           context,
@@ -117,93 +157,170 @@ class AnnouncementsScreen extends StatelessWidget {
                         );
                       },
                       child: Container(
-                        padding: const EdgeInsets.all(18),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(24),
-                          color: isDark ? AppTheme.surfaceDark : Colors.white,
+                          borderRadius: BorderRadius.circular(28),
+                          gradient: LinearGradient(
+                            colors: isDark
+                                ? [
+                                    AppTheme.surfaceDark,
+                                    const Color(0xFF153D32),
+                                  ]
+                                : [
+                                    Colors.white,
+                                    const Color(0xFFF0F9F6),
+                                  ],
+                            begin: Alignment.topRight,
+                            end: Alignment.bottomLeft,
+                          ),
                           border: Border.all(
                             color: AppTheme.primaryColor.withValues(
                               alpha: isDark ? 0.24 : 0.12,
                             ),
+                            width: 1.1,
                           ),
                           boxShadow: [
                             BoxShadow(
                               color: AppTheme.primaryColor.withValues(
-                                alpha: isDark ? 0.12 : 0.07,
+                                alpha: isDark ? 0.12 : 0.08,
                               ),
                               blurRadius: 16,
-                              offset: const Offset(0, 7),
+                              offset: const Offset(0, 8),
                             ),
                           ],
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Stack(
                           children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.primaryColor.withValues(
-                                      alpha: isDark ? 0.22 : 0.1,
-                                    ),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    Icons.campaign_rounded,
-                                    color: isDark
-                                        ? AppTheme.lightGreen
-                                        : AppTheme.primaryColor,
-                                    size: 24,
-                                  ),
+                            Positioned(
+                              top: -10,
+                              left: -10,
+                              child: Container(
+                                width: 92,
+                                height: 92,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryColor.withValues(alpha: 0.05),
+                                  shape: BoxShape.circle,
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 12, right: 4),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
                                     children: [
-                                      Text(
-                                        title,
-                                        style: GoogleFonts.tajawal(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          color: textPrimary,
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.primaryColor.withValues(
+                                            alpha: isDark ? 0.2 : 0.1,
+                                          ),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          Icons.campaign_rounded,
+                                          color: isDark
+                                              ? AppTheme.lightGreen
+                                              : AppTheme.primaryColor,
+                                          size: 22,
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(width: 12),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 5,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.primaryColor.withValues(
+                                            alpha: 0.11,
+                                          ),
+                                          borderRadius: BorderRadius.circular(999),
+                                        ),
+                                        child: Text(
+                                          'إعلانات',
+                                          style: GoogleFonts.tajawal(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppTheme.primaryColor,
+                                          ),
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      if (isNew)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.redAccent.withValues(alpha: 0.14),
+                                            borderRadius: BorderRadius.circular(999),
+                                          ),
+                                          child: Text(
+                                            'جديد',
+                                            style: GoogleFonts.tajawal(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.redAccent,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 14),
+                                  Text(
+                                    title,
+                                    style: GoogleFonts.tajawal(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    dateStr,
+                                    style: GoogleFonts.tajawal(
+                                      fontSize: 11,
+                                      color: textSecondary,
+                                    ),
+                                  ),
+                                  if (body.isNotEmpty) ...[
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      body,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.tajawal(
+                                        fontSize: 13,
+                                        color: textSecondary,
+                                        height: 1.6,
+                                      ),
+                                    ),
+                                  ],
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
                                       Text(
-                                        dateStr,
+                                        'اقرأ المزيد',
                                         style: GoogleFonts.tajawal(
                                           fontSize: 12,
-                                          color: textSecondary,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.primaryColor,
                                         ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Icon(
+                                        Icons.arrow_forward_ios_rounded,
+                                        color: AppTheme.primaryColor,
+                                        size: 14,
                                       ),
                                     ],
                                   ),
-                                ),
-                                Icon(
-                                  Icons.arrow_forward_ios_rounded,
-                                  color: AppTheme.primaryColor.withValues(
-                                    alpha: 0.65,
-                                  ),
-                                  size: 16,
-                                ),
-                              ],
-                            ),
-                            if (body.isNotEmpty) ...[
-                              const SizedBox(height: 16),
-                              Text(
-                                body,
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.tajawal(
-                                  fontSize: 14,
-                                  color: textSecondary,
-                                  height: 1.6,
-                                ),
+                                ],
                               ),
-                            ],
+                            ),
                           ],
                         ),
                       ),

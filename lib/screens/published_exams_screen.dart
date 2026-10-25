@@ -14,28 +14,57 @@ import 'exam_taking_screen.dart';
 import 'my_exams_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  الشاشة الرئيسية: اختيار المسابقة → الشعبة → المادة → الفصل → الاختبار
+//  الشاشة الرئيسية: أزرار المسابقات المستقلة (Concours / Brevet / Baccalauréat)
 // ─────────────────────────────────────────────────────────────────────────────
 
-class PublishedExamsScreen extends StatefulWidget {
+class PublishedExamsScreen extends StatelessWidget {
   const PublishedExamsScreen({super.key});
 
-  @override
-  State<PublishedExamsScreen> createState() => _PublishedExamsScreenState();
-}
-
-class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
-  String? _competition; // Concours | Brevet | Baccalauréat
-  String? _stream; // 7D | 7C | 7LM | 7LO  (للبكالوريا فقط)
-  String? _subject;
-
-  static const _competitions = ExamSelectionUtils.competitions;
-  static const _bacStreams = ExamSelectionUtils.bacStreams;
+  static const _competitions = [
+    _CompetitionData(
+      key: 'Concours',
+      title: 'مسابقة Concours',
+      subtitle: 'مسابقة دخول الإعدادية',
+      description: 'شابيترات واختبارات السنة السادسة ابتدائي',
+      icon: Icons.emoji_events_rounded,
+      color: Color(0xFF0D9488),
+      gradient: LinearGradient(
+        colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
+        begin: Alignment.topRight,
+        end: Alignment.bottomLeft,
+      ),
+    ),
+    _CompetitionData(
+      key: 'Brevet',
+      title: 'مسابقة Brevet',
+      subtitle: 'شهادة ختم الدروس الإعدادية',
+      description: 'شابيترات واختبارات السنة الرابعة إعدادية',
+      icon: Icons.menu_book_rounded,
+      color: Color(0xFFEA580C),
+      gradient: LinearGradient(
+        colors: [Color(0xFFEA580C), Color(0xFFF97316)],
+        begin: Alignment.topRight,
+        end: Alignment.bottomLeft,
+      ),
+    ),
+    _CompetitionData(
+      key: 'Baccalauréat',
+      title: 'مسابقة البكالوريا',
+      subtitle: 'شهادة البكالوريا',
+      description: 'شابيترات واختبارات جميع الشعب العلمية والأدبية',
+      icon: Icons.school_rounded,
+      color: Color(0xFF4F46E5),
+      gradient: LinearGradient(
+        colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
+        begin: Alignment.topRight,
+        end: Alignment.bottomLeft,
+      ),
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final uid = context.watch<AuthProvider>().user?.uid;
 
     return Scaffold(
       backgroundColor: isDark
@@ -45,7 +74,7 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
         children: [
           CurvedHeader(
             title: 'الاختبارات',
-            subtitle: 'اختر المسابقة ثم المادة للبدء',
+            subtitle: 'اختر المسابقة لإجراء الاختبارات',
             gradient: AppTheme.primaryGradient,
             trailing: IconButton(
               icon: const Icon(Icons.history_rounded, color: Colors.white),
@@ -55,13 +84,196 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
               ),
             ),
           ),
-          Expanded(child: _buildBody(isDark, uid)),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('quizzes')
+                  .where('kind', isEqualTo: 'quiz')
+                  .where('status', isEqualTo: 'published')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                final docs = snapshot.hasData
+                    ? snapshot.data!.docs.map((d) => d.data()).toList()
+                    : <Map<String, dynamic>>[];
+
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16, right: 4),
+                      child: Text(
+                        'المسابقات الوطنية المتاحة',
+                        style: GoogleFonts.cairo(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                    ),
+                    ..._competitions.map((comp) {
+                      final count = docs.where((d) {
+                        final docComp = ExamSelectionUtils.normalizeCompetition(
+                          (d['competition'] ?? d['examType'] ?? '').toString(),
+                        );
+                        return docComp == comp.key;
+                      }).length;
+
+                      return _CompetitionCard(
+                        data: comp,
+                        quizCount: count,
+                        isDark: isDark,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CompetitionChaptersScreen(
+                                competition: comp.key,
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    }),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  صفحة شابيترات واختبارات المسابقة المستقلة
+// ─────────────────────────────────────────────────────────────────────────────
+
+class CompetitionChaptersScreen extends StatefulWidget {
+  final String competition;
+
+  const CompetitionChaptersScreen({
+    super.key,
+    required this.competition,
+  });
+
+  @override
+  State<CompetitionChaptersScreen> createState() =>
+      _CompetitionChaptersScreenState();
+}
+
+class _CompetitionChaptersScreenState
+    extends State<CompetitionChaptersScreen> {
+  String? _stream; // للبكالوريا فقط: 7D | 7C | 7LM | 7LO
+  String? _subject; // null أو 'الكل' يعني كل المواد
+
+  static const _bacStreams = ExamSelectionUtils.bacStreams;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.competition == 'Baccalauréat') {
+      _stream = '7D';
+    }
+  }
+
+  String _getSubtitle() {
+    switch (widget.competition) {
+      case 'Concours':
+        return 'مسابقة دخول الإعدادية';
+      case 'Brevet':
+        return 'شهادة ختم الدروس الإعدادية';
+      case 'Baccalauréat':
+        return 'شهادة البكالوريا';
+      default:
+        return widget.competition;
+    }
+  }
+
+  String _getTitle() {
+    switch (widget.competition) {
+      case 'Concours':
+        return 'مسابقة Concours';
+      case 'Brevet':
+        return 'مسابقة Brevet';
+      case 'Baccalauréat':
+        return 'مسابقة البكالوريا';
+      default:
+        return 'مسابقة ${widget.competition}';
+    }
+  }
+
+  Color _getAccentColor() {
+    switch (widget.competition) {
+      case 'Concours':
+        return const Color(0xFF0D9488);
+      case 'Brevet':
+        return const Color(0xFFEA580C);
+      default:
+        return const Color(0xFF4F46E5);
+    }
+  }
+
+  Gradient _getGradient() {
+    switch (widget.competition) {
+      case 'Concours':
+        return const LinearGradient(
+          colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+        );
+      case 'Brevet':
+        return const LinearGradient(
+          colors: [Color(0xFFEA580C), Color(0xFFF97316)],
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+        );
+      default:
+        return const LinearGradient(
+          colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+        );
+    }
+  }
+
+  int _quizOrder(Object? value) {
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 999999;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final uid = context.watch<AuthProvider>().user?.uid;
+    final accentColor = _getAccentColor();
+
+    return Scaffold(
+      backgroundColor: isDark
+          ? const Color(0xFF0F172A)
+          : const Color(0xFFF0F4F8),
+      body: Column(
+        children: [
+          CurvedHeader(
+            title: _getTitle(),
+            subtitle: _getSubtitle(),
+            gradient: _getGradient(),
+            showBackButton: true,
+            trailing: IconButton(
+              icon: const Icon(Icons.history_rounded, color: Colors.white),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MyExamsScreen()),
+              ),
+            ),
+          ),
+          Expanded(child: _buildBody(isDark, uid, accentColor)),
         ],
       ),
     );
   }
 
-  Widget _buildBody(bool isDark, String? uid) {
+  Widget _buildBody(bool isDark, String? uid, Color accentColor) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('quizzes')
@@ -80,15 +292,33 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
             .map((d) => {...d.data(), '_id': d.id})
             .toList();
 
-        // استخراج المواد والفصول حسب الاختيارات
+        // تصفية الاختبارات الخاصة بهذه المسابقة
+        final compDocs = docs.where((doc) {
+          final comp = ExamSelectionUtils.normalizeCompetition(
+            (doc['competition'] ?? doc['examType'] ?? '').toString(),
+          );
+          return comp == widget.competition;
+        }).toList();
+
+        // إذا كانت المسابقة لا تحتوي على أي شابيترات أو أسئلة إطلاقاً
+        if (compDocs.isEmpty) {
+          return _buildEmptyState(
+            title: 'لا توجد أسئلة أو اختبارات',
+            message: 'لم يتم إضافة أي شابيترات أو أسئلة لمسابقة ${_getSubtitle()} حتى الآن.',
+            color: accentColor,
+            isDark: isDark,
+          );
+        }
+
+        // استخراج المواد المتوفرة حسب المسابقة والشعبة
         final subjects = ExamSelectionUtils.subjectsFromDocs(
-          docs,
-          competition: _competition,
-          stream: _competition == 'Baccalauréat' ? _stream : null,
+          compDocs,
+          competition: widget.competition,
+          stream: widget.competition == 'Baccalauréat' ? _stream : null,
         );
 
-        // إعادة ضبط الاختيارات التابعة إذا لم تعد صالحة
-        if (_subject != null && !subjects.contains(_subject)) {
+        // إعادة ضبط المادة إذا لم تعد موجودة في القائمة
+        if (_subject != null && _subject != 'الكل' && !subjects.contains(_subject)) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
               setState(() {
@@ -98,29 +328,25 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
           });
         }
 
-        // الاختبارات المطابقة للمادة والشابيتر المختارَين
-        final allSubjectExams = _subject != null && _subject!.isNotEmpty
-            ? docs.where((doc) {
-                final comp = ExamSelectionUtils.normalizeCompetition(
-                  (doc['competition'] ?? doc['examType'] ?? '').toString(),
-                );
-                if (_competition != null && comp != _competition) return false;
-                if (_competition == 'Baccalauréat' && _stream != null) {
-                  final docStream =
-                      (doc['stream'] ?? doc['division'] ?? doc['section'] ?? '')
-                          .toString()
-                          .trim();
-                  if (docStream != _stream) return false;
-                }
-                final docSubject = (doc['subject'] ?? doc['subjectId'] ?? '')
+        // تصفية الاختبارات حسب الشعبة والمادة
+        final filteredExams = compDocs.where((doc) {
+          if (widget.competition == 'Baccalauréat' && _stream != null) {
+            final docStream =
+                (doc['stream'] ?? doc['division'] ?? doc['section'] ?? '')
                     .toString()
                     .trim();
-                if (docSubject != _subject) return false;
-                return true;
-              }).toList()
-            : <Map<String, dynamic>>[];
+            if (docStream != _stream) return false;
+          }
+          if (_subject != null && _subject != 'الكل') {
+            final docSubject = (doc['subject'] ?? doc['subjectId'] ?? '')
+                .toString()
+                .trim();
+            if (docSubject != _subject) return false;
+          }
+          return true;
+        }).toList();
 
-        allSubjectExams.sort((a, b) {
+        filteredExams.sort((a, b) {
           final orderComparison = _quizOrder(
             a['order'],
           ).compareTo(_quizOrder(b['order']));
@@ -138,21 +364,8 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           children: [
-            // ── اختيار المسابقة ──
-            _CompetitionSelector(
-              selected: _competition,
-              competitions: _competitions,
-              isDark: isDark,
-              onChanged: (value) => setState(() {
-                _competition = value;
-                _stream = null;
-                _subject = null;
-              }),
-            ),
-            const SizedBox(height: 14),
-
             // ── اختيار الشعبة (للبكالوريا فقط) ──
-            if (_competition == 'Baccalauréat') ...[
+            if (widget.competition == 'Baccalauréat') ...[
               _StreamSelector(
                 selected: _stream,
                 streams: _bacStreams,
@@ -165,9 +378,8 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
               const SizedBox(height: 14),
             ],
 
-            // ── اختيار المادة ──
-            if (_competition != null &&
-                (_competition != 'Baccalauréat' || _stream != null)) ...[
+            // ── اختيار المادة (مع خيار الكل) ──
+            if (subjects.isNotEmpty) ...[
               _SubjectSelector(
                 subjects: subjects,
                 selected: _subject,
@@ -179,29 +391,16 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
               const SizedBox(height: 14),
             ],
 
-            // ── قائمة الاختبارات (الشابيترات) ──
-            if (_competition == null)
-              _buildHint(
-                'اختر نوع المسابقة للبدء',
-                Icons.school_rounded,
-                isDark,
-              )
-            else if (_competition == 'Baccalauréat' && _stream == null)
-              _buildHint('اختر الشعبة', Icons.account_tree_rounded, isDark)
-            else if (_subject == null)
-              _buildHint(
-                'اختر المادة لعرض الاختبارات',
-                Icons.menu_book_rounded,
-                isDark,
-              )
-            else if (allSubjectExams.isEmpty)
-              _buildHint(
-                'لا توجد شابيترات منشورة لهذه المادة حتى الآن',
-                Icons.quiz_rounded,
-                isDark,
+            // ── قائمة الشابيترات ──
+            if (filteredExams.isEmpty)
+              _buildEmptyState(
+                title: 'لا توجد شابيترات متاحة',
+                message: 'لا توجد شابيترات أو أسئلة منشورة لهذا الاختيار حالياً.',
+                color: accentColor,
+                isDark: isDark,
               )
             else
-              ...allSubjectExams.map(
+              ...filteredExams.map(
                 (data) => Padding(
                   padding: const EdgeInsets.only(bottom: 14),
                   child: _ExamCard(
@@ -218,27 +417,53 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
     );
   }
 
-  int _quizOrder(Object? value) {
-    if (value is num) return value.toInt();
-    return int.tryParse(value?.toString() ?? '') ?? 999999;
-  }
-
-  Widget _buildHint(String text, IconData icon, bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40),
-      child: Column(
-        children: [
-          Icon(icon, size: 56, color: isDark ? Colors.white24 : Colors.black12),
-          const SizedBox(height: 12),
-          Text(
-            text,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.cairo(
-              color: isDark ? Colors.white54 : Colors.black38,
-              fontSize: 15,
+  Widget _buildEmptyState({
+    required String title,
+    required String message,
+    required Color color,
+    required bool isDark,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: isDark ? 0.2 : 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.quiz_outlined,
+                size: 42,
+                color: color,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 18),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.cairo(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.cairo(
+                fontSize: 13.5,
+                color: isDark ? Colors.white60 : Colors.black54,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -277,157 +502,156 @@ class _PublishedExamsScreenState extends State<PublishedExamsScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  اختيار المسابقة
+//  بيانات وبطاقة المسابقة المستقلة
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _CompetitionSelector extends StatelessWidget {
-  final String? selected;
-  final List<String> competitions;
-  final bool isDark;
-  final ValueChanged<String> onChanged;
-
-  const _CompetitionSelector({
-    required this.selected,
-    required this.competitions,
-    required this.isDark,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _SectionCard(
-      isDark: isDark,
-      icon: Icons.emoji_events_rounded,
-      title: 'المسابقة',
-      child: Column(
-        children: competitions.map((comp) {
-          final isSelected = comp == selected;
-          return _CompTile(
-            label: comp,
-            subtitle: _subtitle(comp),
-            icon: _icon(comp),
-            color: _color(comp),
-            isSelected: isSelected,
-            isDark: isDark,
-            onTap: () => onChanged(comp),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  String _subtitle(String comp) {
-    switch (comp) {
-      case 'Concours':
-        return 'مسابقة دخول الإعدادية';
-      case 'Brevet':
-        return 'شهادة ختم الدروس الإعدادية';
-      case 'Baccalauréat':
-        return 'شهادة البكالوريا';
-      default:
-        return comp;
-    }
-  }
-
-  IconData _icon(String comp) {
-    switch (comp) {
-      case 'Concours':
-        return Icons.emoji_events_rounded;
-      case 'Brevet':
-        return Icons.menu_book_rounded;
-      default:
-        return Icons.school_rounded;
-    }
-  }
-
-  Color _color(String comp) {
-    switch (comp) {
-      case 'Concours':
-        return AppTheme.primaryColor;
-      case 'Brevet':
-        return AppTheme.accentColor;
-      default:
-        return AppTheme.secondaryColor;
-    }
-  }
-}
-
-class _CompTile extends StatelessWidget {
-  final String label;
+class _CompetitionData {
+  final String key;
+  final String title;
   final String subtitle;
+  final String description;
   final IconData icon;
   final Color color;
-  final bool isSelected;
+  final Gradient gradient;
+
+  const _CompetitionData({
+    required this.key,
+    required this.title,
+    required this.subtitle,
+    required this.description,
+    required this.icon,
+    required this.color,
+    required this.gradient,
+  });
+}
+
+class _CompetitionCard extends StatelessWidget {
+  final _CompetitionData data;
+  final int quizCount;
   final bool isDark;
   final VoidCallback onTap;
 
-  const _CompTile({
-    required this.label,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-    required this.isSelected,
+  const _CompetitionCard({
+    required this.data,
+    required this.quizCount,
     required this.isDark,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? color.withValues(alpha: isDark ? 0.25 : 0.10)
-              : (isDark ? const Color(0xFF1E293B) : Colors.grey.shade50),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected
-                ? color
-                : (isDark ? Colors.white12 : Colors.black12),
-            width: isSelected ? 2 : 1,
-          ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : data.color.withValues(alpha: 0.15),
+          width: 1.5,
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: color, size: 22),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: GoogleFonts.cairo(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
+        boxShadow: [
+          BoxShadow(
+            color: data.color.withValues(alpha: isDark ? 0.15 : 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          splashColor: data.color.withValues(alpha: 0.12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    gradient: data.gradient,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: data.color.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.cairo(
-                      fontSize: 11,
-                      color: isDark ? Colors.white54 : Colors.black45,
-                    ),
+                  child: Icon(data.icon, color: Colors.white, size: 28),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            data.title,
+                            style: GoogleFonts.cairo(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: data.color.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              quizCount > 0
+                                  ? '$quizCount ${quizCount == 1 ? 'شابيتر' : 'شابيترات'}'
+                                  : 'لا توجد أسئلة بعد',
+                              style: GoogleFonts.cairo(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: data.color,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        data.subtitle,
+                        style: GoogleFonts.cairo(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: data.color,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        data.description,
+                        style: GoogleFonts.cairo(
+                          fontSize: 11,
+                          color: isDark ? Colors.white54 : Colors.black45,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 6),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 16,
+                  color: isDark ? Colors.white38 : Colors.black26,
+                ),
+              ],
             ),
-            if (isSelected)
-              Icon(Icons.check_circle_rounded, color: color, size: 22),
-          ],
+          ),
         ),
       ),
     );
@@ -531,6 +755,7 @@ class _SubjectSelector extends StatelessWidget {
         ),
       );
     }
+    final displayList = subjects.length > 1 ? ['الكل', ...subjects] : subjects;
     return _SectionCard(
       isDark: isDark,
       icon: Icons.menu_book_rounded,
@@ -538,11 +763,14 @@ class _SubjectSelector extends StatelessWidget {
       child: Wrap(
         spacing: 10,
         runSpacing: 10,
-        children: subjects.map((s) {
-          final isSelected = s == selected;
+        children: displayList.map((s) {
+          final isAll = s == 'الكل';
+          final isSelected = isAll
+              ? (selected == null || selected == 'الكل')
+              : (selected == s);
           final color = AppTheme.primaryColor;
           return GestureDetector(
-            onTap: () => onChanged(s),
+            onTap: () => onChanged(isAll ? null : s),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),

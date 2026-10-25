@@ -154,12 +154,16 @@ class NotificationService {
     required String title,
     required String body,
     String? payload,
+    bool persistInApp = true,
   }) async {
     final resolvedPayload = payload ?? 'local-$id';
     final context = navigatorKey.currentContext;
-    if (context != null) {
+    if (persistInApp && context != null) {
       try {
-        final provider = Provider.of<NotificationsProvider>(context, listen: false);
+        final provider = Provider.of<NotificationsProvider>(
+          context,
+          listen: false,
+        );
         await provider.addNotification(
           title: title,
           body: body,
@@ -327,7 +331,7 @@ class NotificationService {
       if (item.notifyMinutesBefore > 0) {
         await _plugin.zonedSchedule(
           id: baseId,
-            title: '🔔 اقترب انتهاء المهمة',
+          title: '🔔 اقترب انتهاء المهمة',
           body:
               'تبقى ${item.notifyMinutesBefore} دقائق على انتهاء مهمة "${item.title}"',
           scheduledDate: tz.TZDateTime.from(prepTime, tz.local),

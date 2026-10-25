@@ -1287,41 +1287,6 @@ class AuthProvider extends ChangeNotifier {
     _mustChangePassword = _userData?['mustChangePassword'] == true;
     _profileReady = true;
 
-    // إنشاء/تحديث مدخل لوحة الشرف دائماً بعد تحميل بيانات المستخدم
-    try {
-      final savedData = saved.data()!;
-      final name =
-          (savedData['fullName'] ??
-                  savedData['name'] ??
-                  user.displayName ??
-                  'طالب')
-              .toString();
-      final leaderboardRef = _firestore.collection('leaderboard').doc(user.uid);
-      final leaderboardDoc = await leaderboardRef.get();
-      if (!leaderboardDoc.exists) {
-        // مستخدم جديد - ابدأ بنقاط صفر
-        await leaderboardRef.set({
-          'name': name,
-          'points': 0,
-          'booksRead': 0,
-          'completedTasks': 0,
-          'quizzesTaken': 0,
-          'progressLevel': 0.0,
-          'profileImageUrl': user.photoURL,
-          'lastActivity': FieldValue.serverTimestamp(),
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      } else {
-        // مستخدم موجود - تحديث الاسم فقط
-        await leaderboardRef.set({
-          'name': name,
-          'lastActivity': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      }
-    } catch (e) {
-      debugPrint('[Auth] Error writing leaderboard entry: $e');
-    }
-
     return saved;
   }
 

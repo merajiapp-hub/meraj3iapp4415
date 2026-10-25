@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meraj3i/providers/auth_provider.dart';
-import 'package:meraj3i/providers/statistics_provider.dart';
 
 void main() {
   group('AuthProvider signup identity checks', () {
@@ -62,32 +61,6 @@ void main() {
       expect(
         AuthProvider.hasAdminAccess('mma831770@gmail.com', emailVerified: true),
         isTrue,
-      );
-    });
-  });
-
-  group('leaderboard scoring', () {
-    test('combines quiz, completed book, and task points', () {
-      expect(
-        StatisticsProvider.calculateLeaderboardPoints(
-          correctAnswers: 4,
-          completedBooks: 2,
-          completedTasks: 3,
-        ),
-        155,
-      );
-    });
-
-    test('preserves higher stored points for existing accounts', () {
-      expect(
-        StatisticsProvider.calculateLeaderboardPoints(
-          correctAnswers: 1,
-          completedBooks: 0,
-          completedTasks: 0,
-          storedPoints: 35,
-          legacyPoints: 25,
-        ),
-        35,
       );
     });
   });

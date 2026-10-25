@@ -126,6 +126,11 @@ class CategoryDetailScreen extends StatelessWidget {
     );
   }
 
+  bool _isVisible(Map<String, dynamic> data) {
+    final isActive = data['isActive'] ?? data['is_active'] ?? data['isShared'] ?? true;
+    return isActive != false;
+  }
+
   Widget _buildBooks(bool isDark) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -137,7 +142,9 @@ class CategoryDetailScreen extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final docs = snapshot.data!.docs;
+        final docs = snapshot.data!.docs
+            .where((d) => _isVisible(d.data() as Map<String, dynamic>))
+            .toList();
         if (docs.isEmpty) return const SizedBox.shrink();
 
         final books = docs.map((d) => Book.fromMap(d.data() as Map<String, dynamic>, d.id)).toList();

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
@@ -6,8 +6,23 @@ import '../../providers/statistics_provider.dart';
 import '../../providers/reading_provider.dart';
 import '../../theme/app_theme.dart';
 
-class ProgressScreen extends StatelessWidget {
+class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
+
+  @override
+  State<ProgressScreen> createState() => _ProgressScreenState();
+}
+
+class _ProgressScreenState extends State<ProgressScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<StatisticsProvider>().fetchUserStats();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,11 +32,18 @@ class ProgressScreen extends StatelessWidget {
 
     final Map<int, double> hoursPerDay = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0};
     final now = DateTime.now();
-    final startOfWeek = now.subtract(Duration(days: now.weekday % 7));
+    final today = DateTime(now.year, now.month, now.day);
+    // الأحد = 0، الاثنين = 1 ...
+    final startOfWeek = today.subtract(Duration(days: today.weekday % 7));
     for (final session in reading.sessions) {
-      final diff = session.lastReadAt.difference(startOfWeek);
-      if (diff.inDays >= 0 && diff.inDays < 7) {
-        hoursPerDay[diff.inDays] = (hoursPerDay[diff.inDays] ?? 0) +
+      final sessionDay = DateTime(
+        session.lastReadAt.year,
+        session.lastReadAt.month,
+        session.lastReadAt.day,
+      );
+      final diff = sessionDay.difference(startOfWeek).inDays;
+      if (diff >= 0 && diff < 7) {
+        hoursPerDay[diff] = (hoursPerDay[diff] ?? 0) +
             session.readingTimeSeconds / 3600.0;
       }
     }
@@ -96,6 +118,7 @@ class ProgressScreen extends StatelessWidget {
             children: [
               _statItem('المهام المنجزة', '${stats.userCompletedTasks}', isDark),
               _statItem('الكتب المقروءة', '${stats.userCompletedBooks}', isDark),
+              _statItem('الاختبارات', '${stats.userTestsTaken}', isDark),
               _statItem('التقييم', '${stats.userAvgScore.toStringAsFixed(1)}%', isDark),
             ],
           ),

@@ -261,52 +261,7 @@ class StudentResult {
       'حالة',
     ]);
 
-    String status = _normalizeStatus(rawStatus, type);
-
-    if (type == ExamType.concours) {
-      // TOTAL is authoritative — always apply the 85+ rule from the numeric score.
-      // Never trust the text decision from CSV as it may conflict with the actual total.
-      if (score != null) {
-        // القاعدة الأساسية: 85 إلى 200 ناجح، أقل من 85 راسب
-        status = concoursStatusFromTotal(score);
-      } else {
-        // لا يوجد مجموع رقمي: نرجع للحالة النصية إذا كانت صريحة، وإلا نعتبرها بيانات غير صالحة
-        if (status.isEmpty) {
-          status = 'بيانات غير صالحة';
-        }
-        // إذا كان النص يقول ناجح نثق به، أما راسب فلا نثق به بدون رقم
-      }
-    } else if (type == ExamType.excellence) {
-      if (status.isEmpty) {
-        status = score == null
-            ? 'بيانات غير صالحة'
-            : (score >= 10.0 ? 'ناجح' : 'راسب');
-      }
-    } else if (type == ExamType.bac) {
-      if (status.isEmpty) {
-        status = score == null
-            ? 'بيانات غير صالحة'
-            : (score >= 10.0 ? 'ناجح' : 'راسب');
-      }
-    } else if (type == ExamType.complementary) {
-      if (status.isEmpty || status == 'الدورة التكميلية') {
-        status = score == null
-            ? 'بيانات غير صالحة'
-            : (score >= 10.0 ? 'ناجح' : 'راسب');
-      }
-    } else if (type == ExamType.brevet) {
-      if (status.isEmpty) {
-        status = score == null
-            ? 'بيانات غير صالحة'
-            : (score >= 10.0 ? 'ناجح' : 'راسب');
-      }
-    } else {
-      if (status.isEmpty) {
-        status = score == null
-            ? 'بيانات غير صالحة'
-            : (score >= 10.0 ? 'ناجح' : 'راسب');
-      }
-    }
+    String status = _resolveStatus(type, rawStatus, score);
 
     if (type != ExamType.concours &&
         score != null &&
@@ -354,6 +309,35 @@ class StudentResult {
     }
   }
 
+  static String bacStatusFromScore(double? score) {
+    if (score == null) return '';
+    if (score >= 10.0) return 'ناجح';
+    if (score >= 8.0) return 'الدورة التكميلية';
+    return 'راسب';
+  }
+
+  static String _resolveStatus(ExamType type, String rawStatus, double? score) {
+    final normalizedRaw = _normalizeStatus(rawStatus, type);
+
+    if (type == ExamType.concours) {
+      if (score != null) {
+        return concoursStatusFromTotal(score);
+      }
+      return normalizedRaw.isNotEmpty ? normalizedRaw : 'بيانات غير صالحة';
+    }
+
+    if (type == ExamType.bac || type == ExamType.complementary) {
+      if (score != null) return bacStatusFromScore(score);
+      return normalizedRaw.isNotEmpty ? normalizedRaw : 'بيانات غير صالحة';
+    }
+
+    if (score != null) {
+      return score >= 10.0 ? 'ناجح' : 'راسب';
+    }
+
+    return normalizedRaw.isNotEmpty ? normalizedRaw : 'بيانات غير صالحة';
+  }
+
   static String _normalizeStatus(String status, ExamType type) {
     final lower = status
         .toLowerCase()
@@ -369,12 +353,15 @@ class StudentResult {
     if (type == ExamType.bac &&
         (lower.contains('complémentaire') ||
             lower.contains('complementaire') ||
-            lower.contains('تكميلي') ||
-            lower.contains('sessionnaire') ||
             lower.contains('rattrapage') ||
-            lower.contains('session') ||
-            lower.contains('ajourne') ||
-            lower.contains('ajourné'))) {
+            lower.contains('session de rattrapage') ||
+            lower.contains('session complémentaire') ||
+            lower.contains('session complementaire') ||
+            lower.contains('تكميلي') ||
+            lower.contains('مؤهل للدورة التكميلية') ||
+            lower.contains('مؤهل للتكميلية') ||
+            lower.contains('eligible') ||
+            lower.contains('sessionnaire'))) {
       return 'الدورة التكميلية';
     }
 
@@ -383,7 +370,7 @@ class StudentResult {
         lower.contains('recu') ||
         lower.contains('reçu') ||
         lower.contains('ناجح') ||
-        lower.contains('admissible') && type != ExamType.bac ||
+        (lower.contains('admissible') && type != ExamType.bac) ||
         lower.contains('naajeh')) {
       return 'ناجح';
     }
@@ -419,10 +406,7 @@ class StudentResult {
   bool get isFailed => status == 'راسب';
   bool get isInvalid => status == 'بيانات غير صالحة';
   bool get isAbsent => status == 'غائب';
-  bool get isComplementary =>
-      status == 'تكميلي' ||
-      status == 'الدورة التكميلية' ||
-      status == 'مؤهل للدورة التكميلية';
+  bool get isComplementary => status == 'الدورة التكميلية';
   bool get isExpelled => status == 'مطرود';
 
   /// النقطة المستخدمة للترتيب

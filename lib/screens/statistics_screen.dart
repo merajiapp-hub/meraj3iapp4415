@@ -36,6 +36,13 @@ class _StatisticsScreenState extends State<StatisticsScreen>
           CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
         );
     _animController.forward();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<StatisticsProvider>().fetchUserStats();
+        context.read<StatisticsProvider>().refreshGlobalStats();
+      }
+    });
   }
 
   @override
@@ -54,8 +61,6 @@ class _StatisticsScreenState extends State<StatisticsScreen>
     // تحديث البيانات العامة إذا لزم الأمر
     final favCount = stats.userFavoriteBooks;
     final dlCount = stats.userDownloadedBooks;
-    final readCount = stats.userReadBooks;
-    final tasksCount = stats.userCompletedTasks;
     final totalBooks = stats.totalBooks > 0 ? stats.totalBooks : 400;
 
     return Scaffold(
@@ -81,7 +86,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
                   ),
                   children: [
                     // ─── بطاقات الإحصائيات ──────────────────────────────────────
-                    _buildStatsGrid(isDark, favCount, dlCount, readCount, tasksCount, totalBooks),
+                    _buildStatsGrid(isDark, stats),
                     const SizedBox(height: 24),
 
                     // ─── مؤشرات النشاط ──────────────────────────────────────────
@@ -110,8 +115,33 @@ class _StatisticsScreenState extends State<StatisticsScreen>
   }
 
   // ─── شبكة الإحصائيات ───────────────────────────────────────────────────────
-  Widget _buildStatsGrid(bool isDark, int favCount, int dlCount, int readCount, int tasksCount, int totalBooks) {
+  Widget _buildStatsGrid(bool isDark, StatisticsProvider stats) {
+    final readCount = stats.userCompletedBooks > 0
+        ? stats.userCompletedBooks
+        : stats.userReadBooks;
+    final testsCount = stats.userTestsTaken;
+    final tasksCount = stats.userCompletedTasks;
+    final favCount = stats.userFavoriteBooks;
+    final totalBooks = stats.totalBooks > 0 ? stats.totalBooks : 400;
+    final scoreStr = stats.userAvgScore > 0
+        ? '${stats.userAvgScore.toStringAsFixed(0)}%'
+        : '0%';
+
     final statsList = [
+      _StatItem(
+        label: 'الكتب المتاحة',
+        value: '$totalBooks',
+        icon: Icons.library_books_rounded,
+        gradient: AppTheme.primaryGradient,
+      ),
+      _StatItem(
+        label: 'الاختبارات المنجزة',
+        value: '$testsCount',
+        icon: Icons.quiz_rounded,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+        ),
+      ),
       _StatItem(
         label: 'الكتب المقروءة',
         value: '$readCount',
@@ -129,18 +159,20 @@ class _StatisticsScreenState extends State<StatisticsScreen>
         ),
       ),
       _StatItem(
+        label: 'نسبة الدقة',
+        value: scoreStr,
+        icon: Icons.analytics_rounded,
+        gradient: const LinearGradient(
+          colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+        ),
+      ),
+      _StatItem(
         label: 'المفضلة',
         value: '$favCount',
         icon: Icons.favorite_rounded,
         gradient: const LinearGradient(
           colors: [Color(0xFFEF4444), Color(0xFFB91C1C)],
         ),
-      ),
-      _StatItem(
-        label: 'الكتب المتاحة',
-        value: '$totalBooks',
-        icon: Icons.library_books_rounded,
-        gradient: AppTheme.primaryGradient,
       ),
     ];
 

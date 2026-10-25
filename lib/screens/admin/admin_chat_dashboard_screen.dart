@@ -10,7 +10,8 @@ class AdminChatDashboardScreen extends StatefulWidget {
   const AdminChatDashboardScreen({super.key});
 
   @override
-  State<AdminChatDashboardScreen> createState() => _AdminChatDashboardScreenState();
+  State<AdminChatDashboardScreen> createState() =>
+      _AdminChatDashboardScreenState();
 }
 
 class _AdminChatDashboardScreenState extends State<AdminChatDashboardScreen> {
@@ -69,7 +70,11 @@ class _AdminChatDashboardScreenState extends State<AdminChatDashboardScreen> {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => _AdminChatViewScreen(chatId: chatId, userName: userName, isDark: isDark),
+                    builder: (_) => _AdminChatViewScreen(
+                      chatId: chatId,
+                      userName: userName,
+                      isDark: isDark,
+                    ),
                   ),
                 ),
                 child: Container(
@@ -89,8 +94,20 @@ class _AdminChatDashboardScreenState extends State<AdminChatDashboardScreen> {
                       Container(
                         width: 46,
                         height: 46,
-                        decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFF0D9488).withValues(alpha: 0.2)),
-                        child: Center(child: Text(userName.isNotEmpty ? userName[0] : 'م', style: GoogleFonts.tajawal(color: const Color(0xFF0D9488), fontWeight: FontWeight.bold, fontSize: 20))),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFF0D9488).withValues(alpha: 0.2),
+                        ),
+                        child: Center(
+                          child: Text(
+                            userName.isNotEmpty ? userName[0] : 'م',
+                            style: GoogleFonts.tajawal(
+                              color: const Color(0xFF0D9488),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                            ),
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -113,7 +130,10 @@ class _AdminChatDashboardScreenState extends State<AdminChatDashboardScreen> {
                                 ),
                                 Text(
                                   timeStr,
-                                  style: GoogleFonts.tajawal(color: softText, fontSize: 11),
+                                  style: GoogleFonts.tajawal(
+                                    color: softText,
+                                    fontSize: 11,
+                                  ),
                                 ),
                               ],
                             ),
@@ -122,7 +142,10 @@ class _AdminChatDashboardScreenState extends State<AdminChatDashboardScreen> {
                               lastMsg,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.tajawal(color: softText, fontSize: 13),
+                              style: GoogleFonts.tajawal(
+                                color: softText,
+                                fontSize: 13,
+                              ),
                               textDirection: TextDirection.rtl,
                             ),
                           ],
@@ -140,7 +163,11 @@ class _AdminChatDashboardScreenState extends State<AdminChatDashboardScreen> {
                           child: Center(
                             child: Text(
                               '$adminUnread',
-                              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -159,7 +186,9 @@ class _AdminChatDashboardScreenState extends State<AdminChatDashboardScreen> {
   DateTime _chatDate(QueryDocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     final value = data['updatedAt'] ?? data['lastMessageAt'];
-    return value is Timestamp ? value.toDate() : DateTime.fromMillisecondsSinceEpoch(0);
+    return value is Timestamp
+        ? value.toDate()
+        : DateTime.fromMillisecondsSinceEpoch(0);
   }
 }
 
@@ -168,7 +197,11 @@ class _AdminChatViewScreen extends StatefulWidget {
   final String userName;
   final bool isDark;
 
-  const _AdminChatViewScreen({required this.chatId, required this.userName, required this.isDark});
+  const _AdminChatViewScreen({
+    required this.chatId,
+    required this.userName,
+    required this.isDark,
+  });
 
   @override
   State<_AdminChatViewScreen> createState() => _AdminChatViewScreenState();
@@ -185,7 +218,9 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
   void initState() {
     super.initState();
     // Mark admin messages as read
-    FirebaseFirestore.instance.collection('chats').doc(widget.chatId).update({'adminUnread': 0});
+    FirebaseFirestore.instance.collection('chats').doc(widget.chatId).update({
+      'adminUnread': 0,
+    });
   }
 
   @override
@@ -205,11 +240,12 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
       if (adminId == null || !auth.isAdmin) {
         throw StateError('لا توجد صلاحية إدارية لإرسال الرد');
       }
-      await FirebaseFirestore.instance
+      final chatRef = FirebaseFirestore.instance
           .collection('chats')
-          .doc(widget.chatId)
-          .collection('messages')
-          .add({
+          .doc(widget.chatId);
+      final messageRef = chatRef.collection('messages').doc();
+      final batch = FirebaseFirestore.instance.batch();
+      batch.set(messageRef, {
         'text': text,
         'senderId': adminId,
         'senderName': 'فريق MERAJ3I',
@@ -217,22 +253,29 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
         'createdAt': FieldValue.serverTimestamp(),
         'isRead': false,
       });
-      await FirebaseFirestore.instance.collection('chats').doc(widget.chatId).set({
+      batch.set(chatRef, {
         'lastMessage': text,
         'lastMessageAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'userUnread': FieldValue.increment(1),
         'status': 'open',
       }, SetOptions(merge: true));
+      await batch.commit();
       _ctrl.clear();
       if (_scroll.hasClients) {
-        _scroll.animateTo(_scroll.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+        _scroll.animateTo(
+          _scroll.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تعذر إرسال الرد: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('تعذر إرسال الرد: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -241,7 +284,10 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
   }
 
   Future<void> _toggleStatus() async {
-    final doc = await FirebaseFirestore.instance.collection('chats').doc(widget.chatId).get();
+    final doc = await FirebaseFirestore.instance
+        .collection('chats')
+        .doc(widget.chatId)
+        .get();
     final isClosed = doc.data()?['status'] == 'closed';
     await doc.reference.update({
       'status': isClosed ? 'open' : 'closed',
@@ -254,34 +300,51 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
   Future<void> _assignToMe() async {
     final uid = Provider.of<AuthProvider>(context, listen: false).user?.uid;
     if (uid == null) return;
-    await FirebaseFirestore.instance.collection('chats').doc(widget.chatId).update({'assignedTo': uid, 'updatedAt': FieldValue.serverTimestamp()});
+    await FirebaseFirestore.instance
+        .collection('chats')
+        .doc(widget.chatId)
+        .update({'assignedTo': uid, 'updatedAt': FieldValue.serverTimestamp()});
   }
 
-
   Future<void> _deleteMessage(String messageId) async {
-        final confirm = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('حذف الرسالة'),
-            content: const Text('سيتم إخفاء الرسالة مع الاحتفاظ بسجلها.'),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-              FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('حذف')),
-            ],
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('حذف الرسالة'),
+        content: const Text('سيتم إخفاء الرسالة مع الاحتفاظ بسجلها.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
           ),
-        );
-        if (confirm != true) return;
-        if (!mounted) return;
-        try {
-          final uid = Provider.of<AuthProvider>(context, listen: false).user?.uid;
-          await FirebaseFirestore.instance.collection('chats').doc(widget.chatId).collection('messages').doc(messageId).update({
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    if (!mounted) return;
+    try {
+      final uid = Provider.of<AuthProvider>(context, listen: false).user?.uid;
+      await FirebaseFirestore.instance
+          .collection('chats')
+          .doc(widget.chatId)
+          .collection('messages')
+          .doc(messageId)
+          .update({
             'isDeleted': true,
             'deletedAt': FieldValue.serverTimestamp(),
             'deletedBy': uid,
           });
-        } catch (_) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر حذف الرسالة')));
-        }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('تعذر حذف الرسالة')));
+      }
+    }
   }
 
   void _playIncomingSound(List<QueryDocumentSnapshot> docs) {
@@ -293,19 +356,22 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
     final shouldPlay = _messageStreamInitialized && hasNewIncoming;
     _messageStreamInitialized = true;
     if (shouldPlay) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {});
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final bg = widget.isDark ? const Color(0xFF0F172A) : const Color(0xFFF4F7FB);
+    final bg = widget.isDark
+        ? const Color(0xFF0F172A)
+        : const Color(0xFFF4F7FB);
     final surface = widget.isDark ? const Color(0xFF111827) : Colors.white;
     final card = widget.isDark ? const Color(0xFF1E293B) : Colors.white;
     final text = widget.isDark ? Colors.white : const Color(0xFF111827);
     final softText = widget.isDark ? Colors.white70 : const Color(0xFF5B6474);
-    final inputBg = widget.isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final inputBg = widget.isDark
+        ? const Color(0xFF0F172A)
+        : const Color(0xFFF8FAFC);
     final border = widget.isDark ? Colors.white12 : const Color(0xFFE5EAF2);
 
     return Scaffold(
@@ -319,8 +385,16 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
           style: GoogleFonts.tajawal(color: text, fontWeight: FontWeight.bold),
         ),
         actions: [
-          IconButton(tooltip: 'تعيين لي', onPressed: _assignToMe, icon: Icon(Icons.assignment_ind_rounded, color: text)),
-          IconButton(tooltip: 'إغلاق أو إعادة فتح', onPressed: _toggleStatus, icon: Icon(Icons.lock_open_rounded, color: text)),
+          IconButton(
+            tooltip: 'تعيين لي',
+            onPressed: _assignToMe,
+            icon: Icon(Icons.assignment_ind_rounded, color: text),
+          ),
+          IconButton(
+            tooltip: 'إغلاق أو إعادة فتح',
+            onPressed: _toggleStatus,
+            icon: Icon(Icons.lock_open_rounded, color: text),
+          ),
         ],
       ),
       body: Column(
@@ -338,7 +412,10 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
                 _playIncomingSound(docs);
                 return ListView.builder(
                   controller: _scroll,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   itemCount: docs.length,
                   itemBuilder: (context, index) {
                     final d = docs[index].data() as Map<String, dynamic>;
@@ -354,22 +431,40 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Row(
-                          mainAxisAlignment: isAdmin ? MainAxisAlignment.start : MainAxisAlignment.end,
+                          mainAxisAlignment: isAdmin
+                              ? MainAxisAlignment.start
+                              : MainAxisAlignment.end,
                           children: [
                             Flexible(
                               child: Container(
-                                constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                constraints: BoxConstraints(
+                                  maxWidth:
+                                      MediaQuery.of(context).size.width * 0.72,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 10,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: isAdmin ? card : const Color(0xFF0D9488),
+                                  color: isAdmin
+                                      ? card
+                                      : const Color(0xFF0D9488),
                                   borderRadius: BorderRadius.circular(16),
                                   border: Border.all(color: border),
                                 ),
                                 child: Column(
-                                  crossAxisAlignment: isAdmin ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+                                  crossAxisAlignment: isAdmin
+                                      ? CrossAxisAlignment.start
+                                      : CrossAxisAlignment.end,
                                   children: [
                                     if (isDeleted)
-                                      Text('تم حذف هذه الرسالة', style: TextStyle(color: softText, fontStyle: FontStyle.italic))
+                                      Text(
+                                        'تم حذف هذه الرسالة',
+                                        style: TextStyle(
+                                          color: softText,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      )
                                     else if (textValue.isNotEmpty)
                                       Text(
                                         textValue,
@@ -383,7 +478,10 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
                                     const SizedBox(height: 4),
                                     Text(
                                       timeStr,
-                                      style: TextStyle(color: softText, fontSize: 10),
+                                      style: TextStyle(
+                                        color: softText,
+                                        fontSize: 10,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -417,7 +515,10 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
                         borderRadius: BorderRadius.circular(20),
                         borderSide: BorderSide.none,
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                     ),
                   ),
                 ),
@@ -432,8 +533,21 @@ class _AdminChatViewScreenState extends State<_AdminChatViewScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: _sending
-                        ? const Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)))
-                        : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                        ? const Center(
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            ),
+                          )
+                        : const Icon(
+                            Icons.send_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                   ),
                 ),
               ],

@@ -16,17 +16,16 @@ service cloud.firestore {
          request.auth.token.email == 'abdellahismd@gmail.com');
     }
 
-    /// يمكن للمسؤول الأساسي تفويض حساب بعد تسجيله عبر حقل isAdmin المحمي.
-    /// لا يستطيع مالك الحساب إنشاء هذا الحقل أو تعديله بنفسه.
-    function isDesignatedAdmin() {
-      return request.auth != null &&
-        request.auth.token.email_verified == true &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-    }
-
-    function isAdmin() {
-      return isRootAdmin() || isDesignatedAdmin();
+    /// الصلاحيات التفصيلية تحفظ في ملف الحساب ولا يستطيع العميل تعديلها.
+    function hasAdminPermission(permission) {
+      return isRootAdmin() ||
+        (request.auth != null &&
+         request.auth.token.email_verified == true &&
+         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.adminActive == true &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.adminPermissions is list &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.adminPermissions.hasAny([permission]));
     }
 
     /// يتحقق من أن المستخدم الحالي هو صاحب المستند
@@ -34,9 +33,15 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
-    /// صلاحية الإدارة تأتي من البريد الأساسي أو تفويض محفوظ لا يستطيع المستخدم تعديله.
-    function isAppAdmin() {
-      return isAdmin();
+    function protectedAdminFieldsUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'isAdmin', 'adminActive', 'adminPermissions', 'role', 'adminRoleName',
+        'adminCreatedAt', 'adminCreatedBy', 'adminUpdatedAt', 'adminUpdatedBy',
+        'lastAdminActivityAt',
+        'isSuspended', 'accountStatus', 'suspensionReason', 'suspensionStartAt',
+        'suspensionEndAt', 'suspendedAt', 'suspendedBy', 'mustChangePassword',
+        'deletionRequestedAt', 'deletionRequestedBy', 'deletedAt', 'isBanned'
+      ]);
     }
 
     /// يتحقق من أن المستخدم مسجل الدخول
@@ -79,7 +84,9 @@ service cloud.firestore {
       return !request.resource.data.keys().hasAny([
         'isAdmin', 'isSuspended', 'accountStatus', 'suspensionReason',
         'suspensionStartAt', 'suspensionEndAt', 'suspendedAt', 'suspendedBy',
-        'mustChangePassword', 'points'
+        'mustChangePassword', 'points', 'adminActive', 'adminPermissions',
+        'adminRoleName', 'adminCreatedAt', 'adminCreatedBy', 'adminUpdatedAt',
+        'adminUpdatedBy'
       ]);
     }
 
@@ -88,11 +95,12 @@ service cloud.firestore {
     // ═══════════════════════════════════════════════════════════════
     match /users/{userId} {
       // القراءة المفردة: المالك أو المسؤول فقط
-      allow get: if isOwner(userId) || isAppAdmin();
+      allow get: if isOwner(userId) || hasAdminPermission('users.view');
 
       // Enumeration and profile lookups are restricted to admins. The mobile
       // app must move phone lookup to a trusted backend before these rules ship.
-      allow list: if isAppAdmin();
+      allow list: if hasAdminPermission('users.view') ||
+        hasAdminPermission('roles.manage');
 
       // إنشاء مستند جديد: المستخدم ينشئ مستنده الخاص فقط عند التسجيل
       // الشروط:
@@ -108,14 +116,21 @@ service cloud.firestore {
         (!request.resource.data.keys().hasAny(['isActive']) || request.resource.data.isActive == true);
 
       // تعديل: المالك (بدون حقول حساسة) أو المسؤول بصلاحيات كاملة
-      allow update: if (isOwner(userId) && noSensitiveFields()) || isAppAdmin();
+      allow update: if (isOwner(userId) && noSensitiveFields()) ||
+        (hasAdminPermission('users.update') && protectedAdminFieldsUnchanged());
 
-      // حذف: المسؤول فقط
-      allow delete: if isAppAdmin();
+      // Account deletion is performed only by the trusted callable function.
+      allow delete: if false;
 
       // ── المجموعات الفرعية للمستخدم (إشعارات، ملاحظات، إلخ) ──
       match /{subcollection}/{docId} {
-        allow read, write: if isOwner(userId) || isAppAdmin();
+        allow read: if isOwner(userId) ||
+          (subcollection == 'notifications' &&
+            hasAdminPermission('notifications.view')) ||
+          hasAdminPermission('users.view');
+        allow write: if isOwner(userId) ||
+          (subcollection == 'notifications' &&
+            hasAdminPermission('notifications.manage'));
       }
     }
 
@@ -126,23 +141,37 @@ service cloud.firestore {
       // الكتابة: أي مستخدم مسجل (لتسجيل طلبه)، أو النظام (auth=null في Functions)
       allow create: if isAuthenticated() || request.auth == null;
       // القراءة والتعديل والحذف: المسؤول فقط
-      allow read, update, delete: if isAppAdmin();
+      allow read: if hasAdminPermission('security.view');
+      allow update, delete: if false;
     }
 
     // ═══════════════════════════════════════════════════════════════
     //  سجلات النشاط الإداري
     // ═══════════════════════════════════════════════════════════════
     match /admin_activity_logs/{logId} {
-      allow read, write: if isAppAdmin();
+      allow read: if hasAdminPermission('activity.view');
+      allow write: if false;
     }
 
     // Legacy activity collection used by the standalone admin dashboard.
     match /admin_activity/{logId} {
-      allow read, write: if isAppAdmin();
+      allow read: if hasAdminPermission('activity.view');
+      allow write: if false;
     }
 
     match /audit_logs/{logId} {
-      allow read, write: if isAppAdmin();
+      allow read: if hasAdminPermission('security.view');
+      allow write: if false;
+    }
+
+    match /admin_audit_logs/{logId} {
+      allow read: if hasAdminPermission('roles.manage');
+      allow write: if false;
+    }
+
+    match /admin_roles/{roleId} {
+      allow read: if hasAdminPermission('roles.manage');
+      allow write: if false;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -151,25 +180,27 @@ service cloud.firestore {
     match /app_settings/{settingId} {
       // التطبيق العام لا يفتح بدون تسجيل الدخول، وتبقى إعدادات الإدارة محصورة بالإدارة فقط.
       allow read: if isAuthenticated();
-      allow write: if isAppAdmin();
+      allow write: if hasAdminPermission('settings.manage');
     }
 
     match /admin_settings/{document} {
       // Feature flags are public to signed-in clients; other admin settings remain private.
-      allow read: if isAppAdmin() ||
+      allow read: if hasAdminPermission('settings.manage') ||
+        hasAdminPermission('feature_flags.manage') ||
         (isAuthenticated() && document == 'feature_flags');
-      allow write: if isAppAdmin();
+      allow write: if hasAdminPermission('settings.manage') ||
+        hasAdminPermission('feature_flags.manage');
     }
 
     // General application settings used by the admin web panel.
     match /app_config/{document} {
-      allow read: if isAppAdmin();
-      allow write: if isAppAdmin();
+      allow read: if hasAdminPermission('settings.manage');
+      allow write: if hasAdminPermission('settings.manage');
     }
 
     match /maintenance/{docId} {
       allow read: if isAuthenticated();
-      allow write: if isAppAdmin();
+      allow write: if hasAdminPermission('settings.manage');
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -179,14 +210,14 @@ service cloud.firestore {
       // القراءة: المستخدمون المسجلون فقط
       allow read: if isAuthenticated();
       // count() و list() ضروريان لعرض إحصائيات لوحة الإدارة.
-      allow list: if isAppAdmin();
+      allow list: if hasAdminPermission('books.view');
       // الإدارة والتحميل الذاتي المصرح به يحافظان على تصنيف صالح.
       allow create: if validBookClassification(request.resource.data) &&
-        (isAppAdmin() ||
+        (hasAdminPermission('books.create') ||
          (isAuthenticated() &&
           request.resource.data.uploaderId == request.auth.uid));
-      allow update: if isAppAdmin() && validBookClassificationUpdate();
-      allow delete: if isAppAdmin();
+      allow update: if hasAdminPermission('books.update') && validBookClassificationUpdate();
+      allow delete: if hasAdminPermission('books.delete');
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -195,80 +226,116 @@ service cloud.firestore {
     match /reference_categories/{categoryId} {
       // القراءة: كل المستخدمين المسجلين (مطلوب لعرضها في التطبيق)
       allow read: if isAuthenticated();
-      allow list: if isAppAdmin();
+      allow list: if hasAdminPermission('categories.view');
       // الكتابة (إنشاء، تعديل، حذف): المسؤول فقط
-      allow create, update, delete: if isAppAdmin();
+      allow create, update, delete: if hasAdminPermission('categories.manage');
     }
 
     // نسخة التوافق القديمة التي ما زالت تستخدمها بعض شاشات التطبيق.
     match /uploaded_books/{bookId} {
       allow read: if isAuthenticated();
-      allow create: if isAppAdmin() ||
+      allow create: if hasAdminPermission('books.create') ||
         (isAuthenticated() && request.resource.data.uploaderId == request.auth.uid);
-      allow update, delete: if isAppAdmin();
+      allow update: if hasAdminPermission('books.update');
+      allow delete: if hasAdminPermission('books.delete');
     }
 
     // بنك الأسئلة: القراءة للتطبيق، والإدارة للكتابة.
     match /quizzes/{quizId} {
       allow read: if isAuthenticated();
       // لوحة الإدارة تستخدم count() على هذه المجموعة لا على الاستعلامات الفرعية.
-      allow list: if isAppAdmin();
-      allow write: if isAppAdmin();
+      allow list: if hasAdminPermission('quizzes.view');
+      allow create, update, delete: if hasAdminPermission('quizzes.manage');
 
       match /questions/{questionId} {
         allow read: if isAuthenticated();
-        allow list: if isAppAdmin();
-        allow write: if isAppAdmin();
+        allow list: if hasAdminPermission('questions.view');
+        allow create, update, delete: if hasAdminPermission('questions.manage');
       }
+    }
+
+    function isValidSupportMessageAlert(notificationId) {
+      let notification = request.resource.data;
+      let chatPath = /databases/$(database)/documents/chats/$(notification.chatId);
+      let messagePath = /databases/$(database)/documents/chats/$(notification.chatId)/messages/$(notification.messageId);
+      return isAuthenticated() &&
+        notification.keys().hasOnly([
+          'type', 'chatId', 'messageId', 'userId', 'userName',
+          'userEmail', 'excerpt', 'readBy', 'eventAt', 'createdAt'
+        ]) &&
+        notification.type == 'support_message' &&
+        notificationId == notification.messageId &&
+        notification.chatId is string &&
+        notification.messageId is string &&
+        notification.userId == request.auth.uid &&
+        notification.userName is string &&
+        notification.userEmail is string &&
+        notification.excerpt is string &&
+        notification.readBy is map &&
+        notification.readBy.keys().size() == 0 &&
+        notification.eventAt == request.time &&
+        notification.createdAt == request.time &&
+        getAfter(chatPath).data.userId == request.auth.uid &&
+        getAfter(messagePath).data.senderId == request.auth.uid &&
+        getAfter(messagePath).data.isAdmin == false &&
+        getAfter(messagePath).data.createdAt == request.time;
     }
 
     // إشعارات لوحة الإدارة.
     match /admin_notifications/{notificationId} {
-      allow read, write: if isAppAdmin();
+      allow read: if hasAdminPermission('support.view') ||
+        hasAdminPermission('notifications.view');
+      allow create: if hasAdminPermission('notifications.manage') ||
+        hasAdminPermission('support.manage') ||
+        isValidSupportMessageAlert(notificationId);
+      allow update, delete: if hasAdminPermission('support.manage') ||
+        hasAdminPermission('notifications.manage');
     }
 
-    match /app_config/{document=**} {
-      allow read: if isAppAdmin() ||
+    match /app_config/{document} {
+      allow read: if hasAdminPermission('settings.manage') ||
+        hasAdminPermission('feature_flags.manage') ||
         (isAuthenticated() && document == 'settings');
-      allow write: if isAppAdmin();
+      allow write: if hasAdminPermission('settings.manage') ||
+        hasAdminPermission('feature_flags.manage');
     }
-    match /news/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
-    match /announcements/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
-    match /lessons/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
-    match /exams/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
-    match /questions/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
-    match /app_releases/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
-    match /system_health/{document=**} { allow read, write: if isAppAdmin(); }
-    match /security_logs/{document=**} { allow read, write: if isAppAdmin(); }
-    match /activity_logs/{document=**} { allow read, write: if isAppAdmin(); }
-    match /admin_activity/{document=**} { allow read, write: if isAppAdmin(); }
-    match /error_logs/{document=**} { allow read, write: if isAppAdmin(); }
+    match /news/{document=**} { allow read: if isAuthenticated(); allow write: if hasAdminPermission('news.manage'); }
+    match /announcements/{document=**} { allow read: if isAuthenticated(); allow write: if hasAdminPermission('announcements.manage'); }
+    match /lessons/{document=**} { allow read: if isAuthenticated(); allow write: if hasAdminPermission('lessons.manage'); }
+    match /exams/{document=**} { allow read: if isAuthenticated(); allow write: if hasAdminPermission('quizzes.manage'); }
+    match /questions/{document=**} { allow read: if isAuthenticated(); allow write: if hasAdminPermission('questions.manage'); }
+    match /app_releases/{document=**} { allow read: if isAuthenticated(); allow write: if hasAdminPermission('releases.manage'); }
+    match /system_health/{document=**} { allow read: if hasAdminPermission('system_health.view'); allow write: if hasAdminPermission('settings.manage'); }
+    match /security_logs/{document=**} { allow read: if hasAdminPermission('security.view'); allow write: if false; }
+    match /activity_logs/{document=**} { allow read: if hasAdminPermission('activity.view'); allow write: if false; }
+    match /admin_activity/{document=**} { allow read: if hasAdminPermission('activity.view'); allow write: if false; }
+    match /error_logs/{document=**} { allow read: if hasAdminPermission('errors.view'); allow write: if false; }
     match /books/{document=**} {
       allow read: if isAuthenticated();
-      allow create: if isAppAdmin() &&
+      allow create: if hasAdminPermission('books.create') &&
         validBookClassification(request.resource.data);
-      allow update: if isAppAdmin() &&
+      allow update: if hasAdminPermission('books.update') &&
         validBookClassificationUpdate();
-      allow delete: if isAppAdmin();
+      allow delete: if hasAdminPermission('books.delete');
     }
-    match /grades/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
-    match /subjects/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
-    match /remote_config/{document=**} { allow read: if isAuthenticated(); allow write: if isAppAdmin(); }
+    match /grades/{document=**} { allow read: if isAuthenticated(); allow write: if hasAdminPermission('grades.manage'); }
+    match /subjects/{document=**} { allow read: if isAuthenticated(); allow write: if hasAdminPermission('subjects.manage'); }
+    match /remote_config/{document=**} { allow read: if isAuthenticated(); allow write: if hasAdminPermission('settings.manage') || hasAdminPermission('feature_flags.manage'); }
 
     // Admin dashboard/report aggregate counts for legacy content collections.
     match /solutions/{solutionId} {
-      allow list: if isAppAdmin();
+      allow list: if hasAdminPermission('books.view');
     }
     match /swedd/{documentId} {
-      allow list: if isAppAdmin();
+      allow list: if hasAdminPermission('books.view');
     }
     match /swedd_books/{bookId} {
-      allow list: if isAppAdmin();
+      allow list: if hasAdminPermission('books.view');
     }
 
     // Login activity is written only by the trusted Cloud Function and read by admins.
     match /login_attempts/{attemptId} {
-      allow read: if isAppAdmin();
+      allow read: if hasAdminPermission('security.view');
       allow create: if isOwner(request.resource.data.userId) &&
         request.resource.data.keys().hasOnly([
           'userId', 'result', 'method', 'reason', 'authCode',
@@ -283,7 +350,7 @@ service cloud.firestore {
     }
 
     match /unlinked_login_attempts/{attemptId} {
-      allow read: if isAppAdmin();
+      allow read: if hasAdminPermission('security.view');
       allow write: if false;
     }
 
@@ -296,47 +363,51 @@ service cloud.firestore {
     // ═══════════════════════════════════════════════════════════════
     match /notifications/{notificationId} {
       allow read: if isAuthenticated();
-      allow list: if isAppAdmin();
-      allow write: if isAppAdmin();
+      allow list: if hasAdminPermission('notifications.view');
+      allow write: if hasAdminPermission('notifications.manage');
     }
 
-    // لوحة الشرف: القراءة عامة للمستخدمين المسجلين، والكتابة خاصة بمالك المستند أو الإدارة.
+    // بيانات لوحة الشرف القديمة غير موثوقة، فلا تُقرأ ولا تُكتب من العملاء.
     match /leaderboard/{userId} {
-      allow get: if isAuthenticated();
-      allow list: if isAuthenticated();
-      allow create: if isAuthenticated() &&
-        isOwner(userId) &&
-        request.resource.data.keys().hasOnly([
-          'name', 'points', 'booksRead', 'completedTasks', 'quizzesTaken',
-          'progressLevel', 'profileImageUrl', 'lastActivity', 'createdAt',
-          'streakDays', 'avgScore', 'rank'
-        ]) &&
-        request.resource.data.name is string &&
-        request.resource.data.points is number &&
-        request.resource.data.booksRead is number &&
-        request.resource.data.completedTasks is number &&
-        request.resource.data.quizzesTaken is number &&
-        request.resource.data.progressLevel is number;
-      allow update: if isAuthenticated() && (isOwner(userId) || isAppAdmin()) &&
-        request.resource.data.keys().hasOnly([
-          'name', 'points', 'booksRead', 'completedTasks', 'quizzesTaken',
-          'progressLevel', 'profileImageUrl', 'lastActivity', 'createdAt',
-          'streakDays', 'avgScore', 'rank'
-        ]);
-      allow delete: if isAppAdmin();
+      allow read, write: if false;
+    }
+
+    // The trusted Functions pipeline is the only writer for verified rankings.
+    match /honor_board/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    match /honor_attempts/{attemptId} {
+      allow read, write: if false;
+    }
+
+    match /honor_best_results/{resultId} {
+      allow read, write: if false;
+    }
+
+    // Certificates are issued by admins and readable only by the recipient.
+    match /student_certificates/{certificateId} {
+      allow read: if hasAdminPermission('honor.view') ||
+        (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if hasAdminPermission('honor.manage');
+      allow update, delete: if hasAdminPermission('honor.manage');
     }
 
     // نتائج المسابقات المنشورة تُعرض داخل التطبيق للمستخدمين.
     // الكتابة محصورة بالإدارة حتى لا يتم العبث بالروابط أو الترتيب.
     match /competition_results/{competitionId} {
       allow read: if isAuthenticated();
-      allow list: if isAppAdmin();
-      allow write: if isAppAdmin();
+      allow list: if hasAdminPermission('results.view');
+      allow write: if hasAdminPermission('results.manage');
     }
 
     // محاولات الاختبارات: يقرأ الطالب محاولاته فقط وينشئ محاولته بنفسه.
     match /exam_attempts/{attemptId} {
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() &&
+        (resource.data.userId == request.auth.uid ||
+         hasAdminPermission('results.view') ||
+         hasAdminPermission('honor.view'));
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       allow update: if isAuthenticated() && resource.data.userId == request.auth.uid &&
         request.resource.data.userId == request.auth.uid;
@@ -348,7 +419,7 @@ service cloud.firestore {
     match /reviews/{reviewId} {
       // التطبيق العام لا يُفتح بدون تسجيل الدخول، ولكن تقييمات المحتوى تبقى للموظفين/الناس المسجلين فقط.
       allow read: if isAuthenticated();
-      allow list: if isAppAdmin();
+      allow list: if hasAdminPermission('reviews.view');
       allow create: if isAuthenticated() &&
         request.resource.data.userId == request.auth.uid &&
         request.resource.data.keys().hasOnly([
@@ -360,7 +431,7 @@ service cloud.firestore {
         request.resource.data.text is string &&
         request.resource.data.status == 'published' &&
         request.resource.data.moderation == 'none';
-      allow update: if isAppAdmin() || (isAuthenticated() &&
+      allow update: if hasAdminPermission('reviews.moderate') || (isAuthenticated() &&
         resource.data.userId == request.auth.uid &&
         request.resource.data.userId == request.auth.uid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -370,49 +441,52 @@ service cloud.firestore {
         request.resource.data.rating >= 1 && request.resource.data.rating <= 5 &&
         request.resource.data.status == 'published' &&
         request.resource.data.moderation == 'none');
-      allow delete: if isAppAdmin();
+      allow delete: if hasAdminPermission('reviews.delete');
     }
 
     // قائمة المراجعة لا تُكشف للمستخدمين؛ الفحص النهائي يجب أن يتم في الإدارة.
     match /bad_words/{wordId} {
-      allow read, write: if isAppAdmin();
-      allow list: if isAppAdmin();
+      allow read, write: if hasAdminPermission('bad_words.manage');
+      allow list: if hasAdminPermission('bad_words.manage');
     }
 
     match /chats/{chatId} {
-      allow list: if isAppAdmin();
+      allow list: if hasAdminPermission('support.view');
       // The client checks whether its chat exists before creating the first
       // message. A missing document must be readable as a non-existent chat,
       // while existing chats remain restricted to their owner or admins.
       allow read: if isAuthenticated() &&
         (!exists(/databases/$(database)/documents/chats/$(chatId)) ||
-         resource.data.userId == request.auth.uid || isAppAdmin());
+         resource.data.userId == request.auth.uid ||
+         hasAdminPermission('support.view'));
       allow create: if isAuthenticated() &&
         request.resource.data.userId == request.auth.uid &&
         request.resource.data.keys().hasAny(['userId', 'lastMessage']);
-      allow update: if isAppAdmin() ||
+      allow update: if hasAdminPermission('support.manage') ||
         (isAuthenticated() && resource.data.userId == request.auth.uid &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'userName', 'lastMessage', 'lastMessageAt', 'updatedAt', 'userUnread', 'adminUnread'
           ]));
-      allow delete: if isAppAdmin();
+      allow delete: if hasAdminPermission('support.manage');
 
       match /messages/{messageId} {
         allow read: if isAuthenticated() &&
-          (get(/databases/$(database)/documents/chats/$(chatId)).data.userId == request.auth.uid || isAppAdmin());
+          (get(/databases/$(database)/documents/chats/$(chatId)).data.userId == request.auth.uid ||
+           hasAdminPermission('support.view'));
         allow create: if isAuthenticated() &&
           request.resource.data.senderId == request.auth.uid &&
           request.resource.data.keys().hasOnly(['text', 'senderId', 'senderName', 'isAdmin', 'createdAt', 'isRead']) &&
           request.resource.data.text is string &&
           ((request.resource.data.isAdmin == false) ||
-           (request.resource.data.isAdmin == true && isAppAdmin()));
-        allow update: if isAppAdmin() || (isAuthenticated() &&
+           (request.resource.data.isAdmin == true &&
+            hasAdminPermission('support.manage')));
+        allow update: if hasAdminPermission('support.manage') || (isAuthenticated() &&
           resource.data.senderId == request.auth.uid &&
           request.resource.data.senderId == resource.data.senderId &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isDeleted', 'deletedAt', 'deletedBy']) &&
           request.resource.data.isDeleted == true &&
           request.resource.data.deletedBy == request.auth.uid);
-        allow delete: if isAppAdmin();
+        allow delete: if hasAdminPermission('support.manage');
       }
     }
 
@@ -421,8 +495,8 @@ service cloud.firestore {
     // ═══════════════════════════════════════════════════════════════
     match /statistics/{statId} {
       allow read: if isAuthenticated();
-      allow list: if isAppAdmin();
-      allow write: if isAppAdmin();
+      allow list: if hasAdminPermission('analytics.view');
+      allow write: if hasAdminPermission('settings.manage');
     }
 
     // ═══════════════════════════════════════════════════════════════

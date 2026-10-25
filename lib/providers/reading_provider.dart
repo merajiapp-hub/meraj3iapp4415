@@ -110,8 +110,33 @@ class ReadingProvider extends ChangeNotifier {
 
       await _saveLocal();
       notifyListeners();
+      await _syncCompletedToStats();
     } catch (e) {
       debugPrint('Error syncing reading sessions: $e');
+    }
+  }
+
+  Future<void> _syncCompletedToStats() async {
+    if (Firebase.apps.isEmpty) return;
+    final user = _auth.currentUser;
+    if (user != null && _uid == user.uid) {
+      try {
+        final completedCount = completedList.length;
+        final totalSeconds = totalReadingSeconds;
+        await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('data')
+            .doc('stats')
+            .set({
+              'completedBooks': completedCount,
+              'readBooks': _sessions.length,
+              'readingSeconds': totalSeconds,
+              'lastUpdated': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+      } catch (e) {
+        debugPrint('Error syncing reading stats to Firestore: $e');
+      }
     }
   }
 
@@ -172,6 +197,7 @@ class ReadingProvider extends ChangeNotifier {
       session.lastPage = session.totalPages;
     }
     await updateSession(session);
+    await _syncCompletedToStats();
   }
 
   Future<void> addReadingTime(Book book, int seconds) async {

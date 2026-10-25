@@ -7,14 +7,27 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/notification_service.dart';
 import '../screens/notification_details_screen.dart';
 import '../main.dart' show navigatorKey;
+import '../theme/app_theme.dart';
+import '../models/announcement_data.dart';
 
-enum NotificationType { general, update, reminder, system }
+enum NotificationType {
+  general,
+  update,
+  reminder,
+  system,
+  news,
+  announcement,
+  chatReply,
+  certificate,
+}
 
 class AppNotificationModel {
   final String id;
   final String title;
   final String body;
   final NotificationType type;
+  final String? targetType;
+  final String? targetId;
   bool isRead;
   final DateTime timestamp;
 
@@ -23,6 +36,8 @@ class AppNotificationModel {
     required this.title,
     required this.body,
     required this.type,
+    this.targetType,
+    this.targetId,
     this.isRead = false,
     required this.timestamp,
   });
@@ -37,6 +52,14 @@ class AppNotificationModel {
         return 'تذكير';
       case NotificationType.system:
         return 'نظام';
+      case NotificationType.news:
+        return 'خبر';
+      case NotificationType.announcement:
+        return 'إعلان';
+      case NotificationType.chatReply:
+        return 'رد الدعم';
+      case NotificationType.certificate:
+        return 'شهادة تقدير';
     }
   }
 
@@ -50,27 +73,26 @@ class AppNotificationModel {
         return Icons.alarm_rounded;
       case NotificationType.system:
         return Icons.settings_rounded;
+      case NotificationType.news:
+        return Icons.newspaper_rounded;
+      case NotificationType.announcement:
+        return Icons.campaign_rounded;
+      case NotificationType.chatReply:
+        return Icons.support_agent_rounded;
+      case NotificationType.certificate:
+        return Icons.workspace_premium_rounded;
     }
   }
 
-  Color get typeColor {
-    switch (type) {
-      case NotificationType.general:
-        return const Color(0xFF14B8A6);
-      case NotificationType.update:
-        return const Color(0xFF8B5CF6);
-      case NotificationType.reminder:
-        return const Color(0xFFF59E0B);
-      case NotificationType.system:
-        return const Color(0xFF0EA5E9);
-    }
-  }
+  Color get typeColor => AppTheme.primaryColor;
 
   Map<String, dynamic> toJson() => {
     'id': id,
     'title': title,
     'body': body,
     'type': type.index,
+    'targetType': targetType,
+    'targetId': targetId,
     'isRead': isRead,
     'timestamp': timestamp.millisecondsSinceEpoch,
   };
@@ -86,6 +108,14 @@ class AppNotificationModel {
                     json['type'] < NotificationType.values.length)
                 ? json['type']
                 : 0],
+        targetType:
+            json['targetType']?.toString() ??
+            ((json['type'] == NotificationType.news.index)
+                ? 'news'
+                : (json['type'] == NotificationType.announcement.index)
+                ? 'announcement'
+                : null),
+        targetId: json['targetId']?.toString(),
         isRead: json['isRead'] ?? false,
         timestamp: DateTime.fromMillisecondsSinceEpoch(
           json['timestamp'] ?? DateTime.now().millisecondsSinceEpoch,
@@ -105,6 +135,9 @@ class NotificationsProvider extends ChangeNotifier {
   _broadcastSubscription;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
   _personalSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _newsSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _announcementsSubscription;
 
   NotificationsProvider() {
     _setupFirebaseMessaging();
@@ -116,11 +149,17 @@ class NotificationsProvider extends ChangeNotifier {
       _broadcastSubscription = null;
       _personalSubscription?.cancel();
       _personalSubscription = null;
+      _newsSubscription?.cancel();
+      _newsSubscription = null;
+      _announcementsSubscription?.cancel();
+      _announcementsSubscription = null;
       _uid = uid;
       if (_uid != null) {
         _loadFromFirestore();
         _listenToBroadcastNotifications();
         _listenToPersonalNotifications();
+        _listenToNewsNotifications();
+        _listenToAnnouncementsNotifications();
       } else {
         _loadFromStorage();
       }
@@ -176,6 +215,77 @@ class NotificationsProvider extends ChangeNotifier {
     _addNotificationIfMissing(data, doc.id);
   }
 
+  void _listenToNewsNotifications() {
+    _newsSubscription = _firestore
+        .collection('news')
+        .where('isPublished', isEqualTo: true)
+        .snapshots()
+        .listen(
+          (snapshot) {
+            for (final change in snapshot.docChanges) {
+              if (change.type == DocumentChangeType.removed) continue;
+              final data = change.doc.data();
+              if (data == null) continue;
+              final title = data['title']?.toString() ?? 'خبر جديد';
+              final body = data['body']?.toString() ?? 'تم نشر خبر جديد';
+              final ts = data['publishedAt'] is Timestamp
+                  ? (data['publishedAt'] as Timestamp).toDate()
+                  : DateTime.now();
+              _addNotificationIfMissing({
+                ...data,
+                'id': 'news_${change.doc.id}',
+                'title': 'خبر جديد: $title',
+                'body': body,
+                'type': NotificationType.news.index,
+                'targetType': 'news',
+                'targetId': change.doc.id,
+                'timestamp': ts.millisecondsSinceEpoch,
+              }, 'news_${change.doc.id}');
+            }
+          },
+          onError: (error) {
+            debugPrint('News notifications listener error: $error');
+          },
+        );
+  }
+
+  void _listenToAnnouncementsNotifications() {
+    _announcementsSubscription = _firestore
+        .collection('announcements')
+        .snapshots()
+        .listen(
+          (snapshot) {
+            for (final change in snapshot.docChanges) {
+              if (change.type == DocumentChangeType.removed) continue;
+              final data = change.doc.data();
+              if (data == null) continue;
+              if (!AnnouncementData.isActive(data)) continue;
+              final title = data['title']?.toString() ?? 'إعلان جديد';
+              final body = AnnouncementData.body(
+                data,
+                fallback: 'تم نشر إعلان جديد',
+              );
+              final ts = data['createdAt'] is Timestamp
+                  ? (data['createdAt'] as Timestamp).toDate()
+                  : DateTime.now();
+              _addNotificationIfMissing({
+                ...data,
+                'id': 'announcement_${change.doc.id}',
+                'title': 'إعلان جديد: $title',
+                'body': body,
+                'type': NotificationType.announcement.index,
+                'targetType': 'announcement',
+                'targetId': change.doc.id,
+                'timestamp': ts.millisecondsSinceEpoch,
+              }, 'announcement_${change.doc.id}');
+            }
+          },
+          onError: (error) {
+            debugPrint('Announcements notifications listener error: $error');
+          },
+        );
+  }
+
   void _addNotificationIfMissing(Map<String, dynamic> data, String id) {
     final notificationData = <String, dynamic>{
       ...data,
@@ -189,6 +299,7 @@ class NotificationsProvider extends ChangeNotifier {
 
     _notifications = _mergeNotifications([notification, ..._notifications]);
     notifyListeners();
+    _saveData();
   }
 
   List<AppNotificationModel> _mergeNotifications(
@@ -412,6 +523,7 @@ class NotificationsProvider extends ChangeNotifier {
             title: notif.title,
             body: notif.body,
             payload: notif.id,
+            persistInApp: false,
           );
         }
       });
@@ -456,23 +568,20 @@ class NotificationsProvider extends ChangeNotifier {
         message.notification?.title ?? message.data['title'] ?? 'إشعار جديد';
     final body = message.notification?.body ?? message.data['body'] ?? '';
 
-    // Check if we already received this to prevent duplicates in short time
-    if (_notifications.isNotEmpty &&
-        _notifications.first.title == title &&
-        _notifications.first.body == body) {
-      final diff = DateTime.now().difference(_notifications.first.timestamp);
-      if (diff.inSeconds < 5) return null;
-    }
-
     final notification = AppNotificationModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id:
+          message.data['notificationId']?.toString() ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
       title: title,
       body: body,
       type: _parseType(message.data['type']),
+      targetType: message.data['targetType']?.toString(),
+      targetId: message.data['targetId']?.toString(),
       isRead: false,
       timestamp: DateTime.now(),
     );
 
+    if (_notifications.any((item) => item.id == notification.id)) return null;
     _notifications.insert(0, notification);
     if (_notifications.length > _maxNotifications) {
       _notifications = _notifications.take(_maxNotifications).toList();
@@ -491,6 +600,8 @@ class NotificationsProvider extends ChangeNotifier {
         return NotificationType.reminder;
       case 'system':
         return NotificationType.system;
+      case 'chat_reply':
+        return NotificationType.chatReply;
       default:
         return NotificationType.general;
     }

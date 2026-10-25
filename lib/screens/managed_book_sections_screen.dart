@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../data/books_data.dart';
-import '../data/competitions_books.dart';
 import '../models/book.dart';
 import '../theme/app_theme.dart';
+import '../utils/academic_order.dart';
 import '../widgets/curved_header.dart';
 import 'pdf_viewer_screen.dart';
 
@@ -82,7 +82,7 @@ bool _isSeparateSolutionBook(Book book) {
       category == 'solution';
 }
 
-List<Book> attachBundledCompetitionSolutions(Iterable<Book> books) {
+List<Book> attachManagedCompetitionSolutions(Iterable<Book> books) {
   final allBooks = books.toList();
   final separateSolutions = allBooks
       .where((book) => _isSeparateSolutionBook(book))
@@ -95,12 +95,6 @@ List<Book> attachBundledCompetitionSolutions(Iterable<Book> books) {
       if (solution.isActive && solution.url.trim().isNotEmpty)
         _competitionSolutionKey(solution): solution.url,
   };
-  final bundledSolutions = <String, String>{
-    for (final book in CompetitionsBooks.books)
-      if (book.solutionUrl.trim().isNotEmpty)
-        _competitionSolutionKey(book): book.solutionUrl,
-  };
-
   return allBooks.where((book) => !_isSeparateSolutionBook(book)).map((book) {
     if (book.section != BooksData.sCompetitions) {
       return book;
@@ -108,9 +102,9 @@ List<Book> attachBundledCompetitionSolutions(Iterable<Book> books) {
     if (book.solutionUrl.trim().isNotEmpty) return book;
 
     final key = _competitionSolutionKey(book);
-    final solutionUrl =
-        explicitSolutions[key] ??
-        (explicitlyManagedKeys.contains(key) ? null : bundledSolutions[key]);
+    final solutionUrl = explicitlyManagedKeys.contains(key)
+        ? explicitSolutions[key]
+        : null;
     return solutionUrl == null ? book : book.copyWith(solutionUrl: solutionUrl);
   }).toList();
 }
@@ -176,9 +170,7 @@ List<ManagedBookSection> groupManagedBooks(Iterable<Book> books) {
           : b.books.values.first.order;
       final order = leftOrder.compareTo(rightOrder);
       if (order != 0) return order;
-      final gradeOrder = _normalizeText(
-        a.grade,
-      ).compareTo(_normalizeText(b.grade));
+      final gradeOrder = compareAcademicLabels(a.grade, b.grade);
       if (gradeOrder != 0) return gradeOrder;
       return _normalizeText(a.category).compareTo(_normalizeText(b.category));
     });
@@ -230,19 +222,17 @@ class _ManagedBookSectionsScreenState extends State<ManagedBookSectionsScreen> {
         .collection('books')
         .where('section', isEqualTo: widget.section)
         .snapshots()
-        .map(
-          (snapshot) {
-            final books = snapshot.docs.map(
-              (document) => Book.fromMap(document.data(), document.id),
-            );
-            return filterManagedBooks(
-              books: widget.section == BooksData.sCompetitions
-                  ? attachBundledCompetitionSolutions(books)
-                  : books,
-              section: widget.section,
-            );
-          },
-        );
+        .map((snapshot) {
+          final books = snapshot.docs.map(
+            (document) => Book.fromMap(document.data(), document.id),
+          );
+          return filterManagedBooks(
+            books: widget.section == BooksData.sCompetitions
+                ? attachManagedCompetitionSolutions(books)
+                : books,
+            section: widget.section,
+          );
+        });
   }
 
   List<ManagedBookSection> _applySectionSearch(
@@ -292,14 +282,6 @@ class _ManagedBookSectionsScreenState extends State<ManagedBookSectionsScreen> {
     return Scaffold(
       body: StreamBuilder<List<Book>>(
         stream: _booksStream,
-        initialData: widget.section == BooksData.sCompetitions
-            ? attachBundledCompetitionSolutions(
-                filterManagedBooks(
-                  books: CompetitionsBooks.books,
-                  section: widget.section,
-                ),
-              )
-            : null,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return _buildError(context);

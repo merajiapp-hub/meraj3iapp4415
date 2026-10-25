@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/notifications_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/curved_header.dart';
+import 'announcements_screen.dart';
+import 'news_screen.dart';
+import 'notification_details_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -21,6 +25,16 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  String _activeFilter = 'all';
+
+  List<String> get _filterOptions => const [
+    'all',
+    'general',
+    'news',
+    'announcement',
+    'certificate',
+    'unread',
+  ];
 
   @override
   void initState() {
@@ -96,11 +110,46 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                   );
                 }
 
-                List<AppNotificationModel> notifications;
+                List<AppNotificationModel> notifications = provider
+                    .notifications
+                    .toList();
+                if (_activeFilter != 'all') {
+                  notifications = notifications.where((n) {
+                    switch (_activeFilter) {
+                      case 'unread':
+                        return !n.isRead;
+                      case 'general':
+                        return {
+                          NotificationType.general,
+                          NotificationType.update,
+                          NotificationType.reminder,
+                          NotificationType.system,
+                          NotificationType.chatReply,
+                        }.contains(n.type);
+                      case 'news':
+                        return n.type == NotificationType.news;
+                      case 'announcement':
+                        return n.type == NotificationType.announcement;
+                      case 'certificate':
+                        return n.type == NotificationType.certificate;
+                      default:
+                        return true;
+                    }
+                  }).toList();
+                }
+
                 if (_searchQuery.isNotEmpty) {
-                  notifications = provider.search(_searchQuery);
-                } else {
-                  notifications = provider.notifications.toList();
+                  notifications = notifications
+                      .where(
+                        (n) =>
+                            n.title.toLowerCase().contains(
+                              _searchQuery.toLowerCase(),
+                            ) ||
+                            n.body.toLowerCase().contains(
+                              _searchQuery.toLowerCase(),
+                            ),
+                      )
+                      .toList();
                 }
 
                 if (notifications.isEmpty) {
@@ -160,11 +209,19 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   // ─── شريط البحث والفلاتر ───────────────────────────────────────────────────
   Widget _buildFilterBar(bool isDark) {
+    final filterLabels = {
+      'all': 'الكل',
+      'general': 'العامة',
+      'unread': 'غير المقروء',
+      'news': 'الأخبار',
+      'announcement': 'الإعلانات',
+      'certificate': 'الشهادات',
+    };
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Column(
         children: [
-          // حقل البحث
           Container(
             height: 50,
             decoration: BoxDecoration(
@@ -210,6 +267,41 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               style: GoogleFonts.tajawal(fontSize: 14),
             ),
           ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 38,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _filterOptions.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final key = _filterOptions[index];
+                final selected = _activeFilter == key;
+                return ChoiceChip(
+                  label: Text(filterLabels[key] ?? key),
+                  selected: selected,
+                  onSelected: (_) => setState(() => _activeFilter = key),
+                  backgroundColor: isDark ? AppTheme.surfaceDark : Colors.white,
+                  selectedColor: AppTheme.primaryColor.withValues(alpha: 0.18),
+                  labelStyle: GoogleFonts.tajawal(
+                    fontSize: 12,
+                    color: selected
+                        ? AppTheme.primaryColor
+                        : (isDark ? Colors.white70 : Colors.grey[700]),
+                    fontWeight: FontWeight.bold,
+                  ),
+                  avatar: selected
+                      ? const Icon(Icons.check_rounded, size: 14)
+                      : null,
+                  side: BorderSide(
+                    color: selected
+                        ? AppTheme.primaryColor
+                        : Colors.transparent,
+                  ),
+                );
+              },
+            ),
+          ),
         ],
       ),
     );
@@ -217,6 +309,23 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   // ─── الحالة الفارغة ─────────────────────────────────────────────────────────
   Widget _buildEmptyState(bool isDark) {
+    final emptyMessage = switch (_activeFilter) {
+      'all' =>
+        _searchQuery.isNotEmpty ? 'لا توجد نتائج للبحث' : 'لا توجد إشعارات',
+      'general' => 'لا توجد إشعارات عامة',
+      'unread' => 'لا توجد إشعارات غير مقروءة',
+      'news' => 'لا توجد إشعارات للأخبار',
+      'announcement' => 'لا توجد إشعارات للإعلانات',
+      'certificate' => 'لا توجد إشعارات للشهادات',
+      _ => 'لا توجد إشعارات',
+    };
+
+    final emptySubtitle = _searchQuery.isNotEmpty
+        ? 'حاول البحث بكلمات أخرى'
+        : _activeFilter == 'all'
+        ? 'ستظهر هنا إشعاراتك الجديدة'
+        : 'جرب فلترًا مختلفًا';
+
     return SizedBox.expand(
       child: Container(
         color: isDark ? AppTheme.backgroundDark : const Color(0xFFF0F4F8),
@@ -238,9 +347,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               ),
               const SizedBox(height: 20),
               Text(
-                _searchQuery.isNotEmpty
-                    ? 'لا توجد نتائج للبحث'
-                    : 'لا توجد إشعارات',
+                emptyMessage,
                 style: GoogleFonts.tajawal(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -249,9 +356,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               ),
               const SizedBox(height: 8),
               Text(
-                _searchQuery.isNotEmpty
-                    ? 'حاول البحث بكلمات أخرى'
-                    : 'ستظهر هنا إشعاراتك الجديدة',
+                emptySubtitle,
                 style: GoogleFonts.tajawal(
                   fontSize: 14,
                   color: Colors.grey[500],
@@ -352,44 +457,42 @@ class _NotificationCardState extends State<_NotificationCard>
     super.dispose();
   }
 
-  void _showNotificationDetail(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: widget.isDark ? AppTheme.surfaceDark : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(
-              widget.notification.typeIcon,
-              color: widget.notification.typeColor,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                widget.notification.title,
-                style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Text(
-            widget.notification.body,
-            style: GoogleFonts.tajawal(fontSize: 16, height: 1.5),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              'إغلاق',
-              style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
+  Future<void> _openRelatedScreen(BuildContext context) async {
+    final targetType = widget.notification.targetType;
+    if (targetType == 'externalUrl') {
+      final uri = Uri.tryParse(widget.notification.targetId ?? '');
+      if (uri == null ||
+          !uri.hasAuthority ||
+          uri.host.isEmpty ||
+          !const {'http', 'https'}.contains(uri.scheme.toLowerCase())) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('رابط الإشعار غير صالح.')));
+        return;
+      }
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
+          context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('تعذر فتح الرابط.')));
+      }
+      return;
+    }
+    final route = switch (targetType) {
+      'news' => MaterialPageRoute(
+        builder: (_) => NewsScreen(selectedId: widget.notification.targetId),
       ),
-    );
+      'announcement' => MaterialPageRoute(
+        builder: (_) =>
+            AnnouncementsScreen(selectedId: widget.notification.targetId),
+      ),
+      _ => MaterialPageRoute(
+        builder: (_) =>
+            NotificationDetailsScreen(notification: widget.notification),
+      ),
+    };
+
+    await Navigator.push(context, route);
   }
 
   String _formatDate(DateTime dt) {
@@ -427,7 +530,7 @@ class _NotificationCardState extends State<_NotificationCard>
           onTapCancel: () => _scaleController.reverse(),
           onTap: () {
             _scaleController.reverse();
-            _showNotificationDetail(context);
+            _openRelatedScreen(context);
           },
           child: Container(
             margin: const EdgeInsets.only(bottom: 12),
@@ -572,6 +675,36 @@ class _NotificationCardState extends State<_NotificationCard>
                                 ),
                               ),
                           ],
+                        ),
+                        const SizedBox(height: 4),
+                        Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: TextButton.icon(
+                            onPressed: () => _openRelatedScreen(context),
+                            icon: Icon(
+                              n.targetType == 'externalUrl'
+                                  ? Icons.open_in_new_rounded
+                                  : Icons.arrow_forward_rounded,
+                              size: 16,
+                            ),
+                            label: Text(
+                              switch (n.targetType) {
+                                'news' => 'فتح الخبر',
+                                'announcement' => 'فتح الإعلان',
+                                'externalUrl' => 'فتح الرابط',
+                                'certificate' => 'عرض الشهادة',
+                                'chat' => 'فتح المحادثة',
+                                _ => 'عرض التفاصيل',
+                              },
+                              style: GoogleFonts.tajawal(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppTheme.primaryColor,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
                         ),
                       ],
                     ),

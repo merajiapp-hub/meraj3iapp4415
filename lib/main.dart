@@ -62,9 +62,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         case 'system':
           type = 3;
           break;
+        case 'chat_reply':
+          type = 6;
+          break;
       }
 
-      final id = DateTime.now().millisecondsSinceEpoch.toString();
+      final id =
+          message.data['notificationId']?.toString() ??
+          DateTime.now().millisecondsSinceEpoch.toString();
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -75,9 +80,11 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
             'title': title,
             'body': body,
             'type': type,
+            'targetType': message.data['targetType'],
+            'targetId': message.data['targetId'],
             'isRead': false,
             'timestamp': DateTime.now().millisecondsSinceEpoch,
-          });
+          }, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Background save error: $e');
     }
@@ -311,12 +318,13 @@ class Meraj3iApp extends StatelessWidget {
           builder: (context, appConfig, auth, _) {
             final isAdmin = auth.isAdmin;
             final isMaintenance = appConfig.maintenanceMode;
-            final shouldBlockSuspended = auth.user != null && auth.isAccountSuspended;
+            final shouldBlockSuspended =
+                auth.user != null && auth.isAccountSuspended;
             final pageContent = shouldBlockSuspended
                 ? const AccountSuspendedScreen()
                 : (isMaintenance && !isAdmin
-                    ? const MaintenanceScreen()
-                    : (child ?? const SizedBox.shrink()));
+                      ? const MaintenanceScreen()
+                      : (child ?? const SizedBox.shrink()));
 
             return Directionality(
               textDirection: TextDirection.rtl,
