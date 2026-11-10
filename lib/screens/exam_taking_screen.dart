@@ -651,60 +651,118 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
                 ? () => _goToQuestion(_currentPage - 1)
                 : null,
             icon: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
-            label: Text('السابق', style: GoogleFonts.cairo()),
+            label: Text('السابق', style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
             style: OutlinedButton.styleFrom(
+              foregroundColor: isDark ? Colors.white70 : Colors.black87,
+              side: BorderSide(
+                color: isDark ? Colors.white24 : Colors.black12,
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             ),
           ),
           const Spacer(),
           if (_currentPage < widget.questions.length - 1)
-            ElevatedButton.icon(
-              onPressed: () => _goToQuestion(_currentPage + 1),
-              icon: const Icon(
-                Icons.arrow_back_ios_rounded,
-                size: 14,
-                color: Colors.white,
+            Container(
+              decoration: BoxDecoration(
+                gradient: AppTheme.primaryGradient,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.35),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
-              label: Text(
-                'التالي',
-                style: GoogleFonts.cairo(color: Colors.white),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                shape: RoundedRectangleBorder(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _goToQuestion(_currentPage + 1),
                   borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 10,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'التالي',
+                          style: GoogleFonts.cairo(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(
+                          Icons.arrow_back_ios_rounded,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             )
           else
-            ElevatedButton.icon(
-              onPressed: _isSubmitting ? null : _submitExam,
-              icon: _isSubmitting
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(
-                      Icons.check_circle_outline_rounded,
-                      color: Colors.white,
-                    ),
-              label: Text(
-                'إنهاء الاختبار',
-                style: GoogleFonts.cairo(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+            Container(
+              decoration: BoxDecoration(
+                gradient: AppTheme.primaryGradient,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.4),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981),
-                shape: RoundedRectangleBorder(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _isSubmitting ? null : _submitExam,
                   borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 10,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_isSubmitting)
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        else
+                          const Icon(
+                            Icons.check_circle_outline_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'إنهاء الاختبار',
+                          style: GoogleFonts.cairo(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),

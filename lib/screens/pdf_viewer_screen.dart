@@ -143,7 +143,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
     _downloadProgressSubscription?.cancel();
     _toolbarAnimController.dispose();
     _pageJumpController.dispose();
-    AdManager.showInterstitialAd(chance: 0.3);
+    AdManager.showInterstitialAd(chance: 0.5);
     super.dispose();
   }
 
@@ -386,7 +386,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
       _openFailed = false;
       _isOpening = true;
       _isCheckingLocalFile = true;
-      _loadingStage = 'جاري التحقق من الملف المحفوظ...';
+      _loadingStage = 'جاري التحقق من الكتاب...';
     });
 
     if (kIsWeb &&
@@ -400,46 +400,106 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
       return;
     }
 
-    // Only resolve an explicitly supplied/local offline file here. Opening a
-    // remote book must never promote it into the offline download cache.
+    final bookKey = widget.book?.uniqueKey ??
+        'url_${DriveUrlService.extractFileId(widget.pdfUrl) ?? widget.title.hashCode}';
+
+    // 1) فحص المسار الممرر مباشرة إن وُجد
     if (widget.localPath != null) {
       final file = File(widget.localPath!);
       if (await _cacheService.isValidPdf(file)) {
+        if (!mounted) return;
         setState(() {
           _localPath = widget.localPath;
           _isCheckingLocalFile = false;
-          _isOpening =
-              true; // يجب أن يبقى true حتى يتم تجهيزه في onDocumentLoaded
-          _loadingStage = 'جاري تجهيز الكتاب للقراءة...';
+          _isOpening = false;
         });
         return;
       }
     }
 
-    if (!widget.useLatestRemoteUrl && widget.book != null && mounted) {
+    // 2) فحص التنزيلات اليدوية المحفوظة
+    if (mounted) {
       final downloads = Provider.of<DownloadsProvider>(context, listen: false);
-      final path = downloads.getLocalPath(widget.book!.uniqueKey);
-      if (path != null) {
-        final file = File(path);
+      final downloadPath = downloads.getLocalPath(bookKey);
+      if (downloadPath != null) {
+        final file = File(downloadPath);
         if (await _cacheService.isValidPdf(file)) {
+          if (!mounted) return;
           setState(() {
             _localPath = file.path;
             _isCheckingLocalFile = false;
-            _isOpening =
-                true; // يجب أن يبقى true حتى يتم تجهيزه في onDocumentLoaded
-            _loadingStage = 'جاري تجهيز الكتاب للقراءة...';
+            _isOpening = false;
           });
           return;
-        } else {
-          await downloads.removeDownload(widget.book!.uniqueKey);
         }
       }
     }
 
+    // 3) فحص الكاش المحلي فائق السرعة
+    final cached = await _cacheService.getValidFile(bookKey);
+    if (cached != null) {
+      if (!mounted) return;
+      setState(() {
+        _localPath = cached.path;
+        _isCheckingLocalFile = false;
+        _isOpening = false;
+      });
+      return;
+    }
+
+    // 4) إذا لم يكن محفوظاً محلياً، تحميله فوراً عبر المحمل السريع لتفادي مشاكل وتوقف البث
+    if (!kIsWeb && widget.pdfUrl.isNotEmpty && !widget.pdfUrl.contains('/drive/folders/')) {
+      final resolvedBook = widget.book ??
+          Book(
+            id: DriveUrlService.extractFileId(widget.pdfUrl) ?? '${widget.title.hashCode}',
+            title: widget.title,
+            section: widget.stageName ?? '',
+            grade: '',
+            category: widget.sectionName ?? '',
+            url: widget.pdfUrl,
+          );
+
+      if (!mounted) return;
+      setState(() {
+        _isCheckingLocalFile = false;
+        _isDownloading = true;
+        _downloadProgress = 0;
+        _loadingStage = 'جاري تجهيز الكتاب للقراءة...';
+      });
+
+      _downloadProgressSubscription?.cancel();
+      _downloadProgressSubscription = _downloadService
+          .progressFor(resolvedBook.uniqueKey)
+          .listen((progress) {
+        if (!mounted) return;
+        setState(() {
+          _downloadProgress = progress.value ?? 0;
+          if (progress.total > 0) {
+            final pct = (progress.received / progress.total * 100).toInt();
+            _loadingStage = 'جاري تجهيز الكتاب للقراءة ($pct%)...';
+          }
+        });
+      });
+
+      try {
+        final savePath = await _downloadService.getOrDownload(resolvedBook);
+        if (!mounted) return;
+        setState(() {
+          _localPath = savePath;
+          _isDownloading = false;
+          _isOpening = false;
+        });
+        return;
+      } catch (e) {
+        debugPrint('Direct cache download failed, falling back to network viewer: $e');
+      }
+    }
+
+    if (!mounted) return;
     setState(() {
       _isCheckingLocalFile = false;
-      _isOpening = true;
-      _loadingStage = 'جاري جلب بيانات الكتاب...';
+      _isDownloading = false;
+      _isOpening = false;
     });
   }
 
@@ -878,10 +938,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
                 ? _buildFolderView()
                 : Stack(
                     children: [
-                      GestureDetector(
-                        onTap: _toggleToolbar,
-                        child: _buildPdfView(),
-                      ),
+                      _buildPdfView(),
                       // Download progress bar
                       if (_isDownloading)
                         Positioned(
@@ -1208,31 +1265,82 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
     }
 
     if (_isDownloading) {
+      final pct = (_downloadProgress * 100).clamp(0, 100).toInt();
       return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.picture_as_pdf_rounded,
-              size: 56,
-              color: AppTheme.primaryColor,
-            ),
-            const SizedBox(height: 16),
-            Text('جاري تحميل ${widget.title}', textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: 260,
-              child: LinearProgressIndicator(
-                value: _downloadProgress > 0 ? _downloadProgress : null,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: _isNightMode ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: _isNightMode ? 0.3 : 0.08),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
               ),
+            ],
+            border: Border.all(
+              color: AppTheme.primaryColor.withValues(alpha: 0.15),
             ),
-            const SizedBox(height: 8),
-            Text(
-              _downloadProgress > 0
-                  ? '${(_downloadProgress * 100).toStringAsFixed(0)}%'
-                  : 'يرجى الانتظار...',
-            ),
-          ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  gradient: AppTheme.primaryGradient,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(
+                  Icons.menu_book_rounded,
+                  size: 32,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                widget.title,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.cairo(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: _isNightMode ? Colors.white : const Color(0xFF0F172A),
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _loadingStage,
+                style: GoogleFonts.tajawal(
+                  fontSize: 13,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 18),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: _downloadProgress > 0 ? _downloadProgress : null,
+                  minHeight: 8,
+                  backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                _downloadProgress > 0 ? '$pct%' : 'جاري الاتصال السريع...',
+                style: GoogleFonts.outfit(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -1271,9 +1379,13 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
         controller: _pdfViewerController,
         key: _pdfViewerKey,
         canShowScrollHead: false,
-        pageSpacing: 4,
-        initialPageNumber: _currentPage,
+        canShowScrollStatus: false,
+        pageSpacing: 6,
+        maxZoomLevel: 3.5,
         enableDoubleTapZooming: true,
+        enableTextSelection: false,
+        onTap: (details) => _toggleToolbar(),
+        initialPageNumber: _currentPage,
         onPageChanged: (details) {
           final auth = Provider.of<AuthProvider>(context, listen: false);
           if (auth.isGuest && details.newPageNumber > 10) {
@@ -1330,7 +1442,12 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
         controller: _pdfViewerController,
         key: _pdfViewerKey,
         canShowScrollHead: false,
-        pageSpacing: 4,
+        canShowScrollStatus: false,
+        pageSpacing: 6,
+        maxZoomLevel: 3.5,
+        enableDoubleTapZooming: true,
+        enableTextSelection: false,
+        onTap: (details) => _toggleToolbar(),
         initialPageNumber: _currentPage,
         onPageChanged: (details) {
           final auth = Provider.of<AuthProvider>(context, listen: false);
@@ -1372,10 +1489,10 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
     final viewerWithLoadingOverlay = Stack(
       children: [
         pdfWidget,
-        if (_isOpening)
+        if (_isOpening && _localPath == null)
           Positioned.fill(
             child: ColoredBox(
-              color: Colors.white,
+              color: _isNightMode ? Colors.black : Colors.white,
               child: Center(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -1390,9 +1507,9 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
                       Text(
                         _loadingStage,
                         style: GoogleFonts.tajawal(
-                          fontSize: 18,
+                          fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: const Color(0xFF2D1B4E),
+                          color: _isNightMode ? Colors.white : const Color(0xFF0F172A),
                         ),
                         textAlign: TextAlign.center,
                       ),

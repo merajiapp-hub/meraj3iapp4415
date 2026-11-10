@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
+import '../data/ad_manager.dart';
 
 class ExamResultScreen extends StatefulWidget {
   final String quizTitle;
@@ -48,6 +49,14 @@ class _ExamResultScreenState extends State<ExamResultScreen>
       curve: Curves.easeOutCubic,
     );
     _animController.forward();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 1400), () {
+        if (mounted) {
+          AdManager.showInterstitialAd(chance: 0.7);
+        }
+      });
+    });
   }
 
   @override

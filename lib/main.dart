@@ -145,48 +145,65 @@ void _handleIncomingPdfIntent() async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ── العمليات الحرجة فقط قبل runApp ──────────────────────────────────
+  // ── العمليات الخاصة بالهاتف فقط (تُعطل على الويب لمنع انهيار التشغيل) ──
+  if (!kIsWeb) {
+    try {
+      // منع تدوير الشاشة
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ]);
 
-  // منع تدوير الشاشة
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
+      // تفعيل وضع الشاشة الكاملة وإخفاء أزرار النظام السفلية
+      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-  // تفعيل وضع الشاشة الكاملة وإخفاء أزرار النظام السفلية
-  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      // شريط الحالة وشريط التنقل شفافان
+      SystemChrome.setSystemUIOverlayStyle(
+        const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          systemNavigationBarColor: Colors.transparent,
+          systemNavigationBarIconBrightness: Brightness.light,
+          systemNavigationBarDividerColor: Colors.transparent,
+          systemStatusBarContrastEnforced: false,
+          systemNavigationBarContrastEnforced: false,
+        ),
+      );
+    } catch (e) {
+      debugPrint('SystemChrome configuration error: $e');
+    }
+  }
 
-  // شريط الحالة وشريط التنقل شفافان مع تعطيل التباين الإجباري لتحقيق Edge-to-Edge حقيقي
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: Colors.transparent,
-      systemNavigationBarIconBrightness: Brightness.light,
-      systemNavigationBarDividerColor: Colors.transparent,
-      systemStatusBarContrastEnforced: false,
-      systemNavigationBarContrastEnforced: false,
-    ),
-  );
-
-  // تهيئة Firebase (حرجة — مطلوبة قبل runApp)
+  // تهيئة Firebase (مطلوبة قبل runApp)
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
 
-    // Enable Offline Persistence for performance
-    FirebaseFirestore.instance.settings = const Settings(
-      persistenceEnabled: true,
-      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-    );
+    if (!kIsWeb) {
+      // Offline Persistence للموبايل فقط
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      );
 
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    }
   } catch (e) {
     debugPrint('Firebase initialization error: $e');
   }
 
-  // ── تشغيل التطبيق أولاً ────────────────────────────────────────────
+  // ── تهيئة Google Mobile Ads قبل بناء الواجهات ──
+  if (!kIsWeb) {
+    try {
+      await MobileAds.instance.initialize();
+      AdManager.init();
+    } catch (e) {
+      debugPrint('AdMob initialization error: $e');
+    }
+  }
+
+  // ── تشغيل التطبيق ──────────────────────────────────────────────────
   runApp(
     MultiProvider(
       providers: [
@@ -255,28 +272,19 @@ Future<void> _initHeavyServicesAsync() async {
     debugPrint('Notification init error: $e');
   }
 
-  // تهيئة AdMob
-  try {
-    if (!kIsWeb) {
-      await MobileAds.instance.initialize();
-      AdManager.loadInterstitialAd();
-      AdManager.loadRewardedAd();
+  // طلب صلاحية الإشعارات و FCM Token (للهاتف فقط)
+  if (!kIsWeb) {
+    try {
+      await FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      final token = await FirebaseMessaging.instance.getToken();
+      debugPrint('FCM Token: $token');
+    } catch (e) {
+      debugPrint('FCM init error: $e');
     }
-  } catch (e) {
-    debugPrint('AdMob init error: $e');
-  }
-
-  // طلب صلاحية الإشعارات و FCM Token
-  try {
-    await FirebaseMessaging.instance.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-    final token = await FirebaseMessaging.instance.getToken();
-    debugPrint('FCM Token: $token');
-  } catch (e) {
-    debugPrint('FCM init error: $e');
   }
 
   // تهيئة Remote Config في الخلفية (prefetch للنتائج)

@@ -79,32 +79,40 @@ class _StatisticsScreenState extends State<StatisticsScreen>
               opacity: _fadeAnim,
               child: SlideTransition(
                 position: _slideAnim,
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
+                child: RefreshIndicator(
+                  onRefresh: () async {
+                    await stats.fetchUserStats();
+                    await stats.refreshGlobalStats();
+                  },
+                  color: AppTheme.primaryColor,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                    children: [
+                      // ─── بطاقات الإحصائيات ──────────────────────────────────────
+                      _buildStatsGrid(isDark, stats),
+                      const SizedBox(height: 24),
+
+                      // ─── مؤشرات النشاط ──────────────────────────────────────────
+                      _buildActivityChart(isDark, taskProvider),
+                      const SizedBox(height: 24),
+
+                      // ─── الرسم البياني الدائري ───────────────────────────────────
+                      _buildPieChart(isDark, favCount, dlCount, totalBooks),
+                      const SizedBox(height: 24),
+
+                      // ─── شريط الفترة الزمنية ─────────────────────────────────────
+                      _buildPeriodSelector(isDark),
+                      const SizedBox(height: 16),
+
+                      // ─── الرسم البياني الخطي ─────────────────────────────────────
+                      _buildLineChart(isDark, taskProvider, readingProvider),
+                      const SizedBox(height: 40),
+                    ],
                   ),
-                  children: [
-                    // ─── بطاقات الإحصائيات ──────────────────────────────────────
-                    _buildStatsGrid(isDark, stats),
-                    const SizedBox(height: 24),
-
-                    // ─── مؤشرات النشاط ──────────────────────────────────────────
-                    _buildActivityChart(isDark, taskProvider),
-                    const SizedBox(height: 24),
-
-                    // ─── الرسم البياني الدائري ───────────────────────────────────
-                    _buildPieChart(isDark, favCount, dlCount, totalBooks),
-                    const SizedBox(height: 24),
-
-                    // ─── شريط الفترة الزمنية ─────────────────────────────────────
-                    _buildPeriodSelector(isDark),
-                    const SizedBox(height: 16),
-
-                    // ─── الرسم البياني الخطي ─────────────────────────────────────
-                    _buildLineChart(isDark, taskProvider, readingProvider),
-                    const SizedBox(height: 40),
-                  ],
                 ),
               ),
             ),

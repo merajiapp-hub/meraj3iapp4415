@@ -708,18 +708,8 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
             decoration: BoxDecoration(
               gradient: (_selectedOption == null && !_isAnswered)
                   ? null
-                  : LinearGradient(
-                      colors: _isAnswered
-                          ? (isLast
-                                ? [
-                                    const Color(0xFF10B981),
-                                    const Color(0xFF059669),
-                                  ]
-                                : [
-                                    AppTheme.primaryColor,
-                                    const Color(0xFF0891B2),
-                                  ])
-                          : [AppTheme.primaryColor, const Color(0xFF0891B2)],
+                  : const LinearGradient(
+                      colors: [AppTheme.primaryColor, AppTheme.lightGreen],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),

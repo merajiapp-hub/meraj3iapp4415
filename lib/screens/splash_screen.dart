@@ -342,26 +342,27 @@ class _SplashScreenState extends State<SplashScreen>
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: 120,
+                bottom: 165,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     SizedBox(
-                      width: 32,
-                      height: 32,
+                      width: 28,
+                      height: 28,
                       child: CircularProgressIndicator(
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          AppTheme.primaryColor.withValues(alpha: 0.78),
+                          AppTheme.primaryColor.withValues(alpha: 0.85),
                         ),
                         strokeWidth: 2.5,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Text(
-                      'جارٍ التحميل...',
+                      'جاري تحميل التطبيق...',
                       style: GoogleFonts.tajawal(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.68),
-                        fontSize: 13,
+                        color: AppTheme.primaryColor.withValues(alpha: 0.80),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -381,27 +382,27 @@ class _SplashCurvesPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final motion = (phase - 0.975) * size.width * 0.08;
+    final motion = (phase - 0.975) * size.width * 0.06;
     _drawWave(
       canvas,
       size,
-      top: size.height * 0.79 + motion,
-      depth: size.height * 0.15,
-      color: AppTheme.primaryColor.withValues(alpha: 0.16),
-    );
-    _drawWave(
-      canvas,
-      size,
-      top: size.height * 0.87 - motion * 0.7,
-      depth: size.height * 0.11,
-      color: AppTheme.lightGreen.withValues(alpha: 0.22),
-    );
-    _drawWave(
-      canvas,
-      size,
-      top: size.height * 0.95 + motion * 0.45,
+      top: size.height * 0.85 + motion,
       depth: size.height * 0.08,
-      color: AppTheme.secondaryColor.withValues(alpha: 0.30),
+      color: AppTheme.primaryColor.withValues(alpha: 0.14),
+    );
+    _drawWave(
+      canvas,
+      size,
+      top: size.height * 0.90 - motion * 0.6,
+      depth: size.height * 0.06,
+      color: AppTheme.lightGreen.withValues(alpha: 0.20),
+    );
+    _drawWave(
+      canvas,
+      size,
+      top: size.height * 0.95 + motion * 0.4,
+      depth: size.height * 0.05,
+      color: AppTheme.secondaryColor.withValues(alpha: 0.25),
     );
   }
 

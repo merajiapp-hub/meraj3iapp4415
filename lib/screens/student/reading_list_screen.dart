@@ -63,29 +63,47 @@ class _ReadingListScreenState extends State<ReadingListScreen> with SingleTicker
   }
 
   Widget _buildList(List<ReadingSession> sessions, bool isDark) {
-    if (sessions.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.menu_book_rounded, size: 60, color: Colors.grey.withValues(alpha: 0.5)),
-            const SizedBox(height: 16),
-            Text(
-              'لا يوجد كتب في هذه القائمة',
-              style: GoogleFonts.tajawal(color: Colors.grey, fontSize: 16),
+    return RefreshIndicator(
+      onRefresh: () => context.read<ReadingProvider>().refresh(),
+      color: AppTheme.primaryColor,
+      child: sessions.isEmpty
+          ? LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.menu_book_rounded,
+                          size: 60,
+                          color: Colors.grey.withValues(alpha: 0.5),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'لا يوجد كتب في هذه القائمة',
+                          style: GoogleFonts.tajawal(
+                            color: Colors.grey,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            )
+          : ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              itemCount: sessions.length,
+              itemBuilder: (context, index) {
+                final session = sessions[index];
+                return _buildBookCard(session, isDark);
+              },
             ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: sessions.length,
-      itemBuilder: (context, index) {
-        final session = sessions[index];
-        return _buildBookCard(session, isDark);
-      },
     );
   }
 

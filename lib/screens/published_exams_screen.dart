@@ -10,6 +10,7 @@ import '../data/quiz_models.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/curved_header.dart';
+import '../widgets/banner_ad_widget.dart';
 import 'exam_taking_screen.dart';
 import 'my_exams_screen.dart';
 
@@ -27,9 +28,9 @@ class PublishedExamsScreen extends StatelessWidget {
       subtitle: 'مسابقة دخول الإعدادية',
       description: 'شابيترات واختبارات السنة السادسة ابتدائي',
       icon: Icons.emoji_events_rounded,
-      color: Color(0xFF0D9488),
+      color: Color(0xFF0B6B58),
       gradient: LinearGradient(
-        colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
+        colors: [Color(0xFF0B6B58), Color(0xFF14A085)],
         begin: Alignment.topRight,
         end: Alignment.bottomLeft,
       ),
@@ -39,10 +40,10 @@ class PublishedExamsScreen extends StatelessWidget {
       title: 'مسابقة Brevet',
       subtitle: 'شهادة ختم الدروس الإعدادية',
       description: 'شابيترات واختبارات السنة الرابعة إعدادية',
-      icon: Icons.menu_book_rounded,
-      color: Color(0xFFEA580C),
+      icon: Icons.auto_stories_rounded,
+      color: Color(0xFF0D7A66),
       gradient: LinearGradient(
-        colors: [Color(0xFFEA580C), Color(0xFFF97316)],
+        colors: [Color(0xFF0D7A66), Color(0xFF18B294)],
         begin: Alignment.topRight,
         end: Alignment.bottomLeft,
       ),
@@ -53,9 +54,9 @@ class PublishedExamsScreen extends StatelessWidget {
       subtitle: 'شهادة البكالوريا',
       description: 'شابيترات واختبارات جميع الشعب العلمية والأدبية',
       icon: Icons.school_rounded,
-      color: Color(0xFF4F46E5),
+      color: Color(0xFF083D2F),
       gradient: LinearGradient(
-        colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
+        colors: [Color(0xFF083D2F), Color(0xFF0B6B58)],
         begin: Alignment.topRight,
         end: Alignment.bottomLeft,
       ),
@@ -76,8 +77,10 @@ class PublishedExamsScreen extends StatelessWidget {
             title: 'الاختبارات',
             subtitle: 'اختر المسابقة لإجراء الاختبارات',
             gradient: AppTheme.primaryGradient,
+            showBackButton: Navigator.canPop(context),
             trailing: IconButton(
               icon: const Icon(Icons.history_rounded, color: Colors.white),
+              tooltip: 'سجل اختباراتي',
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const MyExamsScreen()),
@@ -95,16 +98,17 @@ class PublishedExamsScreen extends StatelessWidget {
                 final docs = snapshot.hasData
                     ? snapshot.data!.docs.map((d) => d.data()).toList()
                     : <Map<String, dynamic>>[];
+                final totalQuizzes = docs.length;
 
                 return ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                   children: [
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 16, right: 4),
+                      padding: const EdgeInsets.only(bottom: 12, right: 4),
                       child: Text(
                         'المسابقات الوطنية المتاحة',
                         style: GoogleFonts.cairo(
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
                           color: isDark ? Colors.white : Colors.black87,
                         ),
@@ -134,6 +138,8 @@ class PublishedExamsScreen extends StatelessWidget {
                         },
                       );
                     }),
+                    const SizedBox(height: 16),
+                    const BannerAdWidget(),
                   ],
                 );
               },
@@ -166,6 +172,8 @@ class _CompetitionChaptersScreenState
     extends State<CompetitionChaptersScreen> {
   String? _stream; // للبكالوريا فقط: 7D | 7C | 7LM | 7LO
   String? _subject; // null أو 'الكل' يعني كل المواد
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   static const _bacStreams = ExamSelectionUtils.bacStreams;
 
@@ -175,6 +183,12 @@ class _CompetitionChaptersScreenState
     if (widget.competition == 'Baccalauréat') {
       _stream = '7D';
     }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   String _getSubtitle() {
@@ -206,11 +220,11 @@ class _CompetitionChaptersScreenState
   Color _getAccentColor() {
     switch (widget.competition) {
       case 'Concours':
-        return const Color(0xFF0D9488);
+        return AppTheme.primaryColor;
       case 'Brevet':
-        return const Color(0xFFEA580C);
+        return const Color(0xFF0D7A66);
       default:
-        return const Color(0xFF4F46E5);
+        return const Color(0xFF08483B);
     }
   }
 
@@ -218,19 +232,19 @@ class _CompetitionChaptersScreenState
     switch (widget.competition) {
       case 'Concours':
         return const LinearGradient(
-          colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
+          colors: [Color(0xFF0B6B58), Color(0xFF14A085)],
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
         );
       case 'Brevet':
         return const LinearGradient(
-          colors: [Color(0xFFEA580C), Color(0xFFF97316)],
+          colors: [Color(0xFF0D7A66), Color(0xFF18B294)],
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
         );
       default:
         return const LinearGradient(
-          colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
+          colors: [Color(0xFF08483B), Color(0xFF0B6B58)],
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
         );
@@ -328,7 +342,8 @@ class _CompetitionChaptersScreenState
           });
         }
 
-        // تصفية الاختبارات حسب الشعبة والمادة
+        // تصفية الاختبارات حسب الشعبة والمادة والبحث
+        final query = _searchQuery.trim().toLowerCase();
         final filteredExams = compDocs.where((doc) {
           if (widget.competition == 'Baccalauréat' && _stream != null) {
             final docStream =
@@ -342,6 +357,14 @@ class _CompetitionChaptersScreenState
                 .toString()
                 .trim();
             if (docSubject != _subject) return false;
+          }
+          if (query.isNotEmpty) {
+            final title = (doc['title'] ?? '').toString().toLowerCase();
+            final chapter = (doc['chapter'] ?? doc['chapterId'] ?? '').toString().toLowerCase();
+            final subject = (doc['subject'] ?? '').toString().toLowerCase();
+            if (!title.contains(query) && !chapter.contains(query) && !subject.contains(query)) {
+              return false;
+            }
           }
           return true;
         }).toList();
@@ -391,15 +414,85 @@ class _CompetitionChaptersScreenState
               const SizedBox(height: 14),
             ],
 
+            // ── حقل البحث في الشابيترات ──
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isDark ? Colors.white12 : Colors.black12,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (val) => setState(() => _searchQuery = val),
+                style: GoogleFonts.cairo(
+                  fontSize: 13.5,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'ابحث عن اسم شابيتر أو درس...',
+                  hintStyle: GoogleFonts.cairo(
+                    fontSize: 12.5,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    color: AppTheme.primaryColor,
+                    size: 20,
+                  ),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded, size: 18),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                        )
+                      : null,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+            ),
+
             // ── قائمة الشابيترات ──
             if (filteredExams.isEmpty)
               _buildEmptyState(
                 title: 'لا توجد شابيترات متاحة',
-                message: 'لا توجد شابيترات أو أسئلة منشورة لهذا الاختيار حالياً.',
+                message: query.isNotEmpty
+                    ? 'لا توجد نتائج تطابق بحثك "$_searchQuery".'
+                    : 'لا توجد شابيترات أو أسئلة منشورة لهذا الاختيار حالياً.',
                 color: accentColor,
                 isDark: isDark,
               )
-            else
+            else ...[
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12, right: 4),
+                child: Row(
+                  children: [
+                    Text(
+                      'الشابيترات المتاحة (${filteredExams.length})',
+                      style: GoogleFonts.cairo(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white70 : Colors.black54,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               ...filteredExams.map(
                 (data) => Padding(
                   padding: const EdgeInsets.only(bottom: 14),
@@ -411,6 +504,7 @@ class _CompetitionChaptersScreenState
                   ),
                 ),
               ),
+            ],
           ],
         );
       },
@@ -541,21 +635,21 @@ class _CompetitionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isDark
               ? Colors.white.withValues(alpha: 0.08)
               : data.color.withValues(alpha: 0.15),
-          width: 1.5,
+          width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: data.color.withValues(alpha: isDark ? 0.15 : 0.08),
-            blurRadius: 14,
-            offset: const Offset(0, 5),
+            color: data.color.withValues(alpha: isDark ? 0.12 : 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -563,29 +657,29 @@ class _CompetitionCard extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           splashColor: data.color.withValues(alpha: 0.12),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
             child: Row(
               children: [
                 Container(
-                  width: 54,
-                  height: 54,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
                     gradient: data.gradient,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(13),
                     boxShadow: [
                       BoxShadow(
-                        color: data.color.withValues(alpha: 0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
+                        color: data.color.withValues(alpha: 0.25),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
-                  child: Icon(data.icon, color: Colors.white, size: 28),
+                  child: Icon(data.icon, color: Colors.white, size: 22),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -595,7 +689,7 @@ class _CompetitionCard extends StatelessWidget {
                           Text(
                             data.title,
                             style: GoogleFonts.cairo(
-                              fontSize: 16,
+                              fontSize: 14.5,
                               fontWeight: FontWeight.bold,
                               color: isDark ? Colors.white : Colors.black87,
                             ),
@@ -603,19 +697,19 @@ class _CompetitionCard extends StatelessWidget {
                           const Spacer(),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
+                              horizontal: 7,
+                              vertical: 2.5,
                             ),
                             decoration: BoxDecoration(
                               color: data.color.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(7),
                             ),
                             child: Text(
                               quizCount > 0
                                   ? '$quizCount ${quizCount == 1 ? 'شابيتر' : 'شابيترات'}'
                                   : 'لا توجد أسئلة بعد',
                               style: GoogleFonts.cairo(
-                                fontSize: 11,
+                                fontSize: 10.5,
                                 fontWeight: FontWeight.bold,
                                 color: data.color,
                               ),
@@ -623,20 +717,21 @@ class _CompetitionCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 1),
                       Text(
                         data.subtitle,
                         style: GoogleFonts.cairo(
-                          fontSize: 12.5,
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w600,
                           color: data.color,
                         ),
                       ),
-                      const SizedBox(height: 2),
                       Text(
                         data.description,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.cairo(
-                          fontSize: 11,
+                          fontSize: 10.5,
                           color: isDark ? Colors.white54 : Colors.black45,
                         ),
                       ),
@@ -646,7 +741,7 @@ class _CompetitionCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Icon(
                   Icons.arrow_forward_ios_rounded,
-                  size: 16,
+                  size: 14,
                   color: isDark ? Colors.white38 : Colors.black26,
                 ),
               ],
@@ -835,17 +930,18 @@ class _ExamCard extends StatelessWidget {
     final stream = (data['stream'] ?? data['division'] ?? '').toString();
 
     return Container(
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: AppTheme.primaryColor.withValues(alpha: 0.25),
+          color: AppTheme.primaryColor.withValues(alpha: 0.22),
         ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryColor.withValues(alpha: 0.07),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: AppTheme.primaryColor.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -854,18 +950,18 @@ class _ExamCard extends StatelessWidget {
         children: [
           // ─ رأس البطاقة ─
           Container(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 9),
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  AppTheme.primaryColor.withValues(alpha: 0.12),
-                  AppTheme.primaryColor.withValues(alpha: 0.04),
+                  AppTheme.primaryColor.withValues(alpha: 0.10),
+                  AppTheme.primaryColor.withValues(alpha: 0.03),
                 ],
                 begin: Alignment.centerRight,
                 end: Alignment.centerLeft,
               ),
               borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
+                top: Radius.circular(14),
               ),
             ),
             child: Column(
@@ -874,15 +970,15 @@ class _ExamCard extends StatelessWidget {
                 Text(
                   chapter.isNotEmpty ? chapter : title,
                   style: GoogleFonts.cairo(
-                    fontSize: 16,
+                    fontSize: 14.5,
                     fontWeight: FontWeight.bold,
                     color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
+                  spacing: 5,
+                  runSpacing: 3,
                   children: [
                     _Badge(label: competition, color: AppTheme.primaryColor),
                     if (stream.isNotEmpty && competition == 'Baccalauréat')
@@ -896,7 +992,7 @@ class _ExamCard extends StatelessWidget {
 
           // ─ تفاصيل الاختبار ─
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 9, 12, 12),
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
             child: Column(
               children: [
                 Row(
@@ -906,19 +1002,19 @@ class _ExamCard extends StatelessWidget {
                       label: '$totalQ سؤال',
                       isDark: isDark,
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 5),
                     _InfoChip(
                       icon: Icons.timer_outlined,
                       label: '$durationMin د',
                       isDark: isDark,
                     ),
                     if (difficulty.isNotEmpty) ...[
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 5),
                       _DifficultyBadge(difficulty: difficulty),
                     ],
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
 
                 // زر الاختبار + إحصائيات المستخدم
                 uid != null
@@ -928,31 +1024,10 @@ class _ExamCard extends StatelessWidget {
                         uid: uid!,
                         isDark: isDark,
                       )
-                    : ElevatedButton.icon(
+                    : _PrimaryExamButton(
                         onPressed: () => _startExam(context, durationMin),
-                        icon: const Icon(
-                          Icons.play_arrow_rounded,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                        label: Text(
-                          'ابدأ الاختبار',
-                          style: GoogleFonts.cairo(
-                            fontSize: 13,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryColor,
-                          minimumSize: const Size.fromHeight(42),
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          visualDensity: VisualDensity.compact,
-                          tapTargetSize: MaterialTapTargetSize.padded,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
+                        icon: Icons.play_arrow_rounded,
+                        label: 'ابدأ الاختبار',
                       ),
               ],
             ),
@@ -1111,91 +1186,32 @@ class _ExamActionButton extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton.icon(
+                    child: _ResumeExamButton(
                       onPressed: () => _openExam(
                         context,
                         durationMin,
                         resumeAttemptId: incompleteAttemptId,
                       ),
-                      icon: const Icon(Icons.restart_alt_rounded, size: 18),
-                      label: Text(
-                        'استكمال',
-                        style: GoogleFonts.cairo(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(0, 40),
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        visualDensity: VisualDensity.compact,
-                        tapTargetSize: MaterialTapTargetSize.padded,
-                        side: BorderSide(color: AppTheme.primaryColor),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
+                      isDark: isDark,
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: ElevatedButton.icon(
+                    child: _PrimaryExamButton(
                       onPressed: () => _openExam(context, durationMin),
-                      icon: const Icon(
-                        Icons.play_arrow_rounded,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                      label: Text(
-                        'إعادة',
-                        style: GoogleFonts.cairo(
-                          fontSize: 13,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
-                        minimumSize: const Size(0, 40),
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        visualDensity: VisualDensity.compact,
-                        tapTargetSize: MaterialTapTargetSize.padded,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
+                      icon: Icons.play_arrow_rounded,
+                      label: 'إعادة',
                     ),
                   ),
                 ],
               )
             else
-              ElevatedButton.icon(
+              _PrimaryExamButton(
                 onPressed: () => _openExam(context, durationMin),
-                icon: Icon(
-                  attemptCount > 0
-                      ? Icons.replay_rounded
-                      : Icons.play_arrow_rounded,
-                  color: Colors.white,
-                  size: 18,
-                ),
-                label: Text(
-                  attemptCount > 0 ? 'إعادة الاختبار' : 'ابدأ الاختبار',
-                  style: GoogleFonts.cairo(
-                    fontSize: 13,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
-                  minimumSize: const Size.fromHeight(42),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  visualDensity: VisualDensity.compact,
-                  tapTargetSize: MaterialTapTargetSize.padded,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
+                icon: attemptCount > 0
+                    ? Icons.replay_rounded
+                    : Icons.play_arrow_rounded,
+                label: attemptCount > 0 ? 'إعادة الاختبار' : 'ابدأ الاختبار',
               ),
           ],
         );
@@ -1331,16 +1347,16 @@ class _Badge extends StatelessWidget {
   Widget build(BuildContext context) {
     if (label.isEmpty) return const SizedBox.shrink();
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.28)),
       ),
       child: Text(
         label,
         style: GoogleFonts.cairo(
-          fontSize: 10,
+          fontSize: 9.5,
           fontWeight: FontWeight.bold,
           color: color,
         ),
@@ -1363,22 +1379,22 @@ class _InfoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
       decoration: BoxDecoration(
         color: isDark
             ? Colors.white.withValues(alpha: 0.07)
             : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 13, color: Colors.grey),
-          const SizedBox(width: 4),
+          Icon(icon, size: 12, color: Colors.grey),
+          const SizedBox(width: 3.5),
           Text(
             label,
             style: GoogleFonts.cairo(
-              fontSize: 12,
+              fontSize: 11,
               color: isDark ? Colors.white54 : Colors.black45,
             ),
           ),
@@ -1478,6 +1494,117 @@ class _StarsWidget extends StatelessWidget {
           i < stars ? Icons.star_rounded : Icons.star_outline_rounded,
           color: i < stars ? Colors.amber : Colors.grey.shade400,
           size: 16,
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  أزرار الاختبارات الموحدة والمستوحاة من ألوان الشعار
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PrimaryExamButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  final IconData icon;
+  final String label;
+
+  const _PrimaryExamButton({
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: AppTheme.primaryGradient,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryColor.withValues(alpha: 0.35),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7.5),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: Colors.white, size: 16),
+                const SizedBox(width: 5),
+                Text(
+                  label,
+                  style: GoogleFonts.cairo(
+                    fontSize: 12.5,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ResumeExamButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  final bool isDark;
+
+  const _ResumeExamButton({
+    required this.onPressed,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.primaryColor.withValues(alpha: isDark ? 0.2 : 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.primaryColor,
+          width: 1.5,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.replay_rounded,
+                  color: AppTheme.primaryColor,
+                  size: 16,
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  'استكمال',
+                  style: GoogleFonts.cairo(
+                    fontSize: 12.5,
+                    color: AppTheme.primaryColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

@@ -7,7 +7,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/student_provider.dart';
+import '../providers/statistics_provider.dart';
 import '../widgets/geometric_sliver_app_bar.dart';
+import '../data/ad_manager.dart';
 
 // ══════════════════════════════════════════
 //  نموذج بيانات لاعب (قابل للتمرير)
@@ -84,7 +86,7 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
   _LeaderboardEntry? _myEntry;
   int _myRank = 0;
   bool _isLoading = true;
-  final bool _rankingUnavailable = true;
+  final bool _rankingUnavailable = false;
   String? _errorMsg;
 
   @override
@@ -121,6 +123,16 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
         listen: false,
       ).user?.uid;
 
+      if (currentUserId == null) {
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+          _errorMsg =
+              'يرجى تسجيل الدخول بحسابك لعرض لوحة الشرف والتنافس مع زملائك.';
+        });
+        return;
+      }
+
       final snap = await _firestore
           .collection('honor_board')
           .orderBy('points', descending: true)
@@ -142,7 +154,7 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
         }
       }
 
-      if (myEntry == null && currentUserId != null) {
+      if (myEntry == null) {
         final myDoc = await _firestore
             .collection('honor_board')
             .doc(currentUserId)
@@ -231,6 +243,18 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
                     vertical: 4,
                   ),
                   child: _buildMyStatsCard(isDark, studentProfile),
+                ),
+              ),
+
+            // ─── بطاقة كسب النقاط بمشاهدة إعلان مكافأة ─────────
+            if (currentUserId != null)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 6,
+                  ),
+                  child: _buildRewardAdCard(isDark),
                 ),
               ),
 
@@ -330,13 +354,174 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
     return resolved;
   }
 
+  // ── بطاقة كسب النقاط بمشاهدة إعلان مكافأة ──────────────────────────────
+  Widget _buildRewardAdCard(bool isDark) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+              : [Colors.white, const Color(0xFFF8FAFC)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppTheme.secondaryColor.withValues(alpha: 0.4),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.secondaryColor.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            AdManager.showRewardedAd(
+              onRewarded: () {
+                final stats = context.read<StatisticsProvider>();
+                stats.incrementUserStat('points', value: 25);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '🎉 مبروك! حصلت على 25 نقطة إضافية لدعمك التطبيق.',
+                        style: GoogleFonts.cairo(fontWeight: FontWeight.bold),
+                      ),
+                      backgroundColor: AppTheme.primaryColor,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  );
+                }
+              },
+              onNotReady: () {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'جاري تجهيز إعلان المكافأة، يُرجى المحاولة بعد لحظات...',
+                        style: GoogleFonts.cairo(),
+                      ),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  );
+                }
+              },
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.secondaryColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.card_giftcard_rounded,
+                    color: AppTheme.secondaryColor,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'اكسب 25 نقطة مجانية! 🎁',
+                        style: GoogleFonts.cairo(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      Text(
+                        'شاهد إعلاناً قصيراً لزيادة نقاطك في لوحة الشرف',
+                        style: GoogleFonts.cairo(
+                          fontSize: 11,
+                          color: isDark ? Colors.white60 : Colors.black54,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.primaryGradient,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.play_circle_outline_rounded,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'مشاهدة',
+                        style: GoogleFonts.cairo(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   // ── بطاقة "إحصائياتي" ─────────────────────────────────────────────────
   Widget _buildMyStatsCard(bool isDark, dynamic profile) {
     final myE = _myEntry;
+    final stats = context.watch<StatisticsProvider>();
     final displayName = _buildStudentNameDisplay(
       myE?.name ?? profile.name,
       fallback: _normalizeLeaderboardName(profile.name, fallback: 'طالب متميز'),
     );
+
+    final displayPoints = (myE != null && myE.points > 0)
+        ? myE.points
+        : (profile.points > 0
+              ? profile.points
+              : (stats.userCorrectAnswers * 10));
+    final displayExams = (myE != null && myE.verifiedExamCount > 0)
+        ? myE.verifiedExamCount
+        : stats.userTestsTaken;
+    final displayCorrect = (myE != null && myE.verifiedCorrectAnswers > 0)
+        ? myE.verifiedCorrectAnswers
+        : stats.userCorrectAnswers;
 
     return AnimatedBuilder(
       animation: _animController,
@@ -451,17 +636,13 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
               children: [
                 _buildMyStatChip(
                   Icons.star_rounded,
-                  '${myE?.points ?? 0}',
+                  '$displayPoints',
                   'نقطة مصححة',
                 ),
-                _buildMyStatChip(
-                  Icons.quiz_rounded,
-                  '${myE?.verifiedExamCount ?? 0}',
-                  'اختبار',
-                ),
+                _buildMyStatChip(Icons.quiz_rounded, '$displayExams', 'اختبار'),
                 _buildMyStatChip(
                   Icons.check_circle_rounded,
-                  '${myE?.verifiedCorrectAnswers ?? 0}',
+                  '$displayCorrect',
                   'إجابة صحيحة',
                 ),
               ],

@@ -62,25 +62,32 @@ class _ProgressScreenState extends State<ProgressScreen> {
             style: GoogleFonts.tajawal(fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSummaryCard(stats, isDark),
-            const SizedBox(height: 24),
-            Text('نتائج الاختبارات',
-                style: GoogleFonts.tajawal(
-                    fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            _buildTestResultsCard(totalCorrect, totalWrong, avgScore, isDark),
-            const SizedBox(height: 24),
-            Text('ساعات القراءة (هذا الأسبوع)',
-                style: GoogleFonts.tajawal(
-                    fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            _buildStudyHoursChart(hoursPerDay, maxHours, isDark),
-          ],
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await context.read<StatisticsProvider>().fetchUserStats();
+        },
+        color: AppTheme.primaryColor,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSummaryCard(stats, isDark),
+              const SizedBox(height: 24),
+              Text('نتائج الاختبارات',
+                  style: GoogleFonts.tajawal(
+                      fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              _buildTestResultsCard(totalCorrect, totalWrong, avgScore, isDark),
+              const SizedBox(height: 24),
+              Text('ساعات القراءة (هذا الأسبوع)',
+                  style: GoogleFonts.tajawal(
+                      fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              _buildStudyHoursChart(hoursPerDay, maxHours, isDark),
+            ],
+          ),
         ),
       ),
     );

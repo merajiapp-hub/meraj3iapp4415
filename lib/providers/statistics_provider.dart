@@ -98,6 +98,26 @@ class StatisticsProvider extends ChangeNotifier {
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
   ) {
     final uniqueMap = <String, Map<String, dynamic>>{};
+
+    // 1) إضافة الكتب المضمنة في التطبيق
+    for (final book in BooksData.allBooks) {
+      final key = _canonicalBookKey(
+        title: book.title,
+        url: book.url,
+        section: book.section,
+        grade: book.grade,
+        id: book.id,
+      );
+      uniqueMap[key] = {
+        'section': book.section,
+        'grade': book.grade,
+        'title': book.title,
+        'isStatic': true,
+      };
+    }
+
+    // 2) دمج كتب فايربيس (المتاحة حالياً أو المضافة مستقبلاً) دون تكرار
+    int newlyAddedCount = 0;
     for (final doc in docs) {
       final data = doc.data();
       final isActive = data['isActive'] != false;
@@ -120,15 +140,27 @@ class StatisticsProvider extends ChangeNotifier {
         id: doc.id,
       );
 
+      final isAlreadyKnown = uniqueMap.containsKey(identity);
+      if (!isAlreadyKnown) {
+        newlyAddedCount++;
+      }
+
       uniqueMap[identity] = {
-        'section': section,
-        'grade': grade,
-        'title': title,
+        'section': section.isNotEmpty
+            ? section
+            : (uniqueMap[identity]?['section'] ?? ''),
+        'grade': grade.isNotEmpty
+            ? grade
+            : (uniqueMap[identity]?['grade'] ?? ''),
+        'title': title.isNotEmpty
+            ? title
+            : (uniqueMap[identity]?['title'] ?? ''),
+        'isStatic': isAlreadyKnown && (uniqueMap[identity]?['isStatic'] == true),
         'uploaderId': data['uploaderId'] ?? data['userId'],
       };
     }
 
-    uploadedBooksCount = uniqueMap.length;
+    uploadedBooksCount = newlyAddedCount;
     totalBooks = uniqueMap.length;
 
     // إعادة احتساب توزيع الكتب حسب المراحل لتشمل الكتب الحالية والمضافة مستقبلاً

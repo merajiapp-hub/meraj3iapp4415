@@ -105,7 +105,19 @@ List<Book> attachManagedCompetitionSolutions(Iterable<Book> books) {
     final solutionUrl = explicitlyManagedKeys.contains(key)
         ? explicitSolutions[key]
         : null;
-    return solutionUrl == null ? book : book.copyWith(solutionUrl: solutionUrl);
+    if (solutionUrl != null) {
+      return book.copyWith(solutionUrl: solutionUrl);
+    }
+    for (final staticBook in BooksData.allBooks) {
+      if (staticBook.solutionUrl.trim().isNotEmpty &&
+          (_competitionSolutionKey(staticBook) == key ||
+              _normalizeText(staticBook.title) == _normalizeText(book.title) ||
+              (book.url.isNotEmpty &&
+                  staticBook.url.trim() == book.url.trim()))) {
+        return book.copyWith(solutionUrl: staticBook.solutionUrl);
+      }
+    }
+    return book;
   }).toList();
 }
 

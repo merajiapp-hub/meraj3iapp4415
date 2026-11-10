@@ -138,6 +138,30 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> updateTask(StudyTask updatedTask) async {
+    final index = _tasks.indexWhere((t) => t.id == updatedTask.id);
+    if (index != -1) {
+      _tasks[index] = updatedTask;
+      await _saveTasks();
+      notifyListeners();
+
+      final studyReminders = await _areStudyRemindersEnabled();
+      if (studyReminders) {
+        await NotificationService().cancelNotification(updatedTask.notificationId);
+        final reminderTime = updatedTask.endTime.subtract(const Duration(minutes: 10));
+        if (!updatedTask.isCompleted && reminderTime.isAfter(DateTime.now())) {
+          await NotificationService().scheduleNotification(
+            id: updatedTask.notificationId,
+            title: '🔔 اقترب انتهاء المهمة',
+            body: 'تبقى 10 دقائق على انتهاء ${updatedTask.title} — ${updatedTask.subject}',
+            scheduledDate: reminderTime,
+            payload: 'task-ending-${updatedTask.id}',
+          );
+        }
+      }
+    }
+  }
+
   Future<void> deleteTask(String id) async {
     final task = _tasks.firstWhere(
       (t) => t.id == id,

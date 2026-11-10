@@ -441,6 +441,630 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
     );
   }
 
+  void _showEditSessionModal(BuildContext context, ScheduleItem item) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final titleController = TextEditingController(text: item.title);
+    final notesController = TextEditingController(text: item.description);
+    int selectedDay = item.weekday;
+    TimeOfDay startTime = item.startTime;
+    TimeOfDay endTime = item.endTime;
+    bool notify = item.notify;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final modalBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+            final textColor = isDark ? Colors.white : const Color(0xFF1E293B);
+            final borderColor = isDark ? Colors.white12 : Colors.grey.shade300;
+
+            return Container(
+              margin: const EdgeInsets.only(top: 80),
+              decoration: BoxDecoration(
+                color: modalBg,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(32),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 20,
+                  ),
+                ],
+              ),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+                left: 24,
+                right: 24,
+                top: 24,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 24),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white24 : Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.edit_note_rounded,
+                          color: isDark ? AppTheme.accentColor : AppTheme.primaryColor,
+                          size: 26,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'تعديل المراجعة',
+                          style: GoogleFonts.tajawal(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : AppTheme.primaryColor,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'المادة / العنوان',
+                      style: GoogleFonts.tajawal(
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: titleController,
+                      style: GoogleFonts.tajawal(color: textColor),
+                      decoration: InputDecoration(
+                        hintText: 'مثال: رياضيات - الدوال',
+                        hintStyle: GoogleFonts.tajawal(color: Colors.grey),
+                        fillColor: isDark
+                            ? Colors.white.withValues(alpha: 0.05)
+                            : Colors.white,
+                        filled: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(color: borderColor),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(color: borderColor),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    AppDropdown<int>(
+                      label: 'اليوم',
+                      value: selectedDay,
+                      items: List.generate(7, (index) {
+                        int day = index + 1;
+                        return DropdownMenuItem(
+                          value: day,
+                          child: Text(
+                            _getDayName(day),
+                            style: GoogleFonts.tajawal(color: textColor),
+                          ),
+                        );
+                      }),
+                      onChanged: (val) {
+                        if (val != null) setModalState(() => selectedDay = val);
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'البدء',
+                                style: GoogleFonts.tajawal(
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              GestureDetector(
+                                onTap: () async {
+                                  final time = await showTimePicker(
+                                    context: context,
+                                    initialTime: startTime,
+                                  );
+                                  if (time != null) {
+                                    setModalState(() => startTime = time);
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 14,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: borderColor),
+                                    borderRadius: BorderRadius.circular(16),
+                                    color: isDark
+                                        ? Colors.white.withValues(alpha: 0.05)
+                                        : Colors.white,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        startTime.format(context),
+                                        style: GoogleFonts.tajawal(
+                                          color: textColor,
+                                        ),
+                                      ),
+                                      const Icon(
+                                        Icons.access_time_rounded,
+                                        color: Colors.grey,
+                                        size: 20,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'الانتهاء',
+                                style: GoogleFonts.tajawal(
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              GestureDetector(
+                                onTap: () async {
+                                  final time = await showTimePicker(
+                                    context: context,
+                                    initialTime: endTime,
+                                  );
+                                  if (time != null) {
+                                    setModalState(() => endTime = time);
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 14,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: borderColor),
+                                    borderRadius: BorderRadius.circular(16),
+                                    color: isDark
+                                        ? Colors.white.withValues(alpha: 0.05)
+                                        : Colors.white,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        endTime.format(context),
+                                        style: GoogleFonts.tajawal(
+                                          color: textColor,
+                                        ),
+                                      ),
+                                      const Icon(
+                                        Icons.access_time_rounded,
+                                        color: Colors.grey,
+                                        size: 20,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'ملاحظات',
+                      style: GoogleFonts.tajawal(
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: notesController,
+                      maxLines: 3,
+                      style: GoogleFonts.tajawal(color: textColor),
+                      decoration: InputDecoration(
+                        hintText: 'مثال: حل تمارين صفحة 40',
+                        hintStyle: GoogleFonts.tajawal(color: Colors.grey),
+                        fillColor: isDark
+                            ? Colors.white.withValues(alpha: 0.05)
+                            : Colors.white,
+                        filled: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(color: borderColor),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(color: borderColor),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color:
+                            (isDark
+                                    ? AppTheme.accentColor
+                                    : AppTheme.primaryColor)
+                                .withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color:
+                              (isDark
+                                      ? AppTheme.accentColor
+                                      : AppTheme.primaryColor)
+                                  .withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: SwitchListTile(
+                        value: notify,
+                        onChanged: (val) => setModalState(() => notify = val),
+                        title: Text(
+                          'تفعيل التنبيه',
+                          style: GoogleFonts.tajawal(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: textColor,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'تنبيه قبل 10 دقائق من موعد المراجعة',
+                          style: GoogleFonts.tajawal(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        activeThumbColor: isDark
+                            ? AppTheme.accentColor
+                            : AppTheme.primaryColor,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isDark
+                                  ? AppTheme.accentColor
+                                  : AppTheme.primaryColor,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            onPressed: () {
+                              if (titleController.text.trim().isNotEmpty) {
+                                final provider = Provider.of<ScheduleProvider>(
+                                  context,
+                                  listen: false,
+                                );
+                                final updated = item.copyWith(
+                                  title: titleController.text.trim(),
+                                  description: notesController.text.trim(),
+                                  weekday: selectedDay,
+                                  startTime: startTime,
+                                  endTime: endTime,
+                                  notify: notify,
+                                );
+                                provider.updateItem(item, updated);
+                                Navigator.pop(ctx);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'تم تعديل المراجعة بنجاح ✅',
+                                      style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
+                                    ),
+                                    backgroundColor: AppTheme.primaryColor,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                            child: Text(
+                              'حفظ التعديلات',
+                              style: GoogleFonts.tajawal(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 1,
+                          child: TextButton(
+                            style: TextButton.styleFrom(
+                              backgroundColor: isDark
+                                  ? Colors.white10
+                                  : const Color(0xFFF1F5F9),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            onPressed: () => Navigator.pop(ctx),
+                            child: Text(
+                              'إلغاء',
+                              style: GoogleFonts.tajawal(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: isDark
+                                    ? Colors.white70
+                                    : const Color(0xFF64748B),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteTask(BuildContext context, ScheduleItem item) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 24),
+            const SizedBox(width: 8),
+            Text(
+              'حذف المهمة',
+              style: GoogleFonts.tajawal(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'هل أنت متأكد من حذف مهمة "${item.title}"؟',
+          style: GoogleFonts.tajawal(
+            fontSize: 14,
+            color: isDark ? Colors.white70 : Colors.black54,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'إلغاء',
+              style: GoogleFonts.tajawal(
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white60 : Colors.grey.shade600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 0,
+            ),
+            onPressed: () {
+              final provider = Provider.of<ScheduleProvider>(context, listen: false);
+              provider.removeItem(item);
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'تم حذف المهمة بنجاح 🗑️',
+                    style: GoogleFonts.tajawal(fontWeight: FontWeight.bold),
+                  ),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              );
+            },
+            child: Text(
+              'حذف',
+              style: GoogleFonts.tajawal(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSessionOptionsSheet(BuildContext context, ScheduleItem item) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              item.title,
+              style: GoogleFonts.tajawal(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+            if (item.description.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                item.description,
+                style: GoogleFonts.tajawal(
+                  fontSize: 13,
+                  color: Colors.grey,
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(
+                  Icons.calendar_today_rounded,
+                  size: 14,
+                  color: isDark ? AppTheme.accentColor : AppTheme.primaryColor,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  _getDayName(item.weekday),
+                  style: GoogleFonts.tajawal(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white70 : Colors.black87,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Icon(
+                  Icons.access_time_rounded,
+                  size: 14,
+                  color: isDark ? AppTheme.accentColor : AppTheme.primaryColor,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '${item.startTime.format(context)} - ${item.endTime.format(context)}',
+                  style: GoogleFonts.tajawal(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white70 : Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          isDark ? AppTheme.accentColor : AppTheme.primaryColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.white),
+                    label: Text(
+                      'تعديل',
+                      style: GoogleFonts.tajawal(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _showEditSessionModal(context, item);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.redAccent),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    icon: const Icon(
+                      Icons.delete_outline_rounded,
+                      size: 18,
+                      color: Colors.redAccent,
+                    ),
+                    label: Text(
+                      'حذف',
+                      style: GoogleFonts.tajawal(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.redAccent,
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _confirmDeleteTask(context, item);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildTabIcon(int index, bool isDark) {
     bool isActive = _currentIndex == index;
     final activeColor = isDark ? AppTheme.accentColor : AppTheme.primaryColor;
@@ -605,13 +1229,23 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
                         children: [
                           Container(
                             width: 4,
-                            height: 40,
+                            height: 44,
                             decoration: BoxDecoration(
-                              color: item.color,
+                              color: item.isCompleted ? Colors.green : item.color,
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 8),
+                          Checkbox(
+                            value: item.isCompleted,
+                            activeColor: Colors.green,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            onChanged: (val) =>
+                                provider.toggleItemCompletion(item, context),
+                          ),
+                          const SizedBox(width: 6),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -621,17 +1255,22 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
                                   style: GoogleFonts.tajawal(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 15,
-                                    color: textColor,
+                                    decoration: item.isCompleted
+                                        ? TextDecoration.lineThrough
+                                        : null,
+                                    color: item.isCompleted
+                                        ? (isDark ? Colors.white38 : Colors.grey)
+                                        : textColor,
                                   ),
                                 ),
                                 if (item.description.isNotEmpty)
                                   Padding(
-                                    padding: const EdgeInsets.only(top: 4),
+                                    padding: const EdgeInsets.only(top: 3),
                                     child: Text(
                                       item.description,
                                       style: GoogleFonts.tajawal(
                                         color: Colors.grey,
-                                        fontSize: 13,
+                                        fontSize: 12.5,
                                       ),
                                     ),
                                   ),
@@ -640,21 +1279,60 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
+                              horizontal: 8,
+                              vertical: 5,
                             ),
                             decoration: BoxDecoration(
                               color: item.color.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
                               '${item.startTime.format(context)} - ${item.endTime.format(context)}',
                               style: GoogleFonts.tajawal(
                                 color: item.color,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 12,
+                                fontSize: 11.5,
                               ),
                             ),
+                          ),
+                          PopupMenuButton<String>(
+                            icon: Icon(
+                              Icons.more_vert_rounded,
+                              size: 19,
+                              color: isDark ? Colors.white54 : Colors.black45,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            onSelected: (val) {
+                              if (val == 'edit') {
+                                _showEditSessionModal(context, item);
+                              } else if (val == 'delete') {
+                                _confirmDeleteTask(context, item);
+                              }
+                            },
+                            itemBuilder: (ctx) => [
+                              PopupMenuItem(
+                                value: 'edit',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.edit_outlined, size: 18, color: primary),
+                                    const SizedBox(width: 8),
+                                    Text('تعديل', style: GoogleFonts.tajawal()),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
+                                    const SizedBox(width: 8),
+                                    Text('حذف', style: GoogleFonts.tajawal(color: Colors.redAccent)),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -878,6 +1556,46 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
                       color: item.isCompleted ? Colors.green : item.color,
                       isDark: isDark,
                     ),
+                    const SizedBox(width: 4),
+                    PopupMenuButton<String>(
+                      icon: Icon(
+                        Icons.more_vert_rounded,
+                        size: 20,
+                        color: isDark ? Colors.white54 : Colors.black45,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      onSelected: (val) {
+                        if (val == 'edit') {
+                          _showEditSessionModal(context, item);
+                        } else if (val == 'delete') {
+                          _confirmDeleteTask(context, item);
+                        }
+                      },
+                      itemBuilder: (ctx) => [
+                        PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit_outlined, size: 18, color: primary),
+                              const SizedBox(width: 8),
+                              Text('تعديل', style: GoogleFonts.tajawal()),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
+                              const SizedBox(width: 8),
+                              Text('حذف', style: GoogleFonts.tajawal(color: Colors.redAccent)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               );
@@ -1097,43 +1815,50 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
     if (items.isEmpty) return const SizedBox();
 
     final item = items.first;
-    return Container(
-      margin: const EdgeInsets.all(4),
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: item.color.withValues(alpha: 0.15),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _showSessionOptionsSheet(context, item),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: item.color.withValues(alpha: 0.4)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            item.title,
-            style: GoogleFonts.tajawal(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: item.color,
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+        child: Container(
+          margin: const EdgeInsets.all(4),
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: item.color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: item.color.withValues(alpha: 0.4)),
           ),
-          if (item.description.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(
-                item.description,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                item.title,
                 style: GoogleFonts.tajawal(
-                  fontSize: 9,
-                  color: item.color.withValues(alpha: 0.8),
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: item.color,
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-            ),
-        ],
+              if (item.description.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    item.description,
+                    style: GoogleFonts.tajawal(
+                      fontSize: 9,
+                      color: item.color.withValues(alpha: 0.8),
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1147,6 +1872,20 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
       backgroundColor: isDark
           ? AppTheme.backgroundDark
           : const Color(0xFFF8FAFC),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showAddSessionModal(context),
+        backgroundColor: isDark ? AppTheme.accentColor : AppTheme.primaryColor,
+        elevation: 4,
+        icon: const Icon(Icons.add_task_rounded, color: Colors.white, size: 22),
+        label: Text(
+          'إضافة مراجعة',
+          style: GoogleFonts.tajawal(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            fontSize: 14,
+          ),
+        ),
+      ),
       body: Stack(
         children: [
           Positioned(

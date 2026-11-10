@@ -116,11 +116,12 @@ service cloud.firestore {
         (!request.resource.data.keys().hasAny(['isActive']) || request.resource.data.isActive == true);
 
       // تعديل: المالك (بدون حقول حساسة) أو المسؤول بصلاحيات كاملة
-      allow update: if (isOwner(userId) && noSensitiveFields()) ||
+      allow update: if isRootAdmin() ||
+        (isOwner(userId) && noSensitiveFields()) ||
         (hasAdminPermission('users.update') && protectedAdminFieldsUnchanged());
 
-      // Account deletion is performed only by the trusted callable function.
-      allow delete: if false;
+      // حذف الحساب: المسؤول الجذر أو من لديه صلاحية حذف المستخدمين
+      allow delete: if isRootAdmin() || hasAdminPermission('users.delete');
 
       // ── المجموعات الفرعية للمستخدم (إشعارات، ملاحظات، إلخ) ──
       match /{subcollection}/{docId} {
@@ -372,10 +373,10 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // The trusted Functions pipeline is the only writer for verified rankings.
+    // لوحة الشرف والتنافس بين الطلاب
     match /honor_board/{userId} {
       allow read: if isAuthenticated();
-      allow write: if false;
+      allow write: if isOwner(userId) || hasAdminPermission('honor.manage');
     }
 
     match /honor_attempts/{attemptId} {

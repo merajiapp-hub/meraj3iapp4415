@@ -36,6 +36,10 @@ class ReadingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> refresh() async {
+    await _syncFromFirestore();
+  }
+
   List<ReadingSession> get sessions =>
       _sessions.values.toList()
         ..sort((a, b) => b.lastReadAt.compareTo(a.lastReadAt));

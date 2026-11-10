@@ -1,9 +1,17 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import '../data/ad_manager.dart';
 
+/// ويدجت إعلان بانر ذكي ومتكيف مع حجم الشاشة
 class BannerAdWidget extends StatefulWidget {
-  const BannerAdWidget({super.key});
+  final EdgeInsetsGeometry? margin;
+
+  const BannerAdWidget({
+    super.key,
+    this.margin,
+  });
 
   @override
   State<BannerAdWidget> createState() => _BannerAdWidgetState();
@@ -12,27 +20,35 @@ class BannerAdWidget extends StatefulWidget {
 class _BannerAdWidgetState extends State<BannerAdWidget> {
   BannerAd? _bannerAd;
   bool _isLoaded = false;
-
-  static const adUnitId = 'ca-app-pub-7381352612061383/9877064981';
+  bool _isLoading = false;
+  int _retryAttempts = 0;
+  static const int _maxRetryAttempts = 4;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_isLoaded && _bannerAd == null) {
+    if (!_isLoaded && !_isLoading && _bannerAd == null) {
       _loadAd();
     }
   }
 
-  Future<void> _loadAd() async {
-    if (kIsWeb) return;
+  Future<void> _loadAd({bool useFallback = false}) async {
+    if (kIsWeb || !mounted || _isLoading) return;
+
+    _isLoading = true;
+
     // الحصول على العرض المناسب للشاشة للإعلان المتكيف
     final width = MediaQuery.of(context).size.width.truncate();
-    final size = await AdSize.getLargeAnchoredAdaptiveBannerAdSize(width);
+    AdSize? size = await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(width);
+    size ??= AdSize.banner; // كبديل قياسي 320x50 إذا تعذر تحديد الحجم المتكيف
 
-    if (size == null) {
-      return;
-    }
+    final adUnitId = (kDebugMode && useFallback)
+        ? AdManager.testBannerAdUnitId
+        : AdManager.realBannerAdUnitId;
 
+    debugPrint('Loading BannerAd with ID: $adUnitId');
+
+    _bannerAd?.dispose();
     _bannerAd = BannerAd(
       adUnitId: adUnitId,
       request: const AdRequest(),
@@ -43,16 +59,48 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
           if (mounted) {
             setState(() {
               _isLoaded = true;
+              _isLoading = false;
+              _retryAttempts = 0;
             });
           }
         },
         onAdFailedToLoad: (ad, err) {
           debugPrint('BannerAd failed to load: $err');
           ad.dispose();
-          // يمكن هنا إضافة كود لإعادة المحاولة إن لزم الأمر
+          _bannerAd = null;
+          if (!mounted) return;
+
+          setState(() {
+            _isLoaded = false;
+            _isLoading = false;
+          });
+
+          // في وضع التطوير (debug): إذا فشل الإعلان الحقيقي بسبب عدم التوفر، نستخدم المعرف التجريبي
+          if (kDebugMode && !useFallback && err.code == 3) {
+            debugPrint('Switching to test BannerAd ID for debug mode.');
+            _loadAd(useFallback: true);
+            return;
+          }
+
+          // إعادة المحاولة التلقائية بوقت تصاعدي
+          if (_retryAttempts < _maxRetryAttempts) {
+            _retryAttempts++;
+            final delay = Duration(seconds: pow(2, _retryAttempts).toInt());
+            debugPrint('Will retry loading BannerAd in ${delay.inSeconds}s (attempt $_retryAttempts)');
+            Future.delayed(delay, () {
+              if (mounted) _loadAd(useFallback: useFallback);
+            });
+          }
         },
       ),
-    )..load();
+    );
+
+    try {
+      await _bannerAd!.load();
+    } catch (e) {
+      debugPrint('Error triggering BannerAd load: $e');
+      _isLoading = false;
+    }
   }
 
   @override
@@ -64,15 +112,17 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
   @override
   Widget build(BuildContext context) {
     if (kIsWeb) return const SizedBox.shrink();
+
     if (_isLoaded && _bannerAd != null) {
       return Container(
         alignment: Alignment.center,
         width: _bannerAd!.size.width.toDouble(),
         height: _bannerAd!.size.height.toDouble(),
-        margin: const EdgeInsets.symmetric(vertical: 8),
+        margin: widget.margin ?? const EdgeInsets.symmetric(vertical: 8),
         child: AdWidget(ad: _bannerAd!),
       );
     }
+
     return const SizedBox.shrink();
   }
 }

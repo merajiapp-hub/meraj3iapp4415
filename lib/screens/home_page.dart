@@ -21,6 +21,8 @@ import 'notifications_screen.dart';
 import '../widgets/banner_ad_widget.dart';
 import '../features/smart_calculator/ui/screens/smart_calculator_screen.dart';
 import 'services_screen.dart';
+import 'published_exams_screen.dart';
+import 'student_competition_screen.dart';
 import 'news_screen.dart';
 import 'announcements_screen.dart';
 
@@ -305,9 +307,7 @@ class _HomePageState extends State<HomePage>
                       children: [
                         // ── عنوان القسم الرئيسي ──
                         _buildSectionHeader('الخدمات الرئيسية', isDark),
-                        const SizedBox(height: 14),
-
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 12),
                         // ── Grid الأزرار الرئيسية ──
                         RepaintBoundary(
                           child: _buildMainServicesGrid(size, isDark),
@@ -328,7 +328,7 @@ class _HomePageState extends State<HomePage>
   }
 
   // ══════════════════════════════════════════════════════
-  //  Grid الأزرار الرئيسية الست
+  //  Grid الأزرار الرئيسية الأربع
   // ══════════════════════════════════════════════════════
   Widget _buildMainServicesGrid(Size size, bool isDark) {
     final services = [
