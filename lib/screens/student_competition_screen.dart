@@ -381,34 +381,45 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () {
-            AdManager.showRewardedAd(
-              onRewarded: () {
+            AdManager.showRewardedAdWithLoader(
+              context,
+              onRewarded: () async {
                 final stats = context.read<StatisticsProvider>();
-                stats.incrementUserStat('points', value: 25);
+                await stats.incrementUserStat('points', value: 5);
+
+                final studentProvider = context.read<StudentProvider>();
+                await studentProvider.addPoints(5);
+
+                final authUser = context.read<AuthProvider>().user;
+                if (authUser != null) {
+                  try {
+                    final profile = studentProvider.profile;
+                    final studentName = profile.name.trim().isNotEmpty
+                        ? profile.name.trim()
+                        : (authUser.displayName ?? 'طالب متميز');
+                    await FirebaseFirestore.instance
+                        .collection('honor_board')
+                        .doc(authUser.uid)
+                        .set({
+                          'name': studentName,
+                          'points': FieldValue.increment(5),
+                          'profileImageUrl': profile.avatarPath ?? authUser.photoURL,
+                          'lastActive': FieldValue.serverTimestamp(),
+                        }, SetOptions(merge: true));
+                  } catch (e) {
+                    debugPrint('Error updating honor_board from rewarded ad: $e');
+                  }
+                }
+
                 if (mounted) {
+                  _loadLeaderboard();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        '🎉 مبروك! حصلت على 25 نقطة إضافية لدعمك التطبيق.',
+                        '🎉 مبروك! حصلت على 5 نقاط إضافية لدعمك التطبيق.',
                         style: GoogleFonts.cairo(fontWeight: FontWeight.bold),
                       ),
                       backgroundColor: AppTheme.primaryColor,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  );
-                }
-              },
-              onNotReady: () {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'جاري تجهيز إعلان المكافأة، يُرجى المحاولة بعد لحظات...',
-                        style: GoogleFonts.cairo(),
-                      ),
                       behavior: SnackBarBehavior.floating,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -441,9 +452,9 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'اكسب 25 نقطة مجانية! 🎁',
+                        'اكسب 5 نقاط إضافية! 🎁',
                         style: GoogleFonts.cairo(
-                          fontSize: 13.5,
+                          fontSize: 13,
                           fontWeight: FontWeight.bold,
                           color: isDark ? Colors.white : Colors.black87,
                         ),
@@ -451,7 +462,7 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
                       Text(
                         'شاهد إعلاناً قصيراً لزيادة نقاطك في لوحة الشرف',
                         style: GoogleFonts.cairo(
-                          fontSize: 11,
+                          fontSize: 10.5,
                           color: isDark ? Colors.white60 : Colors.black54,
                         ),
                       ),
@@ -461,30 +472,23 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
-                    vertical: 6,
+                    vertical: 5,
                   ),
                   decoration: BoxDecoration(
                     gradient: AppTheme.primaryGradient,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(
                         Icons.play_circle_outline_rounded,
-                        size: 16,
+                        size: 14,
                         color: Colors.white,
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'مشاهدة',
+                        'مشاهدة (+5)',
                         style: GoogleFonts.cairo(
                           fontSize: 11.5,
                           fontWeight: FontWeight.bold,
@@ -530,32 +534,33 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
         child: child,
       ),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          gradient: AppTheme.primaryGradient,
-          borderRadius: BorderRadius.circular(28),
+          gradient: AppTheme.brandGradient,
+          borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.primaryColor.withValues(alpha: 0.4),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
+              color: AppTheme.primaryColor.withValues(alpha: 0.25),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               children: [
-                // صورة المستخدم
+                // صورة المستخدم المدمجة
                 Container(
-                  width: 58,
-                  height: 58,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.5),
-                      width: 2,
+                      color: Colors.white.withValues(alpha: 0.6),
+                      width: 1.5,
                     ),
                   ),
                   child: ClipOval(
@@ -569,36 +574,37 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
                         : _defaultAvatar(profile.name, Colors.white),
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         displayName,
                         style: GoogleFonts.tajawal(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                          fontSize: 14.5,
                         ),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 3,
+                          horizontal: 8,
+                          vertical: 2,
                         ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           myE?.levelTitle ?? 'مبتدئ 🌱',
                           style: GoogleFonts.tajawal(
                             color: Colors.white,
-                            fontSize: 12,
+                            fontSize: 10.5,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -607,37 +613,45 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
                   ),
                 ),
                 // الترتيب
-                Column(
-                  children: [
-                    Text(
-                      '${_myRank > 0 ? _myRank : '—'}',
-                      style: GoogleFonts.outfit(
-                        color: Colors.white,
-                        fontSize: 26,
-                        fontWeight: FontWeight.w900,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${_myRank > 0 ? _myRank : '—'}',
+                        style: GoogleFonts.outfit(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
-                    ),
-                    Text(
-                      'ترتيبي',
-                      style: GoogleFonts.tajawal(
-                        color: Colors.white70,
-                        fontSize: 11,
+                      Text(
+                        'ترتيبي',
+                        style: GoogleFonts.tajawal(
+                          color: Colors.white70,
+                          fontSize: 10,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Divider(color: Colors.white.withValues(alpha: 0.2)),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
+            Divider(color: Colors.white.withValues(alpha: 0.15), height: 1),
+            const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildMyStatChip(
                   Icons.star_rounded,
                   '$displayPoints',
-                  'نقطة مصححة',
+                  'نقطة',
                 ),
                 _buildMyStatChip(Icons.quiz_rounded, '$displayExams', 'اختبار'),
                 _buildMyStatChip(
@@ -647,15 +661,8 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              'النقاط مبنية على أفضل نتيجة في كل اختبار منشور، بعد إعادة تصحيح الإجابات على الخادم.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.tajawal(color: Colors.white70, fontSize: 11),
-            ),
-            // ─── رسالة تحفيزية ──────────────────────────────
             if (_myRank > 1 && _leaderboard.length > 1) ...[
-              const SizedBox(height: 14),
+              const SizedBox(height: 8),
               _buildMotivationBanner(),
             ],
           ],
@@ -723,36 +730,39 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
         // ─── المراكز الثلاثة الأولى (المنصة) ──────────────
         if (top3.isNotEmpty) ...[
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: Text(
-              'المراكز الثلاثة الأولى 🏆',
-              style: GoogleFonts.tajawal(
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : AppTheme.primaryColor,
-              ),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.emoji_events_rounded,
+                  color: Color(0xFFFBBF24),
+                  size: 20,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'منصة الأوائل',
+                  style: GoogleFonts.cairo(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : AppTheme.primaryColor,
+                  ),
+                ),
+              ],
             ),
           ),
           _buildPodium(top3, isDark, currentUserId),
         ],
 
-        if (_leaderboard.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
-            child: _buildWinnerHighlightCard(_leaderboard.first, isDark),
-          ),
-        ],
-
         // ─── قائمة الترتيب العام ────────────────────────────
         if (rest.isNotEmpty) ...[
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
             child: Text(
-              'الترتيب العام',
-              style: GoogleFonts.tajawal(
-                fontSize: 17,
+              'الترتيب العام (${_leaderboard.length})',
+              style: GoogleFonts.cairo(
+                fontSize: 14,
                 fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : AppTheme.primaryColor,
+                color: isDark ? Colors.white70 : Colors.black87,
               ),
             ),
           ),
@@ -764,110 +774,12 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
           }),
         ],
 
-        const SizedBox(height: 40),
+        const SizedBox(height: 32),
       ],
     );
   }
 
-  Widget _buildWinnerHighlightCard(_LeaderboardEntry winner, bool isDark) {
-    final winnerName = _buildStudentNameDisplay(
-      winner.name,
-      fallback: 'طالب متميز',
-    );
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [const Color(0xFFFBBF24), const Color(0xFFF59E0B)],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 62,
-            height: 62,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withValues(alpha: 0.18),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.5),
-                width: 2,
-              ),
-            ),
-            child: ClipOval(
-              child: winner.profileImageUrl != null
-                  ? CachedNetworkImage(
-                      imageUrl: winner.profileImageUrl!,
-                      fit: BoxFit.cover,
-                      errorWidget: (ctx, err, stk) =>
-                          _defaultAvatar(winner.name, Colors.white),
-                    )
-                  : _defaultAvatar(winner.name, Colors.white),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.workspace_premium_rounded,
-                      color: Colors.white,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'الكرت الأول',
-                      style: GoogleFonts.tajawal(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  winnerName,
-                  style: GoogleFonts.tajawal(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${winner.points} نقطة مصححة • ${winner.verifiedExamCount} اختبار • ${winner.verifiedCorrectAnswers} إجابة صحيحة',
-                  style: GoogleFonts.tajawal(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── المنصة (Podium) ────────────────────────────────────────────────────
+  // ── المنصة المدمجة والمحترفة (Podium) ───────────────────────────────────
   Widget _buildPodium(
     List<_LeaderboardEntry> top,
     bool isDark,
@@ -885,14 +797,14 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
     ];
     final List<int> ranks = [2, 1, 3];
     final List<Color> colors = [silverColor, goldColor, bronzeColor];
-    final List<double> heights = [100, 140, 80];
+    final List<double> heights = [58, 86, 46];
 
     return AnimatedBuilder(
       animation: _animController,
       builder: (context, child) => Transform.translate(
         offset: Offset(
           0,
-          40 * (1 - Curves.easeOutQuart.transform(_animController.value)),
+          24 * (1 - Curves.easeOutQuart.transform(_animController.value)),
         ),
         child: Opacity(
           opacity: Curves.easeIn.transform(_animController.value.clamp(0, 1)),
@@ -900,13 +812,13 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(3, (i) {
             final entry = ordered[i];
-            if (entry == null) return const SizedBox(width: 80);
+            if (entry == null) return const SizedBox(width: 60);
             final isMe = entry.uid == currentUserId;
             return Expanded(
               child: _buildPodiumItem(
@@ -932,18 +844,18 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
     required bool isDark,
     required bool isMe,
   }) {
-    final avatarSize = rank == 1 ? 72.0 : 58.0;
+    final avatarSize = rank == 1 ? 48.0 : 38.0;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (rank == 1)
           const Padding(
-            padding: EdgeInsets.only(bottom: 4),
+            padding: EdgeInsets.only(bottom: 2),
             child: Icon(
               Icons.workspace_premium_rounded,
               color: Color(0xFFFBBF24),
-              size: 32,
+              size: 22,
             ),
           ),
         // صورة المستخدم
@@ -953,14 +865,14 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: isMe ? Colors.white : color,
-              width: isMe ? 3 : 2.5,
+              color: isMe ? AppTheme.primaryColor : color,
+              width: isMe ? 2.5 : 2.0,
             ),
             boxShadow: [
               BoxShadow(
-                color: color.withValues(alpha: 0.4),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
+                color: color.withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
@@ -975,10 +887,10 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
                 : _defaultAvatar(entry.name, color),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         // الاسم
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 2),
           child: Text(
             isMe
                 ? 'أنت'
@@ -989,52 +901,52 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.tajawal(
+            style: GoogleFonts.cairo(
               fontWeight: FontWeight.bold,
-              fontSize: rank == 1 ? 14 : 12,
+              fontSize: rank == 1 ? 12.5 : 11,
               color: isDark ? Colors.white : Colors.black87,
             ),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         // النقاط
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Text(
-            '${entry.points} pt',
-            style: GoogleFonts.outfit(
+            '${entry.points} ن',
+            style: GoogleFonts.cairo(
               fontWeight: FontWeight.bold,
               color: color,
-              fontSize: 11,
+              fontSize: 10,
             ),
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         // قاعدة المنصة
         Container(
           width: double.infinity,
           height: podiumHeight,
-          margin: const EdgeInsets.symmetric(horizontal: 4),
+          margin: const EdgeInsets.symmetric(horizontal: 3),
           decoration: BoxDecoration(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
             gradient: LinearGradient(
               colors: [
-                color.withValues(alpha: 0.3),
+                color.withValues(alpha: 0.28),
                 color.withValues(alpha: 0.08),
               ],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
-            border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
+            border: Border.all(color: color.withValues(alpha: 0.35), width: 1.2),
             boxShadow: [
               BoxShadow(
-                color: color.withValues(alpha: 0.15),
-                blurRadius: 15,
-                offset: const Offset(0, -3),
+                color: color.withValues(alpha: 0.1),
+                blurRadius: 10,
+                offset: const Offset(0, -2),
               ),
             ],
           ),
@@ -1044,24 +956,18 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
               Text(
                 '$rank',
                 style: GoogleFonts.outfit(
-                  fontSize: rank == 1 ? 42 : 32,
+                  fontSize: rank == 1 ? 26 : 20,
                   fontWeight: FontWeight.w900,
-                  color: color.withValues(alpha: 0.6),
+                  color: color.withValues(alpha: 0.75),
                 ),
               ),
-              // معلومات إضافية مختصرة
               if (rank == 1) ...[
-                const SizedBox(height: 4),
-                Icon(
-                  Icons.menu_book_rounded,
-                  size: 14,
-                  color: color.withValues(alpha: 0.7),
-                ),
                 Text(
-                  '${entry.verifiedExamCount} اختبارات',
-                  style: GoogleFonts.tajawal(
-                    fontSize: 10,
-                    color: color.withValues(alpha: 0.8),
+                  '${entry.verifiedExamCount} اختبار',
+                  style: GoogleFonts.cairo(
+                    fontSize: 9,
+                    color: color.withValues(alpha: 0.85),
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -1072,144 +978,139 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
     );
   }
 
-  // ── كرت الترتيب العام ────────────────────────────────────────────────
+  // ── كرت الترتيب العام المدمج والأنيق ─────────────────────────────────
   Widget _buildRankCard(_LeaderboardEntry e, int rank, bool isMe, bool isDark) {
-    return AnimatedBuilder(
-      animation: _animController,
-      builder: (context, child) => Transform.translate(
-        offset: Offset(
-          0,
-          30 *
-              (1 -
-                  Curves.easeOut.transform(
-                    (_animController.value - 0.3).clamp(0, 1),
-                  )),
-        ),
-        child: Opacity(
-          opacity: ((_animController.value - 0.2) / 0.8).clamp(0, 1),
-          child: child,
-        ),
-      ),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-        decoration: BoxDecoration(
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 3.5),
+      decoration: BoxDecoration(
+        color: isMe
+            ? AppTheme.primaryColor.withValues(alpha: 0.08)
+            : (isDark ? AppTheme.surfaceDark : Colors.white),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
           color: isMe
-              ? AppTheme.primaryColor.withValues(alpha: 0.1)
-              : (isDark ? AppTheme.surfaceDark : Colors.white),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isMe ? AppTheme.primaryColor : Colors.transparent,
-            width: isMe ? 1.5 : 0,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+              ? AppTheme.primaryColor.withValues(alpha: 0.6)
+              : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06)),
+          width: isMe ? 1.4 : 1.0,
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(
-            children: [
-              // رقم الترتيب
-              SizedBox(
-                width: 36,
-                child: Text(
-                  '$rank',
-                  style: GoogleFonts.outfit(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: isMe
-                        ? AppTheme.primaryColor
-                        : (isDark ? Colors.white54 : Colors.black38),
-                  ),
-                  textAlign: TextAlign.center,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            // رقم الترتيب
+            SizedBox(
+              width: 26,
+              child: Text(
+                '$rank',
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: isMe
+                      ? AppTheme.primaryColor
+                      : (isDark ? Colors.white54 : Colors.black45),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(width: 8),
+            // صورة المستخدم
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isMe
+                      ? AppTheme.primaryColor
+                      : e.levelColor.withValues(alpha: 0.4),
+                  width: 1.2,
                 ),
               ),
-              const SizedBox(width: 10),
-              // صورة المستخدم
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: isMe
-                        ? AppTheme.primaryColor
-                        : e.levelColor.withValues(alpha: 0.4),
-                    width: 1.5,
-                  ),
-                ),
-                child: ClipOval(
-                  child: e.profileImageUrl != null
-                      ? CachedNetworkImage(
-                          imageUrl: e.profileImageUrl!,
-                          fit: BoxFit.cover,
-                          errorWidget: (ctx, err, stk) =>
-                              _defaultAvatar(e.name, e.levelColor),
-                        )
-                      : _defaultAvatar(e.name, e.levelColor),
-                ),
+              child: ClipOval(
+                child: e.profileImageUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: e.profileImageUrl!,
+                        fit: BoxFit.cover,
+                        errorWidget: (ctx, err, stk) =>
+                            _defaultAvatar(e.name, e.levelColor),
+                      )
+                    : _defaultAvatar(e.name, e.levelColor),
               ),
-              const SizedBox(width: 12),
-              // الاسم والمستوى
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isMe
-                          ? 'أنت (${_buildStudentNameDisplay(e.name, fallback: 'طالب متميز')})'
-                          : _buildStudentNameDisplay(
-                              e.name,
-                              fallback: 'طالب متميز',
-                            ),
-                      style: GoogleFonts.tajawal(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: isMe
-                            ? AppTheme.primaryColor
-                            : (isDark ? Colors.white : Colors.black87),
-                      ),
-                      overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(width: 10),
+            // الاسم والمستوى
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    isMe
+                        ? 'أنت (${_buildStudentNameDisplay(e.name, fallback: 'طالب متميز')})'
+                        : _buildStudentNameDisplay(
+                            e.name,
+                            fallback: 'طالب متميز',
+                          ),
+                    style: GoogleFonts.cairo(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12.5,
+                      color: isMe
+                          ? AppTheme.primaryColor
+                          : (isDark ? Colors.white : Colors.black87),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      e.levelTitle,
-                      style: GoogleFonts.tajawal(
-                        fontSize: 11,
-                        color: e.levelColor,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    e.levelTitle,
+                    style: GoogleFonts.cairo(
+                      fontSize: 10,
+                      color: e.levelColor,
+                      fontWeight: FontWeight.w600,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              // النقاط
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+            ),
+            // النقاط
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: (isMe ? AppTheme.primaryColor : e.levelColor).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     '${e.points}',
                     style: GoogleFonts.outfit(
                       fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      fontSize: 13.5,
                       color: isMe ? AppTheme.primaryColor : e.levelColor,
                     ),
                   ),
+                  const SizedBox(width: 3),
                   Text(
-                    'نقطة',
-                    style: GoogleFonts.tajawal(
+                    'ن',
+                    style: GoogleFonts.cairo(
                       fontSize: 10,
-                      color: isDark ? Colors.white54 : Colors.black38,
+                      fontWeight: FontWeight.bold,
+                      color: isMe ? AppTheme.primaryColor : e.levelColor,
                     ),
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

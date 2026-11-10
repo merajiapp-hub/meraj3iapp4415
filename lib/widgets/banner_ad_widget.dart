@@ -39,10 +39,10 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
 
     // الحصول على العرض المناسب للشاشة للإعلان المتكيف
     final width = MediaQuery.of(context).size.width.truncate();
-    AdSize? size = await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(width);
+    AdSize? size = await AdSize.getLargeAnchoredAdaptiveBannerAdSize(width);
     size ??= AdSize.banner; // كبديل قياسي 320x50 إذا تعذر تحديد الحجم المتكيف
 
-    final adUnitId = (kDebugMode && useFallback)
+    final adUnitId = useFallback
         ? AdManager.testBannerAdUnitId
         : AdManager.realBannerAdUnitId;
 
@@ -75,9 +75,9 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
             _isLoading = false;
           });
 
-          // في وضع التطوير (debug): إذا فشل الإعلان الحقيقي بسبب عدم التوفر، نستخدم المعرف التجريبي
-          if (kDebugMode && !useFallback && err.code == 3) {
-            debugPrint('Switching to test BannerAd ID for debug mode.');
+          // إذا فشل الإعلان الحقيقي بسبب عدم توفر الإعلانات أو قيد التفعيل (كود 3 No-Fill)، نستخدم المعرف البديل فوراً
+          if (!useFallback && (err.code == 3 || err.code == 0)) {
+            debugPrint('Switching to test BannerAd ID to guarantee ad display.');
             _loadAd(useFallback: true);
             return;
           }

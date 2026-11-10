@@ -21,8 +21,6 @@ import 'notifications_screen.dart';
 import '../widgets/banner_ad_widget.dart';
 import '../features/smart_calculator/ui/screens/smart_calculator_screen.dart';
 import 'services_screen.dart';
-import 'published_exams_screen.dart';
-import 'student_competition_screen.dart';
 import 'news_screen.dart';
 import 'announcements_screen.dart';
 

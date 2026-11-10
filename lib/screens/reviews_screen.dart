@@ -962,6 +962,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
       floatingActionButton: isGuest
           ? null
           : FloatingActionButton.extended(
+              heroTag: null,
               onPressed: _showAddReviewSheet,
               backgroundColor: AppTheme.primaryColor,
               icon: const Icon(Icons.rate_review_rounded, color: Colors.white),

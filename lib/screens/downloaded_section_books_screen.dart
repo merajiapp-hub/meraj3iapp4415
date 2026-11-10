@@ -35,6 +35,52 @@ class _DownloadedSectionBooksScreenState
     super.dispose();
   }
 
+  static int getEducationalOrder(String text) {
+    final s = text.toLowerCase().trim();
+    int stageScore = 0;
+    if (s.contains('ابتدائ')) {
+      stageScore = 1000;
+    } else if (s.contains('إعداد') || s.contains('اعداد')) {
+      stageScore = 2000;
+    } else if (s.contains('ثانوي')) {
+      stageScore = 3000;
+    } else if (s.contains('امتحان') ||
+        s.contains('concours') ||
+        s.contains('brevet') ||
+        s.contains('bac')) {
+      stageScore = 4000;
+    } else if (s.contains('swedd')) {
+      stageScore = 5000;
+    } else {
+      stageScore = 6000;
+    }
+
+    int gradeScore = 0;
+    if (s.contains('أول') || s.contains('الاول') || s.contains('الأول') || s.contains('1')) {
+      gradeScore = 1;
+    } else if (s.contains('ثان') || s.contains('الثاني') || s.contains('2')) {
+      gradeScore = 2;
+    } else if (s.contains('ثالث') || s.contains('الثالث') || s.contains('3')) {
+      gradeScore = 3;
+    } else if (s.contains('رابع') || s.contains('الرابع') || s.contains('4')) {
+      gradeScore = 4;
+    } else if (s.contains('خامس') || s.contains('الخامس') || s.contains('5')) {
+      gradeScore = 5;
+    } else if (s.contains('سادس') || s.contains('السادس') || s.contains('6')) {
+      gradeScore = 6;
+    } else if (s.contains('سابع') || s.contains('السابع') || s.contains('7')) {
+      gradeScore = 7;
+    } else if (s.contains('ثامن') || s.contains('الثامن') || s.contains('8')) {
+      gradeScore = 8;
+    } else if (s.contains('تاسع') || s.contains('التاسع') || s.contains('9')) {
+      gradeScore = 9;
+    } else if (s.contains('باك') || s.contains('bac')) {
+      gradeScore = 10;
+    }
+
+    return stageScore + gradeScore;
+  }
+
   static String getSectionName(DownloadedBook book) {
     if (book.section.trim().isNotEmpty) {
       return book.section.trim();
@@ -43,23 +89,6 @@ class _DownloadedSectionBooksScreenState
       return book.category.trim();
     }
     return 'قسم عام';
-  }
-
-  IconData _getSectionIcon(String section) {
-    final s = section.toLowerCase();
-    if (s.contains('ابتدائ')) return Icons.menu_book_rounded;
-    if (s.contains('إعداد') || s.contains('اعداد')) {
-      return Icons.auto_stories_rounded;
-    }
-    if (s.contains('ثانوي')) return Icons.school_rounded;
-    if (s.contains('امتحان') ||
-        s.contains('concours') ||
-        s.contains('brevet') ||
-        s.contains('bac')) {
-      return Icons.emoji_events_rounded;
-    }
-    if (s.contains('swedd')) return Icons.volunteer_activism_rounded;
-    return Icons.collections_bookmark_rounded;
   }
 
   @override
@@ -84,6 +113,25 @@ class _DownloadedSectionBooksScreenState
           b.subject.toLowerCase().contains(q);
     }).toList();
 
+    // تجميع وترتيب الكتب حسب المرحلة/السنة الدراسية (من الأصغر إلى الأكبر)
+    final Map<String, List<DownloadedBook>> booksByGrade = {};
+    for (final book in filteredBooks) {
+      final grade = book.grade.trim().isNotEmpty ? book.grade.trim() : 'كتب عامة';
+      booksByGrade.putIfAbsent(grade, () => []).add(book);
+    }
+
+    final sortedGrades = booksByGrade.keys.toList()
+      ..sort((a, b) {
+        final orderA = getEducationalOrder(a);
+        final orderB = getEducationalOrder(b);
+        if (orderA != orderB) return orderA.compareTo(orderB);
+        return a.compareTo(b);
+      });
+
+    for (final list in booksByGrade.values) {
+      list.sort((a, b) => a.title.compareTo(b.title));
+    }
+
     return Scaffold(
       backgroundColor: isDark
           ? const Color(0xFF0F172A)
@@ -106,7 +154,7 @@ class _DownloadedSectionBooksScreenState
                       color: Colors.white,
                     ),
                     tooltip: 'حذف جميع كتب هذا القسم',
-                    onPressed: () => _confirmDeleteAll(context, provider, sectionBooks),
+                    onPressed: () => _confirmDeleteAll(provider, sectionBooks),
                   )
                 : null,
           ),
@@ -200,19 +248,38 @@ class _DownloadedSectionBooksScreenState
                             ),
                           ),
                         )
-                      else
-                        ...filteredBooks.map(
-                          (book) => Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _SectionDownloadedBookCard(
-                              db: book,
+                      else ...[
+                        ...sortedGrades.expand((grade) {
+                          final gradeBooks = booksByGrade[grade]!;
+                          final gradeMb = gradeBooks.fold<double>(
+                            0.0,
+                            (acc, b) => acc + b.fileSizeMb,
+                          );
+
+                          return [
+                            _GradeDividerBar(
+                              gradeName: grade,
+                              bookCount: gradeBooks.length,
+                              totalMb: gradeMb,
                               isDark: isDark,
-                              onDelete: () =>
-                                  _confirmDeleteBook(context, provider, book),
-                              onShare: () => _shareBook(book),
                             ),
-                          ),
-                        ),
+                            const SizedBox(height: 10),
+                            ...gradeBooks.map(
+                              (book) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _SectionDownloadedBookCard(
+                                  db: book,
+                                  isDark: isDark,
+                                  onDelete: () =>
+                                      _confirmDeleteBook(provider, book),
+                                  onShare: () => _shareBook(book),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                          ];
+                        }),
+                      ],
                     ],
                   ),
           ),
@@ -286,14 +353,16 @@ class _DownloadedSectionBooksScreenState
   }
 
   void _shareBook(DownloadedBook db) {
-    Share.share(
-      '📚 كتاب: ${db.title}\nالمرحلة: ${db.section}\nالصف: ${db.grade}\n\nمتوفر في تطبيق مراجعي للدراسة والامتحانات.',
-      subject: db.title,
+    SharePlus.instance.share(
+      ShareParams(
+        text:
+            '📚 كتاب: ${db.title}\nالمرحلة: ${db.section}\nالصف: ${db.grade}\n\nمتوفر في تطبيق مراجعي للدراسة والامتحانات.',
+        subject: db.title,
+      ),
     );
   }
 
   Future<void> _confirmDeleteBook(
-    BuildContext context,
     DownloadsProvider provider,
     DownloadedBook db,
   ) async {
@@ -339,26 +408,24 @@ class _DownloadedSectionBooksScreenState
 
     if (confirmed == true) {
       await provider.removeDownload(db.uniqueKey);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'تم حذف الكتاب بنجاح',
-              style: GoogleFonts.cairo(),
-            ),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'تم حذف الكتاب بنجاح',
+            style: GoogleFonts.cairo(),
           ),
-        );
-      }
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
     }
   }
 
   Future<void> _confirmDeleteAll(
-    BuildContext context,
     DownloadsProvider provider,
     List<DownloadedBook> books,
   ) async {
@@ -406,22 +473,101 @@ class _DownloadedSectionBooksScreenState
       for (final b in books) {
         await provider.removeDownload(b.uniqueKey);
       }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'تم حذف جميع كتب هذا القسم بنجاح',
-              style: GoogleFonts.cairo(),
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'تم حذف جميع كتب هذا القسم بنجاح',
+            style: GoogleFonts.cairo(),
+          ),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
+  }
+}
+
+class _GradeDividerBar extends StatelessWidget {
+  final String gradeName;
+  final int bookCount;
+  final double totalMb;
+  final bool isDark;
+
+  const _GradeDividerBar({
+    required this.gradeName,
+    required this.bookCount,
+    required this.totalMb,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8, bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppTheme.primaryColor.withValues(alpha: isDark ? 0.35 : 0.2),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
             ),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+            child: const Icon(
+              Icons.school_rounded,
+              color: AppTheme.primaryColor,
+              size: 18,
             ),
           ),
-        );
-      }
-    }
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              gradeName,
+              style: GoogleFonts.cairo(
+                fontSize: 13.5,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '$bookCount كتب • ${totalMb.toStringAsFixed(1)} MB',
+              style: GoogleFonts.cairo(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.primaryColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

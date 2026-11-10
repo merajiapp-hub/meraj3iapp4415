@@ -31,6 +31,52 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     super.dispose();
   }
 
+  static int getEducationalOrder(String text) {
+    final s = text.toLowerCase().trim();
+    int stageScore = 0;
+    if (s.contains('ابتدائ')) {
+      stageScore = 1000;
+    } else if (s.contains('إعداد') || s.contains('اعداد')) {
+      stageScore = 2000;
+    } else if (s.contains('ثانوي')) {
+      stageScore = 3000;
+    } else if (s.contains('امتحان') ||
+        s.contains('concours') ||
+        s.contains('brevet') ||
+        s.contains('bac')) {
+      stageScore = 4000;
+    } else if (s.contains('swedd')) {
+      stageScore = 5000;
+    } else {
+      stageScore = 6000;
+    }
+
+    int gradeScore = 0;
+    if (s.contains('أول') || s.contains('الاول') || s.contains('الأول') || s.contains('1')) {
+      gradeScore = 1;
+    } else if (s.contains('ثان') || s.contains('الثاني') || s.contains('2')) {
+      gradeScore = 2;
+    } else if (s.contains('ثالث') || s.contains('الثالث') || s.contains('3')) {
+      gradeScore = 3;
+    } else if (s.contains('رابع') || s.contains('الرابع') || s.contains('4')) {
+      gradeScore = 4;
+    } else if (s.contains('خامس') || s.contains('الخامس') || s.contains('5')) {
+      gradeScore = 5;
+    } else if (s.contains('سادس') || s.contains('السادس') || s.contains('6')) {
+      gradeScore = 6;
+    } else if (s.contains('سابع') || s.contains('السابع') || s.contains('7')) {
+      gradeScore = 7;
+    } else if (s.contains('ثامن') || s.contains('الثامن') || s.contains('8')) {
+      gradeScore = 8;
+    } else if (s.contains('تاسع') || s.contains('التاسع') || s.contains('9')) {
+      gradeScore = 9;
+    } else if (s.contains('باك') || s.contains('bac')) {
+      gradeScore = 10;
+    }
+
+    return stageScore + gradeScore;
+  }
+
   static String getSectionName(DownloadedBook book) {
     if (book.section.trim().isNotEmpty) {
       return book.section.trim();
@@ -113,6 +159,25 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     for (final book in allBooks) {
       final sec = getSectionName(book);
       grouped.putIfAbsent(sec, () => []).add(book);
+    }
+
+    // ترتيب الأقسام تربوياً من الأصغر إلى الأكبر (السنة الخامسة قبل السنة السادسة)
+    final sortedGroupKeys = grouped.keys.toList()
+      ..sort((a, b) {
+        final orderA = getEducationalOrder(a);
+        final orderB = getEducationalOrder(b);
+        if (orderA != orderB) return orderA.compareTo(orderB);
+        return a.compareTo(b);
+      });
+
+    // ترتيب الكتب داخل كل قسم تربوياً
+    for (final list in grouped.values) {
+      list.sort((a, b) {
+        final orderA = getEducationalOrder(a.grade);
+        final orderB = getEducationalOrder(b.grade);
+        if (orderA != orderB) return orderA.compareTo(orderB);
+        return a.title.compareTo(b.title);
+      });
     }
 
     final totalMb = allBooks.fold<double>(
@@ -349,7 +414,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                 child: _DownloadedBookCard(
                   db: book,
                   isDark: isDark,
-                  onDelete: () => _confirmDeleteBook(context, provider, book),
+                  onDelete: () => _confirmDeleteBook(provider, book),
                 ),
               ),
             ),
@@ -368,9 +433,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
               ),
             ),
           ),
-          ...grouped.entries.map((entry) {
-            final sectionName = entry.key;
-            final sectionBooks = entry.value;
+          ...sortedGroupKeys.map((sectionName) {
+            final sectionBooks = grouped[sectionName]!;
             final sectionMb = sectionBooks.fold<double>(
               0.0,
               (acc, b) => acc + b.fileSizeMb,
@@ -401,9 +465,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
           // ════════════════════════════════════════════════════════════════════
           //  النمط 2: جميع الكتب مع شريط فاصل مخصص ومميز لكل قسم
           // ════════════════════════════════════════════════════════════════════
-          ...grouped.entries.expand((entry) {
-            final sectionName = entry.key;
-            final sectionBooks = entry.value;
+          ...sortedGroupKeys.expand((sectionName) {
+            final sectionBooks = grouped[sectionName]!;
             final sectionMb = sectionBooks.fold<double>(
               0.0,
               (acc, b) => acc + b.fileSizeMb,
@@ -435,7 +498,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                   child: _DownloadedBookCard(
                     db: book,
                     isDark: isDark,
-                    onDelete: () => _confirmDeleteBook(context, provider, book),
+                    onDelete: () => _confirmDeleteBook(provider, book),
                   ),
                 ),
               ),
@@ -497,7 +560,6 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   }
 
   Future<void> _confirmDeleteBook(
-    BuildContext context,
     DownloadsProvider provider,
     DownloadedBook db,
   ) async {
@@ -540,18 +602,17 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
 
     if (confirmed == true) {
       await provider.removeDownload(db.uniqueKey);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('تم حذف الكتاب بنجاح', style: GoogleFonts.cairo()),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تم حذف الكتاب بنجاح', style: GoogleFonts.cairo()),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-        );
-      }
+        ),
+      );
     }
   }
 }
@@ -986,9 +1047,12 @@ class _DownloadedBookCard extends StatelessWidget {
                   ),
                   tooltip: 'مشاركة',
                   onPressed: () {
-                    Share.share(
-                      '📚 كتاب: ${db.title}\nالمرحلة: ${db.section}\nالصف: ${db.grade}\n\nمتوفر في تطبيق مراجعي للدراسة والامتحانات.',
-                      subject: db.title,
+                    SharePlus.instance.share(
+                      ShareParams(
+                        text:
+                            '📚 كتاب: ${db.title}\nالمرحلة: ${db.section}\nالصف: ${db.grade}\n\nمتوفر في تطبيق مراجعي للدراسة والامتحانات.',
+                        subject: db.title,
+                      ),
                     );
                   },
                 ),

@@ -98,7 +98,6 @@ class PublishedExamsScreen extends StatelessWidget {
                 final docs = snapshot.hasData
                     ? snapshot.data!.docs.map((d) => d.data()).toList()
                     : <Map<String, dynamic>>[];
-                final totalQuizzes = docs.length;
 
                 return ListView(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
