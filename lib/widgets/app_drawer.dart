@@ -209,7 +209,7 @@ class AppDrawer extends StatelessWidget {
                       );
                     },
                   ),
-                  _buildDrawerItem(context, Icons.auto_awesome_rounded, 'الإهداء', () {
+                  _buildDrawerItem(context, Icons.card_giftcard_rounded, 'الإهداء', () {
                     Navigator.pop(context);
                     Navigator.push(
                       context,

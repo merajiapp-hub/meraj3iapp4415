@@ -13,6 +13,7 @@ import 'terms_of_use_screen.dart';
 import '../theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/geometric_sliver_app_bar.dart';
+import '../services/app_update_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -34,6 +35,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   String _version = '';
   String _patchNumber = '';
+  bool _isCheckingUpdate = false;
+
+  Future<void> _checkForUpdate() async {
+    if (_isCheckingUpdate) return;
+    setState(() => _isCheckingUpdate = true);
+    try {
+      await AppUpdateService().checkForUpdate(context, isManualCheck: true);
+    } catch (_) {
+    } finally {
+      if (mounted) {
+        setState(() => _isCheckingUpdate = false);
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -501,6 +516,112 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 subtitle: Text('اقرأ شروط الخدمة', style: GoogleFonts.tajawal(fontSize: 12, color: Colors.grey[500])),
                                 trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
                                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TermsOfUseScreen())),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // ── التحديثات والإصدار ───────────────────────────────
+                        _sectionTitle('التحديثات والإصدار'),
+                        _buildCard(
+                          isDark: isDark,
+                          bgColor: bgCard,
+                          child: Column(
+                            children: [
+                              ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 6,
+                                ),
+                                leading: Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(
+                                    Icons.system_update_rounded,
+                                    color: AppTheme.primaryColor,
+                                    size: 24,
+                                  ),
+                                ),
+                                title: Text(
+                                  'التحقق من وجود تحديثات',
+                                  style: GoogleFonts.tajawal(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                subtitle: Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    _isCheckingUpdate
+                                        ? 'جارٍ فحص التحديثات الآن...'
+                                        : (_version.isNotEmpty
+                                            ? 'الإصدار المثبت: v$_version'
+                                            : 'انقر للبحث عن آخر إصدار متوفر'),
+                                    style: GoogleFonts.tajawal(
+                                      fontSize: 12,
+                                      color: Colors.grey[500],
+                                    ),
+                                  ),
+                                ),
+                                trailing: _isCheckingUpdate
+                                    ? const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                          valueColor: AlwaysStoppedAnimation<Color>(
+                                            AppTheme.primaryColor,
+                                          ),
+                                        ),
+                                      )
+                                    : Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          onTap: _checkForUpdate,
+                                          borderRadius: BorderRadius.circular(20),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 14,
+                                              vertical: 7,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              gradient: AppTheme.primaryGradient,
+                                              borderRadius: BorderRadius.circular(20),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                                                  blurRadius: 6,
+                                                  offset: const Offset(0, 2),
+                                                ),
+                                              ],
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(
+                                                  Icons.refresh_rounded,
+                                                  color: Colors.white,
+                                                  size: 16,
+                                                ),
+                                                const SizedBox(width: 5),
+                                                Text(
+                                                  'فحص الآن',
+                                                  style: GoogleFonts.tajawal(
+                                                    color: Colors.white,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                onTap: _isCheckingUpdate ? null : _checkForUpdate,
                               ),
                             ],
                           ),

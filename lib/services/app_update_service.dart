@@ -62,7 +62,12 @@ class AppUpdateService {
     BuildContext context, {
     bool isManualCheck = false,
   }) async {
-    if (kIsWeb) return null;
+    if (kIsWeb) {
+      if (isManualCheck && context.mounted) {
+        _showToast(context, 'أنت تستخدم أحدث إصدار على الويب (محدّث تلقائياً) ✅');
+      }
+      return null;
+    }
 
     try {
       final updateInfo = await _fetchUpdateInfo();
