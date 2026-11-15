@@ -608,11 +608,11 @@ class _NotesScreenState extends State<NotesScreen> {
     }
 
     final content = _isGridView
-        ? MasonryGridView.count(
+        ? MasonryGridView.extent(
             controller: _notesScrollController,
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
-            crossAxisCount: 2,
+            maxCrossAxisExtent: 220,
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
             itemCount: notes.length,

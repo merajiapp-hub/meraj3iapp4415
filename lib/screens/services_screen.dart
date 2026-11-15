@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../theme/app_theme.dart';
+import '../theme/responsive.dart';
 import '../providers/app_config_provider.dart';
 import 'student_competition_screen.dart';
 import 'results/results_home_screen.dart';
@@ -172,24 +173,18 @@ class ServicesScreen extends StatelessWidget {
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 720 ? 3 : 2;
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: columns == 3 ? 1.05 : 1.15,
-          ),
-          itemCount: services.length,
-          itemBuilder: (context, index) {
-            final s = services[index];
-            return _buildServiceCard(s, isDark);
-          },
-        );
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: ResponsiveHelper.gridDelegate(
+        maxExtent: 220,
+        childAspectRatio: 1.15,
+        spacing: 12,
+      ),
+      itemCount: services.length,
+      itemBuilder: (context, index) {
+        final s = services[index];
+        return _buildServiceCard(s, isDark);
       },
     );
   }
@@ -247,16 +242,19 @@ class ServicesScreen extends StatelessWidget {
                     size: 40,
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    service.title,
-                    style: GoogleFonts.tajawal(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: isDark ? Colors.white : const Color(0xFF0A1A15),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      service.title,
+                      style: GoogleFonts.tajawal(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: isDark ? Colors.white : const Color(0xFF0A1A15),
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),

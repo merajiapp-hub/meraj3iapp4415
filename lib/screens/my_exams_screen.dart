@@ -9,6 +9,7 @@ import '../data/exam_selection_utils.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/curved_header.dart';
+import '../theme/responsive.dart';
 
 class MyExamsScreen extends StatelessWidget {
   const MyExamsScreen({super.key});
@@ -169,13 +170,14 @@ class MyExamsScreen extends StatelessWidget {
             // Summary Cards - بطاقات إحصائية عمودية
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: GridView.count(
-                crossAxisCount: 2,
+              child: GridView(
+                gridDelegate: ResponsiveHelper.gridDelegate(
+                  maxExtent: 220,
+                  childAspectRatio: 1.4,
+                  spacing: 12,
+                ),
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1.4,
                 children: [
                   _StatCard(
                     icon: Icons.assignment_turned_in_rounded,

@@ -7,6 +7,7 @@ import '../providers/task_provider.dart';
 import '../providers/reading_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/curved_header.dart';
+import '../theme/responsive.dart';
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
@@ -184,13 +185,14 @@ class _StatisticsScreenState extends State<StatisticsScreen>
       ),
     ];
 
-    return GridView.count(
+    return GridView(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: 1.4,
+      gridDelegate: ResponsiveHelper.gridDelegate(
+        maxExtent: 220,
+        childAspectRatio: 1.4,
+        spacing: 12,
+      ),
       children: statsList.map((s) => _buildStatCard(s, isDark)).toList(),
     );
   }

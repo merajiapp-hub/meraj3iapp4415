@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/reference_category.dart';
 import '../models/book.dart';
 import '../theme/app_theme.dart';
+import '../theme/responsive.dart';
 import '../widgets/book_card.dart';
 import '../widgets/curved_header.dart';
 
@@ -74,11 +75,10 @@ class CategoryDetailScreen extends StatelessWidget {
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
+              gridDelegate: ResponsiveHelper.gridDelegate(
+                maxExtent: 240,
                 childAspectRatio: 2.5,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
+                spacing: 12,
               ),
               itemCount: cats.length,
               itemBuilder: (context, index) {

@@ -7,6 +7,9 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 /// مدير الإعلانات الموحد لتطبيق مراجعي
 /// يتعامل مع إعلانات البانر، الإعلانات البينية، وإعلانات المكافأة
 class AdManager {
+  // ── التحكم في الإعلانات التجريبية (معطلة بناءً على رغبة المستخدم لحين اكتمال المراجعة) ──
+  static const bool enableTestAds = false;
+
   // ── معرفات AdMob الحقيقية الخاصة بالتطبيق ─────────────────────────────────
   static const String appId = 'ca-app-pub-7381352612061383~4066069173';
   static const String realBannerAdUnitId =
@@ -16,7 +19,7 @@ class AdManager {
   static const String realRewardedAdUnitId =
       'ca-app-pub-7381352612061383/4616019507';
 
-  // ── معرفات الاختبار الرسمية من Google (تُستخدم كبديل فوري في حال لم تتفعل الوحدات بعد) ──
+  // ── معرفات الاختبار (معطلة حالياً) ──
   static const String testBannerAdUnitId =
       'ca-app-pub-3940256099942544/6300978111';
   static const String testInterstitialAdUnitId =
@@ -54,7 +57,9 @@ class AdManager {
     if (kIsWeb || _isInterstitialLoading || _interstitialAd != null) return;
 
     _isInterstitialLoading = true;
-    final adUnitId = useFallback ? testInterstitialAdUnitId : realInterstitialAdUnitId;
+    final adUnitId = (enableTestAds && useFallback)
+        ? testInterstitialAdUnitId
+        : realInterstitialAdUnitId;
 
     debugPrint('Loading InterstitialAd with ID: $adUnitId');
 
@@ -73,9 +78,9 @@ class AdManager {
           _interstitialAd = null;
           _isInterstitialLoading = false;
 
-          // إذا فشلت الوحدة الحقيقية بسبب عدم توفر الإعلانات (كود 3 No-Fill) أو قيد التفعيل، نستخدم وحدة الاختبار فوراً
-          if (!useFallback && (error.code == 3 || error.code == 0)) {
-            debugPrint('Switching to test InterstitialAd ID to guarantee ad display.');
+          // إذا كانت الإعلانات التجريبية مفعلة وفشلت الوحدة الحقيقية
+          if (enableTestAds && !useFallback && (error.code == 3 || error.code == 0)) {
+            debugPrint('Switching to test InterstitialAd ID.');
             loadInterstitialAd(useFallback: true);
             return;
           }
@@ -151,7 +156,9 @@ class AdManager {
     if (kIsWeb || _isRewardedLoading || _rewardedAd != null) return;
 
     _isRewardedLoading = true;
-    final adUnitId = useFallback ? testRewardedAdUnitId : realRewardedAdUnitId;
+    final adUnitId = (enableTestAds && useFallback)
+        ? testRewardedAdUnitId
+        : realRewardedAdUnitId;
 
     debugPrint('Loading RewardedAd with ID: $adUnitId');
 
@@ -177,9 +184,9 @@ class AdManager {
           _rewardedAd = null;
           _isRewardedLoading = false;
 
-          // إذا فشلت الوحدة الحقيقية (كود 3 No-Fill)، نستخدم فوراً وحدة الاختبار المضمونة
-          if (!useFallback && (error.code == 3 || error.code == 0)) {
-            debugPrint('Switching to test RewardedAd ID to guarantee ad display.');
+          // إذا كانت الإعلانات التجريبية مفعلة وفشلت الوحدة الحقيقية
+          if (enableTestAds && !useFallback && (error.code == 3 || error.code == 0)) {
+            debugPrint('Switching to test RewardedAd ID.');
             loadRewardedAd(useFallback: true);
             return;
           }

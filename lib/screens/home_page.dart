@@ -23,6 +23,8 @@ import '../features/smart_calculator/ui/screens/smart_calculator_screen.dart';
 import 'services_screen.dart';
 import 'news_screen.dart';
 import 'announcements_screen.dart';
+import '../services/app_update_service.dart';
+import '../theme/responsive.dart';
 
 class HomePage extends StatefulWidget {
   final bool isGuest;
@@ -72,7 +74,7 @@ class _HomePageState extends State<HomePage>
       }
     });
 
-    // تحميل صور الكاروزيل مسبقاً لتجنب التأخير عند ظهورها
+    // تحميل صور الكاروزيل مسبقاً لتجنب التأخير عند ظهورها وفحص التحديثات
     WidgetsBinding.instance.addPostFrameCallback((_) {
       for (final path in [
         'assets/IM/IM1.jpg',
@@ -81,6 +83,7 @@ class _HomePageState extends State<HomePage>
       ]) {
         precacheImage(AssetImage(path), context);
       }
+      AppUpdateService().checkOnStartup(context);
     });
   }
 
@@ -376,11 +379,10 @@ class _HomePageState extends State<HomePage>
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
+      gridDelegate: ResponsiveHelper.gridDelegate(
+        maxExtent: 220,
         childAspectRatio: 1.15,
+        spacing: 12,
       ),
       itemCount: services.length,
       itemBuilder: (context, index) {
@@ -447,18 +449,21 @@ class _HomePageState extends State<HomePage>
                   children: [
                     _buildServiceIcon(service, isDark, size: 40),
                     const SizedBox(height: 12),
-                    // النص
-                    Text(
-                      service.title,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.tajawal(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: isDark ? Colors.white : const Color(0xFF0A1A15),
-                        height: 1.25,
+                    // النص المتجاوب مع مقاس الشاشة
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        service.title,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.tajawal(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12.5,
+                          color: isDark ? Colors.white : const Color(0xFF0A1A15),
+                          height: 1.25,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),

@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../models/book.dart';
 import '../services/drive_url_service.dart';
 import '../theme/app_theme.dart';
+import '../theme/responsive.dart';
 import 'pdf_viewer_screen.dart';
 import '../providers/auth_provider.dart';
 import '../services/book_prefetch_service.dart';
@@ -238,11 +239,10 @@ class _BooksLibraryScreenState extends State<BooksLibraryScreen> {
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: MediaQuery.of(context).size.width > 400 ? 3 : 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
+          gridDelegate: ResponsiveHelper.gridDelegate(
+            maxExtent: 180,
             childAspectRatio: 0.65,
+            spacing: 12,
           ),
           itemCount: books.length,
           itemBuilder: (context, index) => _buildBookCard(books[index], isDark),

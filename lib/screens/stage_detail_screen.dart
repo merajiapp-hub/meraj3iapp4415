@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'books_list_screen.dart';
 import '../widgets/curved_header.dart';
+import '../theme/responsive.dart';
 
 class StageDetailScreen extends StatefulWidget {
   final String stageTitle;
@@ -122,11 +123,10 @@ class _StageDetailScreenState extends State<StageDetailScreen> {
   ) {
     return GridView.builder(
       padding: EdgeInsets.all(screenWidth < 360 ? 14 : 20),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+      gridDelegate: ResponsiveHelper.gridDelegate(
+        maxExtent: 220,
         childAspectRatio: screenWidth < 360 ? 1.1 : 1.25,
-        crossAxisSpacing: 14,
-        mainAxisSpacing: 14,
+        spacing: 14,
       ),
       itemCount: sections.length,
       itemBuilder: (context, index) {

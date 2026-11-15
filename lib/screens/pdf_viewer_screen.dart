@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
@@ -97,6 +96,12 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
     _downloadService = BookDownloadService(cache: _cacheService);
     _processedUrl = _getDirectLink(widget.pdfUrl);
 
+    // إذا كان الكتاب متوفراً محلياً، نبدأ عرضه فوراً بدون أي شاشة انتظار أو تأخير
+    if (_localPath != null && File(_localPath!).existsSync()) {
+      _isCheckingLocalFile = false;
+      _isOpening = false;
+    }
+
     _toolbarAnimController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 250),
@@ -137,8 +142,11 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
     });
   }
 
+  Timer? _savePageDebounce;
+
   @override
   void dispose() {
+    _savePageDebounce?.cancel();
     _readingTimer?.cancel();
     _downloadProgressSubscription?.cancel();
     _toolbarAnimController.dispose();
@@ -158,18 +166,25 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
     });
   }
 
-  Future<void> _saveCurrentPage(int page) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_prefsKey, page);
+  void _saveCurrentPage(int page) {
+    _savePageDebounce?.cancel();
+    _savePageDebounce = Timer(const Duration(milliseconds: 600), () async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt(_prefsKey, page);
 
-    if (widget.book != null && mounted) {
-      final reading = Provider.of<ReadingProvider>(context, listen: false);
-      reading.markAsReading(
-        widget.book!,
-        page: page,
-        totalPages: _totalPages > 0 ? _totalPages : null,
-      );
-    }
+        if (widget.book != null && mounted) {
+          final reading = Provider.of<ReadingProvider>(context, listen: false);
+          reading.markAsReading(
+            widget.book!,
+            page: page,
+            totalPages: _totalPages > 0 ? _totalPages : null,
+          );
+        }
+      } catch (e) {
+        debugPrint('Error saving current page: $e');
+      }
+    });
   }
 
   Future<void> _saveBookmarks() async {
@@ -403,35 +418,29 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
     final bookKey = widget.book?.uniqueKey ??
         'url_${DriveUrlService.extractFileId(widget.pdfUrl) ?? widget.title.hashCode}';
 
-    // 1) فحص المسار الممرر مباشرة إن وُجد
-    if (widget.localPath != null) {
-      final file = File(widget.localPath!);
-      if (await _cacheService.isValidPdf(file)) {
+    // 1) فحص المسار الممرر مباشرة وفورياً إن وُجد
+    if (widget.localPath != null && File(widget.localPath!).existsSync()) {
+      if (!mounted) return;
+      setState(() {
+        _localPath = widget.localPath;
+        _isCheckingLocalFile = false;
+        _isOpening = false;
+      });
+      return;
+    }
+
+    // 2) فحص التنزيلات اليدوية المحفوظة وفورياً
+    if (mounted) {
+      final downloads = Provider.of<DownloadsProvider>(context, listen: false);
+      final downloadPath = downloads.getLocalPath(bookKey);
+      if (downloadPath != null && File(downloadPath).existsSync()) {
         if (!mounted) return;
         setState(() {
-          _localPath = widget.localPath;
+          _localPath = downloadPath;
           _isCheckingLocalFile = false;
           _isOpening = false;
         });
         return;
-      }
-    }
-
-    // 2) فحص التنزيلات اليدوية المحفوظة
-    if (mounted) {
-      final downloads = Provider.of<DownloadsProvider>(context, listen: false);
-      final downloadPath = downloads.getLocalPath(bookKey);
-      if (downloadPath != null) {
-        final file = File(downloadPath);
-        if (await _cacheService.isValidPdf(file)) {
-          if (!mounted) return;
-          setState(() {
-            _localPath = file.path;
-            _isCheckingLocalFile = false;
-            _isOpening = false;
-          });
-          return;
-        }
       }
     }
 
@@ -783,16 +792,10 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: _isNightMode
-            ? const Color(0xFF1A1A2E).withValues(alpha: 0.9)
-            : Colors.white.withValues(alpha: 0.92),
+            ? const Color(0xFF1A1A2E).withValues(alpha: 0.95)
+            : Colors.white.withValues(alpha: 0.95),
         foregroundColor: _isNightMode ? Colors.white : Colors.black87,
-        elevation: 0,
-        flexibleSpace: ClipRRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(color: Colors.transparent),
-          ),
-        ),
+        elevation: 0.5,
         title: GestureDetector(
           onTap: _isLoaded ? _showPageJumpDialog : null,
           child: Column(
@@ -987,21 +990,25 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
   }
 
   Widget _buildBottomBar() {
-    return ClipRRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          decoration: BoxDecoration(
-            color: _isNightMode
-                ? const Color(0xFF1A1A2E).withValues(alpha: 0.85)
-                : Colors.white.withValues(alpha: 0.85),
-            border: Border(
-              top: BorderSide(
-                color: _isNightMode ? Colors.white12 : Colors.black12,
-              ),
-            ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        color: _isNightMode
+            ? const Color(0xFF1A1A2E)
+            : Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: _isNightMode ? 0.3 : 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
           ),
+        ],
+        border: Border(
+          top: BorderSide(
+            color: _isNightMode ? Colors.white12 : Colors.black12,
+          ),
+        ),
+      ),
           child: SafeArea(
             top: false,
             child: Row(
@@ -1080,34 +1087,32 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
               ],
             ),
           ),
-        ),
-      ),
-    );
+        );
   }
 
   Widget _buildBookmarksPanel() {
-    return ClipRRect(
-      borderRadius: const BorderRadius.only(
-        topLeft: Radius.circular(20),
-        bottomLeft: Radius.circular(20),
-      ),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          decoration: BoxDecoration(
-            color: _isNightMode
-                ? const Color(0xFF1A1A2E).withValues(alpha: 0.95)
-                : Colors.white.withValues(alpha: 0.95),
-            border: Border(
-              left: BorderSide(
-                color: _isNightMode ? Colors.white12 : Colors.black12,
-              ),
-            ),
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(20),
-              bottomLeft: Radius.circular(20),
-            ),
+    return Container(
+      decoration: BoxDecoration(
+        color: _isNightMode
+            ? const Color(0xFF1A1A2E)
+            : Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: _isNightMode ? 0.3 : 0.08),
+            blurRadius: 10,
+            offset: const Offset(-2, 0),
           ),
+        ],
+        border: Border(
+          left: BorderSide(
+            color: _isNightMode ? Colors.white12 : Colors.black12,
+          ),
+        ),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          bottomLeft: Radius.circular(20),
+        ),
+      ),
           child: Column(
             children: [
               Padding(
@@ -1185,9 +1190,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
               ),
             ],
           ),
-        ),
-      ),
-    );
+        );
   }
 
   Widget _buildFolderView() {
@@ -1267,40 +1270,11 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
     if (_isDownloading) {
       final pct = (_downloadProgress * 100).clamp(0, 100).toInt();
       return Center(
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 24),
-          padding: const EdgeInsets.all(28),
-          decoration: BoxDecoration(
-            color: _isNightMode ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: _isNightMode ? 0.3 : 0.08),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
-            border: Border.all(
-              color: AppTheme.primaryColor.withValues(alpha: 0.15),
-            ),
-          ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  gradient: AppTheme.primaryGradient,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(
-                  Icons.menu_book_rounded,
-                  size: 32,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 18),
               Text(
                 widget.title,
                 textAlign: TextAlign.center,
@@ -1312,29 +1286,21 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 8),
-              Text(
-                _loadingStage,
-                style: GoogleFonts.tajawal(
-                  fontSize: 13,
-                  color: Colors.grey,
-                ),
-              ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
               ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6),
                 child: LinearProgressIndicator(
                   value: _downloadProgress > 0 ? _downloadProgress : null,
-                  minHeight: 8,
-                  backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  minHeight: 5,
+                  backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.15),
                   valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
                 ),
               ),
               const SizedBox(height: 10),
               Text(
-                _downloadProgress > 0 ? '$pct%' : 'جاري الاتصال السريع...',
+                _downloadProgress > 0 ? '$pct%' : 'جاري التحميل السريع...',
                 style: GoogleFonts.outfit(
-                  fontSize: 14,
+                  fontSize: 13.5,
                   fontWeight: FontWeight.bold,
                   color: AppTheme.primaryColor,
                 ),

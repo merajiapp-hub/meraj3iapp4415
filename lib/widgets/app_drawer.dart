@@ -17,6 +17,7 @@ import '../screens/dedication_screen.dart';
 import '../screens/contact_screen.dart';
 import '../screens/terms_of_use_screen.dart';
 import '../screens/login_screen.dart';
+import '../services/app_update_service.dart';
 
 class AppDrawer extends StatelessWidget {
   final bool isGuest;
@@ -229,6 +230,18 @@ class AppDrawer extends StatelessWidget {
                       MaterialPageRoute(builder: (_) => const TermsOfUseScreen()),
                     );
                   }),
+                  _buildDrawerItem(
+                    context,
+                    Icons.system_update_rounded,
+                    'التحقق من وجود تحديثات',
+                    () {
+                      Navigator.pop(context);
+                      AppUpdateService().checkForUpdate(
+                        context,
+                        isManualCheck: true,
+                      );
+                    },
+                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 24, vertical: 4),
                     child: Divider(height: 1, thickness: 0.5),

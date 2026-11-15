@@ -385,12 +385,12 @@ class _StudentCompetitionScreenState extends State<StudentCompetitionScreen>
               context,
               onRewarded: () async {
                 final stats = context.read<StatisticsProvider>();
-                await stats.incrementUserStat('points', value: 5);
-
                 final studentProvider = context.read<StudentProvider>();
+                final authUser = context.read<AuthProvider>().user;
+
+                await stats.incrementUserStat('points', value: 5);
                 await studentProvider.addPoints(5);
 
-                final authUser = context.read<AuthProvider>().user;
                 if (authUser != null) {
                   try {
                     final profile = studentProvider.profile;
