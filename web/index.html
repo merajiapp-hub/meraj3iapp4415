@@ -17,6 +17,9 @@
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="description" content="تطبيق مراجعي MERAJ3I - المنصة التعليمية الشاملة">
@@ -36,21 +39,60 @@
 </head>
 <body>
   <script>
+    // 1. تنظيف شامل وفوري لأي كاش أو Service Worker قديم
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for (let registration of registrations) {
-          registration.unregister();
+        for (var i = 0; i < registrations.length; i++) {
+          registrations[i].unregister();
         }
       });
     }
     if ('caches' in window) {
       caches.keys().then(function(names) {
-        for (let name of names) {
-          caches.delete(name);
+        for (var i = 0; i < names.length; i++) {
+          caches.delete(names[i]);
         }
       });
     }
+
+    // 2. نظام التحديث التلقائي الفوري في الخلفية بمجرد نشر أي تعديل جديد
+    (function() {
+      var currentBuild = '7.9.9_22';
+      function checkForUpdate() {
+        fetch('version.json?t=' + Date.now(), { cache: 'no-store' })
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            var latestBuild = (data.version || '') + '_' + (data.build_number || '');
+            if (latestBuild && latestBuild !== currentBuild) {
+              console.log('[MERAJ3I] New update detected:', latestBuild);
+              if ('caches' in window) {
+                caches.keys().then(function(names) {
+                  return Promise.all(names.map(function(n) { return caches.delete(n); }));
+                }).then(function() {
+                  window.location.reload(true);
+                });
+              } else {
+                window.location.reload(true);
+              }
+            }
+          })
+          .catch(function(e) {});
+      }
+
+      // فحص دوري في الخلفية كل 15 ثانية
+      setInterval(checkForUpdate, 15000);
+      // فحص عند عودة المستخدم لتبويب التطبيق
+      window.addEventListener('focus', checkForUpdate);
+      window.addEventListener('visibilitychange', function() {
+        if (!document.hidden) checkForUpdate();
+      });
+    })();
+
+    // 3. تحميل ملف بدء تشغيل فلاتر بختم زمني ديناميكي يمنع الكاش نهائياً
+    var flutterScript = document.createElement('script');
+    flutterScript.src = 'flutter_bootstrap.js?t=' + Date.now();
+    flutterScript.async = true;
+    document.body.appendChild(flutterScript);
   </script>
-  <script src="flutter_bootstrap.js?v=20261115_799" async></script>
 </body>
 </html>
