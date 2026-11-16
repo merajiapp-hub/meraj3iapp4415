@@ -4,9 +4,6 @@
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="description" content="تطبيق مراجعي MERAJ3I - المنصة التعليمية الشاملة">
@@ -23,119 +20,8 @@
 
   <title>مراجعي | MERAJ3I</title>
   <link rel="manifest" href="manifest.json">
-
-  <style>
-    /* شاشة تحميل أنيقة وسريعة تظهر في 0 ثانية تمنع الشاشة البيضاء تماماً */
-    body {
-      margin: 0;
-      padding: 0;
-      background-color: #0b1a16;
-      color: #ffffff;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Cairo", "Tajawal", sans-serif;
-      overflow: hidden;
-    }
-    #loading-screen {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: radial-gradient(circle at center, #0f463c 0%, #061512 100%);
-      z-index: 99999;
-      transition: opacity 0.4s ease-out;
-    }
-    .loading-logo {
-      width: 80px;
-      height: 80px;
-      margin-bottom: 20px;
-      border-radius: 22px;
-      background: linear-gradient(135deg, #0b6b58, #14a085);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 10px 25px rgba(20, 160, 133, 0.35);
-      animation: pulse 2s infinite ease-in-out;
-    }
-    .loading-logo img {
-      width: 52px;
-      height: 52px;
-      object-fit: contain;
-    }
-    .loading-title {
-      font-size: 24px;
-      font-weight: 700;
-      margin-bottom: 6px;
-      color: #ffffff;
-    }
-    .loading-subtitle {
-      font-size: 14px;
-      color: #94a3b8;
-      margin-bottom: 24px;
-    }
-    .spinner {
-      width: 32px;
-      height: 32px;
-      border: 3px solid rgba(20, 160, 133, 0.2);
-      border-top-color: #14a085;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-    }
-  </style>
 </head>
 <body>
-  <!-- شاشة التحميل الفورية -->
-  <div id="loading-screen">
-    <div class="loading-logo">
-      <img src="favicon.png" alt="MERAJ3I" onerror="this.style.display='none'">
-    </div>
-    <div class="loading-title">مراجعي MERAJ3I</div>
-    <div class="loading-subtitle">المنصة التعليمية الشاملة • جارٍ التحميل...</div>
-    <div class="spinner"></div>
-  </div>
-
-  <script>
-    // 1. تنظيف أي Service Worker قديم
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for (var i = 0; i < registrations.length; i++) {
-          registrations[i].unregister();
-        }
-      });
-    }
-
-    // 2. إخفاء شاشة التحميل بمجرد رسم أول إطار من التطبيق
-    window.addEventListener('flutter-first-frame', function() {
-      var loader = document.getElementById('loading-screen');
-      if (loader) {
-        loader.style.opacity = '0';
-        setTimeout(function() {
-          if (loader.parentNode) loader.parentNode.removeChild(loader);
-        }, 400);
-      }
-    });
-
-    // مهلة أمان لضمان إخفاء شاشة التحميل في كل الحالات
-    setTimeout(function() {
-      var loader = document.getElementById('loading-screen');
-      if (loader && loader.style.opacity !== '0') {
-        loader.style.opacity = '0';
-        setTimeout(function() {
-          if (loader.parentNode) loader.parentNode.removeChild(loader);
-        }, 400);
-      }
-    }, 7000);
-  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
