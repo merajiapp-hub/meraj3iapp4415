@@ -1,19 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
@@ -36,10 +23,89 @@
 
   <title>مراجعي | MERAJ3I</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    /* شاشة تحميل أنيقة وسريعة تظهر في 0 ثانية تمنع الشاشة البيضاء تماماً */
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #0b1a16;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Cairo", "Tajawal", sans-serif;
+      overflow: hidden;
+    }
+    #loading-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, #0f463c 0%, #061512 100%);
+      z-index: 99999;
+      transition: opacity 0.4s ease-out;
+    }
+    .loading-logo {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 20px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, #0b6b58, #14a085);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 25px rgba(20, 160, 133, 0.35);
+      animation: pulse 2s infinite ease-in-out;
+    }
+    .loading-logo img {
+      width: 52px;
+      height: 52px;
+      object-fit: contain;
+    }
+    .loading-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #ffffff;
+    }
+    .loading-subtitle {
+      font-size: 14px;
+      color: #94a3b8;
+      margin-bottom: 24px;
+    }
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid rgba(20, 160, 133, 0.2);
+      border-top-color: #14a085;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+  </style>
 </head>
 <body>
+  <!-- شاشة التحميل الفورية -->
+  <div id="loading-screen">
+    <div class="loading-logo">
+      <img src="favicon.png" alt="MERAJ3I" onerror="this.style.display='none'">
+    </div>
+    <div class="loading-title">مراجعي MERAJ3I</div>
+    <div class="loading-subtitle">المنصة التعليمية الشاملة • جارٍ التحميل...</div>
+    <div class="spinner"></div>
+  </div>
+
   <script>
-    // 1. تنظيف شامل وفوري لأي كاش أو Service Worker قديم
+    // 1. تنظيف أي Service Worker قديم
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(registrations) {
         for (var i = 0; i < registrations.length; i++) {
@@ -47,52 +113,29 @@
         }
       });
     }
-    if ('caches' in window) {
-      caches.keys().then(function(names) {
-        for (var i = 0; i < names.length; i++) {
-          caches.delete(names[i]);
-        }
-      });
-    }
 
-    // 2. نظام التحديث التلقائي الفوري في الخلفية بمجرد نشر أي تعديل جديد
-    (function() {
-      var currentBuild = '7.9.9_22';
-      function checkForUpdate() {
-        fetch('version.json?t=' + Date.now(), { cache: 'no-store' })
-          .then(function(res) { return res.json(); })
-          .then(function(data) {
-            var latestBuild = (data.version || '') + '_' + (data.build_number || '');
-            if (latestBuild && latestBuild !== currentBuild) {
-              console.log('[MERAJ3I] New update detected:', latestBuild);
-              if ('caches' in window) {
-                caches.keys().then(function(names) {
-                  return Promise.all(names.map(function(n) { return caches.delete(n); }));
-                }).then(function() {
-                  window.location.reload(true);
-                });
-              } else {
-                window.location.reload(true);
-              }
-            }
-          })
-          .catch(function(e) {});
+    // 2. إخفاء شاشة التحميل بمجرد رسم أول إطار من التطبيق
+    window.addEventListener('flutter-first-frame', function() {
+      var loader = document.getElementById('loading-screen');
+      if (loader) {
+        loader.style.opacity = '0';
+        setTimeout(function() {
+          if (loader.parentNode) loader.parentNode.removeChild(loader);
+        }, 400);
       }
+    });
 
-      // فحص دوري في الخلفية كل 15 ثانية
-      setInterval(checkForUpdate, 15000);
-      // فحص عند عودة المستخدم لتبويب التطبيق
-      window.addEventListener('focus', checkForUpdate);
-      window.addEventListener('visibilitychange', function() {
-        if (!document.hidden) checkForUpdate();
-      });
-    })();
-
-    // 3. تحميل ملف بدء تشغيل فلاتر بختم زمني ديناميكي يمنع الكاش نهائياً
-    var flutterScript = document.createElement('script');
-    flutterScript.src = 'flutter_bootstrap.js?t=' + Date.now();
-    flutterScript.async = true;
-    document.body.appendChild(flutterScript);
+    // مهلة أمان لضمان إخفاء شاشة التحميل في كل الحالات
+    setTimeout(function() {
+      var loader = document.getElementById('loading-screen');
+      if (loader && loader.style.opacity !== '0') {
+        loader.style.opacity = '0';
+        setTimeout(function() {
+          if (loader.parentNode) loader.parentNode.removeChild(loader);
+        }, 400);
+      }
+    }, 7000);
   </script>
+  <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
