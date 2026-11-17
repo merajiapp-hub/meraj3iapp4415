@@ -23,6 +23,31 @@ class ExamSelectionUtils {
     return competitions.contains(normalizeCompetition(value));
   }
 
+  /// التحقق من تطابق مستند الاختبار مع الشعبة المحددة مع دعم الاختبارات المشتركة
+  static bool docMatchesStream(Map<String, dynamic> doc, String? stream) {
+    if (stream == null || stream.trim().isEmpty) return true;
+    final target = stream.trim().toUpperCase();
+
+    // 1. فحص قائمة الشعب المشتركة streams أو sharedStreams
+    final rawStreams = doc['streams'] ?? doc['sharedStreams'];
+    if (rawStreams is List && rawStreams.isNotEmpty) {
+      final list = rawStreams
+          .map((s) => s.toString().trim().toUpperCase())
+          .toList();
+      if (list.contains(target)) return true;
+    }
+
+    // 2. فحص الشعبة الفردية (للتوافق القديم)
+    final docStream = (doc['stream'] ?? doc['division'] ?? doc['section'] ?? '')
+        .toString()
+        .trim()
+        .toUpperCase();
+    if (docStream == target) return true;
+    if (docStream == 'عام' || docStream.isEmpty) return true;
+
+    return false;
+  }
+
   /// استخراج المواد المتاحة لمسابقة وشعبة معينة
   static List<String> subjectsFromDocs(
     List<Map<String, dynamic>> docs, {
@@ -38,9 +63,7 @@ class ExamSelectionUtils {
       if (stream != null &&
           stream.isNotEmpty &&
           competition == 'Baccalauréat') {
-        final docStream =
-            (doc['stream'] ?? doc['division'] ?? doc['section'] ?? '').toString().trim();
-        if (docStream != stream) return false;
+        if (!docMatchesStream(doc, stream)) return false;
       }
       return true;
     });
@@ -72,9 +95,7 @@ class ExamSelectionUtils {
       if (stream != null &&
           stream.isNotEmpty &&
           competition == 'Baccalauréat') {
-        final docStream =
-            (doc['stream'] ?? doc['division'] ?? doc['section'] ?? '').toString().trim();
-        if (docStream != stream) return false;
+        if (!docMatchesStream(doc, stream)) return false;
       }
       return true;
     });

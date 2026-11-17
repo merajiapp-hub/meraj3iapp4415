@@ -345,11 +345,7 @@ class _CompetitionChaptersScreenState
         final query = _searchQuery.trim().toLowerCase();
         final filteredExams = compDocs.where((doc) {
           if (widget.competition == 'Baccalauréat' && _stream != null) {
-            final docStream =
-                (doc['stream'] ?? doc['division'] ?? doc['section'] ?? '')
-                    .toString()
-                    .trim();
-            if (docStream != _stream) return false;
+            if (!ExamSelectionUtils.docMatchesStream(doc, _stream)) return false;
           }
           if (_subject != null && _subject != 'الكل') {
             final docSubject = (doc['subject'] ?? doc['subjectId'] ?? '')
@@ -980,8 +976,15 @@ class _ExamCard extends StatelessWidget {
                   runSpacing: 3,
                   children: [
                     _Badge(label: competition, color: AppTheme.primaryColor),
-                    if (stream.isNotEmpty && competition == 'Baccalauréat')
-                      _Badge(label: stream, color: AppTheme.accentColor),
+                    if (competition == 'Baccalauréat') ...[
+                      if (data['isShared'] == true || ((data['streams'] ?? data['sharedStreams']) as List? ?? []).length > 1)
+                        _Badge(
+                          label: 'مشترك (${((data['streams'] ?? data['sharedStreams']) as List? ?? [stream]).join(', ')})',
+                          color: const Color(0xFF6366F1),
+                        )
+                      else if (stream.isNotEmpty)
+                        _Badge(label: stream, color: AppTheme.accentColor),
+                    ],
                     _Badge(label: subject, color: AppTheme.secondaryColor),
                   ],
                 ),
