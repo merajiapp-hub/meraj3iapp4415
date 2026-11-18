@@ -17,6 +17,7 @@ import 'pro_subscription_screen.dart';
 import 'statistics_screen.dart';
 import 'student/reading_history_screen.dart';
 import '../widgets/pro_badge.dart';
+import '../services/r2_storage_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -118,9 +119,9 @@ class _ProfileScreenState extends State<ProfileScreen>
     final picker = ImagePicker();
     final XFile? image = await picker.pickImage(
       source: source,
-      imageQuality: 30, // Highly compressed
-      maxWidth: 200, // Small dimensions to save base64 size
-      maxHeight: 200,
+      imageQuality: 75,
+      maxWidth: 512,
+      maxHeight: 512,
     );
     if (image == null || !mounted) return;
 
@@ -130,16 +131,27 @@ class _ProfileScreenState extends State<ProfileScreen>
       final bytes = await image.readAsBytes();
       final base64String = base64Encode(bytes);
 
+      // محاولة رفع الصورة إلى Cloudflare R2
+      String? r2Url;
+      try {
+        r2Url = await R2StorageService().uploadUserAvatar(
+          userId: auth.user!.uid,
+          bytes: bytes,
+        );
+      } catch (e) {
+        debugPrint('[ProfileScreen] R2 upload fallback: $e');
+      }
+
       final error = await auth.updateProfile(
         _nameController.text,
-        null,
+        r2Url,
         phone: _phoneController.text,
         gender: auth.userData?['gender'],
         base64Image: base64String,
       );
       if (!mounted) return;
       if (error == null) {
-        setState(() => _profileImageUrl = null); // Force using base64
+        setState(() => _profileImageUrl = r2Url);
         AppNotification.show(context, 'تم تحديث صورة الملف الشخصي بنجاح');
       } else {
         AppNotification.show(context, error, isError: true);
@@ -154,7 +166,13 @@ class _ProfileScreenState extends State<ProfileScreen>
   ImageProvider? _getProfileImage() {
     final auth = Provider.of<AuthProvider>(context, listen: false);
 
-    // First try base64 if user manually uploaded
+    // 1. أولاً: التحقق من رابط صورة Cloudflare R2
+    final r2Url = auth.userData?['profileImageUrl'];
+    if (r2Url != null && r2Url.toString().isNotEmpty) {
+      return NetworkImage(r2Url.toString());
+    }
+
+    // 2. ثانياً: التحقق من صورة Base64 المحفوظة محلياً
     final base64Str = auth.userData?['profileImageBase64'];
     if (base64Str != null && base64Str.isNotEmpty) {
       try {
@@ -162,7 +180,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       } catch (_) {}
     }
 
-    // Then check if there's a URL in auth user (e.g. from Google Login)
+    // 3. ثالثاً: التحقق من رابط المستخدم الأصلي
     if (auth.user?.photoURL != null && auth.user!.photoURL!.isNotEmpty) {
       return NetworkImage(auth.user!.photoURL!);
     }

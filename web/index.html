@@ -24,8 +24,25 @@
 
   <title>مراجعي | MERAJ3I</title>
   <link rel="manifest" href="manifest.json">
+  <script>
+    // إلغاء أي Service Worker قديم ومسح التخزين المؤقت لضمان تحميل أحدث نسخة فوراً وبشكل تلقائي
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for (var registration of registrations) {
+          registration.unregister();
+        }
+      });
+    }
+    if ('caches' in window) {
+      caches.keys().then(function(names) {
+        for (var name of names) {
+          caches.delete(name);
+        }
+      });
+    }
+  </script>
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+  <script src="flutter_bootstrap.js?v=7.9.9_22" async></script>
 </body>
 </html>

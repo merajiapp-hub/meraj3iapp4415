@@ -600,6 +600,51 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    //  الجداول والحصص والمهام الدراسية (جدولي الدراسي)
+    // ═══════════════════════════════════════════════════════════════
+    match /study_schedules/{scheduleId} {
+      allow read, write: if isAuthenticated() &&
+        ((resource == null && request.resource.data.userId == request.auth.uid) ||
+         (resource != null && resource.data.userId == request.auth.uid) ||
+         isRootAdmin());
+    }
+
+    match /study_lessons/{lessonId} {
+      allow read, write: if isAuthenticated() &&
+        ((resource == null && request.resource.data.userId == request.auth.uid) ||
+         (resource != null && resource.data.userId == request.auth.uid) ||
+         isRootAdmin());
+    }
+
+    match /study_subjects/{subjectId} {
+      allow read, write: if isAuthenticated() &&
+        ((resource == null && request.resource.data.userId == request.auth.uid) ||
+         (resource != null && resource.data.userId == request.auth.uid) ||
+         isRootAdmin());
+    }
+
+    match /study_tasks/{taskId} {
+      allow read, write: if isAuthenticated() &&
+        ((resource == null && request.resource.data.userId == request.auth.uid) ||
+         (resource != null && resource.data.userId == request.auth.uid) ||
+         isRootAdmin());
+    }
+
+    match /study_reminders/{reminderId} {
+      allow read, write: if isAuthenticated() &&
+        ((resource == null && request.resource.data.userId == request.auth.uid) ||
+         (resource != null && resource.data.userId == request.auth.uid) ||
+         isRootAdmin());
+    }
+
+    match /study_exams/{examId} {
+      allow read, write: if isAuthenticated() &&
+        ((resource == null && request.resource.data.userId == request.auth.uid) ||
+         (resource != null && resource.data.userId == request.auth.uid) ||
+         isRootAdmin());
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     //  ملاحظة أمنية: لا يوجد wildcard fallback هنا
     //  كل مسار يجب أن يكون محدداً صراحةً أعلاه
     //  أي مسار غير مذكور يُرفض تلقائياً

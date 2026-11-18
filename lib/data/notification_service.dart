@@ -274,7 +274,7 @@ class NotificationService {
     // دائماً نلغي القديم قبل جدولة جديد لتجنب التكرار
     await cancelSessionNotifications(item.id);
 
-    if (!item.notify) return;
+    if (!item.notify || item.isCancelled) return;
 
     final int baseId = (item.id.hashCode.abs() % 100000) * 10;
 
@@ -287,8 +287,8 @@ class NotificationService {
       nextEnd = nextEnd.add(const Duration(days: 1));
     }
 
-    // 1. إشعار التذكير قبل انتهاء المهمة بـ 10 دقائق (أو حسب الإعداد)
-    DateTime prepTime = nextEnd.subtract(
+    // 1. إشعار التذكير قبل بداية الحصة (حسب الدقائق المحددة)
+    DateTime prepTime = nextStart.subtract(
       Duration(minutes: item.notifyMinutesBefore),
     );
     if (prepTime.isBefore(DateTime.now())) {
@@ -307,11 +307,16 @@ class NotificationService {
       endTime = endTime.add(const Duration(days: 7));
     }
 
+    final startHourStr = item.startTime.hour.toString().padLeft(2, '0');
+    final startMinStr = item.startTime.minute.toString().padLeft(2, '0');
+    final periodName = item.isMorning ? 'الفترة الصباحية ☀️' : 'الفترة المسائية 🌙';
+    final examPrefix = item.isExam ? '🚨 موعد اختبار: ' : '📚 تذكير دراسي: ';
+
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
         'meraj3i_schedule',
         'الجدول الدراسي',
-        channelDescription: 'تنبيهات مواعيد الحصص الأسبوعية',
+        channelDescription: 'تنبيهات مواعيد الحصص والاختبارات الأسبوعية',
         icon: '@mipmap/ic_launcher',
         color: Color(0xFF14B8A6),
         importance: Importance.max,
@@ -327,14 +332,35 @@ class NotificationService {
     );
 
     try {
-      // جدولة تنبيه الاستعداد (BaseID + 0)
+      // جدولة تنبيه الاستعداد قبل البدء (BaseID + 0)
       if (item.notifyMinutesBefore > 0) {
         await _plugin.zonedSchedule(
           id: baseId,
-          title: '🔔 اقترب انتهاء المهمة',
+          title: '$examPrefixحان موعد الاستعداد لحصة ${item.title}',
           body:
-              'تبقى ${item.notifyMinutesBefore} دقائق على انتهاء مهمة "${item.title}"',
+              'تبدأ الحصة بعد ${item.notifyMinutesBefore} دقيقة • الساعة $startHourStr:$startMinStr • $periodName',
           scheduledDate: tz.TZDateTime.from(prepTime, tz.local),
+          notificationDetails: details,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+        );
+      }
+
+      // جدولة التنبيه الثانوي إن وُجد (BaseID + 3)
+      if (item.secondaryNotifyMinutes != null && item.secondaryNotifyMinutes! > 0) {
+        DateTime secPrepTime = nextStart.subtract(
+          Duration(minutes: item.secondaryNotifyMinutes!),
+        );
+        if (secPrepTime.isBefore(DateTime.now())) {
+          secPrepTime = secPrepTime.add(const Duration(days: 7));
+        }
+
+        await _plugin.zonedSchedule(
+          id: baseId + 3,
+          title: '$examPrefixاقتربت حصة ${item.title}',
+          body:
+              'تبدأ الحصة بعد ${item.secondaryNotifyMinutes} دقائق • الساعة $startHourStr:$startMinStr',
+          scheduledDate: tz.TZDateTime.from(secPrepTime, tz.local),
           notificationDetails: details,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
@@ -344,8 +370,8 @@ class NotificationService {
       // جدولة تنبيه البدء (BaseID + 1)
       await _plugin.zonedSchedule(
         id: baseId + 1,
-        title: '📚 بدأت الحصة الآن',
-        body: 'حان وقت البدء في حصة "${item.title}"',
+        title: item.isExam ? '🚨 بدأ اختبار ${item.title} الآن!' : '📚 بدأت حصة ${item.title} الآن',
+        body: 'حان وقت بدء الحصة ($periodName). بالتوفيق والنجاح!',
         scheduledDate: tz.TZDateTime.from(startTime, tz.local),
         notificationDetails: details,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -355,8 +381,8 @@ class NotificationService {
       // جدولة تنبيه الانتهاء (BaseID + 2)
       await _plugin.zonedSchedule(
         id: baseId + 2,
-        title: '✅ انتهت الحصة',
-        body: 'أحسنت، لقد أكملت الوقت المحدد لحصة "${item.title}"',
+        title: '✅ انتهت حصة ${item.title}',
+        body: 'أحسنت! لقد أكملت الوقت المحدد لحصة "${item.title}". خذ قسطاً من الراحة.',
         scheduledDate: tz.TZDateTime.from(endTime, tz.local),
         notificationDetails: details,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -372,6 +398,7 @@ class NotificationService {
     await _plugin.cancel(id: baseId); // Prep
     await _plugin.cancel(id: baseId + 1); // Start
     await _plugin.cancel(id: baseId + 2); // End
+    await _plugin.cancel(id: baseId + 3); // Secondary Prep
   }
 }
 

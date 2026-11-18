@@ -23,6 +23,7 @@ import '../features/smart_calculator/ui/screens/smart_calculator_screen.dart';
 import 'services_screen.dart';
 import 'news_screen.dart';
 import 'announcements_screen.dart';
+import 'study_schedule_screen.dart';
 import '../services/app_update_service.dart';
 import '../theme/responsive.dart';
 import '../widgets/pro_badge.dart';
@@ -883,6 +884,17 @@ class _HomePageState extends State<HomePage>
   Widget _buildTopCarousel(bool isDark) {
     final List<Widget> carouselItems = [
       _buildUserCard(isDark),
+      _buildCarouselActionCard(
+        'جدولي الدراسي',
+        'نظّم حصصك الصباحية والمسائية وتنبيهاتك الذكية',
+        Icons.calendar_month_rounded,
+        const Color(0xFF0F766E),
+        isDark,
+        () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const StudyScheduleScreen()),
+        ),
+      ),
       _buildCarouselActionCard(
         'آخر الأخبار',
         'تابع أهم وأحدث الأخبار',

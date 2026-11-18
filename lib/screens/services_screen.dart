@@ -13,6 +13,7 @@ import 'published_exams_screen.dart';
 import 'student/reading_list_screen.dart';
 import 'student/progress_screen.dart';
 import 'countdown_screen.dart';
+import 'study_schedule_screen.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/pro_badge.dart';
 import '../widgets/pro_feature_gate.dart';
@@ -110,6 +111,17 @@ class ServicesScreen extends StatelessWidget {
 
   Widget _buildAllServicesGrid(BuildContext context, Size size, bool isDark) {
     final services = [
+      _ServiceItem(
+        title: 'جدولي الدراسي',
+        icon: Icons.calendar_month_rounded,
+        gradient: AppTheme.brandGradient,
+        badge: 'جديد',
+        onTap: () => _checkFeatureAndNavigate(
+          context,
+          null,
+          const StudyScheduleScreen(),
+        ),
+      ),
       _ServiceItem(
         title: 'التنافس بين الطلاب',
         icon: Icons.emoji_events_rounded,

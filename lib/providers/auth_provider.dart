@@ -417,6 +417,10 @@ class AuthProvider extends ChangeNotifier {
   }
 
   ImageProvider? get profileImageProvider {
+    final r2Url = _userData?['profileImageUrl'];
+    if (r2Url != null && r2Url.toString().trim().isNotEmpty) {
+      return NetworkImage(r2Url.toString().trim());
+    }
     final base64Str = _userData?['profileImageBase64'];
     if (base64Str != null && base64Str.isNotEmpty) {
       try {
