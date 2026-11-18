@@ -6,6 +6,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../providers/notifications_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/curved_header.dart';
+import 'countdown_screen.dart';
+import 'results/results_home_screen.dart';
+import 'direct_chat_screen.dart';
+import 'honor_certificate_screen.dart';
 import 'announcements_screen.dart';
 import 'news_screen.dart';
 import 'notification_details_screen.dart';
@@ -112,7 +116,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
                 List<AppNotificationModel> notifications = provider
                     .notifications
-                    .toList();
+                    .toList()
+                  ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
                 if (_activeFilter != 'all') {
                   notifications = notifications.where((n) {
                     switch (_activeFilter) {
@@ -486,6 +491,20 @@ class _NotificationCardState extends State<_NotificationCard>
       'announcement' => MaterialPageRoute(
         builder: (_) =>
             AnnouncementsScreen(selectedId: widget.notification.targetId),
+      ),
+      'certificate' => MaterialPageRoute(
+        builder: (_) => HonorCertificateScreen(
+          certificateId: widget.notification.targetId ?? '',
+        ),
+      ),
+      'chat' || 'support' => MaterialPageRoute(
+        builder: (_) => const DirectChatScreen(),
+      ),
+      'countdown' || 'countdowns' => MaterialPageRoute(
+        builder: (_) => const CountdownScreen(),
+      ),
+      'results' || 'competition' => MaterialPageRoute(
+        builder: (_) => const ResultsHomeScreen(),
       ),
       _ => MaterialPageRoute(
         builder: (_) =>

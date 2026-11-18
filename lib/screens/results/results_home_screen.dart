@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import '../../services/remote_config_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/results_service.dart';
 import '../../models/competition_model.dart';
 import '../../providers/favorite_results_provider.dart';
@@ -11,7 +11,6 @@ import '../../theme/app_theme.dart';
 import '../../widgets/results_skeleton.dart';
 import '../../widgets/geometric_sliver_app_bar.dart';
 import 'results_list_screen.dart';
-import 'global_search_screen.dart';
 
 // ─── Gradient helpers per type ──────────────────────────────────────────────
 
@@ -60,55 +59,103 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
   bool _loading = true;
   String? _error;
   List<CompetitionModel> _competitions = [];
-  StreamSubscription<List<CompetitionModel>>? _competitionsSubscription;
+  late final StreamSubscription<QuerySnapshot<Map<String, dynamic>>> _competitionsSubscription;
+  Future<DateTime?>? _lastUpdatedFuture;
+
+  static bool _isValidLink(String value) {
+    final uri = Uri.tryParse(value.trim());
+    return uri != null &&
+        (uri.scheme == 'https' || uri.scheme == 'http') &&
+        uri.host.isNotEmpty;
+  }
 
   @override
   void initState() {
     super.initState();
-    _competitionsSubscription = RemoteConfigService.instance
-        .watchCompetitions()
-        .listen(
-          (competitions) {
-            if (!mounted) return;
+    // جلب فوري من الكاش أولاً لعرض الأزرار بدون أي تأخير
+    FirebaseFirestore.instance
+        .collection('competition_results')
+        .get(const GetOptions(source: Source.cache))
+        .then((snapshot) {
+          if (!mounted) return;
+          if (_competitions.isEmpty && snapshot.docs.isNotEmpty) {
+            final list = snapshot.docs
+                .map((doc) => CompetitionModel.fromJson(doc.id, doc.data()))
+                .where((c) => c.isPublished && _isValidLink(c.link))
+                .toList()
+              ..sort((a, b) {
+                final order = a.order.compareTo(b.order);
+                return order != 0 ? order : a.rawKey.compareTo(b.rawKey);
+              });
             setState(() {
-              _competitions = competitions;
+              _competitions = list;
+              _loading = false;
+            });
+          }
+        })
+        .catchError((_) {});
+
+    // جلب مباشر من Firestore دون الاعتماد على Remote Config
+    _competitionsSubscription = FirebaseFirestore.instance
+        .collection('competition_results')
+        .snapshots()
+        .listen(
+          (snapshot) {
+            if (!mounted) return;
+            final list = snapshot.docs
+                .map((doc) => CompetitionModel.fromJson(doc.id, doc.data()))
+                .where((c) => c.isPublished && _isValidLink(c.link))
+                .toList()
+              ..sort((a, b) {
+                final order = a.order.compareTo(b.order);
+                return order != 0 ? order : a.rawKey.compareTo(b.rawKey);
+              });
+
+            setState(() {
+              _competitions = list;
               _loading = false;
               _error = null;
             });
           },
-          onError: (Object error, StackTrace stackTrace) {
-            debugPrint('[ResultsHome] Competition updates failed: $error');
+          onError: (Object error) {
+            debugPrint('[ResultsHome] Failed to stream competitions: $error');
+            if (mounted && _competitions.isEmpty) {
+              setState(() {
+                _loading = false;
+                _error = 'تعذر تحميل معلومات المسابقات.';
+              });
+            }
           },
         );
-    _loadCompetitions();
   }
 
   @override
   void dispose() {
-    final subscription = _competitionsSubscription;
-    if (subscription != null) unawaited(subscription.cancel());
+    unawaited(_competitionsSubscription.cancel());
     super.dispose();
   }
 
-  Future<void> _loadCompetitions({bool forceRefresh = false}) async {
-    if (!mounted) return;
-    setState(() {
-      _loading = _competitions.isEmpty;
-      _error = null;
-    });
+  Future<void> _onRefresh() async {
     try {
-      final service = RemoteConfigService.instance;
-      await service.initialize();
-      final list = await service.fetchCompetitions(forceRefresh: forceRefresh);
-      if (mounted) setState(() => _competitions = list);
-    } catch (e) {
-      if (mounted) setState(() => _error = 'تعذر تحميل معلومات المسابقات.');
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+      final snapshot = await FirebaseFirestore.instance
+          .collection('competition_results')
+          .get(const GetOptions(source: Source.serverAndCache));
+      if (!mounted) return;
+      final list = snapshot.docs
+          .map((doc) => CompetitionModel.fromJson(doc.id, doc.data()))
+          .where((c) => c.isPublished && _isValidLink(c.link))
+          .toList()
+        ..sort((a, b) {
+          final order = a.order.compareTo(b.order);
+          return order != 0 ? order : a.rawKey.compareTo(b.rawKey);
+        });
+      setState(() {
+        _competitions = list;
+        _loading = false;
+        _error = null;
+      });
+    } catch (_) {}
   }
-
-  Future<void> _onRefresh() => _loadCompetitions(forceRefresh: true);
 
   void _navigateToComp(CompetitionModel comp) {
     if (!comp.isPublished || comp.link.isEmpty) return;
@@ -167,23 +214,10 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            GeometricSliverAppBar(
+            const GeometricSliverAppBar(
               title: 'نتائج المسابقات الوطنية',
               icon: Icons.emoji_events_rounded,
               gradient: AppTheme.brandGradient,
-              actions: [
-                IconButton(
-                  tooltip: 'بحث',
-                  icon: const Icon(Icons.search_rounded, color: Colors.white),
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          GlobalSearchScreen(competitions: _competitions),
-                    ),
-                  ),
-                ),
-              ],
             ),
 
             SliverToBoxAdapter(
@@ -203,10 +237,6 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
                             _buildEmptyState(isDark),
                             const SizedBox(height: 16),
                           ],
-                          // ── بحث سريع ──
-                          _buildSearchBar(),
-                          const SizedBox(height: 20),
-
                           // ── المسابقات الأساسية ──
                           if (main.isNotEmpty) ...[
                             _sectionLabel('📋 المسابقات الأساسية', isDark),
@@ -252,74 +282,9 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
 
                           // ── معلومات التحديث ──
                           _buildCacheInfo(isDark),
-                          const SizedBox(height: 12),
-
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryColor.withValues(
-                                alpha: 0.08,
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: AppTheme.primaryColor.withValues(
-                                  alpha: 0.2,
-                                ),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.info_outline_rounded,
-                                  color: AppTheme.primaryColor,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    'اسحب للأسفل لتحديث النتائج من المصدر مباشرة.',
-                                    style: GoogleFonts.tajawal(
-                                      fontSize: 12,
-                                      color: AppTheme.primaryColor,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
                         ],
                       ),
                     ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => GlobalSearchScreen(competitions: _competitions),
-        ),
-      ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? const Color(0xFF1E293B)
-              : const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.search_rounded, color: Colors.grey, size: 20),
-            const SizedBox(width: 10),
-            Text(
-              'ابحث عن طالب، مدرسة، ولاية...',
-              style: GoogleFonts.tajawal(color: Colors.grey[500], fontSize: 13),
             ),
           ],
         ),
@@ -387,11 +352,9 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
 
   Widget _buildExcellenceRow(List<CompetitionModel> items, bool isDark) {
     if (items.isEmpty) return const SizedBox.shrink();
+    const color = Color(0xFFD97706); // لون موحد ومميز لجميع أزرار مسابقات الامتياز (الذهبي الفاخر)
     return Row(
       children: items.take(2).map((comp) {
-        final color = comp.rawKey.contains('concours')
-            ? const Color(0xFFF59E0B)
-            : const Color(0xFF8B5CF6);
         return Expanded(
           child: Padding(
             padding: const EdgeInsets.only(right: 6),
@@ -709,10 +672,7 @@ class _ResultsHomeScreenState extends State<ResultsHomeScreen> {
     final firstComp = _competitions.isNotEmpty ? _competitions.first : null;
     if (firstComp == null) return const SizedBox.shrink();
     return FutureBuilder<DateTime?>(
-      future: ResultsService.lastUpdated(
-        _examTypeFor(firstComp.type),
-        firstComp.link,
-      ),
+      future: _lastUpdatedFuture,
       builder: (context, snap) {
         final dt = snap.data;
         if (dt == null) return const SizedBox.shrink();

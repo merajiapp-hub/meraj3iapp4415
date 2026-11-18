@@ -25,6 +25,8 @@ import 'news_screen.dart';
 import 'announcements_screen.dart';
 import '../services/app_update_service.dart';
 import '../theme/responsive.dart';
+import '../widgets/pro_badge.dart';
+import '../widgets/pro_feature_gate.dart';
 
 class HomePage extends StatefulWidget {
   final bool isGuest;
@@ -308,8 +310,7 @@ class _HomePageState extends State<HomePage>
                       children: [
                         // ── عنوان القسم الرئيسي ──
                         _buildSectionHeader('الخدمات الرئيسية', isDark),
-                        const SizedBox(height: 12),
-                        // ── Grid الأزرار الرئيسية ──
+                        // ── Grid الأزرار الرئيسية (بدون مسافة وغير قابل للتمرير) ──
                         RepaintBoundary(
                           child: _buildMainServicesGrid(size, isDark),
                         ),
@@ -348,9 +349,14 @@ class _HomePageState extends State<HomePage>
         icon: Icons.menu_book_rounded,
         gradient: AppTheme.primaryGradient,
         badge: null,
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const NationalExamsScreen()),
+        onTap: () => ProFeatureGate.checkAccess(
+          context: context,
+          featureKey: 'national_exams',
+          featureName: 'الامتحانات الوطنية',
+          onAllowed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const NationalExamsScreen()),
+          ),
         ),
       ),
       _ServiceItem(
@@ -518,7 +524,20 @@ class _HomePageState extends State<HomePage>
                 ),
               ),
               const SizedBox(width: 8),
-              Expanded(child: _buildSearchBar(isDark)),
+              Expanded(
+                child: Center(
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    height: 38,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.school_rounded,
+                      color: AppTheme.primaryColor,
+                      size: 28,
+                    ),
+                  ),
+                ),
+              ),
               const SizedBox(width: 8),
               Consumer<ThemeProvider>(
                 builder: (context, themeProvider, _) => _homeToolbarButton(
@@ -813,13 +832,22 @@ class _HomePageState extends State<HomePage>
                   FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerRight,
-                    child: Text(
-                      name,
-                      style: GoogleFonts.tajawal(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          name,
+                          style: GoogleFonts.tajawal(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                        if (auth.isPro) ...[
+                          const SizedBox(width: 6),
+                          const ProBadge(fontSize: 9.5),
+                        ],
+                      ],
                     ),
                   ),
                 ],

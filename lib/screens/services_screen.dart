@@ -12,6 +12,10 @@ import 'swedd_screen.dart';
 import 'published_exams_screen.dart';
 import 'student/reading_list_screen.dart';
 import 'student/progress_screen.dart';
+import 'countdown_screen.dart';
+import '../providers/auth_provider.dart';
+import '../widgets/pro_badge.dart';
+import '../widgets/pro_feature_gate.dart';
 
 import '../widgets/curved_header.dart';
 
@@ -124,7 +128,7 @@ class ServicesScreen extends StatelessWidget {
         badge: null,
         onTap: () => _checkFeatureAndNavigate(
           context,
-          'results_enabled',
+          null,
           const ResultsHomeScreen(),
         ),
       ),
@@ -149,10 +153,16 @@ class ServicesScreen extends StatelessWidget {
         icon: Icons.quiz_rounded,
         gradient: AppTheme.primaryGradient,
         badge: null,
-        onTap: () => _checkFeatureAndNavigate(
-          context,
-          'quizzes_enabled',
-          const PublishedExamsScreen(),
+        isProOnly: true,
+        onTap: () => ProFeatureGate.checkAccess(
+          context: context,
+          featureKey: 'quizzes',
+          featureName: 'الاختبارات الذكية',
+          onAllowed: () => _checkFeatureAndNavigate(
+            context,
+            'quizzes_enabled',
+            const PublishedExamsScreen(),
+          ),
         ),
       ),
       _ServiceItem(
@@ -162,6 +172,17 @@ class ServicesScreen extends StatelessWidget {
         badge: null,
         onTap: () =>
             _checkFeatureAndNavigate(context, null, const ReadingListScreen()),
+      ),
+      _ServiceItem(
+        title: 'العد التنازلي للمسابقات والعطل',
+        icon: Icons.timer_rounded,
+        gradient: AppTheme.brandGradient,
+        badge: 'جديد',
+        onTap: () => _checkFeatureAndNavigate(
+          context,
+          null,
+          const CountdownScreen(),
+        ),
       ),
       _ServiceItem(
         title: 'تطور المستوى',
@@ -260,6 +281,41 @@ class ServicesScreen extends StatelessWidget {
               ),
             ),
           ),
+          if (service.isProOnly)
+            Positioned(
+              top: 8,
+              left: 8,
+              child: Consumer<AuthProvider>(
+                builder: (context, auth, _) {
+                  if (auth.isPro) {
+                    return const ProBadge(fontSize: 8.5, showCrown: false);
+                  }
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFF59E0B), width: 0.8),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.lock_rounded, size: 10, color: Color(0xFFF59E0B)),
+                        SizedBox(width: 2),
+                        Text(
+                          'PRO',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFFF59E0B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
           ],
         ),
       ),
@@ -272,6 +328,7 @@ class _ServiceItem {
   final IconData icon;
   final Gradient gradient;
   final String? badge;
+  final bool isProOnly;
   final VoidCallback onTap;
 
   const _ServiceItem({
@@ -279,6 +336,7 @@ class _ServiceItem {
     required this.icon,
     required this.gradient,
     required this.badge,
+    this.isProOnly = false,
     required this.onTap,
   });
 }

@@ -37,6 +37,19 @@ class AdManager {
   static int _rewardedRetryAttempts = 0;
   static const int _maxRetryAttempts = 4;
 
+  // ── نظام تخفيف ظهور الإعلانات الذكي (Frequency Capping & Throttling) ───────────
+  static DateTime? _lastInterstitialTime;
+  static int _actionCounter = 0;
+  static int _adsShownInSession = 0;
+  /// حد أقصى إعلانين في الجلسة الواحدة لمنع الإزعاج
+  static const int maxAdsPerSession = 2;
+  /// فاصل زمني إجباري لا يقل عن 5 دقائق بين كل إعلان والآخر
+  static const Duration minimumIntervalBetweenAds = Duration(minutes: 5);
+  /// لا يظهر في كل إجراء بل يتطلب 3 إجراءات كحد أدنى بين الفرص
+  static const int actionStepInterval = 3;
+  /// مستخدمي Pro لا تظهر لهم أي إعلانات نهائياً
+  static bool isProUser = false;
+
   static final List<Function(RewardedAd?)> _rewardedWaiters = [];
 
   static bool get isInterstitialReady => _interstitialAd != null;
@@ -104,12 +117,36 @@ class AdManager {
     );
   }
 
-  /// عرض الإعلان البيني مع إمكانية تحديد نسبة الظهور
+  /// عرض الإعلان البيني بنظام ذكي مخفف جداً (لا يظهر كل مرة ومحدد بفترة كافية)
   static void showInterstitialAd({
-    double chance = 0.6,
+    double chance = 0.35,
     VoidCallback? onDismissed,
   }) {
-    if (kIsWeb) {
+    if (kIsWeb || isProUser) {
+      onDismissed?.call();
+      return;
+    }
+
+    // 1. زيادة عداد الإجراءات (لا يظهر في كل مرة، بل بعد كل عدة إجراءات)
+    _actionCounter++;
+    if (_actionCounter % actionStepInterval != 0) {
+      debugPrint('[AdManager] Ad skipped: throttled by action interval ($_actionCounter).');
+      onDismissed?.call();
+      return;
+    }
+
+    // 2. التحقق من الحد الأقصى للإعلانات في الجلسة الواحدة
+    if (_adsShownInSession >= maxAdsPerSession) {
+      debugPrint('[AdManager] Ad skipped: session cap reached ($_adsShownInSession).');
+      onDismissed?.call();
+      return;
+    }
+
+    // 3. التحقق من الفاصل الزمني الإجباري (لا يقل عن 5 دقائق بين كل إعلان والآخر)
+    final now = DateTime.now();
+    if (_lastInterstitialTime != null &&
+        now.difference(_lastInterstitialTime!) < minimumIntervalBetweenAds) {
+      debugPrint('[AdManager] Ad skipped: cooldown active (${now.difference(_lastInterstitialTime!).inMinutes} mins).');
       onDismissed?.call();
       return;
     }
@@ -123,9 +160,11 @@ class AdManager {
 
     final random = Random().nextDouble();
     if (random <= chance) {
+      _lastInterstitialTime = now;
+      _adsShownInSession++;
       _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
         onAdShowedFullScreenContent: (ad) {
-          debugPrint('InterstitialAd showed full screen.');
+          debugPrint('InterstitialAd showed full screen (Session total: $_adsShownInSession).');
         },
         onAdDismissedFullScreenContent: (ad) {
           debugPrint('InterstitialAd dismissed.');

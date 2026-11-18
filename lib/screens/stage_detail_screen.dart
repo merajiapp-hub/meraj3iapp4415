@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import '../models/book.dart';
+import '../services/content_service.dart';
+import '../widgets/book_card.dart';
 import 'books_list_screen.dart';
 import '../widgets/curved_header.dart';
 import '../theme/responsive.dart';
+import '../theme/app_theme.dart';
 
 class StageDetailScreen extends StatefulWidget {
   final String stageTitle;
@@ -36,6 +40,27 @@ Stream<List<dynamic>> _booksCountStream(String section) {
 }
 
 class _StageDetailScreenState extends State<StageDetailScreen> {
+  final TextEditingController _searchCtrl = TextEditingController();
+  late final Stream<List<Book>> _stageBooksStream;
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _stageBooksStream = ContentService.watchBooksBySection(widget.section);
+    _searchCtrl.addListener(() {
+      setState(() {
+        _searchQuery = _searchCtrl.text.trim().toLowerCase();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -82,34 +107,145 @@ class _StageDetailScreenState extends State<StageDetailScreen> {
             leadingIcon: Icons.school_rounded,
           ),
 
+          // ── شريط بحث مخصص للمرحلة لعرض كتبها فقط ──
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 4),
-            child: StreamBuilder<List<dynamic>>(
-              stream: _booksCountStream(widget.section),
-              builder: (context, snap) {
-                final count = snap.data?.length ?? 0;
-                return Row(
-                  children: [
-                    _StatChip(icon: Icons.folder_rounded, label: '$count ملف'),
-                    const SizedBox(width: 8),
-                    _StatChip(icon: Icons.layers_rounded, label: '${sections.length} أقسام'),
-                  ],
-                );
-              },
-            ),
-          ),
-
-          // ── شبكة البطاقات ──
-          Expanded(
-            child: AnimationLimiter(
-              child: _buildSectionsGrid(
-                sections,
-                isDark,
-                accentColor,
-                screenWidth,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDark ? AppTheme.surfaceDark : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+                border: Border.all(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : const Color(0xFFE2E8F0),
+                ),
+              ),
+              child: TextField(
+                controller: _searchCtrl,
+                decoration: InputDecoration(
+                  hintText: 'ابحث في كتب ${widget.stageTitle}...',
+                  hintStyle: GoogleFonts.tajawal(
+                    fontSize: 13,
+                    color: isDark ? Colors.white38 : Colors.grey[500],
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    size: 20,
+                    color: AppTheme.primaryColor,
+                  ),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded, size: 18),
+                          onPressed: () => _searchCtrl.clear(),
+                        )
+                      : null,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
               ),
             ),
           ),
+
+          if (_searchQuery.isNotEmpty)
+            // ── عرض نتائج بحث كتب هذه المرحلة فقط ──
+            Expanded(
+              child: StreamBuilder<List<Book>>(
+                stream: _stageBooksStream,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final allBooks = snapshot.data ?? [];
+                  final results = allBooks.where((b) {
+                    final t = b.title.toLowerCase();
+                    final s = b.subject.toLowerCase();
+                    final g = b.grade.toLowerCase();
+                    return t.contains(_searchQuery) ||
+                        s.contains(_searchQuery) ||
+                        g.contains(_searchQuery);
+                  }).toList();
+
+                  if (results.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.search_off_rounded,
+                            size: 48,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'لا توجد كتب مطابقة لبحثك في ${widget.stageTitle}',
+                            style: GoogleFonts.tajawal(
+                              color: Colors.grey[500],
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: results.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      return BookCard(
+                        book: results[index],
+                        gradient: widget.gradient,
+                        isDark: isDark,
+                      );
+                    },
+                  );
+                },
+              ),
+            )
+          else ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 4),
+              child: StreamBuilder<List<dynamic>>(
+                stream: _booksCountStream(widget.section),
+                builder: (context, snap) {
+                  final count = snap.data?.length ?? 0;
+                  return Row(
+                    children: [
+                      _StatChip(icon: Icons.folder_rounded, label: '$count ملف'),
+                      const SizedBox(width: 8),
+                      _StatChip(
+                        icon: Icons.layers_rounded,
+                        label: '${sections.length} أقسام',
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+
+            // ── شبكة البطاقات ──
+            Expanded(
+              child: AnimationLimiter(
+                child: _buildSectionsGrid(
+                  sections,
+                  isDark,
+                  accentColor,
+                  screenWidth,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

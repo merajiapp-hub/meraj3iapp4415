@@ -8,6 +8,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import '../core/account_status.dart';
 import '../services/admin_activity_service.dart';
 import '../services/login_activity_service.dart';
+import '../data/ad_manager.dart';
 
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -23,6 +24,8 @@ class AuthProvider extends ChangeNotifier {
   bool _isRegistering = false;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
   _accountStatusSubscription;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _userDocSubscription;
 
   static const String _defaultPhoneCountryCode = '222';
 
@@ -428,6 +431,63 @@ class AuthProvider extends ChangeNotifier {
     return null;
   }
 
+  // ─── Pro Membership Getters ────────────────────────────────────────────────
+  bool get isPro {
+    if (_userData == null) {
+      AdManager.isProUser = false;
+      return false;
+    }
+    final isProFlag =
+        _userData?['isPro'] == true || _userData?['membershipType'] == 'pro';
+    if (!isProFlag) {
+      AdManager.isProUser = false;
+      return false;
+    }
+    final expiresVal = _userData?['proExpiresAt'];
+    if (expiresVal == null) {
+      AdManager.isProUser = true;
+      return true; // اشتراك دائم
+    }
+    DateTime? expiresAt;
+    if (expiresVal is Timestamp) {
+      expiresAt = expiresVal.toDate();
+    } else if (expiresVal is String) {
+      expiresAt = DateTime.tryParse(expiresVal);
+    }
+    if (expiresAt != null && DateTime.now().isAfter(expiresAt)) {
+      AdManager.isProUser = false;
+      return false; // انتهت صلاحية الاشتراك
+    }
+    AdManager.isProUser = true;
+    return true;
+  }
+
+  DateTime? get proExpiresAt {
+    final val = _userData?['proExpiresAt'];
+    if (val is Timestamp) return val.toDate();
+    if (val is String) return DateTime.tryParse(val);
+    return null;
+  }
+
+  DateTime? get proStartedAt {
+    final val = _userData?['proStartedAt'];
+    if (val is Timestamp) return val.toDate();
+    if (val is String) return DateTime.tryParse(val);
+    return null;
+  }
+
+  String get proPlanName => _userData?['proPlanName']?.toString() ?? 'Pro';
+
+  String get proDaysRemaining {
+    final exp = proExpiresAt;
+    if (exp == null) return 'دائم';
+    final diff = exp.difference(DateTime.now());
+    if (diff.isNegative) return 'منتهي';
+    if (diff.inDays > 0) return '${diff.inDays} يوم';
+    if (diff.inHours > 0) return '${diff.inHours} ساعة';
+    return 'أقل من ساعة';
+  }
+
   // ─── تحميل حالة الـ Guest في الخلفية — لا تعليق ──────────────────────────
   void _loadGuestStateBackground() {
     SharedPreferences.getInstance()
@@ -441,9 +501,24 @@ class AuthProvider extends ChangeNotifier {
         .catchError((_) {});
   }
 
-  // ─── تحميل بيانات المستخدم في الخلفية — لا تعليق ─────────────────────────
+  // ─── تحميل بيانات المستخدم في الخلفية — ومراقبة التغييرات الحية ─────────────
   void _loadUserDataBackground() {
     if (_user == null) return;
+    _userDocSubscription?.cancel();
+    _userDocSubscription = _firestore
+        .collection('users')
+        .doc(_user!.uid)
+        .snapshots()
+        .listen((doc) {
+          if (doc.exists && doc.data() != null) {
+            _userData = doc.data();
+            _mustChangePassword = _userData?['mustChangePassword'] == true;
+            notifyListeners();
+          }
+        }, onError: (e) {
+          debugPrint('[Auth] _userDocSubscription error: $e');
+        });
+
     Future.microtask(() async {
       try {
         final doc = await _firestore
@@ -462,7 +537,6 @@ class AuthProvider extends ChangeNotifier {
       } catch (e) {
         debugPrint('[Auth] _loadUserDataBackground error: $e');
       }
-      // تحديث Token في الخلفية بعد تحميل البيانات
       _updateFCMTokenBackground(null);
     });
   }
@@ -1096,6 +1170,8 @@ class AuthProvider extends ChangeNotifier {
     _isRegistering = false;
     _accountStatusSubscription?.cancel();
     _accountStatusSubscription = null;
+    _userDocSubscription?.cancel();
+    _userDocSubscription = null;
     notifyListeners();
 
     // تسجيل الخروج ينهي الجلسة فقط؛ لا نحذف بيانات المستخدم المحلية أو السحابية.

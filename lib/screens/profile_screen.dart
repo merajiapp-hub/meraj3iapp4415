@@ -13,8 +13,10 @@ import '../theme/app_theme.dart';
 import '../widgets/app_notification.dart';
 
 import 'login_screen.dart';
+import 'pro_subscription_screen.dart';
 import 'statistics_screen.dart';
 import 'student/reading_history_screen.dart';
+import '../widgets/pro_badge.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -373,7 +375,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 24),
+                    _buildProMembershipCard(isDark, auth),
+                    const SizedBox(height: 20),
 
                     // ─── بطاقة الإحصائيات ─────────────────────────────────
                     _buildStatsCard(
@@ -529,14 +533,23 @@ class _ProfileScreenState extends State<ProfileScreen>
             ],
           ),
           const SizedBox(height: 16),
-          Text(
-            name,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.tajawal(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                name,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.tajawal(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (context.watch<AuthProvider>().isPro) ...[
+                const SizedBox(width: 8),
+                const ProBadge(fontSize: 10.5),
+              ],
+            ],
           ),
           if (email.isNotEmpty)
             Text(
@@ -548,6 +561,117 @@ class _ProfileScreenState extends State<ProfileScreen>
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  // ─── بطاقة عضوية Pro والاشتراك ─────────────────────────────────────────────
+  Widget _buildProMembershipCard(bool isDark, AuthProvider auth) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: auth.isPro
+              ? [const Color(0xFF78350F), const Color(0xFFB45309)]
+              : (isDark
+                  ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+                  : [const Color(0xFFFFFBEB), Colors.white]),
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: const Color(0xFFF59E0B).withValues(alpha: auth.isPro ? 0.6 : 0.3),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFD97706).withValues(alpha: auth.isPro ? 0.35 : 0.1),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.workspace_premium_rounded,
+                    color: Color(0xFFF59E0B),
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        auth.isPro ? 'عضوية Pro نشطة' : 'ترقية الحساب إلى Pro',
+                        style: GoogleFonts.tajawal(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: auth.isPro
+                              ? Colors.white
+                              : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        auth.isPro
+                            ? 'باقة ${auth.proPlanName} • متبقي: ${auth.proDaysRemaining}'
+                            : 'بدون أي إعلانات + فتح كافة الاختبارات والامتحانات',
+                        style: GoogleFonts.tajawal(
+                          fontSize: 12,
+                          color: auth.isPro
+                              ? const Color(0xFFFEF3C7)
+                              : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const ProBadge(fontSize: 10),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ProSubscriptionScreen()),
+                  );
+                },
+                icon: Icon(
+                  auth.isPro ? Icons.update_rounded : Icons.star_rounded,
+                  size: 18,
+                ),
+                label: Text(
+                  auth.isPro ? 'إدارة الاشتراك والتجديد' : 'عرض الباقات والاشتراك الآن',
+                  style: GoogleFonts.tajawal(fontWeight: FontWeight.w800, fontSize: 13.5),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF59E0B),
+                  foregroundColor: Colors.white,
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

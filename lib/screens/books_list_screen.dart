@@ -6,6 +6,7 @@ import '../services/content_service.dart';
 import '../widgets/book_card.dart';
 import '../widgets/geometric_sliver_app_bar.dart';
 import '../utils/academic_order.dart';
+import '../theme/app_theme.dart';
 
 class BooksListScreen extends StatefulWidget {
   final String stageTitle;
@@ -27,6 +28,8 @@ class BooksListScreen extends StatefulWidget {
 
 class _BooksListScreenState extends State<BooksListScreen> {
   final Set<int> _expandedIndices = {};
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _query = '';
 
   List<Book>? _books;
   List<String> _grades = [];
@@ -37,6 +40,11 @@ class _BooksListScreenState extends State<BooksListScreen> {
   @override
   void initState() {
     super.initState();
+    _searchCtrl.addListener(() {
+      setState(() {
+        _query = _searchCtrl.text.trim().toLowerCase();
+      });
+    });
     _subscribe();
   }
 
@@ -102,6 +110,7 @@ class _BooksListScreenState extends State<BooksListScreen> {
 
   @override
   void dispose() {
+    _searchCtrl.dispose();
     _sub?.cancel();
     super.dispose();
   }
@@ -138,6 +147,57 @@ class _BooksListScreenState extends State<BooksListScreen> {
                 : Icons.play_lesson_rounded,
             gradient: widget.gradient,
           ),
+
+          if (!_loading && _error == null && _books != null && _books!.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(
+                          alpha: isDark ? 0.2 : 0.04,
+                        ),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                    border: Border.all(
+                      color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                    ),
+                  ),
+                  child: TextField(
+                    controller: _searchCtrl,
+                    decoration: InputDecoration(
+                      hintText: 'ابحث في كتب ${widget.stageTitle}...',
+                      hintStyle: GoogleFonts.tajawal(
+                        fontSize: 13,
+                        color: isDark ? Colors.white38 : Colors.grey[500],
+                      ),
+                      prefixIcon: Icon(
+                        Icons.search_rounded,
+                        size: 20,
+                        color: accentColor,
+                      ),
+                      suffixIcon: _query.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear_rounded, size: 18),
+                              onPressed: () => _searchCtrl.clear(),
+                            )
+                          : null,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
 
           if (_loading)
             SliverFillRemaining(
@@ -214,7 +274,60 @@ class _BooksListScreenState extends State<BooksListScreen> {
                 ),
               ),
             )
-          else
+          else if (_query.isNotEmpty) ...[
+            () {
+              final searchResults = _books!.where((b) {
+                final t = b.title.toLowerCase();
+                final s = b.subject.toLowerCase();
+                final g = b.grade.toLowerCase();
+                return t.contains(_query) ||
+                    s.contains(_query) ||
+                    g.contains(_query);
+              }).toList();
+
+              if (searchResults.isEmpty) {
+                return SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off_rounded,
+                          size: 48,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'لا توجد نتائج مطابقة لبحثك',
+                          style: GoogleFonts.tajawal(
+                            color: Colors.grey[500],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              return SliverPadding(
+                padding: const EdgeInsets.all(16),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: BookCard(
+                        book: searchResults[index],
+                        gradient: widget.gradient,
+                        isDark: isDark,
+                      ),
+                    ),
+                    childCount: searchResults.length,
+                  ),
+                ),
+              );
+            }(),
+          ] else
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(14, 16, 14, 24),
               sliver: SliverList(

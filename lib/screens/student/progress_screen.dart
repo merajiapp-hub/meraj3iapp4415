@@ -225,27 +225,57 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
   Widget _buildStudyHoursChart(
       Map<int, double> hoursPerDay, double maxHours, bool isDark) {
+    final double safeMaxY = (maxHours <= 0)
+        ? 3.0
+        : (maxHours * 1.35).ceilToDouble().clamp(3.0, 24.0);
+
     return Container(
       height: 250,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
       decoration: _cardDecor(isDark),
       child: BarChart(
         BarChartData(
           alignment: BarChartAlignment.spaceAround,
-          maxY: maxHours < 0.1 ? 2 : (maxHours * 1.3),
-          barTouchData: BarTouchData(enabled: false),
+          minY: 0,
+          maxY: safeMaxY,
+          barTouchData: BarTouchData(
+            enabled: true,
+            touchTooltipData: BarTouchTooltipData(
+              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                const days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+                final dayName = group.x.toInt() < days.length ? days[group.x.toInt()] : '';
+                return BarTooltipItem(
+                  '$dayName\n${rod.toY.toStringAsFixed(1)} ساعة',
+                  GoogleFonts.tajawal(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                );
+              },
+            ),
+          ),
           titlesData: FlTitlesData(
             show: true,
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
+                reservedSize: 30,
                 getTitlesWidget: (value, meta) {
                   const days = ['أحد', 'اثن', 'ثلا', 'أرب', 'خمس', 'جمع', 'سبت'];
                   final idx = value.toInt();
+                  if (idx < 0 || idx >= days.length) return const SizedBox.shrink();
                   return SideTitleWidget(
                     axisSide: meta.axisSide,
-                    child: Text(idx < days.length ? days[idx] : '',
-                        style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                    space: 6,
+                    child: Text(
+                      days[idx],
+                      style: GoogleFonts.tajawal(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      ),
+                    ),
                   );
                 },
               ),
@@ -257,13 +287,15 @@ class _ProgressScreenState extends State<ProgressScreen> {
           gridData: const FlGridData(show: false),
           borderData: FlBorderData(show: false),
           barGroups: List.generate(
-              7, (i) => _makeBar(i, hoursPerDay[i] ?? 0.0, isDark)),
+            7,
+            (i) => _makeBar(i, (hoursPerDay[i] ?? 0.0).clamp(0.0, safeMaxY), safeMaxY, isDark),
+          ),
         ),
       ),
     );
   }
 
-  BarChartGroupData _makeBar(int x, double y, bool isDark) {
+  BarChartGroupData _makeBar(int x, double y, double safeMaxY, bool isDark) {
     return BarChartGroupData(x: x, barRods: [
       BarChartRodData(
         toY: y,
@@ -274,7 +306,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
         backDrawRodData: BackgroundBarChartRodData(
           show: true,
-          toY: 2,
+          toY: safeMaxY,
           color: isDark
               ? Colors.white.withValues(alpha: 0.05)
               : const Color(0xFFF1F5F9),

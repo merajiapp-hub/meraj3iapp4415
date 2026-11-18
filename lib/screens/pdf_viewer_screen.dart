@@ -151,7 +151,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen>
     _downloadProgressSubscription?.cancel();
     _toolbarAnimController.dispose();
     _pageJumpController.dispose();
-    AdManager.showInterstitialAd(chance: 0.5);
+    AdManager.showInterstitialAd();
     super.dispose();
   }
 

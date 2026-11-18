@@ -173,6 +173,7 @@ class _CompetitionChaptersScreenState
   String? _subject; // null أو 'الكل' يعني كل المواد
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _quizzesStream;
 
   static const _bacStreams = ExamSelectionUtils.bacStreams;
 
@@ -182,6 +183,12 @@ class _CompetitionChaptersScreenState
     if (widget.competition == 'Baccalauréat') {
       _stream = '7D';
     }
+    // تهيئة الاستعلام مرة واحدة في initState لمنع إعادة الاتصال في كل build
+    _quizzesStream = FirebaseFirestore.instance
+        .collection('quizzes')
+        .where('kind', isEqualTo: 'quiz')
+        .where('status', isEqualTo: 'published')
+        .snapshots();
   }
 
   @override
@@ -288,11 +295,7 @@ class _CompetitionChaptersScreenState
 
   Widget _buildBody(bool isDark, String? uid, Color accentColor) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('quizzes')
-          .where('kind', isEqualTo: 'quiz')
-          .where('status', isEqualTo: 'published')
-          .snapshots(),
+      stream: _quizzesStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return _buildErrorState(snapshot.error.toString(), isDark);
@@ -496,6 +499,8 @@ class _CompetitionChaptersScreenState
                     quizId: data['_id'].toString(),
                     isDark: isDark,
                     uid: uid,
+                    currentCompetition: widget.competition,
+                    currentStream: _stream,
                   ),
                 ),
               ),
@@ -903,12 +908,16 @@ class _ExamCard extends StatelessWidget {
   final String quizId;
   final bool isDark;
   final String? uid;
+  final String? currentCompetition;
+  final String? currentStream;
 
   const _ExamCard({
     required this.data,
     required this.quizId,
     required this.isDark,
     required this.uid,
+    this.currentCompetition,
+    this.currentStream,
   });
 
   @override
@@ -1025,6 +1034,8 @@ class _ExamCard extends StatelessWidget {
                         data: data,
                         uid: uid!,
                         isDark: isDark,
+                        currentCompetition: currentCompetition,
+                        currentStream: currentStream,
                       )
                     : _PrimaryExamButton(
                         onPressed: () => _startExam(context, durationMin),
@@ -1075,6 +1086,8 @@ class _ExamCard extends StatelessWidget {
             durationMinutes: durationMin,
             questions: questions,
             uid: uid,
+            competition: currentCompetition,
+            stream: currentStream,
           ),
         ),
       );
@@ -1088,32 +1101,90 @@ class _ExamCard extends StatelessWidget {
   }
 }
 
-// زر الاختبار مع إحصائيات من Firestore
-class _ExamActionButton extends StatelessWidget {
+// زر الاختبار مع إحصائيات من Firestore (مُحسّن: تهيئة الـ Stream مرة واحدة فقط)
+class _ExamActionButton extends StatefulWidget {
   final String quizId;
   final Map<String, dynamic> data;
   final String uid;
   final bool isDark;
+  final String? currentCompetition;
+  final String? currentStream;
 
   const _ExamActionButton({
     required this.quizId,
     required this.data,
     required this.uid,
     required this.isDark,
+    this.currentCompetition,
+    this.currentStream,
   });
+
+  @override
+  State<_ExamActionButton> createState() => _ExamActionButtonState();
+}
+
+class _ExamActionButtonState extends State<_ExamActionButton> {
+  late Stream<QuerySnapshot<Map<String, dynamic>>> _attemptsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _initAttemptsStream();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ExamActionButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.uid != widget.uid || oldWidget.quizId != widget.quizId) {
+      _initAttemptsStream();
+    }
+  }
+
+  void _initAttemptsStream() {
+    _attemptsStream = FirebaseFirestore.instance
+        .collection('exam_attempts')
+        .where('userId', isEqualTo: widget.uid)
+        .where('quizId', isEqualTo: widget.quizId)
+        .snapshots();
+  }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('exam_attempts')
-          .where('userId', isEqualTo: uid)
-          .where('quizId', isEqualTo: quizId)
-          .snapshots(),
+      stream: _attemptsStream,
       builder: (context, snap) {
-        final attempts = snap.hasData
+        final allAttempts = snap.hasData
             ? snap.data!.docs
             : <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+
+        // تصفية المحاولات لتكون مستقلة تماماً لكل مسابقة وشعبة على حدة حتى لو كان الشابيتر مشتركاً
+        final attempts = allAttempts.where((doc) {
+          final d = doc.data();
+          final attemptComp = ExamSelectionUtils.normalizeCompetition(
+            (d['competition'] ?? '').toString().trim(),
+          );
+          final attemptStream = (d['stream'] ?? '').toString().trim();
+          final normCurrentComp = ExamSelectionUtils.normalizeCompetition(
+            (widget.currentCompetition ?? '').trim(),
+          );
+
+          // عزل تام حسب الشعبة (مثلاً 7D مقابل 7C مقابل 7LM مقابل 7LO)
+          if (widget.currentStream != null &&
+              widget.currentStream!.isNotEmpty &&
+              widget.currentStream != 'عام') {
+            if (attemptStream != widget.currentStream) {
+              return false;
+            }
+          }
+
+          // عزل تام حسب المسابقة
+          if (normCurrentComp.isNotEmpty && attemptComp.isNotEmpty) {
+            if (attemptComp != normCurrentComp) {
+              return false;
+            }
+          }
+          return true;
+        }).toList();
 
         // أفضل نتيجة وآخر نتيجة
         int bestScore = 0;
@@ -1138,7 +1209,7 @@ class _ExamActionButton extends StatelessWidget {
         }
 
         final stars = ExamSelectionUtils.starsForScore(bestScore);
-        final durationMin = (data['duration'] as num?)?.toInt() ?? 30;
+        final durationMin = (widget.data['duration'] as num?)?.toInt() ?? 30;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1149,12 +1220,12 @@ class _ExamActionButton extends StatelessWidget {
                 padding: const EdgeInsets.all(9),
                 margin: const EdgeInsets.only(bottom: 8),
                 decoration: BoxDecoration(
-                  color: isDark
+                  color: widget.isDark
                       ? Colors.white.withValues(alpha: 0.04)
                       : Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: isDark
+                    color: widget.isDark
                         ? Colors.white12
                         : Colors.black.withValues(alpha: 0.08),
                   ),
@@ -1165,17 +1236,17 @@ class _ExamActionButton extends StatelessWidget {
                     _StatCol(
                       label: 'المحاولات',
                       value: '$attemptCount',
-                      isDark: isDark,
+                      isDark: widget.isDark,
                     ),
                     _StatCol(
                       label: 'أفضل نتيجة',
                       value: '$bestScore%',
-                      isDark: isDark,
+                      isDark: widget.isDark,
                     ),
                     _StatCol(
                       label: 'آخر نتيجة',
                       value: '$lastScore%',
-                      isDark: isDark,
+                      isDark: widget.isDark,
                     ),
                     _StarsWidget(stars: stars),
                   ],
@@ -1194,7 +1265,7 @@ class _ExamActionButton extends StatelessWidget {
                         durationMin,
                         resumeAttemptId: incompleteAttemptId,
                       ),
-                      isDark: isDark,
+                      isDark: widget.isDark,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -1234,7 +1305,7 @@ class _ExamActionButton extends StatelessWidget {
     try {
       final snap = await FirebaseFirestore.instance
           .collection('quizzes')
-          .doc(quizId)
+          .doc(widget.quizId)
           .collection('questions')
           .orderBy('order')
           .get();
@@ -1256,12 +1327,14 @@ class _ExamActionButton extends StatelessWidget {
         context,
         MaterialPageRoute(
           builder: (_) => ExamTakingScreen(
-            quizId: quizId,
-            quizTitle: data['title']?.toString() ?? 'اختبار',
+            quizId: widget.quizId,
+            quizTitle: widget.data['title']?.toString() ?? 'اختبار',
             durationMinutes: durationMin,
             questions: questions,
-            uid: uid,
+            uid: widget.uid,
             resumeAttemptId: resumeAttemptId,
+            competition: widget.currentCompetition,
+            stream: widget.currentStream,
           ),
         ),
       );

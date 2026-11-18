@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import '../screens/references_screen.dart';
 import '../screens/student/reading_history_screen.dart';
 import '../screens/reviews_screen.dart';
+import '../screens/countdown_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/info_screen.dart';
@@ -17,7 +18,9 @@ import '../screens/dedication_screen.dart';
 import '../screens/contact_screen.dart';
 import '../screens/terms_of_use_screen.dart';
 import '../screens/login_screen.dart';
+import '../screens/pro_subscription_screen.dart';
 import '../services/app_update_service.dart';
+import 'pro_badge.dart';
 
 class AppDrawer extends StatelessWidget {
   final bool isGuest;
@@ -90,13 +93,22 @@ class AppDrawer extends StatelessWidget {
                   FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerRight,
-                    child: Text(
-                      isGuest ? 'مستخدم زائر' : userName,
-                      style: GoogleFonts.tajawal(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          isGuest ? 'مستخدم زائر' : userName,
+                          style: GoogleFonts.tajawal(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (auth.isPro) ...[
+                          const SizedBox(width: 8),
+                          const ProBadge(fontSize: 10),
+                        ],
+                      ],
                     ),
                   ),
                   Text(
@@ -118,6 +130,96 @@ class AppDrawer extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 10, bottom: 20),
                 physics: const BouncingScrollPhysics(),
                 children: [
+                  // بطاقة الترقية إلى Pro المميزة
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: auth.isPro
+                            ? [const Color(0xFF78350F), const Color(0xFFB45309)]
+                            : [const Color(0xFFB45309), const Color(0xFFF59E0B)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFD97706).withValues(alpha: 0.35),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(16),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ProSubscriptionScreen(),
+                            ),
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.workspace_premium_rounded,
+                                  color: Colors.white,
+                                  size: 22,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      auth.isPro ? 'عضوية Pro نشطة' : 'الترقية إلى Pro',
+                                      style: GoogleFonts.tajawal(
+                                        fontSize: 14.5,
+                                        fontWeight: FontWeight.w900,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    Text(
+                                      auth.isPro
+                                          ? 'متبقي: ${auth.proDaysRemaining} • انقر للتجديد'
+                                          : 'بدون إعلانات + كل الاختبارات',
+                                      style: GoogleFonts.tajawal(
+                                        fontSize: 11,
+                                        color: const Color(0xFFFEF3C7),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                color: Colors.white70,
+                                size: 14,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                    child: Divider(height: 1, thickness: 0.5),
+                  ),
                   _buildDrawerItem(context, Icons.library_books_rounded, 'مراجع أخرى', () {
                     Navigator.pop(context);
                     Navigator.push(

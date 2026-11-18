@@ -53,7 +53,7 @@ class _ExamResultScreenState extends State<ExamResultScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Future.delayed(const Duration(milliseconds: 1400), () {
         if (mounted) {
-          AdManager.showInterstitialAd(chance: 0.7);
+          AdManager.showInterstitialAd();
         }
       });
     });

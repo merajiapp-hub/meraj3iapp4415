@@ -1,17 +1,17 @@
 {
-  "latestVersion": "7.9.9",
-  "latestBuildNumber": 22,
+  "latestVersion": "8.0.0",
+  "latestBuildNumber": 23,
   "minSupportedVersion": "7.0.0",
-  "apkUrl": "https://github.com/merajiapp-hub/meraj3iapp4415/releases/download/v7.9.9/app-release.apk",
-  "apkSize": "64.1 MB",
-  "releaseDate": "2026-11-15",
+  "apkUrl": "https://github.com/merajiapp-hub/meraj3iapp4415/releases/download/v8.0.0/app-release.apk",
+  "apkSize": "64.5 MB",
+  "releaseDate": "2026-11-17",
   "forceUpdate": false,
   "releaseNotes": [
-    "إلغاء الإعلانات التجريبية تماماً لحين اكتمال مراجعة المتجر",
-    "تسريع فتح الكتب بدون أي بطء أو تجميد للشاشة أثناء التمرير",
-    "إزالة الكرت والأيقونة عند التحميل وترك اسم الكتاب وشريط التقدم فقط",
-    "نظام تحديث تلقائي داخلي متكامل (In-App Update) مع التثبيت الفوري",
-    "تحسينات عامة على استقرار التطبيق والأداء"
+    "إطلاق نظام باقات واشتراكات Pro المتكامل مع إزالة الإعلانات وفتح الخدمات المميزة",
+    "تكامل وسائل الدفع الوطنية الرسمية: بنكيلي، مصرفي، وسداد مع رقم الدفع الرسمي 26270009",
+    "فصل نظام إعلانات الموقع الإلكتروني (Google AdSense) عن إعلانات تطبيق الهاتف (Google AdMob)",
+    "تصميم عصري ودقيق لصفحة العد التنازلي للمسابقات والعطل المدرسية مع حركة سلسة للمؤشرات",
+    "تحسينات جوهرية على سرعة تحميل وعرض البيانات وإصلاح الصلاحيات والتحديث التلقائي"
   ],
   "githubReleaseUrl": "https://github.com/merajiapp-hub/meraj3iapp4415/releases"
 }

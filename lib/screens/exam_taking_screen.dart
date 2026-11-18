@@ -22,6 +22,8 @@ class ExamTakingScreen extends StatefulWidget {
   final List<QuizQuestion> questions;
   final String? uid;
   final String? resumeAttemptId; // معرف محاولة سابقة للاستكمال
+  final String? competition;
+  final String? stream;
 
   const ExamTakingScreen({
     super.key,
@@ -31,6 +33,8 @@ class ExamTakingScreen extends StatefulWidget {
     required this.questions,
     this.uid,
     this.resumeAttemptId,
+    this.competition,
+    this.stream,
   });
 
   @override
@@ -124,6 +128,8 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
               'userId': widget.uid,
               'quizId': widget.quizId,
               'quizTitle': widget.quizTitle,
+              if (widget.competition != null) 'competition': widget.competition,
+              if (widget.stream != null) 'stream': widget.stream,
               'status': 'in_progress',
               'answers': <String, int>{},
               'currentQuestion': 0,
@@ -304,6 +310,8 @@ class _ExamTakingScreenState extends State<ExamTakingScreen>
           'userId': widget.uid,
           'quizId': widget.quizId,
           'quizTitle': widget.quizTitle,
+          if (widget.competition != null) 'competition': widget.competition,
+          if (widget.stream != null) 'stream': widget.stream,
           'correctAnswers': correct,
           'wrongAnswers': wrong,
           'unanswered': unanswered,

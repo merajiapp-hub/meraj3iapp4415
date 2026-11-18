@@ -910,9 +910,11 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
           ),
           const Divider(),
           Flexible(
-            child: ListView(
+            child: ListView.builder(
               shrinkWrap: true,
-              children: items.map((item) {
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final item = items[index];
                 return ListTile(
                   title: Text(
                     item.isEmpty ? 'الكل' : item,
@@ -929,7 +931,7 @@ class _ResultsListScreenState extends State<ResultsListScreen> {
                     onSelect(item);
                   },
                 );
-              }).toList(),
+              },
             ),
           ),
           const SizedBox(height: 16),

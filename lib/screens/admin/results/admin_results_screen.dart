@@ -15,6 +15,16 @@ class AdminResultsScreen extends StatefulWidget {
 
 class _AdminResultsScreenState extends State<AdminResultsScreen> {
   final Set<String> _savingIds = {};
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _resultsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    // تهيئة استعلام Firestore مرة واحدة في initState لمنع إعادة الاتصال المتكرر
+    _resultsStream = FirebaseFirestore.instance
+        .collection('competition_results')
+        .snapshots();
+  }
 
   Future<void> _setPublished(
     QueryDocumentSnapshot<Map<String, dynamic>> doc,
@@ -77,9 +87,7 @@ class _AdminResultsScreenState extends State<AdminResultsScreen> {
           backgroundColor: const Color(0xFF1E293B),
         ),
         body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection('competition_results')
-              .snapshots(),
+          stream: _resultsStream,
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               return Center(

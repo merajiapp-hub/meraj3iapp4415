@@ -11,7 +11,6 @@ service cloud.firestore {
       return request.auth != null &&
         request.auth.token != null &&
         request.auth.token.email != null &&
-        request.auth.token.email_verified == true &&
         (request.auth.token.email == 'mma831770@gmail.com' ||
          request.auth.token.email == 'abdellahismd@gmail.com');
     }
@@ -40,7 +39,8 @@ service cloud.firestore {
         'lastAdminActivityAt',
         'isSuspended', 'accountStatus', 'suspensionReason', 'suspensionStartAt',
         'suspensionEndAt', 'suspendedAt', 'suspendedBy', 'mustChangePassword',
-        'deletionRequestedAt', 'deletionRequestedBy', 'deletedAt', 'isBanned'
+        'deletionRequestedAt', 'deletionRequestedBy', 'deletedAt', 'isBanned',
+        'isPro', 'membershipType', 'proExpiresAt', 'proStartedAt', 'proPlanId', 'proPlanName'
       ]);
     }
 
@@ -86,7 +86,8 @@ service cloud.firestore {
         'suspensionStartAt', 'suspensionEndAt', 'suspendedAt', 'suspendedBy',
         'mustChangePassword', 'points', 'adminActive', 'adminPermissions',
         'adminRoleName', 'adminCreatedAt', 'adminCreatedBy', 'adminUpdatedAt',
-        'adminUpdatedBy'
+        'adminUpdatedBy', 'isPro', 'membershipType', 'proExpiresAt', 'proStartedAt',
+        'proPlanId', 'proPlanName'
       ]);
     }
 
@@ -179,29 +180,112 @@ service cloud.firestore {
     //  إعدادات التطبيق والصيانة
     // ═══════════════════════════════════════════════════════════════
     match /app_settings/{settingId} {
-      // التطبيق العام لا يفتح بدون تسجيل الدخول، وتبقى إعدادات الإدارة محصورة بالإدارة فقط.
-      allow read: if isAuthenticated();
-      allow write: if hasAdminPermission('settings.manage');
+      allow read, list: if true;
+      allow write: if isRootAdmin() ||
+        hasAdminPermission('settings.manage') ||
+        (request.auth != null &&
+         (request.auth.token.email == 'mma831770@gmail.com' ||
+          request.auth.token.email == 'abdellahismd@gmail.com'));
     }
 
     match /admin_settings/{document} {
       // Feature flags are public to signed-in clients; other admin settings remain private.
-      allow read: if hasAdminPermission('settings.manage') ||
+      allow read, list: if hasAdminPermission('settings.manage') ||
         hasAdminPermission('feature_flags.manage') ||
+        isRootAdmin() ||
         (isAuthenticated() && document == 'feature_flags');
       allow write: if hasAdminPermission('settings.manage') ||
-        hasAdminPermission('feature_flags.manage');
+        hasAdminPermission('feature_flags.manage') ||
+        isRootAdmin();
     }
 
     // General application settings used by the admin web panel.
     match /app_config/{document} {
-      allow read: if hasAdminPermission('settings.manage');
-      allow write: if hasAdminPermission('settings.manage');
+      allow read, list: if true;
+      allow write: if hasAdminPermission('settings.manage') || isRootAdmin();
+    }
+
+    match /app_settings/{document} {
+      allow read, list: if true;
+      allow write: if isRootAdmin() ||
+        hasAdminPermission('settings.manage') ||
+        (request.auth != null &&
+         (request.auth.token.email == 'mma831770@gmail.com' ||
+          request.auth.token.email == 'abdellahismd@gmail.com'));
     }
 
     match /maintenance/{docId} {
+      allow read, list: if true;
+      allow write: if hasAdminPermission('settings.manage') || isRootAdmin();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  مواعيد العد التنازلي للمسابقات والعطل /countdown_events/{eventId}
+    // ═══════════════════════════════════════════════════════════════
+    match /countdown_events/{eventId} {
+      allow read, list: if true;
+      allow write: if isRootAdmin() ||
+        hasAdminPermission('quizzes.manage') ||
+        hasAdminPermission('settings.manage') ||
+        (request.auth != null &&
+         (request.auth.token.email == 'mma831770@gmail.com' ||
+          request.auth.token.email == 'abdellahismd@gmail.com'));
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  نظام الاشتراكات وباقات Pro وطرق الدفع والإعلانات
+    // ═══════════════════════════════════════════════════════════════
+    match /subscription_plans/{planId} {
+      allow read, list: if true;
+      allow write: if isRootAdmin() ||
+        hasAdminPermission('settings.manage') ||
+        (request.auth != null &&
+         (request.auth.token.email == 'mma831770@gmail.com' ||
+          request.auth.token.email == 'abdellahismd@gmail.com'));
+    }
+
+    match /payment_methods/{methodId} {
+      allow read, list: if true;
+      allow write: if isRootAdmin() ||
+        hasAdminPermission('settings.manage') ||
+        (request.auth != null &&
+         (request.auth.token.email == 'mma831770@gmail.com' ||
+          request.auth.token.email == 'abdellahismd@gmail.com'));
+    }
+
+    match /promo_codes/{codeId} {
       allow read: if isAuthenticated();
-      allow write: if hasAdminPermission('settings.manage');
+      allow list: if isRootAdmin() || hasAdminPermission('settings.manage');
+      allow write: if isRootAdmin() ||
+        hasAdminPermission('settings.manage') ||
+        (request.auth != null &&
+         (request.auth.token.email == 'mma831770@gmail.com' ||
+          request.auth.token.email == 'abdellahismd@gmail.com'));
+    }
+
+    match /ad_settings/{settingId} {
+      allow read, list: if true;
+      allow write: if isRootAdmin() ||
+        hasAdminPermission('settings.manage') ||
+        (request.auth != null &&
+         (request.auth.token.email == 'mma831770@gmail.com' ||
+          request.auth.token.email == 'abdellahismd@gmail.com'));
+    }
+
+    match /payment_requests/{requestId} {
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isRootAdmin() || hasAdminPermission('users.manage') || (request.auth != null && (request.auth.token.email == 'mma831770@gmail.com' || request.auth.token.email == 'abdellahismd@gmail.com')));
+      allow list: if isAuthenticated();
+      allow update, delete: if isRootAdmin() ||
+        hasAdminPermission('users.manage') ||
+        (request.auth != null &&
+         (request.auth.token.email == 'mma831770@gmail.com' ||
+          request.auth.token.email == 'abdellahismd@gmail.com'));
+    }
+
+    match /subscription_logs/{logId} {
+      allow read, list: if isRootAdmin() || hasAdminPermission('users.manage') || (request.auth != null && (request.auth.token.email == 'mma831770@gmail.com' || request.auth.token.email == 'abdellahismd@gmail.com'));
+      allow write: if isRootAdmin() || hasAdminPermission('users.manage') || (request.auth != null && (request.auth.token.email == 'mma831770@gmail.com' || request.auth.token.email == 'abdellahismd@gmail.com'));
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -398,9 +482,12 @@ service cloud.firestore {
     // نتائج المسابقات المنشورة تُعرض داخل التطبيق للمستخدمين.
     // الكتابة محصورة بالإدارة حتى لا يتم العبث بالروابط أو الترتيب.
     match /competition_results/{competitionId} {
-      allow read: if isAuthenticated();
-      allow list: if hasAdminPermission('results.view');
-      allow write: if hasAdminPermission('results.manage');
+      allow read, list: if true;
+      allow write: if isRootAdmin() ||
+        hasAdminPermission('results.manage') ||
+        (request.auth != null &&
+         (request.auth.token.email == 'mma831770@gmail.com' ||
+          request.auth.token.email == 'abdellahismd@gmail.com'));
     }
 
     // محاولات الاختبارات: يقرأ الطالب محاولاته فقط وينشئ محاولته بنفسه.
