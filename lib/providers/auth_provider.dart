@@ -366,23 +366,21 @@ class AuthProvider extends ChangeNotifier {
       _isAccountSuspended = snapshot.isSuspended;
       _profileReady = true;
 
-      if (snapshot.isSuspended) {
-        _accountStatusSubscription?.cancel();
-        _accountStatusSubscription = _firestore
-            .collection('users')
-            .doc(_user!.uid)
-            .snapshots()
-            .listen((event) {
-              final eventData = event.data();
+      // الاستماع المستمر لتحديثات المستخدم (مثل تفعيل اشتراك Pro وتغيير الصلاحيات)
+      _accountStatusSubscription?.cancel();
+      _accountStatusSubscription = _firestore
+          .collection('users')
+          .doc(_user!.uid)
+          .snapshots()
+          .listen((event) {
+            final eventData = event.data();
+            if (eventData != null) {
               final eventSnapshot = normalizeAccountStatus(eventData);
-              _userData = eventData ?? _userData;
+              _userData = eventData;
               _isAccountSuspended = eventSnapshot.isSuspended;
               notifyListeners();
-            });
-      } else {
-        _accountStatusSubscription?.cancel();
-        _accountStatusSubscription = null;
-      }
+            }
+          });
 
       notifyListeners();
       return !snapshot.isSuspended;

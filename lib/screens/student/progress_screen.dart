@@ -227,70 +227,196 @@ class _ProgressScreenState extends State<ProgressScreen> {
       Map<int, double> hoursPerDay, double maxHours, bool isDark) {
     final double safeMaxY = (maxHours <= 0)
         ? 3.0
-        : (maxHours * 1.35).ceilToDouble().clamp(3.0, 24.0);
+        : (maxHours * 1.3).ceilToDouble().clamp(3.0, 24.0);
+
+    final double totalWeekHours =
+        hoursPerDay.values.fold(0.0, (sum, val) => sum + val);
+    final double dailyAvg = totalWeekHours / 7.0;
 
     return Container(
-      height: 250,
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
       decoration: _cardDecor(isDark),
-      child: BarChart(
-        BarChartData(
-          alignment: BarChartAlignment.spaceAround,
-          minY: 0,
-          maxY: safeMaxY,
-          barTouchData: BarTouchData(
-            enabled: true,
-            touchTooltipData: BarTouchTooltipData(
-              getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                const days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-                final dayName = group.x.toInt() < days.length ? days[group.x.toInt()] : '';
-                return BarTooltipItem(
-                  '$dayName\n${rod.toY.toStringAsFixed(1)} ساعة',
-                  GoogleFonts.tajawal(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // ─── رأس البطاقة: الإجمالي والمتوسط اليومي ───
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'إجمالي هذا الأسبوع',
+                    style: GoogleFonts.tajawal(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    ),
                   ),
-                );
-              },
-            ),
-          ),
-          titlesData: FlTitlesData(
-            show: true,
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 30,
-                getTitlesWidget: (value, meta) {
-                  const days = ['أحد', 'اثن', 'ثلا', 'أرب', 'خمس', 'جمع', 'سبت'];
-                  final idx = value.toInt();
-                  if (idx < 0 || idx >= days.length) return const SizedBox.shrink();
-                  return SideTitleWidget(
-                    axisSide: meta.axisSide,
-                    space: 6,
-                    child: Text(
-                      days[idx],
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Text(
+                        totalWeekHours.toStringAsFixed(1),
+                        style: GoogleFonts.tajawal(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'ساعة',
+                        style: GoogleFonts.tajawal(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white70 : Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.speed_rounded, size: 16, color: AppTheme.primaryColor),
+                    const SizedBox(width: 6),
+                    Text(
+                      'المعدل: ${dailyAvg.toStringAsFixed(1)} س/يوم',
                       style: GoogleFonts.tajawal(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryColor,
                       ),
                     ),
-                  );
-                },
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+
+          // ─── رسم بياني محسّن بتدرجات جميلة وتسميات واضحة ───
+          SizedBox(
+            height: 210,
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                minY: 0,
+                maxY: safeMaxY,
+                barTouchData: BarTouchData(
+                  enabled: true,
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      const days = [
+                        'الأحد',
+                        'الإثنين',
+                        'الثلاثاء',
+                        'الأربعاء',
+                        'الخميس',
+                        'الجمعة',
+                        'السبت'
+                      ];
+                      final dayName =
+                          group.x.toInt() < days.length ? days[group.x.toInt()] : '';
+                      final h = rod.toY;
+                      final hoursInt = h.toInt();
+                      final mins = ((h - hoursInt) * 60).round();
+                      String timeStr = '${h.toStringAsFixed(1)} ساعة';
+                      if (hoursInt > 0 && mins > 0) {
+                        timeStr = '$hoursInt س و $mins د';
+                      }
+                      return BarTooltipItem(
+                        '$dayName\n$timeStr',
+                        GoogleFonts.tajawal(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  show: true,
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 28,
+                      getTitlesWidget: (value, meta) {
+                        const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+                        final idx = value.toInt();
+                        if (idx < 0 || idx >= days.length) {
+                          return const SizedBox.shrink();
+                        }
+                        return SideTitleWidget(
+                          axisSide: meta.axisSide,
+                          space: 6,
+                          child: Text(
+                            days[idx],
+                            style: GoogleFonts.tajawal(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF64748B),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 26,
+                      interval: safeMaxY > 6 ? 2.0 : 1.0,
+                      getTitlesWidget: (val, meta) {
+                        if (val == 0) return const SizedBox.shrink();
+                        return Text(
+                          '${val.toInt()}س',
+                          style: GoogleFonts.tajawal(
+                            fontSize: 9.5,
+                            color: isDark ? Colors.white38 : Colors.grey[400],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: safeMaxY > 6 ? 2.0 : 1.0,
+                  getDrawingHorizontalLine: (value) => FlLine(
+                    color: (isDark ? Colors.white : Colors.black)
+                        .withValues(alpha: 0.04),
+                    strokeWidth: 1,
+                  ),
+                ),
+                borderData: FlBorderData(show: false),
+                barGroups: List.generate(
+                  7,
+                  (i) => _makeBar(
+                    i,
+                    (hoursPerDay[i] ?? 0.0).clamp(0.0, safeMaxY),
+                    safeMaxY,
+                    isDark,
+                  ),
+                ),
               ),
             ),
-            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
-          gridData: const FlGridData(show: false),
-          borderData: FlBorderData(show: false),
-          barGroups: List.generate(
-            7,
-            (i) => _makeBar(i, (hoursPerDay[i] ?? 0.0).clamp(0.0, safeMaxY), safeMaxY, isDark),
-          ),
-        ),
+        ],
       ),
     );
   }
@@ -299,17 +425,26 @@ class _ProgressScreenState extends State<ProgressScreen> {
     return BarChartGroupData(x: x, barRods: [
       BarChartRodData(
         toY: y,
-        color: y > 0
-            ? AppTheme.primaryColor
-            : AppTheme.primaryColor.withValues(alpha: 0.15),
-        width: 16,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+        gradient: y > 0
+            ? const LinearGradient(
+                colors: [Color(0xFF0F766E), Color(0xFF14B8A6), Color(0xFF2DD4BF)],
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+              )
+            : null,
+        color: y <= 0
+            ? (isDark
+                ? Colors.white.withValues(alpha: 0.08)
+                : const Color(0xFFE2E8F0))
+            : null,
+        width: 18,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
         backDrawRodData: BackgroundBarChartRodData(
           show: true,
           toY: safeMaxY,
           color: isDark
-              ? Colors.white.withValues(alpha: 0.05)
-              : const Color(0xFFF1F5F9),
+              ? Colors.white.withValues(alpha: 0.04)
+              : const Color(0xFFF8FAFC),
         ),
       ),
     ]);

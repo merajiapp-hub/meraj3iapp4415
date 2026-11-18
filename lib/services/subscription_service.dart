@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/subscription_model.dart';
@@ -58,18 +57,28 @@ class SubscriptionService {
     });
   }
 
+  static Map<String, bool> cachedPermissions = {
+    'quizzes': true,
+    'national_exams': true,
+    'calculator': true,
+    'books': false,
+    'notes': false,
+    'solutions': false,
+    'progress': false,
+  };
+
+  static bool isFeatureProOnly(String featureKey) {
+    return cachedPermissions[featureKey] ??
+        (featureKey == 'quizzes' ||
+            featureKey == 'national_exams' ||
+            featureKey == 'calculator');
+  }
+
   /// بث صلاحيات الخدمات (الصفحات المجانية والمدفوعة)
   Stream<Map<String, bool>> streamFeaturePermissions() {
     return _featuresDoc.snapshots().map((snap) {
       if (!snap.exists) {
-        // الإعداد الافتراضي: الاختبارات والامتحانات مقفلة لغير المشتركين
-        return {
-          'quizzes': true, // pro only
-          'national_exams': true, // pro only
-          'books': false, // free
-          'notes': false, // free
-          'solutions': false, // free
-        };
+        return cachedPermissions;
       }
       final data = snap.data() ?? {};
       final map = <String, bool>{};
@@ -77,6 +86,7 @@ class SubscriptionService {
         if (v is bool) map[k] = v;
         if (v is Map && v['isProOnly'] != null) map[k] = v['isProOnly'] == true;
       });
+      cachedPermissions = Map<String, bool>.from(map);
       return map;
     });
   }
@@ -209,7 +219,6 @@ class SubscriptionService {
         }
       }
 
-      final methodsSnap = await _methodsCol.limit(1).get();
       // تهيئة أو تحديث طرق الدفع الأساسية بأرقام الحسابات الرسمية
       final defaultMethods = [
         const PaymentMethod(

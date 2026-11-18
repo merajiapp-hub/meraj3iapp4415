@@ -3,28 +3,33 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../screens/pro_subscription_screen.dart';
-import '../theme/app_theme.dart';
+import '../services/subscription_service.dart';
 import 'pro_badge.dart';
 
 class ProFeatureGate {
-  /// يتحقق من صلاحية الوصول للخدمة المحددة
-  /// إذا كان المستخدم يملك Pro أو الخدمة مجانية، يتم تنفيذ onAllowed مباشرة.
-  /// إذا كانت الخدمة مقفلة، تظهر نافذة الترقية المميزة.
+  /// يتحقق من صلاحية الوصول للخدمة المحددة استناداً لإعدادات الإدارة المباشرة
+  /// إذا كانت الخدمة مجانية أو كان المستخدم يملك Pro، يتم تنفيذ onAllowed مباشرة.
+  /// إذا كانت الخدمة مقفلة والمستخدم عادي، تظهر نافذة الترقية المميزة.
   static void checkAccess({
     required BuildContext context,
     required String featureKey,
     required String featureName,
     required VoidCallback onAllowed,
   }) {
-    final auth = context.read<AuthProvider>();
+    // 1. التحقق من حالة القفل من الإدارة: إذا كانت الخدمة مجانية، يدخل فوراً
+    if (!SubscriptionService.isFeatureProOnly(featureKey)) {
+      onAllowed();
+      return;
+    }
 
-    // إذا كان حساب المستخدم Pro نشطاً، يُسمح له بالدخول فوراً
+    // 2. إذا كان حساب المستخدم Pro نشطاً، يُسمح له بالدخول فوراً
+    final auth = context.read<AuthProvider>();
     if (auth.isPro) {
       onAllowed();
       return;
     }
 
-    // عرض نافذة الترقية
+    // 3. عرض نافذة الترقية
     showProLockedDialog(
       context: context,
       featureName: featureName,

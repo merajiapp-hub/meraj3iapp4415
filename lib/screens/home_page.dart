@@ -365,9 +365,14 @@ class _HomePageState extends State<HomePage>
         imagePath: 'assets/Calculator/Calculator.png',
         gradient: AppTheme.primaryGradient,
         badge: null,
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const SmartCalculatorScreen()),
+        onTap: () => ProFeatureGate.checkAccess(
+          context: context,
+          featureKey: 'calculator',
+          featureName: 'الحاسبة العلمية والذكية',
+          onAllowed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SmartCalculatorScreen()),
+          ),
         ),
       ),
       _ServiceItem(
@@ -530,7 +535,7 @@ class _HomePageState extends State<HomePage>
                     'assets/images/logo.png',
                     height: 38,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Icon(
+                    errorBuilder: (context, error, stackTrace) => const Icon(
                       Icons.school_rounded,
                       color: AppTheme.primaryColor,
                       size: 28,

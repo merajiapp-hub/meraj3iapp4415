@@ -91,18 +91,24 @@ class _CountdownScreenState extends State<CountdownScreen> {
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                     children: [
-                      // عنوان الصفحة الرئيسي مطابق للصورة
+                      // عنوان الصفحة الرئيسي
                       _buildPageHeading(
-                        title: 'مواعيد المسابقات',
-                        subtitle: 'العد التنازلي للمسابقات',
+                        title: 'العدّ التنازلي للمواعيد',
+                        subtitle: 'متابعة حية للمسابقات الوطنية والعطل المدرسية المعتمدة',
                         isDark: isDark,
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
 
                       if (exams.isNotEmpty) ...[
+                        _buildSectionLabel(
+                          title: 'المسابقات والامتحانات الوطنية',
+                          icon: Icons.school_rounded,
+                          isDark: isDark,
+                        ),
+                        const SizedBox(height: 10),
                         ...exams.map(
                           (e) => Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.only(bottom: 12),
                             child: _LiveCountdownCard(
                               key: ValueKey(e.id),
                               event: e,
@@ -114,16 +120,16 @@ class _CountdownScreenState extends State<CountdownScreen> {
                       ],
 
                       if (vacations.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        _buildPageHeading(
-                          title: 'مواعيد العطل المدرسية',
-                          subtitle: 'العد التنازلي للإجازات الرسمية',
+                        const SizedBox(height: 8),
+                        _buildSectionLabel(
+                          title: 'العطل المدرسية والإجازات الرسمية',
+                          icon: Icons.beach_access_rounded,
                           isDark: isDark,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 10),
                         ...vacations.map(
                           (v) => Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.only(bottom: 12),
                             child: _LiveCountdownCard(
                               key: ValueKey(v.id),
                               event: v,
@@ -144,6 +150,34 @@ class _CountdownScreenState extends State<CountdownScreen> {
     );
   }
 
+  Widget _buildSectionLabel({
+    required String title,
+    required IconData icon,
+    required bool isDark,
+  }) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: const Color(0xFF10B981).withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: const Color(0xFF10B981), size: 16),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: GoogleFonts.tajawal(
+            fontSize: 14.5,
+            fontWeight: FontWeight.w800,
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildPageHeading({
     required String title,
     required String subtitle,
@@ -155,17 +189,17 @@ class _CountdownScreenState extends State<CountdownScreen> {
         Text(
           title,
           style: GoogleFonts.tajawal(
-            fontSize: 26,
+            fontSize: 22,
             fontWeight: FontWeight.w900,
             color: isDark ? Colors.white : const Color(0xFF1E293B),
             letterSpacing: -0.2,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 3),
         Text(
           subtitle,
           style: GoogleFonts.tajawal(
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: FontWeight.w600,
             color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
           ),
@@ -183,24 +217,24 @@ class _CountdownScreenState extends State<CountdownScreen> {
           children: [
             Icon(
               Icons.event_available_rounded,
-              size: 72,
+              size: 64,
               color: isDark ? Colors.white38 : Colors.grey[400],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             Text(
               'لا توجد مواعيد نشطة حالياً',
               style: GoogleFonts.tajawal(
-                fontSize: 18,
+                fontSize: 17,
                 fontWeight: FontWeight.bold,
                 color: isDark ? Colors.white70 : Colors.grey[700],
               ),
             ),
             const SizedBox(height: 6),
             Text(
-              'سيتم إضافة مواعيد المسابقات الوطنية والعطل فور اعتمادها رسمياً.',
+              'سيتم إضافة مواعيد المسابقات الوطنية والعطل فور اعتمادها رسمياً من لوحة الإدارة.',
               textAlign: TextAlign.center,
               style: GoogleFonts.tajawal(
-                fontSize: 13,
+                fontSize: 12.5,
                 color: isDark ? Colors.white38 : Colors.grey[500],
               ),
             ),
@@ -219,10 +253,10 @@ class _CountdownScreenState extends State<CountdownScreen> {
           children: [
             Icon(
               Icons.timer_off_rounded,
-              size: 72,
+              size: 64,
               color: isDark ? Colors.white38 : Colors.grey[400],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             Text(
               'خدمة العد التنازلي غير مفعّلة حالياً',
               style: GoogleFonts.tajawal(
@@ -238,7 +272,7 @@ class _CountdownScreenState extends State<CountdownScreen> {
   }
 }
 
-// ─── بطاقة العد التنازلي المطابقة للصورة تماماً ──────────────────────────────
+// ─── بطاقة العد التنازلي المدمجة الثابتة هندسياً بدون أي اهتزاز ───────────────
 class _LiveCountdownCard extends StatefulWidget {
   final CountdownEvent event;
   final bool isDark;
@@ -261,7 +295,7 @@ class _LiveCountdownCardState extends State<_LiveCountdownCard> {
   @override
   void initState() {
     super.initState();
-    // تحديث المؤقت داخل البطاقة فقط دون أي وميض للشاشة
+    // مؤقت محلي معزول بالكامل
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
@@ -289,9 +323,8 @@ class _LiveCountdownCardState extends State<_LiveCountdownCard> {
     final minutes = rem.isNegative ? 0 : rem.inMinutes % 60;
     final seconds = rem.isNegative ? 0 : rem.inSeconds % 60;
 
-    final dateFormatted = DateFormat('dd/MM/yyyy').format(event.targetDate);
+    final dateFormatted = DateFormat('yyyy/MM/dd').format(event.targetDate);
 
-    // خلفية ناعمة للجزء العلوي من الكرت
     final headerBg = isDark
         ? const Color(0xFF162534)
         : (widget.isVacation
@@ -301,49 +334,51 @@ class _LiveCountdownCardState extends State<_LiveCountdownCard> {
     return Container(
       decoration: BoxDecoration(
         color: cardBg,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isDark ? const Color(0xFF1E2D40) : const Color(0xFFE2E8F0),
-          width: 1.2,
+          width: 1.0,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // ─── 1. رأس البطاقة: العنوان + التاريخ + نقطة الحالة الخضراء ───
+          // ─── 1. رأس البطاقة المدمج: العنوان + التاريخ + نقطة الحالة ───
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             color: headerBg,
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         event.title,
                         style: GoogleFonts.tajawal(
-                          fontSize: 16,
+                          fontSize: 14.5,
                           fontWeight: FontWeight.w800,
                           color: isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
                         dateFormatted,
                         style: GoogleFonts.tajawal(
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: isDark
                               ? const Color(0xFF94A3B8)
@@ -354,37 +389,32 @@ class _LiveCountdownCardState extends State<_LiveCountdownCard> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                // النقطة الدائرية الخضراء كما في الصورة
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Container(
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: isDue
-                          ? const Color(0xFFF59E0B)
-                          : (isEnded ? Colors.grey : accentGreen),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: (isDue
-                                  ? const Color(0xFFF59E0B)
-                                  : (isEnded ? Colors.grey : accentGreen))
-                              .withValues(alpha: 0.4),
-                          blurRadius: 6,
-                          spreadRadius: 1,
-                        ),
-                      ],
-                    ),
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: isDue
+                        ? const Color(0xFFF59E0B)
+                        : (isEnded ? Colors.grey : accentGreen),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: (isDue
+                                ? const Color(0xFFF59E0B)
+                                : (isEnded ? Colors.grey : accentGreen))
+                            .withValues(alpha: 0.4),
+                        blurRadius: 4,
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
 
-          // ─── 2. جسم البطاقة: العداد الدائري والأيام (مطابق تماماً للصورة) ───
+          // ─── 2. جسم البطاقة بحجم مصغر ثابت تماماً ───
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: isDue
                 ? _buildDueMessage(event, accentGreen, isDark)
                 : isEnded
@@ -392,10 +422,11 @@ class _LiveCountdownCardState extends State<_LiveCountdownCard> {
                     : Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          // ── الجانب الأيسر: المؤشرات الدائرية (ثواني، ساعات، دقائق) ──
+                          // ── الجانب الأيسر: المؤشرات الدائرية (ساعات، دقائق، ثواني) ──
                           Expanded(
                             flex: 6,
                             child: Row(
+                              mainAxisAlignment: MainAxisAlignment.start,
                               children: [
                                 // عمود الساعات والدقائق الصغير
                                 Column(
@@ -409,7 +440,7 @@ class _LiveCountdownCardState extends State<_LiveCountdownCard> {
                                       fillColor: accentGreen,
                                       isDark: isDark,
                                     ),
-                                    const SizedBox(height: 12),
+                                    const SizedBox(height: 8),
                                     _buildSmallGauge(
                                       label: 'دقائق',
                                       valStr: minutes.toString().padLeft(2, '0'),
@@ -419,9 +450,9 @@ class _LiveCountdownCardState extends State<_LiveCountdownCard> {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(width: 14),
+                                const SizedBox(width: 10),
 
-                                // مؤشر الثواني الدائري الأكبر
+                                // مؤشر الثواني الدائري
                                 Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -430,11 +461,11 @@ class _LiveCountdownCardState extends State<_LiveCountdownCard> {
                                       fillColor: accentGreen,
                                       isDark: isDark,
                                     ),
-                                    const SizedBox(height: 4),
+                                    const SizedBox(height: 2),
                                     Text(
                                       'ثواني',
                                       style: GoogleFonts.tajawal(
-                                        fontSize: 11,
+                                        fontSize: 10,
                                         fontWeight: FontWeight.w700,
                                         color: isDark
                                             ? const Color(0xFF94A3B8)
@@ -449,7 +480,7 @@ class _LiveCountdownCardState extends State<_LiveCountdownCard> {
 
                           const SizedBox(width: 8),
 
-                          // ── الجانب الأيمن: عدد الأيام الكبير + متبقي + شريط التقدم ──
+                          // ── الجانب الأيمن: عدد الأيام المتبقية ──
                           Expanded(
                             flex: 4,
                             child: Column(
@@ -459,49 +490,49 @@ class _LiveCountdownCardState extends State<_LiveCountdownCard> {
                                 Text(
                                   'متبقي',
                                   style: GoogleFonts.tajawal(
-                                    fontSize: 11,
+                                    fontSize: 10.5,
                                     fontWeight: FontWeight.w600,
                                     color: isDark
                                         ? const Color(0xFF94A3B8)
                                         : const Color(0xFF64748B),
                                   ),
                                 ),
-                                const SizedBox(height: 2),
                                 SizedBox(
-                                  width: 110,
-                                  child: Text(
-                                    '$days',
-                                    textAlign: TextAlign.center,
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 38,
-                                      fontWeight: FontWeight.w900,
-                                      color: accentGreen,
-                                      height: 1.0,
-                                      fontFeatures: const [
-                                        ui.FontFeature.tabularFigures()
-                                      ],
+                                  width: 80,
+                                  height: 32,
+                                  child: Center(
+                                    child: Text(
+                                      '$days',
+                                      textAlign: TextAlign.center,
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w900,
+                                        color: accentGreen,
+                                        height: 1.0,
+                                        fontFeatures: const [
+                                          ui.FontFeature.tabularFigures()
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 2),
                                 Text(
                                   'أيام',
                                   style: GoogleFonts.tajawal(
-                                    fontSize: 14,
+                                    fontSize: 12.5,
                                     fontWeight: FontWeight.w800,
                                     color: isDark
                                         ? Colors.white
                                         : const Color(0xFF0F172A),
                                   ),
                                 ),
-                                const SizedBox(height: 8),
-                                // شريط التقدم الأخضر الناعم أسفل "أيام"
+                                const SizedBox(height: 6),
                                 Container(
-                                  width: 72,
-                                  height: 4.5,
+                                  width: 58,
+                                  height: 3.5,
                                   decoration: BoxDecoration(
                                     color: accentGreen.withValues(alpha: 0.18),
-                                    borderRadius: BorderRadius.circular(4),
+                                    borderRadius: BorderRadius.circular(3),
                                   ),
                                   child: FractionallySizedBox(
                                     alignment: Alignment.centerLeft,
@@ -509,7 +540,7 @@ class _LiveCountdownCardState extends State<_LiveCountdownCard> {
                                     child: Container(
                                       decoration: BoxDecoration(
                                         color: accentGreen,
-                                        borderRadius: BorderRadius.circular(4),
+                                        borderRadius: BorderRadius.circular(3),
                                       ),
                                     ),
                                   ),
@@ -525,7 +556,7 @@ class _LiveCountdownCardState extends State<_LiveCountdownCard> {
     );
   }
 
-  // مؤشر دائري كبير للثواني
+  // مؤشر دائري مصغر للثواني مع عزل إعادة الرسم RepaintBoundary
   Widget _buildBigSecondsGauge({
     required int seconds,
     required Color fillColor,
@@ -535,26 +566,28 @@ class _LiveCountdownCardState extends State<_LiveCountdownCard> {
         ? const Color(0xFF243242)
         : const Color(0xFFF1F5F9);
 
-    return SizedBox(
-      width: 66,
-      height: 66,
-      child: CustomPaint(
-        painter: _PieGaugePainter(
-          fraction: (seconds % 60) / 60.0,
-          fillColor: fillColor,
-          trackColor: trackColor,
-        ),
-        child: Center(
-          child: SizedBox(
-            width: 32,
-            child: Text(
-              seconds.toString().padLeft(2, '0'),
-              textAlign: TextAlign.center,
-              style: GoogleFonts.outfit(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
-                fontFeatures: const [ui.FontFeature.tabularFigures()],
+    return RepaintBoundary(
+      child: SizedBox(
+        width: 48,
+        height: 48,
+        child: CustomPaint(
+          painter: _PieGaugePainter(
+            fraction: (seconds % 60) / 60.0,
+            fillColor: fillColor,
+            trackColor: trackColor,
+          ),
+          child: Center(
+            child: SizedBox(
+              width: 24,
+              child: Text(
+                seconds.toString().padLeft(2, '0'),
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  fontFeatures: const [ui.FontFeature.tabularFigures()],
+                ),
               ),
             ),
           ),
@@ -563,7 +596,7 @@ class _LiveCountdownCardState extends State<_LiveCountdownCard> {
     );
   }
 
-  // مؤشر دائري صغير للساعات والدقائق
+  // مؤشر دائري مصغر للساعات والدقائق
   Widget _buildSmallGauge({
     required String label,
     required String valStr,
@@ -578,39 +611,41 @@ class _LiveCountdownCardState extends State<_LiveCountdownCard> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          width: 42,
-          height: 42,
-          child: CustomPaint(
-            painter: _PieGaugePainter(
-              fraction: fraction,
-              fillColor: fillColor,
-              trackColor: trackColor,
-            ),
-            child: Center(
-              child: SizedBox(
-                width: 24,
-                child: Text(
-                  valStr,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.outfit(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    fontFeatures: const [ui.FontFeature.tabularFigures()],
+        RepaintBoundary(
+          child: SizedBox(
+            width: 32,
+            height: 32,
+            child: CustomPaint(
+              painter: _PieGaugePainter(
+                fraction: fraction,
+                fillColor: fillColor,
+                trackColor: trackColor,
+              ),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  child: Text(
+                    valStr,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      fontFeatures: const [ui.FontFeature.tabularFigures()],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
         SizedBox(
-          width: 38,
+          width: 34,
           child: Text(
             label,
             style: GoogleFonts.tajawal(
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
               color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
             ),

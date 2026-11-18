@@ -116,8 +116,13 @@ service cloud.firestore {
         (!request.resource.data.keys().hasAny(['role']) || request.resource.data.role == 'user') &&
         (!request.resource.data.keys().hasAny(['isActive']) || request.resource.data.isActive == true);
 
-      // تعديل: المالك (بدون حقول حساسة) أو المسؤول بصلاحيات كاملة
+      // تعديل: المالك (بدون حقول حساسة) أو المسؤول بصلاحيات كاملة أو إدارة الاشتراكات
       allow update: if isRootAdmin() ||
+        hasAdminPermission('users.manage') ||
+        hasAdminPermission('subscriptions.manage') ||
+        (request.auth != null &&
+         (request.auth.token.email == 'mma831770@gmail.com' ||
+          request.auth.token.email == 'abdellahismd@gmail.com')) ||
         (isOwner(userId) && noSensitiveFields()) ||
         (hasAdminPermission('users.update') && protectedAdminFieldsUnchanged());
 
@@ -239,6 +244,8 @@ service cloud.firestore {
       allow read, list: if true;
       allow write: if isRootAdmin() ||
         hasAdminPermission('settings.manage') ||
+        hasAdminPermission('subscriptions.manage') ||
+        hasAdminPermission('users.manage') ||
         (request.auth != null &&
          (request.auth.token.email == 'mma831770@gmail.com' ||
           request.auth.token.email == 'abdellahismd@gmail.com'));
@@ -248,6 +255,8 @@ service cloud.firestore {
       allow read, list: if true;
       allow write: if isRootAdmin() ||
         hasAdminPermission('settings.manage') ||
+        hasAdminPermission('subscriptions.manage') ||
+        hasAdminPermission('users.manage') ||
         (request.auth != null &&
          (request.auth.token.email == 'mma831770@gmail.com' ||
           request.auth.token.email == 'abdellahismd@gmail.com'));
@@ -255,9 +264,11 @@ service cloud.firestore {
 
     match /promo_codes/{codeId} {
       allow read: if isAuthenticated();
-      allow list: if isRootAdmin() || hasAdminPermission('settings.manage');
+      allow list: if isRootAdmin() || hasAdminPermission('settings.manage') || hasAdminPermission('subscriptions.manage');
       allow write: if isRootAdmin() ||
         hasAdminPermission('settings.manage') ||
+        hasAdminPermission('subscriptions.manage') ||
+        hasAdminPermission('users.manage') ||
         (request.auth != null &&
          (request.auth.token.email == 'mma831770@gmail.com' ||
           request.auth.token.email == 'abdellahismd@gmail.com'));
@@ -267,6 +278,7 @@ service cloud.firestore {
       allow read, list: if true;
       allow write: if isRootAdmin() ||
         hasAdminPermission('settings.manage') ||
+        hasAdminPermission('subscriptions.manage') ||
         (request.auth != null &&
          (request.auth.token.email == 'mma831770@gmail.com' ||
           request.auth.token.email == 'abdellahismd@gmail.com'));
