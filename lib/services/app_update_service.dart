@@ -151,17 +151,51 @@ class AppUpdateService {
     return null;
   }
 
-  /// تنزيل ملف الـ APK وتثبيته مباشرة عبر Intent
-  Future<void> downloadAndInstallApk({
+  /// فحص وإجراء التحديث مع أولوية لـ Shorebird Code Push والتراجع الذكي
+  Future<void> performUpdate({
     required String apkUrl,
-    required void Function(double progress, int received, int total) onProgress,
-    required void Function(String error) onError,
-    required void Function() onCompleted,
+    required void Function(String stepMessage, double progress, int received, int total) onProgress,
+    required void Function(String error, {bool canOpenBrowser}) onError,
+    required void Function({bool requiresRestart}) onCompleted,
   }) async {
-    if (kIsWeb) return;
+    if (kIsWeb) {
+      onCompleted(requiresRestart: false);
+      return;
+    }
+
+    // 1) الأولوية الأولى: فحص وتثبيت تحديثات Shorebird Code Push اللحظية
+    try {
+      if (_shorebird.isAvailable) {
+        onProgress('جارٍ فحص التحديثات الفورية (Shorebird)...', 0.25, 0, 0);
+        final status = await _shorebird.checkForUpdate();
+        debugPrint('[AppUpdateService] Shorebird check status: $status');
+
+        if (status == UpdateStatus.outdated) {
+          onProgress('جارٍ تنزيل وتثبيت التحديث تلقائياً...', 0.65, 0, 0);
+          await _shorebird.update();
+          onProgress('تم التثبيت بنجاح!', 1.0, 0, 0);
+          onCompleted(requiresRestart: true);
+          return;
+        } else if (status == UpdateStatus.restartRequired) {
+          onProgress('التحديث مثبت مسبقاً وبانتظار إعادة التشغيل.', 1.0, 0, 0);
+          onCompleted(requiresRestart: true);
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('[AppUpdateService] Shorebird check/update error: $e');
+    }
+
+    // 2) التراجع الثاني: محاولة تنزيل ملف APK إن وجد رابط صالح
+    if (apkUrl.isEmpty) {
+      onError(
+        'التحديث متوفر عبر التحديث الفوري أو يمكنك التنزيل مباشرة من المتصفح.',
+        canOpenBrowser: true,
+      );
+      return;
+    }
 
     try {
-      // 1) التحقق من الصلاحيات وتجهيز المجلد
       if (Platform.isAndroid) {
         final status = await Permission.requestInstallPackages.status;
         if (status.isDenied) {
@@ -181,7 +215,8 @@ class AppUpdateService {
 
       _cancelToken = CancelToken();
 
-      // 2) بدء التنزيل مع تتبع نسبة التقدم لحظياً
+      onProgress('جارٍ تنزيل ملف التحديث...', 0.05, 0, 0);
+
       await _dio.download(
         apkUrl,
         savePath,
@@ -189,22 +224,23 @@ class AppUpdateService {
         onReceiveProgress: (received, total) {
           if (total > 0) {
             final progress = (received / total).clamp(0.0, 1.0);
-            onProgress(progress, received, total);
+            onProgress('جارٍ تنزيل ملف التحديث...', progress, received, total);
           } else {
-            onProgress(-1.0, received, total);
+            onProgress('جارٍ التنزيل...', -1.0, received, total);
           }
         },
       );
 
-      // 3) التحقق من الملف بعد التنزيل
       if (!await file.exists() || await file.length() == 0) {
-        onError('الملف الذي تم تنزيله غير مكتمل أو تالف.');
+        onError(
+          'تعذر اكتمال تنزيل الملف، يمكنك تنزيل التحديث مباشرة عبر المتصفح.',
+          canOpenBrowser: true,
+        );
         return;
       }
 
-      onCompleted();
+      onCompleted(requiresRestart: false);
 
-      // 4) إطلاق أمر التثبيت التلقائي (Install APK Intent)
       final result = await OpenFilex.open(
         savePath,
         type: 'application/vnd.android.package-archive',
@@ -213,7 +249,6 @@ class AppUpdateService {
       debugPrint('[AppUpdateService] OpenFilex result: ${result.message} (${result.type})');
 
       if (result.type != ResultType.done) {
-        // محاولة ثانية بدون تحديد النوع إذا لزم الأمر
         await OpenFilex.open(savePath);
       }
     } catch (e) {
@@ -222,8 +257,34 @@ class AppUpdateService {
         return;
       }
       debugPrint('[AppUpdateService] Download & install error: $e');
-      onError('فشل تنزيل ملف التحديث: $e');
+
+      String friendlyMessage = 'تعذر التنزيل التلقائي. يمكنك التنزيل مباشرة عبر المتصفح.';
+      if (e is DioException) {
+        if (e.response?.statusCode == 404) {
+          friendlyMessage = 'ملف التحديث قيد التجهيز على الخادم. يرجى التنزيل مباشرة من صفحة الإصدارات في المتصفح.';
+        } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout) {
+          friendlyMessage = 'انتهت مهلة الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت ثم المحاولة مجدداً.';
+        } else if (e.type == DioExceptionType.connectionError) {
+          friendlyMessage = 'تعذر الاتصال بالخادم. يرجى التحقق من اتصالك بالإنترنت.';
+        }
+      }
+      onError(friendlyMessage, canOpenBrowser: true);
     }
+  }
+
+  /// تنزيل ملف الـ APK وتثبيته مباشرة عبر Intent (متوافق مع الاستدعاءات السابقة)
+  Future<void> downloadAndInstallApk({
+    required String apkUrl,
+    required void Function(double progress, int received, int total) onProgress,
+    required void Function(String error) onError,
+    required void Function() onCompleted,
+  }) async {
+    await performUpdate(
+      apkUrl: apkUrl,
+      onProgress: (_, progress, received, total) => onProgress(progress, received, total),
+      onError: (err, {bool canOpenBrowser = false}) => onError(err),
+      onCompleted: ({bool requiresRestart = false}) => onCompleted(),
+    );
   }
 
   /// إلغاء التنزيل
