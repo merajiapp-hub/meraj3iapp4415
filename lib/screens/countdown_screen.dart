@@ -209,23 +209,6 @@ class _CountdownScreenState extends State<CountdownScreen> {
       ),
     );
   }
-        ),
-      );
-    }
-
-    return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) {
-          final event = filtered[index];
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: _CountdownCardWidget(event: event, isDark: isDark),
-          );
-        },
-        childCount: filtered.length,
-      ),
-    );
-  }
 
   Widget _buildDisabledState(bool isDark) {
     return Center(

@@ -1224,10 +1224,12 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
                 ),
               ),
             ),
-        ],
+          ],
+        ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   // ─── 6. كود الخصم الإضافي ─────────────────────────────────────────────────
   Widget _buildPromoCodeSection(bool isDark) {

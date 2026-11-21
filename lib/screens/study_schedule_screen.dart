@@ -213,7 +213,7 @@ class _StudyScheduleScreenState extends State<StudyScheduleScreen>
             size: 20,
             color: isDark ? Colors.white70 : const Color(0xFF1A146B),
           ),
-          onPressed: () => _shareSchedule(schedule),
+          onPressed: () => _showExportOptionsDialog(context, schedule),
         ),
       ],
     );
@@ -523,63 +523,6 @@ class _StudyScheduleScreenState extends State<StudyScheduleScreen>
                       ),
                     ),
                   ],
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-            // المعلم والوقت
-            Text(
-              '${item.teacher != null && item.teacher!.isNotEmpty ? "${item.teacher!} • " : ""}${item.startTime.format(context)} - ${item.endTime.format(context)}',
-              style: GoogleFonts.tajawal(
-                fontSize: 12.5,
-                color: Colors.white.withValues(alpha: 0.75),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // السطر السفلي: العد التنازلي الرقمي وزر تحضير المادة
-            Row(
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isRunningNow ? 'الحالة الحالية' : 'البدء خلال',
-                      style: GoogleFonts.tajawal(
-                        fontSize: 10.5,
-                        color: Colors.white.withValues(alpha: 0.65),
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    _buildDigitalCountdown(
-                      targetTime: item.startTime,
-                      isRunning: isRunningNow,
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                ElevatedButton.icon(
-                  onPressed: () => _showQuickPrepDialog(context, item),
-                  icon: const Icon(Icons.menu_book_rounded, size: 16),
-                  label: Text(
-                    'تحضير المادة',
-                    style: GoogleFonts.tajawal(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12.5,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF006C4A),
-                    foregroundColor: Colors.white,
-                    elevation: 4,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  ),
                 ),
               ],
             ),
