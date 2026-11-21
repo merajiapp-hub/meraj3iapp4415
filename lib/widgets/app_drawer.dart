@@ -20,6 +20,8 @@ import '../screens/login_screen.dart';
 import '../screens/pro_subscription_screen.dart';
 import '../services/app_update_service.dart';
 import 'pro_badge.dart';
+import '../screens/video_lessons/video_levels_screen.dart';
+import '../screens/countdown_screen.dart';
 
 class AppDrawer extends StatelessWidget {
   final bool isGuest;
@@ -89,27 +91,20 @@ class AppDrawer extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerRight,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          isGuest ? 'مستخدم زائر' : userName,
-                          style: GoogleFonts.tajawal(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        if (auth.isPro) ...[
-                          const SizedBox(width: 8),
-                          const ProBadge(fontSize: 10),
-                        ],
-                      ],
+                  Text(
+                    isGuest ? 'مستخدم زائر' : userName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.tajawal(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
+                  if (auth.isPro) ...[
+                    const SizedBox(height: 3),
+                    const ProBadge(fontSize: 9.5),
+                  ],
                   Text(
                     isGuest
                         ? 'سجل دخولك للحصول على مميزات أكثر'
@@ -219,6 +214,13 @@ class AppDrawer extends StatelessWidget {
                     padding: EdgeInsets.symmetric(horizontal: 24, vertical: 4),
                     child: Divider(height: 1, thickness: 0.5),
                   ),
+                  _buildDrawerItem(context, Icons.play_circle_filled_rounded, 'الدروس المصورة', () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const VideoLevelsScreen()),
+                    );
+                  }),
                   _buildDrawerItem(context, Icons.library_books_rounded, 'مراجع أخرى', () {
                     Navigator.pop(context);
                     Navigator.push(

@@ -24,6 +24,7 @@ import 'services_screen.dart';
 import 'news_screen.dart';
 import 'announcements_screen.dart';
 import 'study_schedule_screen.dart';
+import 'countdown_screen.dart';
 import '../services/app_update_service.dart';
 import '../theme/responsive.dart';
 import '../widgets/pro_badge.dart';
@@ -835,27 +836,20 @@ class _HomePageState extends State<HomePage>
                     ),
                   ),
                   const SizedBox(height: 2),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerRight,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          name,
-                          style: GoogleFonts.tajawal(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
-                        ),
-                        if (auth.isPro) ...[
-                          const SizedBox(width: 6),
-                          const ProBadge(fontSize: 9.5),
-                        ],
-                      ],
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.tajawal(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
                     ),
                   ),
+                  if (auth.isPro) ...[
+                    const SizedBox(height: 3),
+                    const ProBadge(fontSize: 9.5),
+                  ],
                 ],
               ),
             ),

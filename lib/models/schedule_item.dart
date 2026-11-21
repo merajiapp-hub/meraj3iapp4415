@@ -145,6 +145,14 @@ class ScheduleItem {
     final endH = (map['endHour'] as num?)?.toInt() ?? 9;
     final endM = (map['endMinute'] as num?)?.toInt() ?? 0;
 
+    final rawColor = (map['color'] as num?)?.toInt();
+    final Color itemColor;
+    if (rawColor == null || rawColor == 0 || (rawColor & 0xFF000000) == 0) {
+      itemColor = const Color(0xFF0F766E);
+    } else {
+      itemColor = Color(rawColor);
+    }
+
     return ScheduleItem(
       id: map['id']?.toString() ?? '',
       title: map['title']?.toString() ?? '',
@@ -152,11 +160,13 @@ class ScheduleItem {
       weekday: (map['weekday'] as num?)?.toInt() ?? 1,
       startTime: TimeOfDay(hour: startH, minute: startM),
       endTime: TimeOfDay(hour: endH, minute: endM),
-      color: Color((map['color'] as num?)?.toInt() ?? 0xFF0D9488),
+      color: itemColor,
       teacher: map['teacher']?.toString(),
       room: map['room']?.toString(),
       period: map['period']?.toString() ?? (startH < 13 ? 'morning' : 'evening'),
-      iconName: map['iconName']?.toString() ?? 'menu_book',
+      iconName: map['iconName']?.toString().isNotEmpty == true
+          ? map['iconName'].toString()
+          : 'menu_book',
       isExam: map['isExam'] == true,
       isCancelled: map['isCancelled'] == true,
       notify: map['notify'] != false,

@@ -241,6 +241,8 @@ class AuthProvider extends ChangeNotifier {
   static const Set<String> _trustedAdminEmails = {
     'mma831770@gmail.com',
     'abdellahismd@gmail.com',
+    'merajiapp@gmail.com',
+    'khayimedah36@gmail.com',
   };
 
   static bool isTrustedAdminEmail(String? email) {

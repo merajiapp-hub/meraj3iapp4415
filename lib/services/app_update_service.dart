@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -114,9 +115,9 @@ class AppUpdateService {
     return null;
   }
 
-  /// جلب ملف update.json من الرابط الأساسي أو الاحتياطي
+  /// جلب ملف update.json من الرابط الأساسي أو الاحتياطي أو Firestore
   Future<AppUpdateInfo?> _fetchUpdateInfo() async {
-    // محاولة جلب الملف من Firebase Hosting
+    // 1) محاولة جلب الملف من Firebase Hosting
     try {
       final response = await http
           .get(
@@ -132,7 +133,42 @@ class AppUpdateService {
       debugPrint('[AppUpdateService] Primary update fetch failed: $e');
     }
 
-    // محاولة جلب الملف من الرابط الاحتياطي (GitHub)
+    // 2) محاولة جلب أحدث إصدار منشور مباشرة من قاعدة بيانات Firestore (لوحة الإدارة)
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('app_releases')
+          .orderBy('releaseDate', descending: true)
+          .limit(1)
+          .get()
+          .timeout(const Duration(seconds: 6));
+
+      if (snap.docs.isNotEmpty) {
+        final data = snap.docs.first.data();
+        final version = data['version']?.toString() ?? '1.0.0';
+        final notes = data['notes']?.toString() ?? '';
+        final isMandatory = data['isMandatory'] == true;
+        final apkUrl = data['apkUrl']?.toString() ??
+            'https://github.com/merajiapp-hub/meraj3iapp4415/releases/latest/download/app-release.apk';
+        final buildNumber = (data['buildNumber'] as num?)?.toInt() ?? 25;
+
+        final lines = notes.split('\n').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+
+        return AppUpdateInfo(
+          latestVersion: version,
+          latestBuildNumber: buildNumber,
+          apkUrl: apkUrl,
+          apkSize: data['apkSize']?.toString() ?? '65 MB',
+          releaseDate: DateTime.now().toString().split(' ').first,
+          forceUpdate: isMandatory,
+          releaseNotes: lines.isNotEmpty ? lines : ['تحسينات في الأداء وتحديثات هامة'],
+          githubReleaseUrl: 'https://github.com/merajiapp-hub/meraj3iapp4415/releases',
+        );
+      }
+    } catch (e) {
+      debugPrint('[AppUpdateService] Firestore app_releases fetch failed: $e');
+    }
+
+    // 3) محاولة جلب الملف من الرابط الاحتياطي (GitHub)
     try {
       final response = await http
           .get(
@@ -187,9 +223,9 @@ class AppUpdateService {
     }
 
     // 2) التراجع الثاني: محاولة تنزيل ملف APK إن وجد رابط صالح
-    if (apkUrl.isEmpty) {
+    if (apkUrl.isEmpty || !apkUrl.toLowerCase().contains('.apk')) {
       onError(
-        'التحديث متوفر عبر التحديث الفوري أو يمكنك التنزيل مباشرة من المتصفح.',
+        'التحديث متوفر الآن! يمكنك تنزيل ملف APK مباشرة عبر المتصفح.',
         canOpenBrowser: true,
       );
       return;
@@ -231,9 +267,20 @@ class AppUpdateService {
         },
       );
 
-      if (!await file.exists() || await file.length() == 0) {
+      if (!await file.exists() || await file.length() < 1000) {
         onError(
           'تعذر اكتمال تنزيل الملف، يمكنك تنزيل التحديث مباشرة عبر المتصفح.',
+          canOpenBrowser: true,
+        );
+        return;
+      }
+
+      // التحقق من صحة ملف الـ APK عبر ترويسة ملفات ZIP (PK)
+      final headerBytes = await file.openRead(0, 4).first;
+      if (headerBytes.length >= 2 && (headerBytes[0] != 0x50 || headerBytes[1] != 0x4B)) {
+        debugPrint('[AppUpdateService] Downloaded file is not a valid APK archive.');
+        onError(
+          'رابط ملف التحديث قيد التحديث. يمكنك تنزيل النسخة الجديدة مباشرة من المتصفح.',
           canOpenBrowser: true,
         );
         return;

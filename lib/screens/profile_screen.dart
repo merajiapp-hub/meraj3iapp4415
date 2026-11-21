@@ -551,31 +551,34 @@ class _ProfileScreenState extends State<ProfileScreen>
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                name,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.tajawal(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
+          // اسم المستخدم بالكامل وبدون اقتطاع
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              name,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.tajawal(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
               ),
-              if (context.watch<AuthProvider>().isPro) ...[
-                const SizedBox(width: 8),
-                const ProBadge(fontSize: 10.5),
-              ],
-            ],
+            ),
           ),
+          // كلمة PRO أسفل اسم المستخدم دائماً
+          if (context.watch<AuthProvider>().isPro) ...[
+            const SizedBox(height: 8),
+            const ProBadge(fontSize: 11),
+          ],
+          const SizedBox(height: 6),
           if (email.isNotEmpty)
             Text(
               email,
               textAlign: TextAlign.center,
               style: GoogleFonts.tajawal(
                 color: Colors.white.withValues(alpha: 0.85),
-                fontSize: 14,
+                fontSize: 13.5,
               ),
             ),
         ],
@@ -859,27 +862,44 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
           ),
           const SizedBox(height: 16),
-          _buildReadOnlyField(
-            isDark: isDark,
-            label: 'الاسم الكامل',
-            value: fullName.toString(),
-            icon: Icons.person_rounded,
-          ),
+          if (_isEditing)
+            _buildInfoField(
+              isDark: isDark,
+              controller: _nameController,
+              label: 'الاسم الكامل',
+              icon: Icons.person_rounded,
+              enabled: true,
+            )
+          else
+            _buildReadOnlyField(
+              isDark: isDark,
+              label: 'الاسم الكامل',
+              value: fullName.toString().isNotEmpty ? fullName.toString() : 'غير محدد',
+              icon: Icons.person_rounded,
+            ),
           const SizedBox(height: 14),
           _buildReadOnlyField(
             isDark: isDark,
             label: 'البريد الإلكتروني',
-            value: email.toString(),
+            value: email.toString().isNotEmpty ? email.toString() : 'غير محدد',
             icon: Icons.email_outlined,
           ),
           const SizedBox(height: 14),
-          _buildInfoField(
-            isDark: isDark,
-            controller: _phoneController,
-            label: 'رقم الهاتف',
-            icon: Icons.phone_outlined,
-            enabled: false,
-          ),
+          if (_isEditing)
+            _buildInfoField(
+              isDark: isDark,
+              controller: _phoneController,
+              label: 'رقم الهاتف',
+              icon: Icons.phone_outlined,
+              enabled: true,
+            )
+          else
+            _buildReadOnlyField(
+              isDark: isDark,
+              label: 'رقم الهاتف',
+              value: _phoneController.text.isNotEmpty ? _phoneController.text : 'غير محدد',
+              icon: Icons.phone_outlined,
+            ),
           const SizedBox(height: 14),
           _buildReadOnlyField(
             isDark: isDark,
@@ -968,44 +988,44 @@ class _ProfileScreenState extends State<ProfileScreen>
     required IconData icon,
     required bool enabled,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: enabled
-            ? (isDark
-                  ? Colors.white.withValues(alpha: 0.05)
-                  : const Color(0xFFF8FAFC))
-            : (isDark
-                  ? Colors.white.withValues(alpha: 0.02)
-                  : const Color(0xFFF8FAFC)),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: enabled
-              ? AppTheme.primaryColor.withValues(alpha: 0.4)
-              : (isDark
-                    ? Colors.white.withValues(alpha: 0.06)
-                    : const Color(0xFFE2E8F0)),
-        ),
+    return TextFormField(
+      controller: controller,
+      enabled: enabled,
+      style: GoogleFonts.tajawal(
+        fontWeight: FontWeight.w600,
+        fontSize: 14,
+        color: isDark ? Colors.white : const Color(0xFF0F172A),
       ),
-      child: TextField(
-        controller: controller,
-        enabled: enabled,
-        style: GoogleFonts.tajawal(
-          fontWeight: FontWeight.w600,
-          fontSize: 14,
-          color: isDark ? Colors.white : const Color(0xFF0F172A),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: GoogleFonts.tajawal(
+          color: Colors.grey[500],
+          fontSize: 12,
         ),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: GoogleFonts.tajawal(
-            color: Colors.grey[500],
-            fontSize: 12,
+        prefixIcon: Icon(icon, color: AppTheme.primaryColor, size: 20),
+        filled: true,
+        fillColor: enabled
+            ? (isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF8FAFC))
+            : (isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE2E8F0),
           ),
-          prefixIcon: Icon(icon, color: AppTheme.primaryColor, size: 20),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE2E8F0),
           ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
         ),
       ),
     );

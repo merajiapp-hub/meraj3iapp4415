@@ -379,6 +379,208 @@ class ScheduleProvider extends ChangeNotifier {
     await _saveToPrefs();
   }
 
+  // ─── مسح كافة الحصص ──────────────────────────────────────────────────────
+  Future<void> clearAllSessions() async {
+    for (int i = 1; i <= 7; i++) {
+      _items[i]?.clear();
+    }
+    notifyListeners();
+    await _saveToPrefs();
+
+    final user = _auth.currentUser;
+    if (user != null) {
+      try {
+        final colRef = _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('study_lessons');
+        final snap = await colRef.get();
+        for (final doc in snap.docs) {
+          await doc.reference.delete();
+        }
+      } catch (_) {}
+    }
+  }
+
+  // ─── تعبئة جدول نموذجي تلقائي ───────────────────────────────────────────
+  Future<void> seedDefaultSchoolSchedule() async {
+    await clearAllSessions();
+
+    final defaultItems = [
+      // السبت (6)
+      ScheduleItem(
+        id: 'seed_sat_1',
+        title: 'الرياضيات',
+        weekday: 6,
+        startTime: const TimeOfDay(hour: 8, minute: 0),
+        endTime: const TimeOfDay(hour: 10, minute: 0),
+        color: const Color(0xFF2563EB),
+        iconName: 'calculate',
+        teacher: 'أستاذ الرياضيات',
+        room: 'قاعة 1',
+        period: 'morning',
+      ),
+      ScheduleItem(
+        id: 'seed_sat_2',
+        title: 'الفيزياء والكيمياء',
+        weekday: 6,
+        startTime: const TimeOfDay(hour: 10, minute: 15),
+        endTime: const TimeOfDay(hour: 12, minute: 15),
+        color: const Color(0xFF7C3AED),
+        iconName: 'science',
+        teacher: 'أستاذ الفيزياء',
+        room: 'المختبر',
+        period: 'morning',
+      ),
+      ScheduleItem(
+        id: 'seed_sat_3',
+        title: 'اللغة العربية',
+        weekday: 6,
+        startTime: const TimeOfDay(hour: 16, minute: 0),
+        endTime: const TimeOfDay(hour: 18, minute: 0),
+        color: const Color(0xFF0F766E),
+        iconName: 'menu_book',
+        room: 'قاعة 1',
+        period: 'evening',
+      ),
+
+      // الأحد (7)
+      ScheduleItem(
+        id: 'seed_sun_1',
+        title: 'العلوم الطبيعية',
+        weekday: 7,
+        startTime: const TimeOfDay(hour: 8, minute: 0),
+        endTime: const TimeOfDay(hour: 10, minute: 0),
+        color: const Color(0xFF059669),
+        iconName: 'eco',
+        room: 'مختبر العلوم',
+        period: 'morning',
+      ),
+      ScheduleItem(
+        id: 'seed_sun_2',
+        title: 'اللغة الفرنسية',
+        weekday: 7,
+        startTime: const TimeOfDay(hour: 10, minute: 15),
+        endTime: const TimeOfDay(hour: 12, minute: 15),
+        color: const Color(0xFF4338CA),
+        iconName: 'translate',
+        room: 'قاعة 2',
+        period: 'morning',
+      ),
+
+      // الاثنين (1)
+      ScheduleItem(
+        id: 'seed_mon_1',
+        title: 'الرياضيات',
+        weekday: 1,
+        startTime: const TimeOfDay(hour: 8, minute: 0),
+        endTime: const TimeOfDay(hour: 10, minute: 0),
+        color: const Color(0xFF2563EB),
+        iconName: 'calculate',
+        room: 'قاعة 1',
+        period: 'morning',
+      ),
+      ScheduleItem(
+        id: 'seed_mon_2',
+        title: 'اللغة الإنجليزية',
+        weekday: 1,
+        startTime: const TimeOfDay(hour: 10, minute: 15),
+        endTime: const TimeOfDay(hour: 12, minute: 15),
+        color: const Color(0xFFB45309),
+        iconName: 'language',
+        room: 'قاعة 1',
+        period: 'morning',
+      ),
+      ScheduleItem(
+        id: 'seed_mon_3',
+        title: 'التربية الإسلامية',
+        weekday: 1,
+        startTime: const TimeOfDay(hour: 16, minute: 0),
+        endTime: const TimeOfDay(hour: 18, minute: 0),
+        color: const Color(0xFF047857),
+        iconName: 'mosque',
+        room: 'قاعة 3',
+        period: 'evening',
+      ),
+
+      // الثلاثاء (2)
+      ScheduleItem(
+        id: 'seed_tue_1',
+        title: 'الفيزياء والكيمياء',
+        weekday: 2,
+        startTime: const TimeOfDay(hour: 8, minute: 0),
+        endTime: const TimeOfDay(hour: 10, minute: 0),
+        color: const Color(0xFF7C3AED),
+        iconName: 'science',
+        room: 'المختبر',
+        period: 'morning',
+      ),
+      ScheduleItem(
+        id: 'seed_tue_2',
+        title: 'الفلسفة',
+        weekday: 2,
+        startTime: const TimeOfDay(hour: 10, minute: 15),
+        endTime: const TimeOfDay(hour: 12, minute: 15),
+        color: const Color(0xFFD97706),
+        iconName: 'psychology',
+        room: 'قاعة 1',
+        period: 'morning',
+      ),
+
+      // الأربعاء (3)
+      ScheduleItem(
+        id: 'seed_wed_1',
+        title: 'العلوم الطبيعية',
+        weekday: 3,
+        startTime: const TimeOfDay(hour: 8, minute: 0),
+        endTime: const TimeOfDay(hour: 10, minute: 0),
+        color: const Color(0xFF059669),
+        iconName: 'eco',
+        room: 'مختبر العلوم',
+        period: 'morning',
+      ),
+      ScheduleItem(
+        id: 'seed_wed_2',
+        title: 'التاريخ والجغرافيا',
+        weekday: 3,
+        startTime: const TimeOfDay(hour: 10, minute: 15),
+        endTime: const TimeOfDay(hour: 12, minute: 15),
+        color: const Color(0xFFC026D3),
+        iconName: 'public',
+        room: 'قاعة 2',
+        period: 'morning',
+      ),
+
+      // الخميس (4)
+      ScheduleItem(
+        id: 'seed_thu_1',
+        title: 'الرياضيات',
+        weekday: 4,
+        startTime: const TimeOfDay(hour: 8, minute: 0),
+        endTime: const TimeOfDay(hour: 10, minute: 0),
+        color: const Color(0xFF2563EB),
+        iconName: 'calculate',
+        room: 'قاعة 1',
+        period: 'morning',
+      ),
+      ScheduleItem(
+        id: 'seed_thu_2',
+        title: 'المعلوماتية',
+        weekday: 4,
+        startTime: const TimeOfDay(hour: 10, minute: 15),
+        endTime: const TimeOfDay(hour: 12, minute: 15),
+        color: const Color(0xFF0284C7),
+        iconName: 'laptop',
+        room: 'قاعة الحاسوب',
+        period: 'morning',
+      ),
+    ];
+
+    for (final it in defaultItems) {
+      await addItem(it);
+    }
+  }
+
   // ─── إحصائيات عامة ──────────────────────────────────────────────────────
   int getTodaySessionsCount(int weekday) {
     return (_items[weekday] ?? []).where((i) => !i.isCancelled).length;

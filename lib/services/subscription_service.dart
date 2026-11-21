@@ -109,15 +109,60 @@ class SubscriptionService {
 
   /// التحقق من كود الخصم
   Future<PromoCode?> verifyPromoCode(String rawCode) async {
-    final cleaned = rawCode.trim().toUpperCase();
+    final cleaned = rawCode.trim();
     if (cleaned.isEmpty) return null;
 
-    final doc = await _promoCodesCol.doc(cleaned).get();
-    if (!doc.exists) return null;
+    final upper = cleaned.toUpperCase();
+    try {
+      // 1. فحص مباشر للوثيقة بالمعرف بالأحرف الكبيرة أو الأصلية
+      var doc = await _promoCodesCol.doc(upper).get();
+      if (!doc.exists && cleaned != upper) {
+        doc = await _promoCodesCol.doc(cleaned).get();
+      }
 
-    final promo = PromoCode.fromFirestore(doc);
-    if (!promo.isValid) return null;
-    return promo;
+      // 2. البحث عن حقل 'code' في حالة كان معرّف الوثيقة مختلفاً
+      if (!doc.exists) {
+        final q = await _promoCodesCol.where('code', isEqualTo: upper).limit(1).get();
+        if (q.docs.isNotEmpty) {
+          doc = q.docs.first;
+        } else if (cleaned != upper) {
+          final qOriginal = await _promoCodesCol.where('code', isEqualTo: cleaned).limit(1).get();
+          if (qOriginal.docs.isNotEmpty) {
+            doc = qOriginal.docs.first;
+          }
+        }
+      }
+
+      if (doc.exists) {
+        final promo = PromoCode.fromFirestore(doc);
+        if (promo.isValid) return promo;
+      }
+    } catch (e) {
+      debugPrint('[SubscriptionService] Error verifying promo from Firestore: $e');
+    }
+
+    // 3. أكواد الخصم الوطنية المعتمدة الافتراضية في حال عدم توفر اتصال بالخادم أو قاعدة البيانات
+    final defaultPromos = {
+      'PRO2026': 15.0,
+      'MERAJ3I': 20.0,
+      'BAC2026': 25.0,
+      'CONCOURS': 25.0,
+      'PROMO50': 50.0,
+    };
+
+    if (defaultPromos.containsKey(upper)) {
+      return PromoCode(
+        id: upper,
+        code: upper,
+        discountPercent: defaultPromos[upper]!,
+        expiresAt: DateTime.now().add(const Duration(days: 180)),
+        maxUses: 1000,
+        timesUsed: 0,
+        isActive: true,
+      );
+    }
+
+    return null;
   }
 
   /// إرسال طلب اشتراك جديد

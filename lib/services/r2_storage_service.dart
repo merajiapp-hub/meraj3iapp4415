@@ -8,6 +8,12 @@ class R2StorageService {
   factory R2StorageService() => _instance;
   R2StorageService._internal();
 
+  /// بيانات حساب Cloudflare الرسمي المعتمد: Merajiapp@gmail.com
+  static const String cloudflareAccountId = 'f5d382cd0728f2a24d516cc12fcd3fe6';
+  static const String directR2StorageEndpoint =
+      'https://f5d382cd0728f2a24d516cc12fcd3fe6.r2.cloudflarestorage.com';
+  static const String r2AccessKeyId = 'eefc3b83b30298fe04ecfc1faf5a416f';
+
   /// الرابط الأساسي لخدمة Cloudflare R2 Worker لتطبيق مراجعي
   /// مربوط بحساب merajiapp@gmail.com ومستودع meraj3i-media
   static const String defaultR2Endpoint = 'https://meraj3i-media-r2.merajiapp.workers.dev';

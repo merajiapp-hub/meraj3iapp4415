@@ -48,12 +48,20 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
   // رقم الحساب المعتمد والمستفيد
   static const String receiverNumber = '26270009';
   static const String beneficiaryName = 'مراجعي | MERAJ3I';
+  // مؤقت العد التنازلي لعرض العودة للدراسة المحدود
+  Timer? _offerTimer;
+  DateTime _offerEndTime = DateTime.now().add(const Duration(days: 12, hours: 8, minutes: 45, seconds: 30));
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _service.seedDefaultsIfEmpty();
+
+    // مؤقت حي لتحديث عداد عرض العودة للدراسة كل ثانية
+    _offerTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = context.read<AuthProvider>();
@@ -65,6 +73,7 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
 
   @override
   void dispose() {
+    _offerTimer?.cancel();
     _tabController.dispose();
     _promoCtrl.dispose();
     _phoneCtrl.dispose();
@@ -130,11 +139,19 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تم تطبيق خصم ${promo.discountPercent.round()}% بنجاح! 🎉'),
-          backgroundColor: const Color(0xFF059669),
+          backgroundColor: const Color(0xFF006C4A),
           behavior: SnackBarBehavior.floating,
         ),
       );
     }
+  }
+
+  void _removePromo() {
+    setState(() {
+      _appliedPromo = null;
+      _promoCtrl.clear();
+      _promoError = null;
+    });
   }
 
   // ─── حساب السعر النهائي بعد الخصم ───────────────────────────────────────────
@@ -277,7 +294,7 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
                   'متابعة حالة الطلب',
                   style: GoogleFonts.tajawal(
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF0F766E),
+                    color: const Color(0xFF1A146B),
                   ),
                 ),
               ),
@@ -300,7 +317,7 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(successMsg),
-        backgroundColor: const Color(0xFF0F766E),
+        backgroundColor: const Color(0xFF1A146B),
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
       ),
@@ -310,50 +327,23 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? AppTheme.backgroundDark : const Color(0xFFF8FAFC);
+    final bg = isDark ? const Color(0xFF0A0F1D) : const Color(0xFFFAF8FF);
     final auth = context.watch<AuthProvider>();
 
     return Scaffold(
       backgroundColor: bg,
+      appBar: _buildStandardAppBar(isDark),
       body: Directionality(
         textDirection: TextDirection.rtl,
         child: Column(
           children: [
-            const CurvedHeader(
-              title: 'ترقية الحساب إلى Pro',
-              gradient: LinearGradient(
-                colors: [Color(0xFF92400E), Color(0xFFD97706), Color(0xFFF59E0B)],
-                begin: Alignment.topRight,
-                end: Alignment.bottomLeft,
-              ),
-            ),
-            Container(
-              color: isDark ? const Color(0xFF131D2A) : Colors.white,
-              child: TabBar(
-                controller: _tabController,
-                indicatorColor: const Color(0xFFF59E0B),
-                indicatorWeight: 3,
-                labelColor: const Color(0xFFF59E0B),
-                unselectedLabelColor: isDark ? Colors.white60 : Colors.black54,
-                labelStyle: GoogleFonts.tajawal(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w800,
-                ),
-                tabs: const [
-                  Tab(
-                    icon: Icon(Icons.workspace_premium_rounded, size: 20),
-                    text: 'الباقات والاشتراك',
-                  ),
-                  Tab(
-                    icon: Icon(Icons.receipt_long_rounded, size: 20),
-                    text: 'طلباتي وحالتي',
-                  ),
-                ],
-              ),
-            ),
+            // شريط التبويب الأنيق (الباقات والاشتراك | طلباتي وحالتي)
+            _buildTabBar(isDark),
+
             Expanded(
               child: TabBarView(
                 controller: _tabController,
+                physics: const NeverScrollableScrollPhysics(), // منع السحب باليد والتنقل بالضغط فقط
                 children: [
                   _buildPlansAndCheckoutTab(isDark, auth),
                   _buildMyRequestsTab(isDark, auth),
@@ -366,55 +356,421 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
     );
   }
 
-  // ─── تبويب الباقات ونموذج الدفع ─────────────────────────────────────────────
+  // ─── رأس الصفحة القياسي المستوحى من الهوية الرسمية ────────────────────────
+  PreferredSizeWidget _buildStandardAppBar(bool isDark) {
+    return AppBar(
+      backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+      elevation: 0,
+      centerTitle: true,
+      leading: IconButton(
+        icon: Icon(
+          Icons.arrow_forward_rounded,
+          color: isDark ? Colors.white : const Color(0xFF1A146B),
+          size: 22,
+        ),
+        onPressed: () => Navigator.maybePop(context),
+      ),
+      title: Text(
+        'اشتراكات Pro',
+        style: GoogleFonts.tajawal(
+          fontSize: 18,
+          fontWeight: FontWeight.w900,
+          color: isDark ? Colors.white : const Color(0xFF1A146B),
+        ),
+      ),
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1),
+        child: Container(
+          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+          height: 1,
+        ),
+      ),
+    );
+  }
+
+  // ─── شريط التبويب الأنيق ──────────────────────────────────────────────────
+  Widget _buildTabBar(bool isDark) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0).withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        indicator: BoxDecoration(
+          color: isDark ? const Color(0xFF0F172A) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        indicatorSize: TabBarIndicatorSize.tab,
+        dividerColor: Colors.transparent,
+        labelColor: isDark ? Colors.white : const Color(0xFF3525CD),
+        unselectedLabelColor: isDark ? Colors.white60 : const Color(0xFF64748B),
+        labelStyle: GoogleFonts.tajawal(fontSize: 12.5, fontWeight: FontWeight.w800),
+        unselectedLabelStyle: GoogleFonts.tajawal(fontSize: 12, fontWeight: FontWeight.w600),
+        tabs: const [
+          Tab(text: 'الباقات والاشتراك'),
+          Tab(text: 'طلباتي وحالتي'),
+        ],
+      ),
+    );
+  }
+
+  // ─── تبويب الباقات ونموذج الدفع الاحترافي الكامل ───────────────────────────
   Widget _buildPlansAndCheckoutTab(bool isDark, AuthProvider auth) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 36),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
       children: [
-        // 1) بطاقة حالة الحساب الذكية في أعلى الصفحة
+        // 1) شريط عرض خصم العودة للدراسة المؤقت مع عداد رقمي حي
+        _buildLimitedOfferCountdownCard(isDark),
+
+        const SizedBox(height: 14),
+
+        // 3) بطاقة حالة الحساب الذكية للمشتركين
         _buildAccountStatusCard(isDark, auth),
 
         const SizedBox(height: 14),
 
-        // 2) باقات الاشتراك في شبكة مدمجة 2x2
-        _buildPlansGridSection(isDark),
+        // 4) مقارنة سريعة بين المجاني و Pro (بطاقتان جنب إلى جنب)
+        _buildSideBySideComparison(isDark),
 
-        const SizedBox(height: 14),
+        const SizedBox(height: 18),
 
-        // 3) جدول المقارنة بين الحساب العادي و Pro
-        _buildComparisonCard(isDark),
+        // 5) باقات الاشتراك الرأسية المطورة
+        _buildVerticalPlansSection(isDark),
 
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
 
-        // 4) كود الخصم الإضافي
+        // 6) كود الخصم الإضافي مع الاحتساب التفاعلي
         _buildPromoCodeSection(isDark),
 
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
 
-        // 5) بطاقة رقم الاستلام المعتمد ووسائل الدفع
+        // 7) طرق الدفع الوطنية ورقم التحويل المعتمد
         _buildPaymentTransferSection(isDark),
 
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
 
-        // 6) نموذج إرفاق الوصل وتأكيد الإرسال
+        // 8) نموذج إرفاق الوصل وزر الإتمام الآمن المثبت
         _buildCheckoutForm(isDark),
+
+        const SizedBox(height: 20),
+
+        // 9) جدول مقارنة المزايا الشامل
+        _buildFullFeatureComparisonTable(isDark),
+
+        const SizedBox(height: 20),
+
+        // 10) الأسئلة الشائعة القابلة للتوسيع (FAQ)
+        _buildFaqSection(isDark),
       ],
     );
   }
 
-  // ─── 1. بطاقة حالة الحساب الذكية ─────────────────────────────────────────────
+  // ─── 1. بانر الترقية الملكي الفاخر (Hero Pro Banner) ──────────────────────
+  Widget _buildHeroProBanner(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1A146B), Color(0xFF3525CD), Color(0xFF4F46E5)],
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF3525CD).withValues(alpha: 0.35),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // شارة المشرفين / Pro
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.workspace_premium_rounded, size: 14, color: Color(0xFFFDE68A)),
+                const SizedBox(width: 6),
+                Text(
+                  'مراجعي Pro الاحترافي ⭐',
+                  style: GoogleFonts.tajawal(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // العنوان الرئيسي
+          Text(
+            'ارتقِ بتجربتك التعليمية مع مراجعي Pro',
+            style: GoogleFonts.tajawal(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 6),
+
+          // الوصف
+          Text(
+            'احصل على وصول غير محدود للملخصات المخصصة، الاختبارات التجريبية الذكية، والمراجعات النهائية الحصرية.',
+            style: GoogleFonts.tajawal(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+              color: Colors.white.withValues(alpha: 0.85),
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // حزمة الأفاتار الاجتماعية (Social Proof Stack)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 54,
+                  height: 24,
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        right: 0,
+                        child: _buildAvatarCircle(const Color(0xFFF59E0B), 'أ'),
+                      ),
+                      Positioned(
+                        right: 14,
+                        child: _buildAvatarCircle(const Color(0xFF006C4A), 'م'),
+                      ),
+                      Positioned(
+                        right: 28,
+                        child: _buildAvatarCircle(const Color(0xFF3525CD), 'س'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'انضم إلى أكثر من 15,000 طالب متفوق',
+                  style: GoogleFonts.tajawal(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvatarCircle(Color bg, String initial) {
+    return Container(
+      width: 24,
+      height: 24,
+      decoration: BoxDecoration(
+        color: bg,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 1.5),
+      ),
+      child: Center(
+        child: Text(
+          initial,
+          style: GoogleFonts.tajawal(
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── 2. شريط عرض خصم العودة للدراسة مع عداد رقمي حي ──────────────────────
+  Widget _buildLimitedOfferCountdownCard(bool isDark) {
+    final diff = _offerEndTime.difference(DateTime.now());
+    final isExpired = diff.isNegative;
+
+    final days = isExpired ? 0 : diff.inDays;
+    final hours = isExpired ? 0 : diff.inHours % 24;
+    final minutes = isExpired ? 0 : diff.inMinutes % 60;
+    final seconds = isExpired ? 0 : diff.inSeconds % 60;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1B18) : const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFFCD34D),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF854D0E),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.local_fire_department_rounded,
+                    color: Color(0xFFFEF08A), size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'عرض خصم العودة للدراسة',
+                      style: GoogleFonts.tajawal(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w900,
+                        color: isDark ? Colors.white : const Color(0xFF78350F),
+                      ),
+                    ),
+                    Text(
+                      'خصم خاص على جميع الباقات لفترة محدودة جداً',
+                      style: GoogleFonts.tajawal(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white60 : const Color(0xFF92400E),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // صناديق العد التنازلي الرقمية الحية
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildOfferTimeBox('$days', 'يوم', isDark),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(':', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFB45309))),
+                ),
+                _buildOfferTimeBox('${hours.toString().padLeft(2, '0')}', 'ساعة', isDark),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(':', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFB45309))),
+                ),
+                _buildOfferTimeBox('${minutes.toString().padLeft(2, '0')}', 'دقيقة', isDark),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(':', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFB45309))),
+                ),
+                _buildOfferTimeBox('${seconds.toString().padLeft(2, '0')}', 'ثانية', isDark),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOfferTimeBox(String value, String label, bool isDark) {
+    return Column(
+      children: [
+        Container(
+          constraints: const BoxConstraints(minWidth: 42),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF292524) : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: const Color(0xFFFDE68A),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Text(
+              value,
+              style: GoogleFonts.outfit(
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                color: isDark ? const Color(0xFFFDE68A) : const Color(0xFFB45309),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          label,
+          style: GoogleFonts.tajawal(
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white70 : const Color(0xFF92400E),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─── 3. بطاقة حالة الحساب الذكية ──────────────────────────────────────────
   Widget _buildAccountStatusCard(bool isDark, AuthProvider auth) {
-    // في حال كان المستخدم مشتركاً نشطاً في Pro
     if (auth.isPro) {
       return Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             colors: [Color(0xFF78350F), Color(0xFFB45309)],
             begin: Alignment.topRight,
             end: Alignment.bottomLeft,
           ),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
               color: const Color(0xFFB45309).withValues(alpha: 0.3),
@@ -477,164 +833,149 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
         ),
       );
     }
+    return const SizedBox.shrink();
+  }
 
-    // فحص إذا كان هناك طلب قيد المراجعة أو مرفوض حديثاً للمستخدم
-    if (auth.user != null) {
-      return StreamBuilder<List<PaymentRequest>>(
-        stream: _service.streamUserRequests(auth.user!.uid),
-        builder: (context, snapshot) {
-          final requests = snapshot.data ?? [];
-          if (requests.isNotEmpty) {
-            final latestReq = requests.first;
-            if (latestReq.isPending) {
-              return Container(
-                padding: const EdgeInsets.all(12),
+  // ─── 4. مقارنة سريعة بين المجاني و Pro (جنباً إلى جنب) ─────────────────────
+  Widget _buildSideBySideComparison(bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Center(
+          child: Text(
+            'مقارنة سريعة بين المجاني و Pro',
+            style: GoogleFonts.tajawal(
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              color: isDark ? Colors.white : const Color(0xFF131B2E),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // بطاقة Pro (الميزة الشاملة)
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFD97706).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFD97706), width: 1.2),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.hourglass_top_rounded,
-                        color: Color(0xFFD97706), size: 24),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'طلب اشتراكك قيد المراجعة',
-                            style: GoogleFonts.tajawal(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: isDark ? Colors.white : const Color(0xFF92400E),
-                            ),
-                          ),
-                          Text(
-                            'باقة ${latestReq.planName} • نتحقق من الوصل وسيتم التفعيل قريباً.',
-                            style: GoogleFonts.tajawal(
-                              fontSize: 11,
-                              color: isDark ? Colors.white70 : const Color(0xFFB45309),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => _tabController.animateTo(1),
-                      child: Text(
-                        'عرض',
-                        style: GoogleFonts.tajawal(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFFD97706),
-                        ),
-                      ),
+                  color: isDark ? const Color(0xFF181836) : const Color(0xFFEEF2FF),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: const Color(0xFF3525CD),
+                    width: 1.8,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF3525CD).withValues(alpha: 0.15),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
                     ),
                   ],
-                ),
-              );
-            } else if (latestReq.isRejected) {
-              return Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFDC2626).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFDC2626), width: 1.2),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.cancel_rounded,
-                            color: Color(0xFFDC2626), size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          'تعذر قبول طلب الاشتراك السابق',
-                          style: GoogleFonts.tajawal(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFFDC2626),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (latestReq.rejectionReason != null &&
-                        latestReq.rejectionReason!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        'السبب: ${latestReq.rejectionReason}',
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3525CD),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'الأفضل قيمة ⭐',
                         style: GoogleFonts.tajawal(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white70 : Colors.black87,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
-                    ],
-                    const SizedBox(height: 4),
-                    Text(
-                      'يمكنك إعادة إرسال الطلب مع إرفاق الوصل الصحيح أدناه.',
-                      style: GoogleFonts.tajawal(fontSize: 10.5, color: Colors.grey),
                     ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'الميزة الشاملة',
+                      style: GoogleFonts.tajawal(fontSize: 10.5, color: Colors.grey[600]),
+                    ),
+                    Text(
+                      'مراجعي Pro',
+                      style: GoogleFonts.tajawal(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF3525CD),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _buildCompareRow(Icons.check_circle_rounded, 'وصول غير محدود للملخصات', const Color(0xFF059669)),
+                    _buildCompareRow(Icons.check_circle_rounded, 'اختبارات تجريبية ذكية', const Color(0xFF059669)),
+                    _buildCompareRow(Icons.check_circle_rounded, 'تصحيح ذاتي وشامل', const Color(0xFF059669)),
+                    _buildCompareRow(Icons.check_circle_rounded, 'مراجعات نهائية حصرية', const Color(0xFF059669)),
                   ],
                 ),
-              );
-            }
-          }
-
-          // المستخدم العادي (Free)
-          return _buildFreeWelcomeBanner(isDark);
-        },
-      );
-    }
-
-    return _buildFreeWelcomeBanner(isDark);
+              ),
+            ),
+            const SizedBox(width: 12),
+            // بطاقة المجاني
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF131B2A) : Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                    width: 1.2,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 24),
+                    Text(
+                      'الباقة الأساسية',
+                      style: GoogleFonts.tajawal(fontSize: 10.5, color: Colors.grey[600]),
+                    ),
+                    Text(
+                      'المجاني',
+                      style: GoogleFonts.tajawal(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: isDark ? Colors.white70 : const Color(0xFF131B2E),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _buildCompareRow(Icons.cancel_rounded, 'تصفحات محدودة', const Color(0xFFEF4444)),
+                    _buildCompareRow(Icons.cancel_rounded, 'بدون اختبارات ذكية', const Color(0xFFEF4444)),
+                    _buildCompareRow(Icons.cancel_rounded, 'إعلانات متكررة', const Color(0xFFEF4444)),
+                    _buildCompareRow(Icons.check_circle_rounded, 'الوصول العادي', const Color(0xFF059669)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
-  Widget _buildFreeWelcomeBanner(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF16202E) : Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-        ),
-      ),
+  Widget _buildCompareRow(IconData icon, String text, Color color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3.5),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 22),
-          ),
-          const SizedBox(width: 10),
+          Icon(icon, size: 15, color: color),
+          const SizedBox(width: 6),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'أنت تستخدم الحساب العادي (Free)',
-                  style: GoogleFonts.tajawal(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'قم بالترقية لإزالة الإعلانات وفتح جميع بنوك الاختبارات والامتحانات والحلول.',
-                  style: GoogleFonts.tajawal(
-                    fontSize: 10.5,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                  ),
-                ),
-              ],
+            child: Text(
+              text,
+              style: GoogleFonts.tajawal(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: color == const Color(0xFFEF4444)
+                    ? const Color(0xFFEF4444)
+                    : (color == const Color(0xFF059669) ? const Color(0xFF059669) : null),
+              ),
             ),
           ),
         ],
@@ -642,8 +983,8 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
     );
   }
 
-  // ─── 2. باقات الاشتراك (شبكة 2x2 مدمجة ودقيقة) ───────────────────────────────
-  Widget _buildPlansGridSection(bool isDark) {
+  // ─── 5. باقات الاشتراك الرأسية المطورة ─────────────────────────────────────
+  Widget _buildVerticalPlansSection(bool isDark) {
     return StreamBuilder<List<SubscriptionPlan>>(
       stream: _service.streamPlans(),
       builder: (context, snapshot) {
@@ -651,7 +992,7 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
           return const Center(
             child: Padding(
               padding: EdgeInsets.all(20),
-              child: CircularProgressIndicator(color: Color(0xFFF59E0B)),
+              child: CircularProgressIndicator(color: Color(0xFF3525CD)),
             ),
           );
         }
@@ -674,388 +1015,279 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.workspace_premium_rounded,
-                    color: Color(0xFFF59E0B), size: 18),
-                const SizedBox(width: 6),
-                Text(
-                  'اختر باقة الاشتراك المناسبة:',
-                  style: GoogleFonts.tajawal(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  ),
+            Center(
+              child: Text(
+                'اختر باقة الاشتراك المناسبة لك',
+                style: GoogleFonts.tajawal(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                  color: isDark ? Colors.white : const Color(0xFF131B2E),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            // عرض الباقات في شبكة مدمجة 2x2
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: plans.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-                childAspectRatio: 1.15,
               ),
-              itemBuilder: (context, index) {
-                final plan = plans[index];
-                return _buildCompactPlanCard(plan, isDark);
-              },
             ),
+            const SizedBox(height: 12),
+            ...plans.map((plan) => _buildVerticalPlanCard(plan, isDark)),
           ],
         );
       },
     );
   }
 
-  // بطاقة الباقة المدمجة والمقاومة لتجاوز النصوص
-  Widget _buildCompactPlanCard(SubscriptionPlan plan, bool isDark) {
+  Widget _buildVerticalPlanCard(SubscriptionPlan plan, bool isDark) {
     final isSelected = _selectedPlan?.id == plan.id;
     final finalPrice = _calculateFinalPrice(plan);
 
-    return InkWell(
-      onTap: () => setState(() => _selectedPlan = plan),
-      borderRadius: BorderRadius.circular(14),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? (isDark
-                  ? const Color(0xFFF59E0B).withValues(alpha: 0.12)
-                  : const Color(0xFFFFFBEB))
-              : (isDark ? const Color(0xFF16202E) : Colors.white),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected
-                ? const Color(0xFFF59E0B)
-                : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-            width: isSelected ? 1.8 : 1.0,
-          ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFFF59E0B).withValues(alpha: 0.18),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  )
-                ]
-              : null,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // السطر العلوي: دائرة الاختيار والشارة
-            Row(
-              children: [
-                Icon(
-                  isSelected
-                      ? Icons.radio_button_checked_rounded
-                      : Icons.radio_button_off_rounded,
-                  color: isSelected ? const Color(0xFFF59E0B) : Colors.grey,
-                  size: 16,
-                ),
-                const Spacer(),
-                if (plan.isPopular)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF59E0B),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                      child: Text(
-                        'الأكثر توفيراً ⭐',
-                        style: GoogleFonts.tajawal(
-                          fontSize: 8.5,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
-                  )
-                else if (plan.hasDiscount && plan.discountPercentage > 0)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFDC2626),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      'خصم ${plan.discountPercentage}%',
-                      style: GoogleFonts.tajawal(
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-
-            // عنوان الباقة
-            Text(
-              plan.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.tajawal(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
-              ),
-            ),
-
-            // المدة بالأيام
-            Text(
-              '${plan.durationDays} يوماً متواصلاً',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.tajawal(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-              ),
-            ),
-
-            // السعر والشطب
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(
-                  '${finalPrice.round()}',
-                  style: GoogleFonts.tajawal(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                    color: const Color(0xFFF59E0B),
-                  ),
-                ),
-                const SizedBox(width: 3),
-                Text(
-                  'أوقية',
-                  style: GoogleFonts.tajawal(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white70 : Colors.black87,
-                  ),
-                ),
-                if (plan.hasDiscount && plan.originalPrice > plan.discountedPrice) ...[
-                  const Spacer(),
-                  Text(
-                    '${plan.originalPrice.round()}',
-                    style: GoogleFonts.tajawal(
-                      fontSize: 10,
-                      color: Colors.grey,
-                      decoration: TextDecoration.lineThrough,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-
-            // عداد انتهاء العرض (إن وُجد)
-            if (plan.hasDiscount && plan.discountEndsAt != null && plan.isDiscountActive)
-              _DiscountCountdownBadge(endsAt: plan.discountEndsAt!, isDark: isDark),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─── 3. جدول المقارنة بين الحساب العادي و Pro ────────────────────────────────
-  Widget _buildComparisonCard(bool isDark) {
-    final rows = [
-      ('إعلانات المنصة', 'تظهر إعلانات', false, 'بدون أي إعلانات نهائياً', true),
-      ('بنك الأسئلة والاختبارات', 'وصول جزئي فقط', false, 'وصول كامل وغير محدود', true),
-      ('الامتحانات الوطنية والحلول', 'نماذج محدودة', false, 'جميع الامتحانات والحلول', true),
-      ('الحاسبة الذكية ومتابعة المستوى', 'وظائف أساسية', false, 'حاسبة متطورة ورسوم بيانية', true),
-      ('شارة التميز الذهبية', 'حساب عادي', false, 'شارة Pro رسمية مع الاسم', true),
-    ];
+    // أيقونة مناسبة حسب المدة
+    final IconData planIcon;
+    if (plan.durationDays >= 365) {
+      planIcon = Icons.workspace_premium_rounded;
+    } else if (plan.durationDays >= 180) {
+      planIcon = Icons.date_range_rounded;
+    } else if (plan.durationDays >= 90) {
+      planIcon = Icons.calendar_month_rounded;
+    } else {
+      planIcon = Icons.grid_view_rounded;
+    }
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF16202E) : Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        color: isSelected
+            ? (isDark ? const Color(0xFF181836) : const Color(0xFFEEF2FF))
+            : (isDark ? const Color(0xFF131B2A) : Colors.white),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+          color: isSelected
+              ? const Color(0xFF3525CD)
+              : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+          width: isSelected ? 2.0 : 1.0,
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.compare_arrows_rounded, color: Color(0xFFF59E0B), size: 18),
-              const SizedBox(width: 6),
-              Text(
-                'ماذا يميز حساب Pro عن الحساب العادي؟',
-                style: GoogleFonts.tajawal(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+        boxShadow: isSelected
+            ? [
+                BoxShadow(
+                  color: const Color(0xFF3525CD).withValues(alpha: 0.18),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // رأس الجدول
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F1722) : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: Text(
-                    'الخدمة / الميزة',
-                    style: GoogleFonts.tajawal(fontSize: 11, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    'الحساب العادي',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.tajawal(fontSize: 10.5, color: Colors.grey[600]),
-                  ),
-                ),
-                Expanded(
-                  flex: 3,
-                  child: Text(
-                    'حساب Pro ⭐',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.tajawal(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      color: const Color(0xFFF59E0B),
-                    ),
-                  ),
+              ]
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(height: 6),
-          // صفوف المقارنة
-          ...rows.map((r) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: Text(
-                      r.$1,
-                      style: GoogleFonts.tajawal(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white70 : Colors.black87,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => setState(() => _selectedPlan = plan),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    // أيقونة الباقة
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? const Color(0xFF3525CD).withValues(alpha: 0.15)
+                            : (isDark ? Colors.white10 : const Color(0xFFF1F5F9)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        planIcon,
+                        size: 24,
+                        color: isSelected ? const Color(0xFF3525CD) : (isDark ? Colors.white70 : Colors.black87),
                       ),
                     ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.close_rounded, size: 13, color: Colors.grey),
-                        const SizedBox(width: 2),
-                        Flexible(
-                          child: Text(
-                            r.$2,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.tajawal(fontSize: 9.5, color: Colors.grey),
+                    const SizedBox(width: 14),
+
+                    // تفاصيل الباقة والوصف
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            plan.name,
+                            style: GoogleFonts.tajawal(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w900,
+                              color: isDark ? Colors.white : const Color(0xFF131B2E),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    flex: 3,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.check_circle_rounded,
-                            size: 13, color: Color(0xFF10B981)),
-                        const SizedBox(width: 3),
-                        Flexible(
-                          child: Text(
-                            r.$4,
-                            maxLines: 1,
+                          const SizedBox(height: 2),
+                          Text(
+                            plan.description.isNotEmpty
+                                ? plan.description
+                                : 'اشتراك مراجعي Pro لمدة ${plan.durationDays} يوماً',
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.tajawal(
-                              fontSize: 9.5,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+
+                    // السعر وزر الاختيار
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              '${finalPrice.round()}',
+                              style: GoogleFonts.tajawal(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                color: const Color(0xFF3525CD),
+                              ),
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              'أوقية',
+                              style: GoogleFonts.tajawal(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white70 : Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        ElevatedButton(
+                          onPressed: () => setState(() => _selectedPlan = plan),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isSelected
+                                ? const Color(0xFF3525CD)
+                                : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                            foregroundColor: isSelected
+                                ? Colors.white
+                                : (isDark ? Colors.white70 : const Color(0xFF3525CD)),
+                            elevation: isSelected ? 3 : 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: Text(
+                            isSelected ? 'تم الاختيار ✓' : 'اختيار',
+                            style: GoogleFonts.tajawal(
+                              fontSize: 11.5,
                               fontWeight: FontWeight.bold,
-                              color: const Color(0xFF10B981),
                             ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            );
-          }),
+
+              // شارة الباقة الأكثر توفيراً في الزاوية العلوية
+              if (plan.isPopular)
+                Positioned(
+                  top: -8,
+                  left: 20,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3525CD),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF3525CD).withValues(alpha: 0.3),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  'الموصى به (توفير 35%) ⭐',
+                  style: GoogleFonts.tajawal(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  // ─── 4. قسم كود الخصم ───────────────────────────────────────────────────────
+  // ─── 6. كود الخصم الإضافي ─────────────────────────────────────────────────
   Widget _buildPromoCodeSection(bool isDark) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF16202E) : Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        color: isDark ? const Color(0xFF131B2A) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.discount_rounded, color: Color(0xFFF59E0B), size: 17),
-              const SizedBox(width: 6),
-              Text(
-                'هل تمتلك كود خصم إضافي؟',
-                style: GoogleFonts.tajawal(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-              ),
-            ],
+          Text(
+            'هل لديك كود خصم؟',
+            style: GoogleFonts.tajawal(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: isDark ? Colors.white : const Color(0xFF131B2E),
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 2),
+          Text(
+            'أدخل الكود أدناه للحصول على خصم إضافي فوري على باقتك',
+            style: GoogleFonts.tajawal(
+              fontSize: 11,
+              color: isDark ? Colors.white60 : const Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
                 child: TextField(
                   controller: _promoCtrl,
                   textCapitalization: TextCapitalization.characters,
-                  style: GoogleFonts.tajawal(fontSize: 12.5),
+                  style: GoogleFonts.tajawal(fontSize: 13, fontWeight: FontWeight.bold),
                   decoration: InputDecoration(
-                    hintText: 'أدخل الكود (مثال: PRO2026)',
-                    hintStyle: GoogleFonts.tajawal(fontSize: 11, color: Colors.grey),
+                    hintText: 'مثال: PRO2026',
+                    hintStyle: GoogleFonts.tajawal(fontSize: 11.5, color: Colors.grey),
+                    prefixIcon: const Icon(Icons.discount_outlined, size: 18, color: Color(0xFF3525CD)),
                     isDense: true,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(
                         color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
                       ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF3525CD), width: 1.5),
                     ),
                   ),
                 ),
@@ -1064,137 +1296,124 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
               ElevatedButton(
                 onPressed: _applyPromo,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF59E0B),
+                  backgroundColor: const Color(0xFF3525CD),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 child: Text(
                   'تطبيق',
-                  style: GoogleFonts.tajawal(fontSize: 12, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.tajawal(fontSize: 12.5, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
           if (_promoError != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              _promoError!,
-              style: GoogleFonts.tajawal(fontSize: 11, color: const Color(0xFFDC2626)),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.error_outline_rounded, size: 16, color: Color(0xFFDC2626)),
+                const SizedBox(width: 4),
+                Text(
+                  _promoError!,
+                  style: GoogleFonts.tajawal(fontSize: 11, color: const Color(0xFFDC2626)),
+                ),
+              ],
             ),
           ],
           if (_appliedPromo != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              '✓ تم تفعيل الخصم: ${_appliedPromo!.code} (${_appliedPromo!.discountPercent.round()}%)',
-              style: GoogleFonts.tajawal(
-                fontSize: 11.5,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF059669),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFECFDF5),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF82F5C1)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF006C4A)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'تم تفعيل كود الخصم: ${_appliedPromo!.code} (خصم ${_appliedPromo!.discountPercent.round()}%)',
+                      style: GoogleFonts.tajawal(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF006C4A),
+                      ),
+                    ),
+                  ),
+                  InkWell(
+                    onTap: _removePromo,
+                    borderRadius: BorderRadius.circular(4),
+                    child: const Icon(Icons.cancel_rounded, size: 16, color: Colors.red),
+                  ),
+                ],
               ),
             ),
+            if (_selectedPlan != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F1722) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'المجموع بعد الخصم:',
+                      style: GoogleFonts.tajawal(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                    Text(
+                      '${_calculateFinalPrice(_selectedPlan!).round()} أوقية (وفّرت ${((_selectedPlan!.currentPrice * _appliedPromo!.discountPercent) / 100).round()} أوقية)',
+                      style: GoogleFonts.outfit(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF006C4A),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ],
       ),
     );
   }
 
-  // ─── 5. قسم رقم التحويل المعتمد وطرق الدفع الوطنية ────────────────────────────
+  // ─── 7. طرق الدفع الوطنية ورقم التحويل المعتمد ────────────────────────────
   Widget _buildPaymentTransferSection(bool isDark) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF16202E) : Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        color: isDark ? const Color(0xFF131B2A) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // شريط رقم الحساب الرسمي
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF0F766E), Color(0xFF0D9488)],
-                begin: Alignment.topRight,
-                end: Alignment.bottomLeft,
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.verified_rounded, color: Colors.white, size: 22),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'رقم الدفع المعتمد: $receiverNumber',
-                        style: GoogleFonts.tajawal(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                        ),
-                      ),
-                      Text(
-                        'اسم المستفيد: $beneficiaryName',
-                        style: GoogleFonts.tajawal(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFFCCFBF1),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                InkWell(
-                  onTap: () => _copyToClipboard(
-                    receiverNumber,
-                    'تم نسخ رقم الدفع: $receiverNumber بنجاح ✅',
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.copy_rounded, size: 14, color: Color(0xFF0F766E)),
-                        const SizedBox(width: 4),
-                        Text(
-                          'نسخ الرقم',
-                          style: GoogleFonts.tajawal(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF0F766E),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+          Text(
+            'اختر وسيلة الدفع المفضلة',
+            style: GoogleFonts.tajawal(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w900,
+              color: isDark ? Colors.white : const Color(0xFF131B2E),
             ),
           ),
           const SizedBox(height: 12),
-          Text(
-            'اختر المحفظة المستخدمة للتحويل:',
-            style: GoogleFonts.tajawal(
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-              color: isDark ? Colors.white : const Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(height: 8),
 
-          // بث طرق الدفع الموريتانية (بنكيلي، مصرفي، سداد)
+          // بث وسائل الدفع الوطنية
           StreamBuilder<List<PaymentMethod>>(
             stream: _service.streamPaymentMethods(),
             builder: (context, snapshot) {
@@ -1215,47 +1434,33 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
                   final isChosen = _selectedMethod?.id == method.id;
                   return Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: InkWell(
                         onTap: () => setState(() => _selectedMethod = method),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(12),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 150),
-                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
                           decoration: BoxDecoration(
                             color: isChosen
-                                ? (isDark
-                                    ? const Color(0xFF0F766E).withValues(alpha: 0.2)
-                                    : const Color(0xFFF0FDFA))
+                                ? (isDark ? const Color(0xFF181836) : const Color(0xFFEEF2FF))
                                 : (isDark ? const Color(0xFF0F1722) : const Color(0xFFF8FAFC)),
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: isChosen
-                                  ? const Color(0xFF0D9488)
-                                  : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                              width: isChosen ? 1.8 : 1.0,
+                                  ? const Color(0xFF3525CD)
+                                  : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                              width: isChosen ? 2.0 : 1.0,
                             ),
                           ),
                           child: Column(
                             children: [
-                              if (method.iconAsset != null)
-                                Image.asset(
-                                  method.iconAsset!,
-                                  height: 28,
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (_, __, ___) => const Icon(
-                                    Icons.account_balance_wallet_rounded,
-                                    size: 24,
-                                    color: Color(0xFF0D9488),
-                                  ),
-                                )
-                              else
-                                const Icon(
-                                  Icons.account_balance_wallet_rounded,
-                                  size: 24,
-                                  color: Color(0xFF0D9488),
-                                ),
-                              const SizedBox(height: 4),
+                              Icon(
+                                Icons.account_balance_wallet_rounded,
+                                size: 24,
+                                color: isChosen ? const Color(0xFF3525CD) : Colors.grey[600],
+                              ),
+                              const SizedBox(height: 6),
                               Text(
                                 method.name.split(' ').first,
                                 maxLines: 1,
@@ -1264,7 +1469,7 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
                                   fontSize: 11.5,
                                   fontWeight: isChosen ? FontWeight.w900 : FontWeight.w600,
                                   color: isChosen
-                                      ? const Color(0xFF0D9488)
+                                      ? const Color(0xFF3525CD)
                                       : (isDark ? Colors.white70 : Colors.black87),
                                 ),
                               ),
@@ -1278,54 +1483,108 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
               );
             },
           ),
+          const SizedBox(height: 14),
+
+          // صندوق رقم التحويل المعتمد 26270009
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF1A146B), Color(0xFF312E81)],
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+              ),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.verified_rounded, color: Colors.white, size: 24),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'رقم التحويل المعتمد: $receiverNumber',
+                        style: GoogleFonts.tajawal(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Text(
+                        'اسم المستلم: $beneficiaryName',
+                        style: GoogleFonts.tajawal(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () => _copyToClipboard(
+                    receiverNumber,
+                    'تم نسخ رقم الدفع: $receiverNumber بنجاح ✅',
+                  ),
+                  icon: const Icon(Icons.copy_rounded, size: 14),
+                  label: Text('نسخ الرقم', style: GoogleFonts.tajawal(fontSize: 11, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF1A146B),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    minimumSize: Size.zero,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  // ─── 6. نموذج إرفاق الوصل وتأكيد الإرسال ─────────────────────────────────────
+  // ─── 8. نموذج إرفاق الوصل وزر الإتمام الآمن ──────────────────────────────
   Widget _buildCheckoutForm(bool isDark) {
+    final finalAmount = _selectedPlan != null ? _calculateFinalPrice(_selectedPlan!) : 0.0;
+
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF16202E) : Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        color: isDark ? const Color(0xFF131B2A) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.receipt_rounded, color: Color(0xFFF59E0B), size: 18),
-              const SizedBox(width: 6),
-              Text(
-                'إرفاق وصل التحويل وتأكيد الاشتراك:',
-                style: GoogleFonts.tajawal(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-              ),
-            ],
+          Text(
+            'إرفاق إثبات الدفع وتأكيد الاشتراك',
+            style: GoogleFonts.tajawal(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w900,
+              color: isDark ? Colors.white : const Color(0xFF131B2E),
+            ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
-          // زر إرفاق الوصل ومعاينته
+          // منطقة رفع الوصل مع إطار منقط /dashed
           InkWell(
             onTap: _pickReceipt,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF0F1722) : const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(
                   color: _receiptBytes != null
-                      ? const Color(0xFF10B981)
+                      ? const Color(0xFF006C4A)
                       : (isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
                   width: 1.5,
                 ),
@@ -1334,29 +1593,29 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
                   ? Column(
                       children: [
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(10),
                           child: Image.memory(
                             _receiptBytes!,
-                            height: 140,
+                            height: 150,
                             fit: BoxFit.contain,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 10),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Icon(Icons.check_circle_rounded,
-                                color: Color(0xFF10B981), size: 16),
-                            const SizedBox(width: 4),
+                                color: Color(0xFF006C4A), size: 18),
+                            const SizedBox(width: 6),
                             Text(
-                              'تم إرفاق الوصل (${(_receiptSizeBytes / 1024).round()} KB)',
+                              'تم إرفاق الوصل بنجاح (${(_receiptSizeBytes / 1024).round()} KB)',
                               style: GoogleFonts.tajawal(
-                                fontSize: 11.5,
+                                fontSize: 12,
                                 fontWeight: FontWeight.bold,
-                                color: const Color(0xFF10B981),
+                                color: const Color(0xFF006C4A),
                               ),
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 12),
                             InkWell(
                               onTap: _clearReceipt,
                               child: const Icon(Icons.delete_outline_rounded,
@@ -1368,123 +1627,176 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
                     )
                   : Column(
                       children: [
-                        Icon(Icons.upload_file_rounded,
-                            size: 34, color: isDark ? Colors.white54 : Colors.grey[500]),
-                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF3525CD).withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.cloud_upload_outlined,
+                              size: 32, color: Color(0xFF3525CD)),
+                        ),
+                        const SizedBox(height: 8),
                         Text(
-                          'اضغط هنا لرفع لقطة شاشة لوصل التحويل',
+                          'ارفع إثبات الدفع (صورة التحويل)',
                           style: GoogleFonts.tajawal(
-                            fontSize: 12,
+                            fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white70 : Colors.black87,
+                            color: isDark ? Colors.white70 : const Color(0xFF131B2E),
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'صورة واضحة لرسالة أو إشعار البنك (بنكيلي، مصرفي، سداد)',
-                          style: GoogleFonts.tajawal(fontSize: 10, color: Colors.grey),
+                          'اسحب الصورة هنا أو اضغط للاختيار من الاستوديو',
+                          style: GoogleFonts.tajawal(fontSize: 10.5, color: Colors.grey),
                         ),
                       ],
                     ),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
-          // رقم الهاتف (اختياري / تلقائي)
+          // رقم الهاتف للتواصل
           TextField(
             controller: _phoneCtrl,
             keyboardType: TextInputType.phone,
             style: GoogleFonts.tajawal(fontSize: 12.5),
             decoration: InputDecoration(
-              labelText: 'رقم هاتفك للتواصل (اختياري)',
+              labelText: 'رقم الهاتف للتواصل (اختياري)',
               labelStyle: GoogleFonts.tajawal(fontSize: 11),
               hintText: 'مثال: 36000000',
-              hintStyle: GoogleFonts.tajawal(fontSize: 11, color: Colors.grey),
-              prefixIcon: const Icon(Icons.phone_rounded, size: 18),
+              prefixIcon: const Icon(Icons.phone_outlined, size: 18),
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
 
-          // رقم المرجع / اسم المرسل (اختياري)
+          // المرجع أو اسم الحساب
           TextField(
             controller: _refCtrl,
             style: GoogleFonts.tajawal(fontSize: 12.5),
             decoration: InputDecoration(
-              labelText: 'رقم العملية أو اسم المرسل (اختياري)',
+              labelText: 'رقم الإشعار أو اسم المرسل (اختياري)',
               labelStyle: GoogleFonts.tajawal(fontSize: 11),
-              hintText: 'رقم الإشعار أو المرجع',
-              hintStyle: GoogleFonts.tajawal(fontSize: 11, color: Colors.grey),
+              hintText: 'رقم العملية أو المرجع',
               prefixIcon: const Icon(Icons.tag_rounded, size: 18),
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
-          // شريط الملخص المالي
-          if (_selectedPlan != null)
+          // كشف الحساب وتفاصيل المبلغ قبل الدفع
+          if (_selectedPlan != null) ...[
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
+                color: isDark ? const Color(0xFF0F1722) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+                  color: isDark ? const Color(0xFF1E2D40) : const Color(0xFFE2E8F0),
                 ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'المبلغ المطلوب تحويله:',
-                        style: GoogleFonts.tajawal(fontSize: 11, color: Colors.grey[700]),
+                        'سعر الباقة (${_selectedPlan!.name}):',
+                        style: GoogleFonts.tajawal(
+                          fontSize: 12,
+                          color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                        ),
                       ),
                       Text(
-                        '${_selectedPlan!.name} (${_selectedPlan!.durationDays} يوم)',
-                        style: GoogleFonts.tajawal(
-                          fontSize: 11,
+                        '${_selectedPlan!.currentPrice.round()} أوقية',
+                        style: GoogleFonts.outfit(
+                          fontSize: 13,
                           fontWeight: FontWeight.bold,
-                          color: const Color(0xFFB45309),
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                       ),
                     ],
                   ),
-                  Text(
-                    '${_calculateFinalPrice(_selectedPlan!).round()} أوقية',
-                    style: GoogleFonts.tajawal(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      color: const Color(0xFF0F766E),
+                  if (_appliedPromo != null) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'كود الخصم (${_appliedPromo!.code} ${_appliedPromo!.discountPercent.round()}%):',
+                          style: GoogleFonts.tajawal(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF006C4A),
+                          ),
+                        ),
+                        Text(
+                          '- ${((_selectedPlan!.currentPrice * _appliedPromo!.discountPercent) / 100).round()} أوقية',
+                          style: GoogleFonts.outfit(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF006C4A),
+                          ),
+                        ),
+                      ],
                     ),
+                  ],
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Divider(
+                      height: 1,
+                      color: isDark ? const Color(0xFF1E2D40) : const Color(0xFFE2E8F0),
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'المبلغ المطلوب تحويله:',
+                        style: GoogleFonts.tajawal(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                      Text(
+                        '${finalAmount.round()} أوقية',
+                        style: GoogleFonts.outfit(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: const Color(0xFF3525CD),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 14),
+          ],
 
-          // زر الإرسال النهائي
+          // زر الإتمام الآمن الفخم والمثبت
           SizedBox(
             width: double.infinity,
-            height: 48,
+            height: 50,
             child: ElevatedButton(
               onPressed: _isSubmitting ? null : _submitRequest,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFF59E0B),
+                backgroundColor: const Color(0xFF3525CD),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                elevation: 3,
+                elevation: 4,
+                shadowColor: const Color(0xFF3525CD).withValues(alpha: 0.4),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
               child: _isSubmitting
                   ? const SizedBox(
-                      width: 20,
-                      height: 20,
+                      width: 22,
+                      height: 22,
                       child: CircularProgressIndicator(
                         color: Colors.white,
                         strokeWidth: 2.2,
@@ -1493,19 +1805,226 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.send_rounded, size: 18),
+                        const Icon(Icons.lock_rounded, size: 18),
                         const SizedBox(width: 8),
                         Text(
-                          'إرسال طلب الترقية وتأكيد الدفع',
+                          _appliedPromo != null
+                              ? 'إتمام الاشتراك الآمن (${finalAmount.round()} أوقية بعد الخصم)'
+                              : 'إتمام الاشتراك الآمن (${finalAmount.round()} أوقية)',
                           style: GoogleFonts.tajawal(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
                       ],
                     ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  // ─── 9. جدول مقارنة المزايا الشامل ────────────────────────────────────────
+  Widget _buildFullFeatureComparisonTable(bool isDark) {
+    final rows = [
+      ('التلخيصات الذكية للمقررات', 'محدودة', 'وصول كامل وغير محدود'),
+      ('بنك الاختبارات التجريبية', 'نماذج أساسية', 'متقدم وشامل مع الشرح'),
+      ('المراجعات النهائية والتمارين', 'غير متاح', 'متاح حصرياً مع الحلول'),
+      ('الدعم الفني المباشر', 'عادي', 'أولوية قصوى 24/7'),
+      ('تجربة خالية من الإعلانات', 'غير متاح', 'خالية 100% من أي إعلانات'),
+      ('التنزيل وتشغيل المحتوى أوفلاين', 'غير متاح', 'تنزيل فوري وتشغيل بدون إنترنت'),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF131B2A) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Text(
+              'جدول مقارنة المزايا الشامل',
+              style: GoogleFonts.tajawal(
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
+                color: isDark ? Colors.white : const Color(0xFF131B2E),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // رأس الجدول
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    'الميزة',
+                    style: GoogleFonts.tajawal(fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'الحساب العادي',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.tajawal(fontSize: 10.5, color: Colors.grey[600]),
+                  ),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    'مراجعي Pro ⭐',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.tajawal(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: const Color(0xFF3525CD),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          ...rows.map((r) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      r.$1,
+                      style: GoogleFonts.tajawal(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      r.$2,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.tajawal(fontSize: 10, color: Colors.grey),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      r.$3,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.tajawal(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF006C4A),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  // ─── 10. الأسئلة الشائعة القابلة للتوسيع (FAQ) ─────────────────────────────
+  Widget _buildFaqSection(bool isDark) {
+    final faqs = [
+      (
+        'كيف يتم تفعيل الاشتراك بعد التحويل البنكي؟',
+        'بمجرد إرسال طلب الاشتراك وإرفاق صورة وصل التحويل، يقوم فريق المراجعة بالتحقق من العملية وتفعيل باقة Pro لحسابك خلال دقائق قليلة مع إشعارك فوراً.'
+      ),
+      (
+        'هل يمكنني استعادة قيمة الاشتراك إذا لم أكن راضياً؟',
+        'نعم بكل تأكيد! نوفر ضمان استعادة الأموال بالكامل خلال 48 ساعة من الاشتراك في حال واجهت أي مشكلة فنية أو عدم رضا عن الخدمة.'
+      ),
+      (
+        'هل الاشتراك يعمل على أكثر من جهاز؟',
+        'نعم، يمكنك تسجيل الدخول بنفس الحساب على هاتفك وجهازك اللوحي والكمبيوتر والاستفادة من كافة مميزات Pro في نفس الوقت.'
+      ),
+      (
+        'كيف يمكنني الاستفادة من ميزة التنزيل والمشاهدة بدون إنترنت؟',
+        'عند اشتراكك في Pro يظهر زر «تنزيل الدرس» أسفل كل فيديو أو ملخص، مما يتيح لك حفظه داخل التطبيق ومشاهدته في أي وقت بدون استهلاك للإنترنت.'
+      ),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF131B2A) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Text(
+              'الأسئلة الشائعة',
+              style: GoogleFonts.tajawal(
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
+                color: isDark ? Colors.white : const Color(0xFF131B2E),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...faqs.map((faq) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F1722) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                ),
+              ),
+              child: ExpansionTile(
+                title: Text(
+                  faq.$1,
+                  style: GoogleFonts.tajawal(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF131B2E),
+                  ),
+                ),
+                iconColor: const Color(0xFF3525CD),
+                collapsedIconColor: Colors.grey,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                    child: Text(
+                      faq.$2,
+                      style: GoogleFonts.tajawal(
+                        fontSize: 11,
+                        color: isDark ? Colors.white70 : const Color(0xFF475569),
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );

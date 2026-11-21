@@ -63,6 +63,26 @@ class CountdownEvent {
     );
   }
 
+  Map<String, dynamic> toMap() {
+    return {
+      'title': title,
+      'type': type,
+      'description': description,
+      'targetDate': Timestamp.fromDate(targetDate),
+      'timezone': timezone,
+      'cardColor': cardColor,
+      'iconName': iconName,
+      'isActive': isActive,
+      'dueMessage': dueMessage,
+      'endMessage': endMessage,
+      'showEndMessage': showEndMessage,
+      'autoHide': autoHide,
+      'hideAfterDays': hideAfterDays,
+      'order': order,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+  }
+
   Color get parsedColor {
     try {
       final hex = cardColor.replaceAll('#', '');
