@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -11,8 +10,6 @@ import '../models/subscription_model.dart';
 import '../providers/auth_provider.dart';
 import '../services/subscription_service.dart';
 import '../services/r2_storage_service.dart';
-import '../theme/app_theme.dart';
-import '../widgets/curved_header.dart';
 import '../widgets/pro_badge.dart';
 
 /// شاشة باقات واشتراكات مراجعي Pro المطورة بالكامل
@@ -48,20 +45,16 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
   // رقم الحساب المعتمد والمستفيد
   static const String receiverNumber = '26270009';
   static const String beneficiaryName = 'مراجعي | MERAJ3I';
-  // مؤقت العد التنازلي لعرض العودة للدراسة المحدود
-  Timer? _offerTimer;
-  DateTime _offerEndTime = DateTime.now().add(const Duration(days: 12, hours: 8, minutes: 45, seconds: 30));
+  late final Stream<List<SubscriptionPlan>> _plansStream;
+  late final Stream<List<PaymentMethod>> _paymentMethodsStream;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _service.seedDefaultsIfEmpty();
-
-    // مؤقت حي لتحديث عداد عرض العودة للدراسة كل ثانية
-    _offerTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
+    _plansStream = _service.streamPlans();
+    _paymentMethodsStream = _service.streamPaymentMethods();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = context.read<AuthProvider>();
@@ -73,7 +66,6 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
 
   @override
   void dispose() {
-    _offerTimer?.cancel();
     _tabController.dispose();
     _promoCtrl.dispose();
     _phoneCtrl.dispose();
@@ -430,7 +422,7 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
       children: [
         // 1) شريط عرض خصم العودة للدراسة المؤقت مع عداد رقمي حي
-        _buildLimitedOfferCountdownCard(isDark),
+        _LimitedOfferCountdownWidget(isDark: isDark),
 
         const SizedBox(height: 14),
 
@@ -475,291 +467,7 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
     );
   }
 
-  // ─── 1. بانر الترقية الملكي الفاخر (Hero Pro Banner) ──────────────────────
-  Widget _buildHeroProBanner(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1A146B), Color(0xFF3525CD), Color(0xFF4F46E5)],
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF3525CD).withValues(alpha: 0.35),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // شارة المشرفين / Pro
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.workspace_premium_rounded, size: 14, color: Color(0xFFFDE68A)),
-                const SizedBox(width: 6),
-                Text(
-                  'مراجعي Pro الاحترافي ⭐',
-                  style: GoogleFonts.tajawal(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // العنوان الرئيسي
-          Text(
-            'ارتقِ بتجربتك التعليمية مع مراجعي Pro',
-            style: GoogleFonts.tajawal(
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-              height: 1.3,
-            ),
-          ),
-          const SizedBox(height: 6),
-
-          // الوصف
-          Text(
-            'احصل على وصول غير محدود للملخصات المخصصة، الاختبارات التجريبية الذكية، والمراجعات النهائية الحصرية.',
-            style: GoogleFonts.tajawal(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w500,
-              color: Colors.white.withValues(alpha: 0.85),
-              height: 1.45,
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // حزمة الأفاتار الاجتماعية (Social Proof Stack)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 54,
-                  height: 24,
-                  child: Stack(
-                    children: [
-                      Positioned(
-                        right: 0,
-                        child: _buildAvatarCircle(const Color(0xFFF59E0B), 'أ'),
-                      ),
-                      Positioned(
-                        right: 14,
-                        child: _buildAvatarCircle(const Color(0xFF006C4A), 'م'),
-                      ),
-                      Positioned(
-                        right: 28,
-                        child: _buildAvatarCircle(const Color(0xFF3525CD), 'س'),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'انضم إلى أكثر من 15,000 طالب متفوق',
-                  style: GoogleFonts.tajawal(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAvatarCircle(Color bg, String initial) {
-    return Container(
-      width: 24,
-      height: 24,
-      decoration: BoxDecoration(
-        color: bg,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 1.5),
-      ),
-      child: Center(
-        child: Text(
-          initial,
-          style: GoogleFonts.tajawal(
-            fontSize: 10,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ─── 2. شريط عرض خصم العودة للدراسة مع عداد رقمي حي ──────────────────────
-  Widget _buildLimitedOfferCountdownCard(bool isDark) {
-    final diff = _offerEndTime.difference(DateTime.now());
-    final isExpired = diff.isNegative;
-
-    final days = isExpired ? 0 : diff.inDays;
-    final hours = isExpired ? 0 : diff.inHours % 24;
-    final minutes = isExpired ? 0 : diff.inMinutes % 60;
-    final seconds = isExpired ? 0 : diff.inSeconds % 60;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1B18) : const Color(0xFFFFFBEB),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFFFCD34D),
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF854D0E),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.local_fire_department_rounded,
-                    color: Color(0xFFFEF08A), size: 18),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'عرض خصم العودة للدراسة',
-                      style: GoogleFonts.tajawal(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w900,
-                        color: isDark ? Colors.white : const Color(0xFF78350F),
-                      ),
-                    ),
-                    Text(
-                      'خصم خاص على جميع الباقات لفترة محدودة جداً',
-                      style: GoogleFonts.tajawal(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white60 : const Color(0xFF92400E),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // صناديق العد التنازلي الرقمية الحية
-          Directionality(
-            textDirection: TextDirection.ltr,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildOfferTimeBox('$days', 'يوم', isDark),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6),
-                  child: Text(':', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFB45309))),
-                ),
-                _buildOfferTimeBox('${hours.toString().padLeft(2, '0')}', 'ساعة', isDark),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6),
-                  child: Text(':', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFB45309))),
-                ),
-                _buildOfferTimeBox('${minutes.toString().padLeft(2, '0')}', 'دقيقة', isDark),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6),
-                  child: Text(':', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFB45309))),
-                ),
-                _buildOfferTimeBox('${seconds.toString().padLeft(2, '0')}', 'ثانية', isDark),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOfferTimeBox(String value, String label, bool isDark) {
-    return Column(
-      children: [
-        Container(
-          constraints: const BoxConstraints(minWidth: 42),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF292524) : Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: const Color(0xFFFDE68A),
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Text(
-              value,
-              style: GoogleFonts.outfit(
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-                color: isDark ? const Color(0xFFFDE68A) : const Color(0xFFB45309),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 3),
-        Text(
-          label,
-          style: GoogleFonts.tajawal(
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white70 : const Color(0xFF92400E),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ─── 3. بطاقة حالة الحساب الذكية ──────────────────────────────────────────
+  // ─── 2. بطاقة حالة الحساب الذكية ──────────────────────────────────────────
   Widget _buildAccountStatusCard(bool isDark, AuthProvider auth) {
     if (auth.isPro) {
       return Container(
@@ -986,7 +694,7 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
   // ─── 5. باقات الاشتراك الرأسية المطورة ─────────────────────────────────────
   Widget _buildVerticalPlansSection(bool isDark) {
     return StreamBuilder<List<SubscriptionPlan>>(
-      stream: _service.streamPlans(),
+      stream: _plansStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -1417,7 +1125,7 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
 
           // بث وسائل الدفع الوطنية
           StreamBuilder<List<PaymentMethod>>(
-            stream: _service.streamPaymentMethods(),
+            stream: _paymentMethodsStream,
             builder: (context, snapshot) {
               final methods = snapshot.data ?? [];
               if (methods.isNotEmpty && _selectedMethod == null) {
@@ -2290,6 +1998,178 @@ class _DiscountCountdownBadgeState extends State<_DiscountCountdownBadge> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _LimitedOfferCountdownWidget extends StatefulWidget {
+  final bool isDark;
+
+  const _LimitedOfferCountdownWidget({required this.isDark});
+
+  @override
+  State<_LimitedOfferCountdownWidget> createState() => _LimitedOfferCountdownWidgetState();
+}
+
+class _LimitedOfferCountdownWidgetState extends State<_LimitedOfferCountdownWidget> {
+  Timer? _timer;
+  final DateTime _offerEndTime = DateTime.now().add(const Duration(days: 12, hours: 8, minutes: 45, seconds: 30));
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final diff = _offerEndTime.difference(DateTime.now());
+    final isExpired = diff.isNegative;
+    final isDark = widget.isDark;
+
+    final days = isExpired ? 0 : diff.inDays;
+    final hours = isExpired ? 0 : diff.inHours % 24;
+    final minutes = isExpired ? 0 : diff.inMinutes % 60;
+    final seconds = isExpired ? 0 : diff.inSeconds % 60;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1B18) : const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFFCD34D),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF854D0E),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.local_fire_department_rounded,
+                    color: Color(0xFFFEF08A), size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'عرض خصم العودة للدراسة',
+                      style: GoogleFonts.tajawal(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w900,
+                        color: isDark ? Colors.white : const Color(0xFF78350F),
+                      ),
+                    ),
+                    Text(
+                      'خصم خاص على جميع الباقات لفترة محدودة جداً',
+                      style: GoogleFonts.tajawal(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white60 : const Color(0xFF92400E),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // صناديق العد التنازلي الرقمية الحية
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildOfferTimeBox('$days', 'يوم', isDark),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(':', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFB45309))),
+                ),
+                _buildOfferTimeBox(hours.toString().padLeft(2, '0'), 'ساعة', isDark),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(':', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFB45309))),
+                ),
+                _buildOfferTimeBox(minutes.toString().padLeft(2, '0'), 'دقيقة', isDark),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(':', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFB45309))),
+                ),
+                _buildOfferTimeBox(seconds.toString().padLeft(2, '0'), 'ثانية', isDark),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOfferTimeBox(String value, String label, bool isDark) {
+    return Column(
+      children: [
+        Container(
+          constraints: const BoxConstraints(minWidth: 42),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF292524) : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: const Color(0xFFFDE68A),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Text(
+              value,
+              style: GoogleFonts.outfit(
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                color: isDark ? const Color(0xFFFDE68A) : const Color(0xFFB45309),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          label,
+          style: GoogleFonts.tajawal(
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white70 : const Color(0xFF92400E),
+          ),
+        ),
+      ],
     );
   }
 }

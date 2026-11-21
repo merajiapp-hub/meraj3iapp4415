@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -163,6 +164,12 @@ class _SplashScreenState extends State<SplashScreen>
 
       if (mounted) _navigateTo(const MainScreen());
     } else {
+      // على الويب: تمكين الزوار من أي جهاز من الدخول للتطبيق فوراً واستعراض الخدمات والمحتوى
+      if (kIsWeb) {
+        _navigateTo(const MainScreen(isGuest: true));
+        return;
+      }
+
       bool hasSeenOnboarding = false;
       try {
         final prefs = await SharedPreferences.getInstance();

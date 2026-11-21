@@ -1,18 +1,19 @@
 <!DOCTYPE html>
-<html>
+<html lang="ar" dir="rtl">
 <head>
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="description" content="تطبيق مراجعي MERAJ3I - المنصة التعليمية الشاملة">
+  <meta name="description" content="تطبيق مراجعي MERAJ3I - المنصة التعليمية الشاملة للدروس والملخصات والمسابقات">
 
   <!-- iOS meta tags & icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="مراجعي">
+  <meta name="theme-color" content="#1A146B">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
@@ -24,25 +25,111 @@
 
   <title>مراجعي | MERAJ3I</title>
   <link rel="manifest" href="manifest.json">
-  <script>
-    // إلغاء أي Service Worker قديم ومسح التخزين المؤقت لضمان تحميل أحدث نسخة فوراً وبشكل تلقائي
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for (var registration of registrations) {
-          registration.unregister();
-        }
-      });
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
-    if ('caches' in window) {
-      caches.keys().then(function(names) {
-        for (var name of names) {
-          caches.delete(name);
-        }
-      });
+    body {
+      background: linear-gradient(135deg, #0F0C31 0%, #1A146B 50%, #251B8A 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      color: #FFFFFF;
+      user-select: none;
+      -webkit-user-select: none;
     }
-  </script>
+    #splash-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+      transition: opacity 0.4s ease;
+    }
+    .splash-logo-container {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .splash-glow {
+      position: absolute;
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.45) 0%, rgba(99, 102, 241, 0) 70%);
+      animation: pulse-glow 2.5s infinite ease-in-out;
+    }
+    .splash-logo {
+      width: 84px;
+      height: 84px;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      position: relative;
+      z-index: 2;
+    }
+    .splash-title {
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+      background: linear-gradient(135deg, #FFFFFF 0%, #E0E7FF 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .splash-subtitle {
+      font-size: 13px;
+      color: rgba(224, 231, 255, 0.75);
+      margin-bottom: 28px;
+      font-weight: 500;
+    }
+    .splash-spinner {
+      width: 38px;
+      height: 38px;
+      border: 3.5px solid rgba(255, 255, 255, 0.15);
+      border-top-color: #6366F1;
+      border-right-color: #818CF8;
+      border-radius: 50%;
+      animation: spin 0.9s cubic-bezier(0.55, 0.15, 0.45, 0.85) infinite;
+    }
+    .splash-hint {
+      margin-top: 18px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 500;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes pulse-glow {
+      0%, 100% { transform: scale(0.9); opacity: 0.5; }
+      50% { transform: scale(1.2); opacity: 0.9; }
+    }
+  </style>
 </head>
 <body>
-  <script src="flutter_bootstrap.js?v=7.9.9_22" async></script>
+  <div id="splash-loading">
+    <div class="splash-logo-container">
+      <div class="splash-glow"></div>
+      <img class="splash-logo" src="icons/Icon-192.png" alt="MERAJ3I" onerror="this.style.display='none'">
+    </div>
+    <div class="splash-title">مراجعي | MERAJ3I</div>
+    <div class="splash-subtitle">المنصة التعليمية الشاملة</div>
+    <div class="splash-spinner"></div>
+    <div class="splash-hint">جاري التحميل، لحظات من فضلك...</div>
+  </div>
+
+  <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

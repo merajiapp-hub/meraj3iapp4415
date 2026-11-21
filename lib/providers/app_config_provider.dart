@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -53,7 +53,7 @@ class AppConfigProvider extends ChangeNotifier {
   bool get maintenanceMode => _maintenanceMode;
   String get maintenanceMessage => _maintenanceMessage;
   bool get registrationOpen => _registrationOpen;
-  bool get allowGuestView => _allowGuestView;
+  bool get allowGuestView => kIsWeb ? true : _allowGuestView;
   Map<String, bool> get featureFlags => _featureFlags;
   bool get initialized => _initialized;
 
