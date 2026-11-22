@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,7 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../models/video_lesson_models.dart';
-import '../../../theme/app_theme.dart';
 import 'video_web_embed.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -241,7 +239,6 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isProLocked = widget.lesson.isPro && !widget.isProUser;
 
     return AspectRatio(
@@ -472,6 +469,17 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
 
                       // اختيار السرعة
                       _buildSpeedMenu(),
+                      const SizedBox(width: 8),
+
+                      // زر كتم الصوت / إلغاء الكتم
+                      _buildGlassIconBtn(
+                        icon: _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                        tooltip: _isMuted ? 'إلغاء كتم الصوت' : 'كتم الصوت',
+                        onTap: () {
+                          setState(() => _isMuted = !_isMuted);
+                          _resetControlsTimer();
+                        },
+                      ),
                       const SizedBox(width: 8),
 
                       // ملء الشاشة

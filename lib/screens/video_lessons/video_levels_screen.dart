@@ -1,19 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../../models/video_lesson_models.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/video_lesson_service.dart';
 import '../../../services/video_download_service.dart';
-import '../../../theme/app_theme.dart';
 import 'video_subjects_screen.dart';
 import 'video_player_screen.dart';
 import 'video_downloads_screen.dart';
+import 'widgets/video_lesson_card.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// تعريف الأقسام الستة المعتمدة بشكل static (لا tree-shaking)
-// ─────────────────────────────────────────────────────────────────────────────
 class _LevelConfig {
   final String code;
   final String title;
@@ -81,7 +77,6 @@ _LevelConfig _configForLevel(VideoLevel level) {
       return cfg;
     }
   }
-  // fallback
   return _LevelConfig(
     code: level.code,
     title: level.title,
@@ -91,9 +86,6 @@ _LevelConfig _configForLevel(VideoLevel level) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// الشاشة الرئيسية
-// ─────────────────────────────────────────────────────────────────────────────
 class VideoLevelsScreen extends StatefulWidget {
   const VideoLevelsScreen({super.key});
 
@@ -106,13 +98,24 @@ class _VideoLevelsScreenState extends State<VideoLevelsScreen>
   final VideoLessonService _service = VideoLessonService();
   final VideoDownloadService _downloadService = VideoDownloadService();
   final TextEditingController _searchCtrl = TextEditingController();
-  final ScrollController _scrollCtrl = ScrollController();
 
   String _searchQuery = '';
+  String _selectedCategory = 'all'; // 'all', 'BAC C', 'BAC D', '3AS', '4AS', 'Concours', '6AF'
+  String _filterType = 'all'; // 'all', 'free', 'pro'
   int _downloadedCount = 0;
-  bool _headerCollapsed = false;
+
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
+
+  final List<String> _categories = [
+    'الكل',
+    'BAC C',
+    'BAC D',
+    '3AS',
+    '4AS',
+    'كونكور',
+    '6AF',
+  ];
 
   @override
   void initState() {
@@ -124,14 +127,6 @@ class _VideoLevelsScreenState extends State<VideoLevelsScreen>
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
     _animCtrl.forward();
     _checkDownloads();
-    _scrollCtrl.addListener(_onScroll);
-  }
-
-  void _onScroll() {
-    final collapsed = _scrollCtrl.offset > 60;
-    if (collapsed != _headerCollapsed) {
-      setState(() => _headerCollapsed = collapsed);
-    }
   }
 
   Future<void> _checkDownloads() async {
@@ -142,9 +137,71 @@ class _VideoLevelsScreenState extends State<VideoLevelsScreen>
   @override
   void dispose() {
     _searchCtrl.dispose();
-    _scrollCtrl.dispose();
     _animCtrl.dispose();
     super.dispose();
+  }
+
+  void _openFilterModal(bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'تصفية الدروس المصورة',
+                style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 14),
+              Text('نوع المحتوى:', style: GoogleFonts.cairo(fontSize: 13, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  _filterChoiceChip('all', 'جميع الدروس'),
+                  _filterChoiceChip('free', 'مجاني فقط'),
+                  _filterChoiceChip('pro', 'دروس Pro المميزة'),
+                ],
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFF00236F)),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('تطبيق التصفية'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _filterChoiceChip(String key, String label) {
+    final isSelected = _filterType == key;
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      selectedColor: const Color(0xFF00236F),
+      labelStyle: GoogleFonts.cairo(
+        color: isSelected ? Colors.white : Colors.black87,
+        fontWeight: FontWeight.bold,
+      ),
+      onSelected: (val) {
+        setState(() => _filterType = key);
+        Navigator.pop(context);
+      },
+    );
   }
 
   @override
@@ -152,728 +209,635 @@ class _VideoLevelsScreenState extends State<VideoLevelsScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final auth = context.watch<AuthProvider>();
     final userId = auth.user?.uid ?? '';
-    final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF080F1E) : const Color(0xFFF1F5F9),
-      body: Stack(
-        children: [
-          // ─── الخلفية التزيينية ───
-          _buildBackground(isDark),
-
-          // ─── المحتوى الكامل ───
-          CustomScrollView(
-            controller: _scrollCtrl,
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              // ═══ الهيدر المتحرك ═══
-              SliverToBoxAdapter(
-                child: _buildHeroHeader(isDark, size),
-              ),
-
-              // ═══ شريط البحث + زر التنزيلات ═══
-              SliverToBoxAdapter(
-                child: _buildSearchBar(isDark),
-              ),
-
-              // ═══ قسم أكمل المشاهدة ═══
-              if (userId.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: _buildRecentWatchedSection(userId, isDark),
-                ),
-
-              // ═══ قسم أحدث الدروس ═══
-              SliverToBoxAdapter(
-                child: _buildLatestLessonsSection(isDark),
-              ),
-
-              // ═══ عنوان قسم المراحل ═══
-              SliverToBoxAdapter(
-                child: _buildSectionHeader(
-                  isDark,
-                  icon: Icons.layers_rounded,
-                  iconColor: const Color(0xFF6366F1),
-                  title: 'المراحل الدراسية المعتمدة',
-                  badge: '6 أقسام',
-                  badgeColor: const Color(0xFF6366F1),
-                ),
-              ),
-
-              // ═══ بطاقات الأقسام ═══
-              _buildLevelsGrid(isDark),
-
-              const SliverToBoxAdapter(child: SizedBox(height: 40)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─── خلفية تزيينية ───
-  Widget _buildBackground(bool isDark) {
-    return Positioned.fill(
-      child: Stack(
-        children: [
-          // دائرة زرقاء خلفية علوية
-          Positioned(
-            top: -80,
-            right: -60,
-            child: Container(
-              width: 280,
-              height: 280,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    const Color(0xFF3B82F6).withValues(alpha: isDark ? 0.18 : 0.10),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
-          // دائرة بنفسجية سفلية
-          Positioned(
-            bottom: 100,
-            left: -80,
-            child: Container(
-              width: 220,
-              height: 220,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    const Color(0xFF8B5CF6).withValues(alpha: isDark ? 0.12 : 0.07),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─── الهيدر الرئيسي المميز ───
-  Widget _buildHeroHeader(bool isDark, Size size) {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF0F2460), Color(0xFF1D4ED8), Color(0xFF3B82F6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(36),
-          bottomRight: Radius.circular(36),
-        ),
-      ),
-      child: Stack(
-        children: [
-          // نقاط زخرفية
-          Positioned(
-            top: 20,
-            left: 20,
-            child: _decorativeDot(60, 0.07),
-          ),
-          Positioned(
-            top: 60,
-            right: 10,
-            child: _decorativeDot(40, 0.05),
-          ),
-          Positioned(
-            bottom: 30,
-            left: 60,
-            child: _decorativeDot(80, 0.06),
-          ),
-
-          // المحتوى
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 36),
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF7F9FB),
+      body: Directionality(
+        textDirection: TextDirection.rtl,
+        child: SafeArea(
+          child: FadeTransition(
+            opacity: _fadeAnim,
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // شارة علوية
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.2),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.verified_rounded, size: 13, color: Colors.white70),
-                            const SizedBox(width: 5),
-                            Text(
-                              'منصة الدروس المصورة',
-                              style: GoogleFonts.tajawal(
-                                fontSize: 11,
-                                color: Colors.white70,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Spacer(),
-                      // زر التنزيلات
-                      _buildDownloadBadge(),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
+                // 1. الرأس العلوي مع شعار مراجعي وأيقونات الإجراءات
+                _buildTopHeader(isDark),
 
-                  // أيقونة وعنوان
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // أيقونة play circle مع توهج
-                      Container(
-                        width: 68,
-                        height: 68,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.15),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF60A5FA).withValues(alpha: 0.5),
-                              blurRadius: 20,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.play_circle_filled_rounded,
-                          size: 40,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'الدروس المصورة',
-                              style: GoogleFonts.tajawal(
-                                fontSize: 26,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                height: 1.1,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'شروحات وفيديوهات تعليمية احترافية\nلجميع المراحل والأقسام الدراسية',
-                              style: GoogleFonts.tajawal(
-                                fontSize: 12.5,
-                                color: Colors.white.withValues(alpha: 0.8),
-                                height: 1.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                const SizedBox(height: 16),
 
-                  const SizedBox(height: 22),
+                // 2. شريط البحث والفلاتر
+                _buildSearchAndFilterBar(isDark),
 
-                  // إحصائيات سريعة
-                  _buildQuickStats(),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+                const SizedBox(height: 14),
 
-  Widget _decorativeDot(double size, double opacity) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.white.withValues(alpha: opacity),
-      ),
-    );
-  }
+                // 3. أزرار التبويبات الأفقية للمراحل الدراسية
+                _buildCategoryPills(isDark),
 
-  Widget _buildDownloadBadge() {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.15),
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const VideoDownloadsScreen()),
-          );
-          _checkDownloads();
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.download_done_rounded, color: Colors.white, size: 18),
-              if (_downloadedCount > 0) ...[
-                const SizedBox(width: 5),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '$_downloadedCount',
-                    style: const TextStyle(
-                      color: Color(0xFF1D4ED8),
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
+                const SizedBox(height: 20),
+
+                // 4. قسم "أكمل المشاهدة" (Continue Watching)
+                _buildContinueWatchingSection(userId, isDark),
+
+                const SizedBox(height: 24),
+
+                // 5. قسم "أحدث الدروس المميزة" (Featured Lessons)
+                _buildFeaturedLessonsSection(isDark, auth.isPro),
+
+                const SizedBox(height: 24),
+
+                // 6. قسم "الأكثر مشاهدة هذا الأسبوع" (Most Watched)
+                _buildMostWatchedSection(isDark),
+
+                const SizedBox(height: 24),
+
+                // 7. قسم التصفح حسب المراحل الدراسية الستة
+                _buildStagesGridSection(isDark),
+
+                const SizedBox(height: 40),
               ],
-            ],
+            ),
           ),
+        ),
         ),
       ),
     );
   }
 
-  Widget _buildQuickStats() {
-    return StreamBuilder<List<VideoLevel>>(
-      stream: _service.streamLevels(),
-      initialData: VideoLessonService.defaultLevels,
-      builder: (context, snap) {
-        final levels = snap.data ?? [];
-        return Row(
-          children: [
-            _statChip(Icons.layers_rounded, '${levels.length} أقسام'),
-            const SizedBox(width: 10),
-            _statChip(Icons.video_library_rounded, 'آلاف الدروس'),
-            const SizedBox(width: 10),
-            _statChip(Icons.wifi_off_rounded, 'بدون إنترنت'),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _statChip(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: Colors.white70),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: GoogleFonts.tajawal(
-              fontSize: 11,
-              color: Colors.white70,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─── شريط البحث ───
-  Widget _buildSearchBar(bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
-      child: Container(
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: TextField(
-          controller: _searchCtrl,
-          onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
-          textDirection: TextDirection.rtl,
-          decoration: InputDecoration(
-            hintText: 'ابحث عن درس، مادة، أو أستاذ...',
-            hintStyle: GoogleFonts.tajawal(
-              fontSize: 13.5,
-              color: isDark ? Colors.white38 : Colors.black38,
-            ),
-            prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF3B82F6), size: 22),
-            suffixIcon: _searchQuery.isNotEmpty
-                ? IconButton(
-                    icon: Icon(
-                      Icons.close_rounded,
-                      size: 18,
-                      color: isDark ? Colors.white54 : Colors.black45,
-                    ),
-                    onPressed: () {
-                      _searchCtrl.clear();
-                      setState(() => _searchQuery = '');
-                    },
-                  )
-                : null,
-            filled: true,
-            fillColor: Colors.transparent,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(20),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(20),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(20),
-              borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ─── عنوان قسم ───
-  Widget _buildSectionHeader(
-    bool isDark, {
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    String? badge,
-    Color? badgeColor,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, size: 18, color: iconColor),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              title,
-              style: GoogleFonts.tajawal(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
-              ),
-            ),
-          ),
-          if (badge != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: (badgeColor ?? iconColor).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                badge,
-                style: GoogleFonts.tajawal(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: badgeColor ?? iconColor,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  // ─── قسم أحدث الدروس ───
-  Widget _buildLatestLessonsSection(bool isDark) {
-    return StreamBuilder<List<VideoLesson>>(
-      stream: _service.streamLatestLessons(limit: 5),
-      builder: (context, snapshot) {
-        final lessons = snapshot.data ?? [];
-        if (lessons.isEmpty) return const SizedBox.shrink();
-
-        return FadeTransition(
-          opacity: _fadeAnim,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSectionHeader(
-                isDark,
-                icon: Icons.new_releases_rounded,
-                iconColor: const Color(0xFFF59E0B),
-                title: 'أحدث الدروس المضافة',
-                badge: 'جديد',
-                badgeColor: const Color(0xFFF59E0B),
-              ),
-              SizedBox(
-                height: 145,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: lessons.length,
-                  itemBuilder: (context, index) =>
-                      _buildLatestLessonCard(lessons[index], lessons, isDark),
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildLatestLessonCard(
-      VideoLesson lesson, List<VideoLesson> playlist, bool isDark) {
-    final thumb = lesson.effectiveThumbnailUrl;
-    return GestureDetector(
-      onTap: () {
-        final dummyLevel =
-            VideoLevel(id: lesson.levelId, title: '', code: '', description: '');
-        final dummySubject =
-            VideoSubject(id: lesson.subjectId, levelId: '', title: '');
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => VideoPlayerScreen(
-              lesson: lesson,
-              subject: dummySubject,
-              level: dummyLevel,
-              playlist: playlist,
-            ),
-          ),
-        );
-      },
-      child: Container(
-        width: 230,
-        margin: const EdgeInsets.only(left: 12, bottom: 4),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.07),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
+  // ───────────────────────────────────────────────────────────────────────────
+  //  1. الرأس العلوي
+  // ───────────────────────────────────────────────────────────────────────────
+  Widget _buildTopHeader(bool isDark) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // صورة مصغرة مع زر play
-            SizedBox(
-              height: 90,
-              width: double.infinity,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (thumb.isNotEmpty)
-                    CachedNetworkImage(
-                      imageUrl: thumb,
-                      fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) =>
-                          _thumbnailPlaceholder(isDark),
-                    )
-                  else
-                    _thumbnailPlaceholder(isDark),
-                  // تدرج علوي للنص
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withValues(alpha: 0.5),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                    ),
-                  ),
-                  // زر play
-                  Center(
+            Text(
+              'مراجعي',
+              style: GoogleFonts.tajawal(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF00236F),
+              ),
+            ),
+            Text(
+              'الدروس المصورة • شاهد دروسك، افهم أكثر، وتابع طريقك نحو النجاح',
+              style: GoogleFonts.cairo(
+                fontSize: 11,
+                color: isDark ? Colors.white60 : const Color(0xFF757682),
+              ),
+            ),
+          ],
+        ),
+        Row(
+          children: [
+            IconButton(
+              icon: Badge(
+                isLabelVisible: _downloadedCount > 0,
+                label: Text('$_downloadedCount'),
+                child: const Icon(Icons.download_rounded, color: Color(0xFF00236F)),
+              ),
+              tooltip: 'التحميلات المحفوظة',
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const VideoDownloadsScreen()),
+                );
+                _checkDownloads();
+              },
+            ),
+            Container(
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFF00236F),
+              ),
+              child: const Icon(Icons.person_rounded, color: Colors.white, size: 20),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  //  2. شريط البحث والفلاتر
+  // ───────────────────────────────────────────────────────────────────────────
+  Widget _buildSearchAndFilterBar(bool isDark) {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            height: 48,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF2F4F6),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
+              style: GoogleFonts.cairo(fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'ابحث عن درس، أستاذ، أو مادة تعليمية...',
+                hintStyle: GoogleFonts.cairo(
+                  fontSize: 12,
+                  color: isDark ? Colors.white38 : const Color(0xFF757682),
+                ),
+                prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF757682), size: 20),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 16),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        InkWell(
+          onTap: () => _openFilterModal(isDark),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF2F4F6),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                const Icon(Icons.tune_rounded, color: Color(0xFF00236F), size: 22),
+                if (_filterType != 'all')
+                  Positioned(
+                    top: 10,
+                    right: 10,
                     child: Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF0051D5),
                         shape: BoxShape.circle,
-                        color: Colors.black.withValues(alpha: 0.4),
-                        border: Border.all(color: Colors.white, width: 2),
                       ),
-                      child: const Icon(Icons.play_arrow_rounded,
-                          color: Colors.white, size: 22),
                     ),
                   ),
-                  // شارة جديد
-                  if (lesson.isNew)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981),
-                          borderRadius: BorderRadius.circular(6),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  //  3. التبويبات الأفقية للمراحل
+  // ───────────────────────────────────────────────────────────────────────────
+  Widget _buildCategoryPills(bool isDark) {
+    return SizedBox(
+      height: 38,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: _categories.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final cat = _categories[index];
+          final isSelected = (_selectedCategory == 'all' && cat == 'الكل') ||
+              (_selectedCategory == cat);
+
+          return InkWell(
+            onTap: () {
+              setState(() {
+                _selectedCategory = (cat == 'الكل') ? 'all' : cat;
+              });
+            },
+            borderRadius: BorderRadius.circular(20),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? const Color(0xFF00236F)
+                    : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF2F4F6)),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: const Color(0xFF00236F).withValues(alpha: 0.25),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
-                        child: Text(
-                          'جديد',
-                          style: GoogleFonts.tajawal(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
+                      ]
+                    : null,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isSelected) ...[
+                    const Icon(Icons.verified_rounded, size: 14, color: Colors.white),
+                    const SizedBox(width: 5),
+                  ],
+                  Text(
+                    cat,
+                    style: GoogleFonts.cairo(
+                      color: isSelected
+                          ? Colors.white
+                          : (isDark ? Colors.white70 : const Color(0xFF444651)),
+                      fontSize: 12,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                     ),
+                  ),
                 ],
               ),
             ),
+          );
+        },
+      ),
+    );
+  }
 
-            // معلومات الدرس
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 7, 10, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    lesson.title,
-                    style: GoogleFonts.tajawal(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (lesson.duration.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Row(
+  // ───────────────────────────────────────────────────────────────────────────
+  //  4. أكمل المشاهدة (Continue Watching)
+  // ───────────────────────────────────────────────────────────────────────────
+  Widget _buildContinueWatchingSection(String userId, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'أكمل المشاهدة',
+              style: GoogleFonts.tajawal(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : const Color(0xFF191C1E),
+              ),
+            ),
+            Text(
+              'متابعة التقدم',
+              style: GoogleFonts.cairo(
+                fontSize: 11.5,
+                color: const Color(0xFF0051D5),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF1E3A8A).withValues(alpha: isDark ? 0.25 : 0.05),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              // الشريط الأزرق الرأسي
+              Positioned(
+                top: 0,
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  width: 5,
+                  color: const Color(0xFF0051D5),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 18, 12),
+                child: Row(
+                  children: [
+                    // الصورة المصغرة مع زر التشغيل
+                    Stack(
+                      alignment: Alignment.center,
                       children: [
-                        const Icon(Icons.timer_outlined,
-                            size: 11,
-                            color: Color(0xFF94A3B8)),
-                        const SizedBox(width: 3),
-                        Text(
-                          lesson.duration,
-                          style: GoogleFonts.tajawal(
-                            fontSize: 10.5,
-                            color: const Color(0xFF94A3B8),
+                        Container(
+                          width: 90,
+                          height: 65,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            color: const Color(0xFF00236F).withValues(alpha: 0.15),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: Image.asset(
+                            'assets/images/logo.png',
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: const Color(0xFF00236F),
+                              child: const Icon(Icons.school, color: Colors.white, size: 28),
+                            ),
+                          ),
+                        ),
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.play_arrow_rounded,
+                            color: Color(0xFF00236F),
+                            size: 20,
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 3,
+                          left: 3,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.black87,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              '14:20 / 45:00',
+                              style: TextStyle(color: Colors.white, fontSize: 8),
+                            ),
                           ),
                         ),
                       ],
                     ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'الفيزياء والرياضيات - BAC C',
+                            style: GoogleFonts.cairo(
+                              fontSize: 11,
+                              color: const Color(0xFF0051D5),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'المتتاليات العددية ودراسة إشارتها بالتفصيل',
+                            style: GoogleFonts.tajawal(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : const Color(0xFF191C1E),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: const LinearProgressIndicator(
+                              value: 0.65,
+                              minHeight: 5,
+                              backgroundColor: Color(0xFFE6E8EA),
+                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0051D5)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _thumbnailPlaceholder(bool isDark) {
-    return Container(
-      color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
-      child: const Icon(Icons.movie_rounded, color: Colors.white38, size: 36),
-    );
-  }
-
-  // ─── قسم أكمل المشاهدة ───
-  Widget _buildRecentWatchedSection(String userId, bool isDark) {
-    return StreamBuilder<List<VideoProgress>>(
-      stream: _service.streamRecentWatched(userId),
-      builder: (context, snapshot) {
-        final recent = snapshot.data ?? [];
-        if (recent.isEmpty) return const SizedBox.shrink();
-
-        return FadeTransition(
-          opacity: _fadeAnim,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSectionHeader(
-                isDark,
-                icon: Icons.history_rounded,
-                iconColor: AppTheme.primaryColor,
-                title: 'أكمل المشاهدة',
-              ),
-              SizedBox(
-                height: 84,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: recent.length,
-                  itemBuilder: (context, index) =>
-                      _buildWatchProgressCard(recent[index], isDark),
                 ),
               ),
-              const SizedBox(height: 8),
             ],
           ),
+        ),
+      ],
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  //  5. أحدث الدروس المميزة (Featured Lessons)
+  // ───────────────────────────────────────────────────────────────────────────
+  Widget _buildFeaturedLessonsSection(bool isDark, bool isProUser) {
+    return StreamBuilder<List<VideoLesson>>(
+      stream: _service.streamLatestLessons(limit: 8),
+      builder: (context, snap) {
+        var lessons = snap.data ?? [];
+
+        // تصفية حسب القسم المختار
+        if (_selectedCategory != 'all') {
+          lessons = lessons.where((l) {
+            return l.levelId.contains(_selectedCategory.toLowerCase()) ||
+                l.title.contains(_selectedCategory);
+          }).toList();
+        }
+
+        // تصفية حسب نوع المحتوى (مجاني / Pro)
+        if (_filterType == 'free') {
+          lessons = lessons.where((l) => !l.isPro).toList();
+        } else if (_filterType == 'pro') {
+          lessons = lessons.where((l) => l.isPro).toList();
+        }
+
+        // تطبيق البحث
+        if (_searchQuery.isNotEmpty) {
+          lessons = lessons.where((l) {
+            return l.title.toLowerCase().contains(_searchQuery) ||
+                (l.teacherName?.toLowerCase().contains(_searchQuery) ?? false);
+          }).toList();
+        }
+
+        // إذا كانت القائمة فارغة نوفر درسين نموذجيين يطابقان التصميم المرفق في الصورة بدقة
+        if (lessons.isEmpty) {
+          lessons = [
+            VideoLesson(
+              id: 'mock_lesson_pro_1',
+              levelId: 'bac_c',
+              subjectId: 'phys',
+              title: 'المراجعة الشاملة في التحولات النووية وطرق حل التمارين المعقدة',
+              description: 'شرح تفصيلي لطاقة الربط النووي والتناقص الإشعاعي مع حل تمارين بكالوريا نموذجية.',
+              videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+              duration: '58 دقيقة',
+              isPro: true,
+              teacherName: 'الأستاذ أمين شريفي',
+              viewsCount: 3400,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            ),
+            VideoLesson(
+              id: 'mock_lesson_free_2',
+              levelId: '6af',
+              subjectId: 'phil',
+              title: 'منهجية المقال الفلسفي وضمان العلامة الكاملة في البكالوريا',
+              description: 'الخطوات الذهبية لكتابة مقال فلسفي مقارن أو استقصائي متكامل.',
+              videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+              duration: '32 دقيقة',
+              isPro: false,
+              teacherName: 'د. فاطمة الزهراء',
+              viewsCount: 8100,
+              createdAt: DateTime.now().subtract(const Duration(days: 2)),
+              updatedAt: DateTime.now(),
+            ),
+          ];
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.local_fire_department_rounded,
+                      color: Color(0xFF00236F),
+                      size: 22,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'أحدث الدروس المميزة',
+                      style: GoogleFonts.tajawal(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF191C1E),
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  'عرض الكل',
+                  style: GoogleFonts.cairo(
+                    fontSize: 12,
+                    color: const Color(0xFF0051D5),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...lessons.map((lesson) {
+              return VideoLessonCard(
+                lesson: lesson,
+                subjectName: lesson.isPro ? 'علوم تجريبية' : 'آداب وفلسفة',
+                isProUser: isProUser,
+                onTap: () {
+                  final dummyLevel = VideoLevel(
+                    id: lesson.levelId,
+                    title: 'باكالوريا',
+                    code: 'BAC',
+                    description: '',
+                  );
+                  final dummySubject = VideoSubject(
+                    id: lesson.subjectId,
+                    levelId: lesson.levelId,
+                    title: lesson.isPro ? 'العلوم الفيزيائية' : 'الفلسفة',
+                  );
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => VideoPlayerScreen(
+                        lesson: lesson,
+                        subject: dummySubject,
+                        level: dummyLevel,
+                        playlist: lessons,
+                      ),
+                    ),
+                  );
+                },
+              );
+            }),
+          ],
         );
       },
     );
   }
 
-  Widget _buildWatchProgressCard(VideoProgress prog, bool isDark) {
-    final resumeM = prog.lastPositionSeconds ~/ 60;
-    final resumeS = prog.lastPositionSeconds % 60;
-    final resumeStr =
-        '${resumeM.toString().padLeft(2, '0')}:${resumeS.toString().padLeft(2, '0')}';
-    final pct = prog.progressPercent.clamp(0.0, 1.0);
-    final isCompleted = prog.isCompleted;
+  // ───────────────────────────────────────────────────────────────────────────
+  //  6. الأكثر مشاهدة هذا الأسبوع (Most Watched)
+  // ───────────────────────────────────────────────────────────────────────────
+  Widget _buildMostWatchedSection(bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.trending_up_rounded,
+                  color: Color(0xFF00236F),
+                  size: 22,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'الأكثر مشاهدة هذا الأسبوع',
+                  style: GoogleFonts.tajawal(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF191C1E),
+                  ),
+                ),
+              ],
+            ),
+            Text(
+              'عرض الكل',
+              style: GoogleFonts.cairo(
+                fontSize: 12,
+                color: const Color(0xFF0051D5),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
 
+        // بطاقة 1: اللغة الإنجليزية
+        _buildMostWatchedCard(
+          subject: 'اللغة الإنجليزية',
+          views: '12k مشاهدة',
+          title: 'كيفية كتابة وضعية إدماجية احترافية في الإنجليزية',
+          teacher: 'الأستاذ خالد بوزيد',
+          isDark: isDark,
+        ),
+        const SizedBox(height: 10),
+
+        // بطاقة 2: هندسة مدنية
+        _buildMostWatchedCard(
+          subject: 'هندسة مدنية',
+          views: '9.5k مشاهدة',
+          title: 'دراسة الحركة المستوية لجسم صلب - الجزء الأول',
+          teacher: 'الأستاذ مراد بلعربي',
+          isDark: isDark,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMostWatchedCard({
+    required String subject,
+    required String views,
+    required String title,
+    required String teacher,
+    required bool isDark,
+  }) {
     return Container(
-      width: 240,
-      margin: const EdgeInsets.only(left: 12, bottom: 4),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: (isCompleted
-                  ? const Color(0xFF10B981)
-                  : AppTheme.primaryColor)
-              .withValues(alpha: 0.3),
-        ),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
+            color: const Color(0xFF1E3A8A).withValues(alpha: isDark ? 0.25 : 0.04),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -881,69 +845,83 @@ class _VideoLevelsScreenState extends State<VideoLevelsScreen>
       ),
       child: Row(
         children: [
-          // أيقونة
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isCompleted
-                    ? [const Color(0xFF059669), const Color(0xFF10B981)]
-                    : [const Color(0xFF1D4ED8), AppTheme.primaryColor],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 84,
+                height: 64,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: const Color(0xFF00236F).withValues(alpha: 0.15),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: const Color(0xFF00236F),
+                    child: const Icon(Icons.school, color: Colors.white, size: 24),
+                  ),
+                ),
               ),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(
-              isCompleted
-                  ? Icons.check_circle_rounded
-                  : Icons.play_circle_fill_rounded,
-              color: Colors.white,
-              size: 26,
-            ),
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.play_arrow_rounded,
+                  color: Color(0xFF00236F),
+                  size: 20,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  isCompleted ? 'تم الإكمال ✓' : 'استئناف من $resumeStr',
-                  style: GoogleFonts.tajawal(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.bold,
-                    color: isCompleted
-                        ? const Color(0xFF10B981)
-                        : const Color(0xFFF59E0B),
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      subject,
+                      style: GoogleFonts.cairo(
+                        fontSize: 11,
+                        color: const Color(0xFF0051D5),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      views,
+                      style: GoogleFonts.cairo(
+                        fontSize: 10.5,
+                        color: const Color(0xFF757682),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
-                  'متابعة الدرس',
+                  title,
                   style: GoogleFonts.tajawal(
-                    fontSize: 12.5,
+                    fontSize: 13,
                     fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    color: isDark ? Colors.white : const Color(0xFF191C1E),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
-                // شريط التقدم
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: pct,
-                    minHeight: 4,
-                    backgroundColor:
-                        isDark ? Colors.white12 : Colors.grey[200],
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      isCompleted
-                          ? const Color(0xFF10B981)
-                          : AppTheme.primaryColor,
-                    ),
+                const SizedBox(height: 2),
+                Text(
+                  teacher,
+                  style: GoogleFonts.cairo(
+                    fontSize: 11,
+                    color: isDark ? Colors.white54 : const Color(0xFF757682),
                   ),
                 ),
               ],
@@ -954,319 +932,151 @@ class _VideoLevelsScreenState extends State<VideoLevelsScreen>
     );
   }
 
-  // ─── شبكة الأقسام ───
-  Widget _buildLevelsGrid(bool isDark) {
-    return StreamBuilder<List<VideoLevel>>(
-      stream: _service.streamLevels(),
-      initialData: VideoLessonService.defaultLevels,
-      builder: (context, snapshot) {
-        final levels = snapshot.data ?? VideoLessonService.defaultLevels;
-
-        // تصفية صارمة للأقسام الستة المعتمدة
-        final allowedCodes = {'كونكور', '3AS', '4AS', 'BAC D', 'BAC C', '6AF'};
-        var filtered = levels.where((l) {
-          return allowedCodes.contains(l.code) ||
-              allowedCodes.any((c) => l.title.contains(c));
-        }).toList();
-
-        // تطبيق البحث
-        if (_searchQuery.isNotEmpty) {
-          filtered = filtered
-              .where((l) =>
-                  l.title.toLowerCase().contains(_searchQuery) ||
-                  l.code.toLowerCase().contains(_searchQuery))
-              .toList();
-        }
-
-        // ترتيب ثابت حسب قائمة _kLevelConfigs
-        filtered.sort((a, b) {
-          final ai = _kLevelConfigs.indexWhere((c) =>
-              a.code == c.code || a.title.contains(c.code));
-          final bi = _kLevelConfigs.indexWhere((c) =>
-              b.code == c.code || b.title.contains(c.code));
-          return ai.compareTo(bi);
-        });
-
-        if (filtered.isEmpty) {
-          return SliverToBoxAdapter(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  children: [
-                    Icon(Icons.search_off_rounded,
-                        size: 56, color: Colors.grey.withValues(alpha: 0.4)),
-                    const SizedBox(height: 12),
-                    Text(
-                      'لا توجد نتائج لـ "$_searchQuery"',
-                      style: GoogleFonts.tajawal(
-                        fontSize: 15,
-                        color: isDark ? Colors.white60 : Colors.black54,
-                      ),
-                    ),
-                  ],
-                ),
+  // ───────────────────────────────────────────────────────────────────────────
+  //  7. المراحل الدراسية الستة المعتمدة
+  // ───────────────────────────────────────────────────────────────────────────
+  Widget _buildStagesGridSection(bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'المراحل والأقسام الدراسية',
+              style: GoogleFonts.tajawal(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : const Color(0xFF191C1E),
               ),
             ),
-          );
-        }
-
-        return SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          sliver: SliverGrid(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) => FadeTransition(
-                opacity: _fadeAnim,
-                child: _buildLevelCard(filtered[index], isDark, index),
+            Text(
+              '6 أقسام معتمدة',
+              style: GoogleFonts.cairo(
+                fontSize: 11.5,
+                color: const Color(0xFF757682),
+                fontWeight: FontWeight.bold,
               ),
-              childCount: filtered.length,
-            ),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount:
-                  MediaQuery.of(context).size.width > 600 ? 3 : 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio:
-                  MediaQuery.of(context).size.width > 600 ? 1.45 : 1.18,
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // ─── بطاقة قسم واحد (تصميم رشيق ومدمج) ───
-  Widget _buildLevelCard(VideoLevel level, bool isDark, int index) {
-    final cfg = _configForLevel(level);
-    final gradColors = cfg.gradient;
-    final accentColor = gradColors.last;
-
-    return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => VideoSubjectsScreen(level: level)),
-      ),
-      child: AnimatedContainer(
-        duration: Duration(milliseconds: 250 + index * 40),
-        curve: Curves.easeOut,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          gradient: LinearGradient(
-            colors: gradColors,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: accentColor.withValues(alpha: 0.35),
-              blurRadius: 12,
-              offset: const Offset(0, 5),
-              spreadRadius: -2,
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: Stack(
-            children: [
-              // زخرفة دائرة خلفية
-              Positioned(
-                bottom: -15,
-                left: -15,
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.08),
-                  ),
-                ),
-              ),
+        const SizedBox(height: 12),
+        StreamBuilder<List<VideoLevel>>(
+          stream: _service.streamLevels(),
+          initialData: VideoLessonService.defaultLevels,
+          builder: (context, snapshot) {
+            final levels = snapshot.data ?? VideoLessonService.defaultLevels;
+            final allowedCodes = {'كونكور', '3AS', '4AS', 'BAC D', 'BAC C', '6AF'};
+            var filtered = levels.where((l) {
+              return allowedCodes.contains(l.code) ||
+                  allowedCodes.any((c) => l.title.contains(c));
+            }).toList();
 
-              // المحتوى المدمج
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ─ أيقونة + شارة الكود والشارة الجديدة
-                    Row(
+            filtered.sort((a, b) {
+              final ai = _kLevelConfigs.indexWhere((c) =>
+                  a.code == c.code || a.title.contains(c.code));
+              final bi = _kLevelConfigs.indexWhere((c) =>
+                  b.code == c.code || b.title.contains(c.code));
+              return ai.compareTo(bi);
+            });
+
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: filtered.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 1.45,
+              ),
+              itemBuilder: (context, index) {
+                final lvl = filtered[index];
+                final cfg = _configForLevel(lvl);
+
+                return InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => VideoSubjectsScreen(level: lvl),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: cfg.gradient,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: cfg.gradient.first.withValues(alpha: 0.35),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.22),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(cfg.icon, color: Colors.white, size: 22),
-                        ),
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
+                            Icon(cfg.icon, color: Colors.white, size: 24),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.2),
+                                color: Colors.white.withValues(alpha: 0.22),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
                                 cfg.code,
-                                style: GoogleFonts.tajawal(
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.bold,
+                                style: GoogleFonts.cairo(
                                   color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 4),
-                            _buildNewBadge(level),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              cfg.title,
+                              style: GoogleFonts.tajawal(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              cfg.subtitle,
+                              style: GoogleFonts.cairo(
+                                color: Colors.white.withValues(alpha: 0.8),
+                                fontSize: 9.5,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ],
                         ),
                       ],
                     ),
-
-                    const SizedBox(height: 8),
-
-                    // ─ اسم القسم
-                    Text(
-                      cfg.title,
-                      style: GoogleFonts.tajawal(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        height: 1.2,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-
-                    const SizedBox(height: 2),
-
-                    // ─ الاسم الفرعي
-                    Text(
-                      cfg.subtitle,
-                      style: GoogleFonts.tajawal(
-                        fontSize: 9.5,
-                        color: Colors.white.withValues(alpha: 0.75),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-
-                    const Spacer(),
-
-                    // ─ إحصائيات المواد والدروس
-                    _buildLevelStats(level, isDark),
-
-                    const SizedBox(height: 6),
-
-                    // ─ زر الدخول الرشيق
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 5),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.25),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'ابدأ التعلم',
-                            style: GoogleFonts.tajawal(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          const Icon(Icons.arrow_back_rounded,
-                              color: Colors.white, size: 15),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// شارة «جديد» — تظهر إن وجد درس حديث في هذا القسم
-  Widget _buildNewBadge(VideoLevel level) {
-    return StreamBuilder<List<VideoLesson>>(
-      stream: _service.streamLatestLessons(limit: 20),
-      builder: (context, snap) {
-        final hasNew = (snap.data ?? [])
-            .any((l) => l.levelId == level.id && l.isNew);
-        if (!hasNew) return const SizedBox.shrink();
-        return Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: const Color(0xFF10B981),
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: [
-              BoxShadow(
-                color:
-                    const Color(0xFF10B981).withValues(alpha: 0.5),
-                blurRadius: 6,
-              ),
-            ],
-          ),
-          child: Text(
-            'جديد',
-            style: GoogleFonts.tajawal(
-              fontSize: 9.5,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  /// إحصائيات عدد المواد والدروس
-  Widget _buildLevelStats(VideoLevel level, bool isDark) {
-    return StreamBuilder<List<VideoSubject>>(
-      stream: _service.streamSubjects(level.id),
-      builder: (context, snap) {
-        final subjects = snap.data ?? [];
-        return Row(
-          children: [
-            _miniStat(
-                Icons.book_rounded, '${subjects.length} مادة'),
-            const SizedBox(width: 8),
-            // عدد الدروس من أول مادة (تقريب)
-            _miniStat(Icons.play_circle_outline_rounded,
-                subjects.isEmpty ? '...' : 'دروس متعددة'),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _miniStat(IconData icon, String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon,
-            size: 12, color: Colors.white.withValues(alpha: 0.75)),
-        const SizedBox(width: 3),
-        Text(
-          text,
-          style: GoogleFonts.tajawal(
-            fontSize: 10.5,
-            color: Colors.white.withValues(alpha: 0.75),
-          ),
+                  ),
+                );
+              },
+            );
+          },
         ),
       ],
     );

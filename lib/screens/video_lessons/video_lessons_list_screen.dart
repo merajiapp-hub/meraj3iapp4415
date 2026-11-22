@@ -308,6 +308,7 @@ class _VideoLessonsListScreenState extends State<VideoLessonsListScreen> {
                             subjectName: widget.subject.title,
                             unitName: widget.unit?.title,
                             isCompleted: isCompleted,
+                            isProUser: auth.isPro,
                             onTap: () => _handleLessonTap(context, lesson, filtered),
                           );
                         }),

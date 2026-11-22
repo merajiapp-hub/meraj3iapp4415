@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart' hide TextDirection;
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../models/video_lesson_models.dart';
-import '../../../theme/app_theme.dart';
 
 class VideoLessonCard extends StatelessWidget {
   final VideoLesson lesson;
@@ -11,6 +9,7 @@ class VideoLessonCard extends StatelessWidget {
   final String? unitName;
   final bool isCompleted;
   final bool isFavorite;
+  final bool isProUser;
   final VoidCallback onTap;
   final VoidCallback? onFavoriteToggle;
 
@@ -21,6 +20,7 @@ class VideoLessonCard extends StatelessWidget {
     this.unitName,
     this.isCompleted = false,
     this.isFavorite = false,
+    this.isProUser = false,
     required this.onTap,
     this.onFavoriteToggle,
   });
@@ -29,26 +29,25 @@ class VideoLessonCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final thumb = lesson.effectiveThumbnailUrl;
-    final dateStr = DateFormat('yyyy/MM/dd').format(lesson.createdAt);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: isDark ? AppTheme.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isCompleted
-              ? const Color(0xFF10B981).withValues(alpha: 0.3)
+              ? const Color(0xFF10B981).withValues(alpha: 0.4)
               : lesson.isPro
-                  ? const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.25 : 0.2)
-                  : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
+                  ? const Color(0xFF0051D5).withValues(alpha: isDark ? 0.3 : 0.15)
+                  : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06)),
           width: isCompleted ? 1.5 : 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: const Color(0xFF1E3A8A).withValues(alpha: isDark ? 0.3 : 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -60,10 +59,9 @@ class VideoLessonCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. قسم الصورة المصغرة مع المشغل
-              SizedBox(
-                height: 160,
-                width: double.infinity,
+              // 1. الصورة المصغرة والشارات
+              AspectRatio(
+                aspectRatio: 16 / 9,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -73,46 +71,58 @@ class VideoLessonCard extends StatelessWidget {
                         fit: BoxFit.cover,
                         placeholder: (ctx, url) => Container(
                           color: isDark
-                              ? const Color(0xFF1E293B)
+                              ? const Color(0xFF0F172A)
                               : const Color(0xFFF1F5F9),
                           child: const Center(
                             child: CircularProgressIndicator(strokeWidth: 2),
                           ),
                         ),
-                        errorWidget: (ctx, url, err) => _buildPlaceholderGraphic(isDark),
+                        errorWidget: (ctx, url, err) =>
+                            _buildPlaceholderGraphic(isDark),
                       )
                     else
                       _buildPlaceholderGraphic(isDark),
 
-                    // تعتيم خفيف
+                    // تدرج داكن خفيف فوق الصورة
                     Container(
-                      color: Colors.black.withValues(alpha: 0.22),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.black.withValues(alpha: 0.5),
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.65),
+                          ],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                      ),
                     ),
 
-                    // أيقونة التشغيل المركزية
+                    // زر التشغيل المركزي
                     Center(
                       child: Container(
-                        width: 50,
-                        height: 50,
+                        width: 52,
+                        height: 52,
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.92),
+                          color: const Color(0xFF00236F),
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.3),
-                              blurRadius: 10,
+                              color: const Color(0xFF00236F).withValues(alpha: 0.45),
+                              blurRadius: 14,
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
                         child: const Icon(
                           Icons.play_arrow_rounded,
-                          color: AppTheme.primaryColor,
+                          color: Colors.white,
                           size: 32,
                         ),
                       ),
                     ),
 
-                    // شارة Pro أو مجاني
+                    // شارة PRO أو مجاني في الزاوية اليمنى العليا
                     Positioned(
                       top: 10,
                       right: 10,
@@ -120,17 +130,17 @@ class VideoLessonCard extends StatelessWidget {
                           ? Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 10,
-                                vertical: 4,
+                                vertical: 4.5,
                               ),
                               decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                                color: const Color(0xFF003120),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: const Color(0xFF4AC08F).withValues(alpha: 0.4),
                                 ),
-                                borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFFF59E0B)
-                                        .withValues(alpha: 0.4),
+                                    color: Colors.black.withValues(alpha: 0.25),
                                     blurRadius: 6,
                                   ),
                                 ],
@@ -139,17 +149,18 @@ class VideoLessonCard extends StatelessWidget {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   const Icon(
-                                    Icons.lock_person_rounded,
+                                    Icons.workspace_premium_rounded,
                                     size: 13,
-                                    color: Colors.white,
+                                    color: Color(0xFF85F8C4),
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
                                     'PRO',
-                                    style: GoogleFonts.tajawal(
+                                    style: GoogleFonts.cairo(
                                       color: Colors.white,
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.5,
                                     ),
                                   ),
                                 ],
@@ -161,38 +172,49 @@ class VideoLessonCard extends StatelessWidget {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF10B981),
-                                borderRadius: BorderRadius.circular(12),
+                                color: const Color(0xFF004A32),
+                                borderRadius: BorderRadius.circular(10),
                               ),
-                              child: Text(
-                                'مجاني',
-                                style: GoogleFonts.tajawal(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.check_circle_rounded,
+                                    size: 13,
+                                    color: Color(0xFF85F8C4),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'مجاني',
+                                    style: GoogleFonts.cairo(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                     ),
 
-                    // زر المفضلة في الزاوية العلوية اليسرى
+                    // زر المفضلة في الزاوية اليسرى العليا
                     if (onFavoriteToggle != null)
                       Positioned(
-                        top: 8,
-                        left: 8,
+                        top: 10,
+                        left: 10,
                         child: Material(
-                          color: Colors.black45,
+                          color: Colors.black.withValues(alpha: 0.45),
                           shape: const CircleBorder(),
                           child: InkWell(
                             customBorder: const CircleBorder(),
                             onTap: onFavoriteToggle,
                             child: Padding(
-                              padding: const EdgeInsets.all(7),
+                              padding: const EdgeInsets.all(7.5),
                               child: Icon(
                                 isFavorite
-                                    ? Icons.favorite_rounded
-                                    : Icons.favorite_border_rounded,
-                                color: isFavorite ? Colors.redAccent : Colors.white,
+                                    ? Icons.bookmark_rounded
+                                    : Icons.bookmark_border_rounded,
+                                color: isFavorite ? const Color(0xFF0051D5) : Colors.white,
                                 size: 18,
                               ),
                             ),
@@ -200,51 +222,40 @@ class VideoLessonCard extends StatelessWidget {
                         ),
                       ),
 
-                    // مدة الفيديو في الأسفل
+                    // مدة الفيديو في الزاوية اليسرى السفلى
                     if (lesson.duration.isNotEmpty)
                       Positioned(
-                        bottom: 8,
-                        right: 10,
+                        bottom: 10,
+                        left: 10,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
-                            vertical: 3,
+                            vertical: 3.5,
                           ),
                           decoration: BoxDecoration(
                             color: Colors.black.withValues(alpha: 0.75),
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.access_time_rounded,
-                                size: 12,
-                                color: Colors.white70,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                lesson.duration,
-                                style: GoogleFonts.tajawal(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            lesson.duration,
+                            style: GoogleFonts.cairo(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
 
-                    // شارة الإكمال (مكتمل)
+                    // شارة مكتمل
                     if (isCompleted)
                       Positioned(
-                        bottom: 8,
-                        left: 10,
+                        bottom: 10,
+                        right: 10,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
-                            vertical: 3,
+                            vertical: 3.5,
                           ),
                           decoration: BoxDecoration(
                             color: const Color(0xFF10B981),
@@ -261,7 +272,7 @@ class VideoLessonCard extends StatelessWidget {
                               const SizedBox(width: 4),
                               Text(
                                 'مكتمل',
-                                style: GoogleFonts.tajawal(
+                                style: GoogleFonts.cairo(
                                   color: Colors.white,
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -275,46 +286,51 @@ class VideoLessonCard extends StatelessWidget {
                 ),
               ),
 
-              // 2. تفاصيل الدرس
+              // 2. تفاصيل الدرس والبيانات التعليمية
               Padding(
                 padding: const EdgeInsets.all(14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // التصنيف: المادة والوحدة
+                    // التصنيف وعدد المشاهدات
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2.5,
+                            horizontal: 9,
+                            vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                            color: const Color(0xFFDCE1FF).withValues(alpha: isDark ? 0.2 : 0.7),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             subjectName,
-                            style: GoogleFonts.tajawal(
-                              color: AppTheme.primaryColor,
-                              fontSize: 11,
+                            style: GoogleFonts.cairo(
+                              color: const Color(0xFF00236F),
+                              fontSize: 11.5,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
-                        if (unitName != null && unitName!.isNotEmpty) ...[
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              '• $unitName',
-                              style: GoogleFonts.tajawal(
-                                color: isDark ? Colors.white60 : Colors.black54,
-                                fontSize: 11,
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.visibility_outlined,
+                              size: 14,
+                              color: isDark ? Colors.white54 : const Color(0xFF757682),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 4),
+                            Text(
+                              '${lesson.viewsCount > 1000 ? '${(lesson.viewsCount / 1000).toStringAsFixed(1)}k' : lesson.viewsCount} مشاهدة',
+                              style: GoogleFonts.cairo(
+                                fontSize: 11,
+                                color: isDark ? Colors.white54 : const Color(0xFF757682),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -323,92 +339,145 @@ class VideoLessonCard extends StatelessWidget {
                     Text(
                       lesson.title,
                       style: GoogleFonts.tajawal(
-                        fontSize: 14.5,
+                        fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : const Color(0xFF1E293B),
-                        height: 1.3,
+                        color: isDark ? Colors.white : const Color(0xFF191C1E),
+                        height: 1.35,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
 
-                    if (lesson.description.isNotEmpty) ...[
-                      const SizedBox(height: 5),
-                      Text(
-                        lesson.description,
-                        style: GoogleFonts.tajawal(
-                          fontSize: 12,
-                          color: isDark ? Colors.white60 : Colors.black54,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                    const SizedBox(height: 12),
+                    Divider(
+                      height: 1,
+                      thickness: 0.5,
+                      color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.08),
+                    ),
+                    const SizedBox(height: 12),
 
-                    const SizedBox(height: 10),
-                    const Divider(height: 1, thickness: 0.5),
-                    const SizedBox(height: 10),
-
-                    // الشريط السفلي: التاريخ، المشاهدات، وزر المشاهدة
+                    // صف الأستاذ مع زر الإجراء
                     Row(
                       children: [
-                        Icon(
-                          Icons.visibility_outlined,
-                          size: 13,
-                          color: isDark ? Colors.white54 : Colors.grey[600],
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${lesson.viewsCount} مشاهدة',
-                          style: GoogleFonts.tajawal(
-                            fontSize: 11,
-                            color: isDark ? Colors.white54 : Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Icon(
-                          Icons.calendar_today_outlined,
-                          size: 12,
-                          color: isDark ? Colors.white54 : Colors.grey[600],
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          dateStr,
-                          style: GoogleFonts.tajawal(
-                            fontSize: 11,
-                            color: isDark ? Colors.white54 : Colors.grey[600],
-                          ),
-                        ),
-                        const Spacer(),
+                        // صورة الأستاذ
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
+                          width: 36,
+                          height: 36,
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
+                            shape: BoxShape.circle,
+                            color: const Color(0xFF00236F).withValues(alpha: 0.1),
+                            border: Border.all(
+                              color: const Color(0xFF0051D5).withValues(alpha: 0.2),
+                            ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
+                          clipBehavior: Clip.antiAlias,
+                          child: lesson.teacherPhotoUrl != null &&
+                                  lesson.teacherPhotoUrl!.isNotEmpty
+                              ? CachedNetworkImage(
+                                  imageUrl: lesson.teacherPhotoUrl!,
+                                  fit: BoxFit.cover,
+                                  errorWidget: (ctx, url, err) => const Icon(
+                                    Icons.person_rounded,
+                                    color: Color(0xFF00236F),
+                                    size: 20,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.person_rounded,
+                                  color: Color(0xFF00236F),
+                                  size: 20,
+                                ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'مشاهدة الدرس',
-                                style: GoogleFonts.tajawal(
-                                  color: AppTheme.primaryColor,
-                                  fontSize: 11.5,
+                                lesson.teacherName ?? 'أستاذ مراجعي',
+                                style: GoogleFonts.cairo(
+                                  fontSize: 12.5,
                                   fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : const Color(0xFF191C1E),
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(width: 4),
-                              const Icon(
-                                Icons.arrow_back_rounded, // RTL
-                                size: 14,
-                                color: AppTheme.primaryColor,
+                              Text(
+                                'خبير المادة',
+                                style: GoogleFonts.cairo(
+                                  fontSize: 10.5,
+                                  color: isDark ? Colors.white54 : const Color(0xFF757682),
+                                ),
                               ),
                             ],
                           ),
                         ),
+                        const SizedBox(width: 8),
+
+                        // زر الإجراء: ترقية Pro أو مشاهدة
+                        if (lesson.isPro && !isProUser)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0051D5),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.lock_rounded,
+                                  size: 13,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'ترقية Pro',
+                                  style: GoogleFonts.cairo(
+                                    color: Colors.white,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? const Color(0xFF0F172A)
+                                  : const Color(0xFFF2F4F6),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.play_arrow_rounded,
+                                  size: 15,
+                                  color: Color(0xFF00236F),
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'مشاهدة',
+                                  style: GoogleFonts.cairo(
+                                    color: const Color(0xFF00236F),
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
                   ],
@@ -423,11 +492,12 @@ class VideoLessonCard extends StatelessWidget {
 
   Widget _buildPlaceholderGraphic(bool isDark) {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppTheme.primaryColor.withValues(alpha: 0.8),
-            const Color(0xFF0F172A),
+            Color(0xFF00236F),
+            Color(0xFF1E3A8A),
+            Color(0xFF0051D5),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -435,9 +505,9 @@ class VideoLessonCard extends StatelessWidget {
       ),
       child: Center(
         child: Icon(
-          Icons.video_library_rounded,
-          size: 48,
-          color: Colors.white.withValues(alpha: 0.3),
+          Icons.play_circle_fill_rounded,
+          size: 50,
+          color: Colors.white.withValues(alpha: 0.35),
         ),
       ),
     );

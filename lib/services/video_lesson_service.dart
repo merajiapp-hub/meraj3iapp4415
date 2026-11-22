@@ -23,6 +23,10 @@ class VideoLessonService {
       _firestore.collection('video_favorites');
   CollectionReference<Map<String, dynamic>> get _notesCol =>
       _firestore.collection('video_notes');
+  CollectionReference<Map<String, dynamic>> get _commentsCol =>
+      _firestore.collection('video_comments');
+  CollectionReference<Map<String, dynamic>> get _quizResultsCol =>
+      _firestore.collection('video_quiz_results');
   CollectionReference<Map<String, dynamic>> get _statisticsCol =>
       _firestore.collection('video_statistics');
 
@@ -362,5 +366,175 @@ class VideoLessonService {
         });
       });
     } catch (_) {}
+  }
+
+  /// بث الدروس الأكثر مشاهدة
+  Stream<List<VideoLesson>> streamMostWatchedLessons({int limit = 6}) {
+    return _lessonsCol
+        .where('isPublished', isEqualTo: true)
+        .snapshots()
+        .map((snap) {
+          final list = snap.docs.map(VideoLesson.fromFirestore).toList();
+          list.sort((a, b) => b.viewsCount.compareTo(a.viewsCount));
+          return list.take(limit).toList();
+        });
+  }
+
+  /// بث جميع دروس مرحلة دراسية معينة
+  Stream<List<VideoLesson>> streamLessonsByLevel(String levelId) {
+    return _lessonsCol
+        .where('levelId', isEqualTo: levelId)
+        .where('isPublished', isEqualTo: true)
+        .snapshots()
+        .map((snap) {
+          final list = snap.docs.map(VideoLesson.fromFirestore).toList();
+          list.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+          return list;
+        });
+  }
+
+  /// بث ملاحظات الطالب المرتبطة بالوقت
+  Stream<List<VideoNote>> streamTimestampNotes(String userId, String lessonId) {
+    if (userId.isEmpty) return Stream.value([]);
+    return _notesCol
+        .where('userId', isEqualTo: userId)
+        .where('lessonId', isEqualTo: lessonId)
+        .snapshots()
+        .map((snap) {
+          final list = snap.docs.map(VideoNote.fromFirestore).toList();
+          list.sort((a, b) => a.timestampSeconds.compareTo(b.timestampSeconds));
+          return list;
+        });
+  }
+
+  /// إضافة ملاحظة مرتبطة بوقت محدد
+  Future<void> addTimestampNote({
+    required String userId,
+    required String lessonId,
+    required String content,
+    required int timestampSeconds,
+    String? tag,
+  }) async {
+    if (userId.isEmpty || content.trim().isEmpty) return;
+    await _notesCol.add({
+      'userId': userId,
+      'lessonId': lessonId,
+      'content': content.trim(),
+      'timestampSeconds': timestampSeconds,
+      'tag': tag,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// حذف ملاحظة
+  Future<void> deleteTimestampNote(String noteId) async {
+    try {
+      await _notesCol.doc(noteId).delete();
+    } catch (_) {}
+  }
+
+  /// بث التعليقات والنقاشات الخاصة بالدرس
+  Stream<List<VideoComment>> streamComments(String lessonId) {
+    return _commentsCol
+        .where('lessonId', isEqualTo: lessonId)
+        .snapshots()
+        .map((snap) {
+          final list = snap.docs.map(VideoComment.fromFirestore).toList();
+          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return list;
+        });
+  }
+
+  /// إضافة تعليق أو سؤال موجه للأستاذ
+  Future<void> addComment({
+    required String lessonId,
+    required String userId,
+    required String userName,
+    String userRole = 'طالب',
+    String? userAvatarUrl,
+    required String content,
+    bool isQuestionToTeacher = false,
+    String? replyToId,
+    String? replyToName,
+    String? attachmentUrl,
+  }) async {
+    if (content.trim().isEmpty) return;
+    await _commentsCol.add({
+      'lessonId': lessonId,
+      'userId': userId,
+      'userName': userName,
+      'userRole': userRole,
+      'userAvatarUrl': userAvatarUrl,
+      'content': content.trim(),
+      'createdAt': FieldValue.serverTimestamp(),
+      'likesCount': 0,
+      'likedUserIds': [],
+      'isQuestionToTeacher': isQuestionToTeacher,
+      'isAnswered': false,
+      'replyToId': replyToId,
+      'replyToName': replyToName,
+      'attachmentUrl': attachmentUrl,
+    });
+  }
+
+  /// الإعجاب بتعليق
+  Future<void> toggleCommentLike({
+    required String commentId,
+    required String userId,
+  }) async {
+    if (userId.isEmpty) return;
+    final docRef = _commentsCol.doc(commentId);
+    await _firestore.runTransaction((tx) async {
+      final snap = await tx.get(docRef);
+      if (!snap.exists) return;
+      final data = snap.data() ?? {};
+      final likedList = List<String>.from(data['likedUserIds'] ?? []);
+      final currentLikes = (data['likesCount'] as num?)?.toInt() ?? 0;
+      if (likedList.contains(userId)) {
+        likedList.remove(userId);
+        tx.update(docRef, {
+          'likesCount': (currentLikes - 1).clamp(0, 999999),
+          'likedUserIds': likedList,
+        });
+      } else {
+        likedList.add(userId);
+        tx.update(docRef, {
+          'likesCount': currentLikes + 1,
+          'likedUserIds': likedList,
+        });
+      }
+    });
+  }
+
+  /// حفظ نتيجة الاختبار القصير
+  Future<void> saveQuizResult({
+    required String userId,
+    required String lessonId,
+    required int score,
+    required int total,
+  }) async {
+    if (userId.isEmpty) return;
+    final docId = '${userId}_$lessonId';
+    await _quizResultsCol.doc(docId).set({
+      'userId': userId,
+      'lessonId': lessonId,
+      'score': score,
+      'total': total,
+      'percent': total > 0 ? (score / total) : 0.0,
+      'completedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  /// استرجاع نتيجة الاختبار إن وجدت
+  Future<Map<String, dynamic>?> getQuizResult(String userId, String lessonId) async {
+    if (userId.isEmpty) return null;
+    final docId = '${userId}_$lessonId';
+    try {
+      final doc = await _quizResultsCol.doc(docId).get();
+      if (!doc.exists) return null;
+      return doc.data();
+    } catch (_) {
+      return null;
+    }
   }
 }

@@ -1535,21 +1535,44 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
     String? assetPath = method.iconAsset;
     final code = method.code.toLowerCase();
     final name = method.name.toLowerCase();
+    final id = method.id.toLowerCase();
 
-    if (assetPath == null || assetPath.isEmpty) {
-      if (code.contains('bankily') || name.contains('bankily') || name.contains('بنكيلي')) {
-        assetPath = 'assets/pay/Bankily.png';
-      } else if (code.contains('masrvi') || name.contains('masrvi') || name.contains('مصرفي')) {
-        assetPath = 'assets/pay/Masrvi.png';
-      } else if (code.contains('sedad') || name.contains('sedad') || name.contains('سداد')) {
-        assetPath = 'assets/pay/SEDAD.png';
-      }
+    // التعرف الذكي على البنوك الوطنية الموريتانية وتعيين شعارها بدقة تامة
+    if (code.contains('bankily') || name.contains('bankily') || name.contains('بنكيلي') || id.contains('bankily')) {
+      assetPath = 'assets/pay/Bankily.png';
+    } else if (code.contains('masrvi') || name.contains('masrvi') || name.contains('مصرفي') || id.contains('masrvi')) {
+      assetPath = 'assets/pay/Masrvi.png';
+    } else if (code.contains('sedad') || name.contains('sedad') || name.contains('سداد') || id.contains('sedad')) {
+      assetPath = 'assets/pay/SEDAD.png';
+    } else if (assetPath != null && assetPath.toLowerCase().contains('bankily')) {
+      assetPath = 'assets/pay/Bankily.png';
+    } else if (assetPath != null && assetPath.toLowerCase().contains('masrvi')) {
+      assetPath = 'assets/pay/Masrvi.png';
+    } else if (assetPath != null && assetPath.toLowerCase().contains('sedad')) {
+      assetPath = 'assets/pay/SEDAD.png';
+    }
+
+    if (assetPath != null && (assetPath.startsWith('http://') || assetPath.startsWith('https://'))) {
+      return Container(
+        height: 34,
+        width: 38,
+        alignment: Alignment.center,
+        child: Image.network(
+          assetPath,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => Icon(
+            Icons.account_balance_wallet_rounded,
+            size: 24,
+            color: isChosen ? const Color(0xFF3525CD) : Colors.grey[600],
+          ),
+        ),
+      );
     }
 
     if (assetPath != null && assetPath.isNotEmpty) {
       return Container(
-        height: 28,
-        width: 32,
+        height: 34,
+        width: 38,
         alignment: Alignment.center,
         child: Image.asset(
           assetPath,

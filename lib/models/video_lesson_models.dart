@@ -567,6 +567,8 @@ class VideoNote {
   final String userId;
   final String lessonId;
   final String content;
+  final int timestampSeconds;
+  final String? tag;
   final DateTime updatedAt;
 
   const VideoNote({
@@ -574,8 +576,16 @@ class VideoNote {
     required this.userId,
     required this.lessonId,
     required this.content,
+    this.timestampSeconds = 0,
+    this.tag,
     required this.updatedAt,
   });
+
+  String get formattedTimestamp {
+    final m = timestampSeconds ~/ 60;
+    final s = timestampSeconds % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
 
   factory VideoNote.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
@@ -584,6 +594,8 @@ class VideoNote {
       userId: data['userId']?.toString() ?? '',
       lessonId: data['lessonId']?.toString() ?? '',
       content: data['content']?.toString() ?? '',
+      timestampSeconds: (data['timestampSeconds'] as num?)?.toInt() ?? 0,
+      tag: data['tag']?.toString(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
@@ -593,6 +605,8 @@ class VideoNote {
       'userId': userId,
       'lessonId': lessonId,
       'content': content,
+      'timestampSeconds': timestampSeconds,
+      'tag': tag,
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
@@ -659,5 +673,84 @@ class VideoDownloadItem {
       return '${(fileSizeBytes / 1024).toStringAsFixed(1)} KB';
     }
     return '${(fileSizeBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+}
+
+/// 11. التعليقات ونقاشات الدرس وسؤال الأستاذ
+class VideoComment {
+  final String id;
+  final String lessonId;
+  final String userId;
+  final String userName;
+  final String userRole; // 'طالب', 'أستاذ المادة', 'المعلم', 'إدارة المنصة'
+  final String? userAvatarUrl;
+  final String content;
+  final DateTime createdAt;
+  final int likesCount;
+  final List<String> likedUserIds;
+  final bool isQuestionToTeacher;
+  final bool isAnswered;
+  final String? replyToId;
+  final String? replyToName;
+  final String? attachmentUrl;
+
+  const VideoComment({
+    required this.id,
+    required this.lessonId,
+    required this.userId,
+    required this.userName,
+    this.userRole = 'طالب',
+    this.userAvatarUrl,
+    required this.content,
+    required this.createdAt,
+    this.likesCount = 0,
+    this.likedUserIds = const [],
+    this.isQuestionToTeacher = false,
+    this.isAnswered = false,
+    this.replyToId,
+    this.replyToName,
+    this.attachmentUrl,
+  });
+
+  factory VideoComment.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? {};
+    return VideoComment(
+      id: doc.id,
+      lessonId: data['lessonId']?.toString() ?? '',
+      userId: data['userId']?.toString() ?? '',
+      userName: data['userName']?.toString() ?? 'طالب مراجعي',
+      userRole: data['userRole']?.toString() ?? 'طالب',
+      userAvatarUrl: data['userAvatarUrl']?.toString(),
+      content: data['content']?.toString() ?? '',
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      likesCount: (data['likesCount'] as num?)?.toInt() ?? 0,
+      likedUserIds:
+          (data['likedUserIds'] as List?)?.map((e) => e.toString()).toList() ??
+          const [],
+      isQuestionToTeacher: data['isQuestionToTeacher'] == true,
+      isAnswered: data['isAnswered'] == true,
+      replyToId: data['replyToId']?.toString(),
+      replyToName: data['replyToName']?.toString(),
+      attachmentUrl: data['attachmentUrl']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'lessonId': lessonId,
+      'userId': userId,
+      'userName': userName,
+      'userRole': userRole,
+      'userAvatarUrl': userAvatarUrl,
+      'content': content,
+      'createdAt': FieldValue.serverTimestamp(),
+      'likesCount': likesCount,
+      'likedUserIds': likedUserIds,
+      'isQuestionToTeacher': isQuestionToTeacher,
+      'isAnswered': isAnswered,
+      'replyToId': replyToId,
+      'replyToName': replyToName,
+      'attachmentUrl': attachmentUrl,
+    };
   }
 }
