@@ -2,7 +2,7 @@
   "latestVersion": "8.2.0",
   "latestBuildNumber": 26,
   "minSupportedVersion": "7.0.0",
-  "apkUrl": "https://meraj3iapp.web.app/downloads/app-release.apk",
+  "apkUrl": "https://github.com/merajiapp-hub/meraj3iapp4415/releases/download/v1.0.25/app-release.apk",
   "apkSize": "120.8 MB",
   "releaseDate": "2026-11-22",
   "forceUpdate": false,
@@ -14,5 +14,5 @@
     "إلغاء شاشة البداية الثقيلة لفتح التطبيق ولوحة الإدارة بصورة فورية وسريعة",
     "تحديثات حية وسريعة في الخلفية عبر Shorebird Code Push مع إشعار بالنسخ الجديدة"
   ],
-  "githubReleaseUrl": "https://meraj3iapp.web.app/downloads/app-release.apk"
+  "githubReleaseUrl": "https://github.com/merajiapp-hub/meraj3iapp4415/releases/download/v1.0.25/app-release.apk"
 }
