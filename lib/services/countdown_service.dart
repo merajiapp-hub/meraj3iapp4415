@@ -125,20 +125,17 @@ class CountdownService {
   ];
 
   Stream<List<CountdownEvent>> streamActiveEvents() {
-    return _collection
-        .snapshots()
-        .map((snapshot) {
-          if (snapshot.docs.isEmpty) {
-            // إذا لم توجد وثائق في قاعدة البيانات، نعرض المواعيد الافتراضية الرسمية
-            return defaultEvents;
-          }
-          final list = snapshot.docs
-              .map(CountdownEvent.fromFirestore)
-              .where((ev) => ev.isActive && !ev.shouldHide)
-              .toList()
-            ..sort((a, b) => a.order.compareTo(b.order));
-          return list.isEmpty ? defaultEvents : list;
-        });
+    return _collection.snapshots().map((snapshot) {
+      if (snapshot.docs.isEmpty) {
+        return const <CountdownEvent>[];
+      }
+      final list = snapshot.docs
+          .map(CountdownEvent.fromFirestore)
+          .where((ev) => ev.isActive && !ev.shouldHide)
+          .toList()
+        ..sort((a, b) => a.order.compareTo(b.order));
+      return list;
+    });
   }
 
   Stream<bool> streamCountdownEnabled() {

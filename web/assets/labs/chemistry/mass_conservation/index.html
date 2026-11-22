@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>التفاعل الكيميائي وانحفاظ الكتلة | المختبر الافتراضي</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <!-- Digital Scale HUD -->
+  <div id="scale-hud" class="hud-panel">
+    <div class="hud-title">قراءة الميزان الإلكتروني الحساس</div>
+    <div class="digital-display">
+      <span id="scale-value">152.40</span>
+      <span class="unit">g</span>
+    </div>
+  </div>
+
+  <!-- Step Guidance Banner -->
+  <div id="step-banner" class="hud-panel">
+    <span class="step-badge" id="step-badge">المرحلة 1 من 4</span>
+    <div class="step-instruction" id="step-text">
+      لاحظ الكتلة الابتدائية m₁ للمتفاعلات (حمض الخل + بيكربونات الصوديوم) داخل الحوجلة المغلقة بإحكام بواسطة السدادة المطاطية.
+    </div>
+  </div>
+
+  <!-- Chemical Equation Floating Bar -->
+  <div id="equation-bar" class="hud-panel">
+    CH₃COOH + NaHCO₃ → CH₃COONa + H₂O + <span class="eq-highlight">CO₂↑</span>
+  </div>
+
+  <!-- Bottom Control Dock -->
+  <div id="control-dock" class="hud-panel">
+    <button class="btn-lab btn-primary" id="btn-react">
+      <span>⚗️ مزج المتفاعلات وإطلاق التفاعل</span>
+    </button>
+    <button class="btn-lab" id="btn-stopper">
+      <span>🍾 فتح السدادة</span>
+    </button>
+    <button class="btn-lab" id="btn-tare">
+      <span>⚖️ تصفير الميزان (Tare)</span>
+    </button>
+    <button class="btn-lab" id="btn-conclusion">
+      <span>📋 النتيجة والاستنتاج</span>
+    </button>
+    <button class="btn-lab" id="btn-reset">
+      <span>🔄 إعادة التجربة</span>
+    </button>
+  </div>
+
+  <!-- Observation Modal -->
+  <div id="observation-modal" class="hud-panel">
+    <div class="modal-header">
+      <span>🔬 الاستنتاج العلمي: قانون لافوازييه</span>
+    </div>
+    <div class="modal-body" id="modal-content">
+      <strong>قانون انحفاظ الكتلة (Loi de Lavoisier):</strong><br>
+      خلال تفاعل كيميائي في نظام مغلق، تبقى الكتلة الكلية محفوظة؛ أي أن مجموع كتل المواد المتفاعلة يساوي تماماً مجموع كتل المواد الناتجة:<br>
+      <div style="direction: ltr; text-align: center; font-weight: 900; margin: 10px 0; color: #34d399; font-size: 15px;">
+        m(réactifs) = m(produits) = 152.40 g
+      </div>
+      عند فتح السدادة، يغادر غاز ثاني أكسيد الكربون (CO₂) النظام، مما يفسر انخفاض الكتلة المسجلة على الميزان إلى 150.20 g.<br>
+      <em>«Rien ne se perd, rien ne se crée, tout se transforme»</em>
+    </div>
+    <button class="close-btn" id="modal-close-btn">إغلاق ومتابعة التجربة</button>
+  </div>
+
+  <!-- Standalone Three.js bundled locally -->
+  <script src="../../shared/three.min.js"></script>
+  <script src="experiment.js"></script>
+</body>
+</html>

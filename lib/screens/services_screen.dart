@@ -13,6 +13,7 @@ import 'published_exams_screen.dart';
 import 'student/reading_list_screen.dart';
 import 'student/progress_screen.dart';
 import 'countdown_screen.dart';
+import '../features/virtual_lab/pages/virtual_lab_page.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/pro_badge.dart';
 import '../widgets/pro_feature_gate.dart';
@@ -191,6 +192,20 @@ class ServicesScreen extends StatelessWidget {
         badge: null,
         onTap: () =>
             _checkFeatureAndNavigate(context, null, const ProgressScreen()),
+      ),
+      _ServiceItem(
+        title: 'المختبر الافتراضي (3D)',
+        icon: Icons.science_rounded,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0F766E), Color(0xFF10B981)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        badge: '3D تفاعلي',
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const VirtualLabPage()),
+        ),
       ),
     ];
 

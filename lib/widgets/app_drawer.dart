@@ -22,6 +22,7 @@ import '../services/app_update_service.dart';
 import 'pro_badge.dart';
 import '../screens/video_lessons/video_levels_screen.dart';
 import '../screens/countdown_screen.dart';
+import '../features/virtual_lab/pages/virtual_lab_page.dart';
 
 class AppDrawer extends StatelessWidget {
   final bool isGuest;
@@ -219,6 +220,13 @@ class AppDrawer extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const VideoLevelsScreen()),
+                    );
+                  }),
+                  _buildDrawerItem(context, Icons.science_rounded, 'المختبر الافتراضي (3D)', () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const VirtualLabPage()),
                     );
                   }),
                   _buildDrawerItem(context, Icons.library_books_rounded, 'مراجع أخرى', () {

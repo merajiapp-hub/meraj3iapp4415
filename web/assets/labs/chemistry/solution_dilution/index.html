@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>تحضير محلول: الذوبان والتخفيف | المختبر الافتراضي</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <!-- Formulas & Calculations HUD -->
+  <div id="formula-hud" class="hud-panel">
+    <div class="hud-title">الحسابات الكيميائية الحية للمحلول</div>
+    <div class="calc-row">
+      <span>Soluté:</span>
+      <span class="calc-val">CuSO₄·5H₂O</span>
+    </div>
+    <div class="calc-row">
+      <span>M(CuSO₄):</span>
+      <span class="calc-val">249.68 g/mol</span>
+    </div>
+    <div class="calc-row">
+      <span>Masse m:</span>
+      <span class="calc-val" id="calc-mass">5.00 g</span>
+    </div>
+    <div class="calc-row">
+      <span>Quantité n:</span>
+      <span class="calc-val" id="calc-moles">0.020 mol</span>
+    </div>
+    <div class="calc-row">
+      <span>Volume V₀:</span>
+      <span class="calc-val" id="calc-vol">100 mL</span>
+    </div>
+    <div class="calc-row" style="border-top: 1px dashed rgba(255,255,255,0.2); margin-top: 4px; padding-top: 4px;">
+      <span>Concentration C₀:</span>
+      <span class="calc-highlight" id="calc-c0">0.200 mol/L</span>
+    </div>
+    <div class="calc-row" id="dilution-row" style="display: none;">
+      <span>Dilution C₁ (F=5):</span>
+      <span class="calc-highlight" id="calc-c1" style="color: #a78bfa;">0.040 mol/L</span>
+    </div>
+  </div>
+
+  <!-- Step Guidance Banner -->
+  <div id="step-banner" class="hud-panel">
+    <span class="step-badge" id="step-badge">المرحلة 1 من 4: الذوبان</span>
+    <div class="step-instruction" id="step-text">
+      حدد كتلة كبريتات النحاس المذابة m وحجم الحوجلة العيارية V₀، ثم اضغط على «إذابة وتحريك» لتكوين المحلول الأم الأساسي S₀.
+    </div>
+  </div>
+
+  <!-- Bottom Control Dock -->
+  <div id="control-dock" class="hud-panel">
+    <div class="slider-group">
+      <div class="slider-label">
+        <span>كتلة المذاب m:</span>
+        <span id="slider-mass-val">5.0 g</span>
+      </div>
+      <input type="range" id="input-mass" min="1.0" max="15.0" step="0.5" value="5.0">
+    </div>
+
+    <button class="btn-lab btn-primary" id="btn-dissolve">
+      <span>🌀 إذابة وتحريك (Dissolution)</span>
+    </button>
+
+    <button class="btn-lab btn-purple" id="btn-dilute">
+      <span>💧 إجراء التخفيف (Dilution F=5)</span>
+    </button>
+
+    <button class="btn-lab" id="btn-conclusion">
+      <span>📋 القوانين والنتائج</span>
+    </button>
+
+    <button class="btn-lab" id="btn-reset">
+      <span>🔄 إعادة</span>
+    </button>
+  </div>
+
+  <!-- Observation Modal -->
+  <div id="observation-modal" class="hud-panel">
+    <div class="modal-header">
+      <span>⚗️ القوانين الكيميائية: تحضير المحاليل والتخفيف</span>
+    </div>
+    <div class="modal-body" id="modal-content">
+      <strong>1. التركيز المولي للمحلول الأم (Concentration molaire):</strong><br>
+      <div style="direction: ltr; text-align: center; font-weight: bold; margin: 8px 0; color: #38bdf8;">
+        C₀ = n / V₀ = m / (M · V₀)
+      </div>
+      حيث m هي كتلة المذاب، M الكتلة المولية، و V₀ حجم المحلول باللتر.<br><br>
+      <strong>2. قانون التخفيف (Loi de dilution):</strong><br>
+      خلال عملية التخفيف بإضافة الماء المقطر، تبقى كمية مادة المذاب محفوظة (n₀ = n₁):
+      <div style="direction: ltr; text-align: center; font-weight: 900; margin: 8px 0; color: #a78bfa;">
+        C₀ · V₀ = C₁ · V₁ &nbsp;⇒&nbsp; F = C₀ / C₁ = V₁ / V₀
+      </div>
+      حيث F هو معامل التخفيف (Facteur de dilution). ولهذا يلاحظ تدرج وانخفاض شدة اللون الأزرق للمحلول.
+    </div>
+    <button class="close-btn" id="modal-close-btn">متابعة التجربة</button>
+  </div>
+
+  <!-- Standalone Three.js bundled locally -->
+  <script src="../../shared/three.min.js"></script>
+  <script src="experiment.js"></script>
+</body>
+</html>

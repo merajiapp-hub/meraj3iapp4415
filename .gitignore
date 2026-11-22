@@ -56,3 +56,5 @@ lib/config/secrets.dart
 google-services.json.backup
 *.keystore
 key.properties
+
+web/downloads/*.apk

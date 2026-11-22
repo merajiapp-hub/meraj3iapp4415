@@ -130,6 +130,29 @@
     <div class="splash-hint">جاري التحميل، لحظات من فضلك...</div>
   </div>
 
+  <script>
+    function removeSplash() {
+      var splash = document.getElementById('splash-loading');
+      if (splash) {
+        splash.style.opacity = '0';
+        splash.style.transition = 'opacity 0.3s ease';
+        setTimeout(function() {
+          if (splash && splash.parentNode) {
+            splash.parentNode.removeChild(splash);
+          }
+        }, 300);
+      }
+    }
+    window.addEventListener('flutter-first-frame', removeSplash);
+    var obs = new MutationObserver(function() {
+      if (document.querySelector('flutter-view') || document.querySelector('flt-glass-pane')) {
+        setTimeout(removeSplash, 150);
+        obs.disconnect();
+      }
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
+    setTimeout(removeSplash, 4000);
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

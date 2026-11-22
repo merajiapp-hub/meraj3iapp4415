@@ -78,6 +78,9 @@ flutter:
     - assets/sounds/
     - assets/fonts/
     - assets/pay/
+    - assets/labs/shared/
+    - assets/labs/chemistry/mass_conservation/
+    - assets/labs/chemistry/solution_dilution/
     - assets/Calculator/
     - assets/IM/
     - shorebird.yaml

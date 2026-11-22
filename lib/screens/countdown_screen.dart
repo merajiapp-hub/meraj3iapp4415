@@ -43,9 +43,6 @@ class _CountdownScreenState extends State<CountdownScreen> {
     _liveTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
-
-    // تهيئة المواعيد تلقائياً إن كانت قاعدة البيانات فارغة
-    _service.seedDefaultCountdownsIfEmpty();
   }
 
   @override
@@ -74,9 +71,7 @@ class _CountdownScreenState extends State<CountdownScreen> {
               stream: _activeEventsStream,
               builder: (context, snapshot) {
                 final isLoading = snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData;
-                final allEvents = (snapshot.data != null && snapshot.data!.isNotEmpty)
-                    ? snapshot.data!
-                    : CountdownService.defaultEvents;
+                final allEvents = snapshot.data ?? const <CountdownEvent>[];
 
                 return CustomScrollView(
                   physics: const BouncingScrollPhysics(),

@@ -1165,11 +1165,7 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
                           ),
                           child: Column(
                             children: [
-                              Icon(
-                                Icons.account_balance_wallet_rounded,
-                                size: 24,
-                                color: isChosen ? const Color(0xFF3525CD) : Colors.grey[600],
-                              ),
+                              _buildPaymentMethodLogo(method, isChosen),
                               const SizedBox(height: 6),
                               Text(
                                 method.name.split(' ').first,
@@ -1532,6 +1528,45 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildPaymentMethodLogo(PaymentMethod method, bool isChosen) {
+    String? assetPath = method.iconAsset;
+    final code = method.code.toLowerCase();
+    final name = method.name.toLowerCase();
+
+    if (assetPath == null || assetPath.isEmpty) {
+      if (code.contains('bankily') || name.contains('bankily') || name.contains('بنكيلي')) {
+        assetPath = 'assets/pay/Bankily.png';
+      } else if (code.contains('masrvi') || name.contains('masrvi') || name.contains('مصرفي')) {
+        assetPath = 'assets/pay/Masrvi.png';
+      } else if (code.contains('sedad') || name.contains('sedad') || name.contains('سداد')) {
+        assetPath = 'assets/pay/SEDAD.png';
+      }
+    }
+
+    if (assetPath != null && assetPath.isNotEmpty) {
+      return Container(
+        height: 28,
+        width: 32,
+        alignment: Alignment.center,
+        child: Image.asset(
+          assetPath,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => Icon(
+            Icons.account_balance_wallet_rounded,
+            size: 24,
+            color: isChosen ? const Color(0xFF3525CD) : Colors.grey[600],
+          ),
+        ),
+      );
+    }
+
+    return Icon(
+      Icons.account_balance_wallet_rounded,
+      size: 24,
+      color: isChosen ? const Color(0xFF3525CD) : Colors.grey[600],
     );
   }
 
@@ -2098,28 +2133,28 @@ class _LimitedOfferCountdownWidgetState extends State<_LimitedOfferCountdownWidg
           ),
           const SizedBox(height: 12),
 
-          // صناديق العد التنازلي الرقمية الحية
+          // مؤشرات العد التنازلي الدائرية الحية (دوائر بدل مربعات)
           Directionality(
             textDirection: TextDirection.ltr,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildOfferTimeBox('$days', 'يوم', isDark),
+                _buildOfferTimeCircle('$days', 'يوم', isDark),
                 const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6),
-                  child: Text(':', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFB45309))),
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(':', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFFB45309))),
                 ),
-                _buildOfferTimeBox(hours.toString().padLeft(2, '0'), 'ساعة', isDark),
+                _buildOfferTimeCircle(hours.toString().padLeft(2, '0'), 'ساعة', isDark),
                 const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6),
-                  child: Text(':', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFB45309))),
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(':', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFFB45309))),
                 ),
-                _buildOfferTimeBox(minutes.toString().padLeft(2, '0'), 'دقيقة', isDark),
+                _buildOfferTimeCircle(minutes.toString().padLeft(2, '0'), 'دقيقة', isDark),
                 const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6),
-                  child: Text(':', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFB45309))),
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(':', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFFB45309))),
                 ),
-                _buildOfferTimeBox(seconds.toString().padLeft(2, '0'), 'ثانية', isDark),
+                _buildOfferTimeCircle(seconds.toString().padLeft(2, '0'), 'ثانية', isDark),
               ],
             ),
           ),
@@ -2128,23 +2163,23 @@ class _LimitedOfferCountdownWidgetState extends State<_LimitedOfferCountdownWidg
     );
   }
 
-  Widget _buildOfferTimeBox(String value, String label, bool isDark) {
+  Widget _buildOfferTimeCircle(String value, String label, bool isDark) {
     return Column(
       children: [
         Container(
-          constraints: const BoxConstraints(minWidth: 42),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          width: 48,
+          height: 48,
           decoration: BoxDecoration(
+            shape: BoxShape.circle,
             color: isDark ? const Color(0xFF292524) : Colors.white,
-            borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: const Color(0xFFFDE68A),
-              width: 1.2,
+              color: const Color(0xFFF59E0B),
+              width: 2.0,
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
-                blurRadius: 4,
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.18),
+                blurRadius: 6,
                 offset: const Offset(0, 2),
               ),
             ],
@@ -2153,14 +2188,14 @@ class _LimitedOfferCountdownWidgetState extends State<_LimitedOfferCountdownWidg
             child: Text(
               value,
               style: GoogleFonts.outfit(
-                fontSize: 16,
+                fontSize: 15,
                 fontWeight: FontWeight.w900,
                 color: isDark ? const Color(0xFFFDE68A) : const Color(0xFFB45309),
               ),
             ),
           ),
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 4),
         Text(
           label,
           style: GoogleFonts.tajawal(
