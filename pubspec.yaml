@@ -66,6 +66,7 @@ dependencies:
   complex: ^0.8.0
   decimal: ^3.2.6
   flutter_secure_storage: ^10.3.4
+  video_player: ^2.14.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

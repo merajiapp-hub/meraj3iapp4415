@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -1676,11 +1677,32 @@ class _QuizResultScreenState extends State<_QuizResultScreen>
       // التقاط كرت النتيجة الجذاب فقط
       final imageBytes = await _cardController.capture(pixelRatio: 3.0);
       if (imageBytes != null) {
-        final directory = await getApplicationDocumentsDirectory();
-        final path =
-            '${directory.path}/meraj3i_result_${DateTime.now().millisecondsSinceEpoch}.png';
+        String path;
+        if (!kIsWeb && Platform.isAndroid) {
+          final downloadDir = Directory('/storage/emulated/0/Download');
+          if (await downloadDir.exists()) {
+            path = '${downloadDir.path}/نتيجة_مراجعي_${DateTime.now().millisecondsSinceEpoch}.png';
+          } else {
+            final directory = await getApplicationDocumentsDirectory();
+            path = '${directory.path}/نتيجة_مراجعي_${DateTime.now().millisecondsSinceEpoch}.png';
+          }
+        } else {
+          final directory = await getApplicationDocumentsDirectory();
+          path = '${directory.path}/نتيجة_مراجعي_${DateTime.now().millisecondsSinceEpoch}.png';
+        }
+
         final file = File(path);
         await file.writeAsBytes(imageBytes, flush: true);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: const Color(0xFF10B981),
+              content: Text('تم حفظ الصورة في مجلد التنزيلات: ${file.path.split('/').last}'),
+            ),
+          );
+        }
+
         // ignore: deprecated_member_use
         await Share.shareXFiles(
           [XFile(path)],
@@ -1724,11 +1746,36 @@ class _QuizResultScreenState extends State<_QuizResultScreen>
         final List<int> bytes = await document.save();
         document.dispose();
 
-        final directory = await getApplicationDocumentsDirectory();
-        final path =
-            '${directory.path}/meraj3i_result_${DateTime.now().millisecondsSinceEpoch}.pdf';
+        String path;
+        if (!kIsWeb && Platform.isAndroid) {
+          final downloadDir = Directory('/storage/emulated/0/Download');
+          if (await downloadDir.exists()) {
+            path = '${downloadDir.path}/شهادة_مراجعي_${DateTime.now().millisecondsSinceEpoch}.pdf';
+          } else {
+            final directory = await getApplicationDocumentsDirectory();
+            path = '${directory.path}/شهادة_مراجعي_${DateTime.now().millisecondsSinceEpoch}.pdf';
+          }
+        } else {
+          final directory = await getApplicationDocumentsDirectory();
+          path = '${directory.path}/شهادة_مراجعي_${DateTime.now().millisecondsSinceEpoch}.pdf';
+        }
+
         final file = File(path);
         await file.writeAsBytes(bytes, flush: true);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: const Color(0xFF10B981),
+              content: Text('تم حفظ الشهادة في مجلد التنزيلات (Download): ${file.path.split('/').last}'),
+              action: SnackBarAction(
+                label: 'فتح',
+                textColor: Colors.white,
+                onPressed: () => OpenFilex.open(path),
+              ),
+            ),
+          );
+        }
 
         OpenFilex.open(path);
       }

@@ -13,21 +13,28 @@ class VideoWebEmbed extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDrive = url.contains('drive.google.com');
     final viewType = _registeredViewTypes.putIfAbsent(url, () {
       final id = 'video-embed-${_nextId++}';
       ui_web.platformViewRegistry.registerViewFactory(
         id,
-        (int viewId) => web.HTMLIFrameElement()
-          ..src = url
-          ..title = title
-          ..style.border = '0'
-          ..style.width = '100%'
-          ..style.height = '100%'
-          ..setAttribute('allowfullscreen', 'true')
-          ..setAttribute(
-            'allow',
-            'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share',
-          ),
+        (int viewId) {
+          final iframe = web.HTMLIFrameElement()
+            ..src = url
+            ..title = title
+            ..style.border = '0'
+            ..style.width = '100%'
+            ..style.height = isDrive ? 'calc(100% + 56px)' : '100%'
+            ..setAttribute('allowfullscreen', 'true')
+            ..setAttribute(
+              'allow',
+              'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share',
+            );
+          if (isDrive) {
+            iframe.style.marginTop = '-56px';
+          }
+          return iframe;
+        },
       );
       return id;
     });

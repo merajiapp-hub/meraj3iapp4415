@@ -147,8 +147,10 @@ class AppUpdateService {
         final version = data['version']?.toString() ?? '1.0.0';
         final notes = data['notes']?.toString() ?? '';
         final isMandatory = data['isMandatory'] == true;
-        final apkUrl = data['apkUrl']?.toString() ??
-            'https://github.com/merajiapp-hub/meraj3iapp4415/releases/latest/download/app-release.apk';
+        final rawApkUrl = data['apkUrl']?.toString() ?? '';
+        final apkUrl = rawApkUrl.isNotEmpty && !rawApkUrl.contains('github.com/merajiapp-hub/meraj3iapp4415/releases/latest/download')
+            ? rawApkUrl
+            : 'https://meraj3iapp.web.app/downloads/app-release.apk';
         final buildNumber = (data['buildNumber'] as num?)?.toInt() ?? 25;
 
         final lines = notes.split('\n').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
@@ -157,11 +159,11 @@ class AppUpdateService {
           latestVersion: version,
           latestBuildNumber: buildNumber,
           apkUrl: apkUrl,
-          apkSize: data['apkSize']?.toString() ?? '65 MB',
+          apkSize: data['apkSize']?.toString() ?? '120.8 MB',
           releaseDate: DateTime.now().toString().split(' ').first,
           forceUpdate: isMandatory,
           releaseNotes: lines.isNotEmpty ? lines : ['تحسينات في الأداء وتحديثات هامة'],
-          githubReleaseUrl: 'https://github.com/merajiapp-hub/meraj3iapp4415/releases',
+          githubReleaseUrl: 'https://meraj3iapp.web.app/downloads/app-release.apk',
         );
       }
     } catch (e) {

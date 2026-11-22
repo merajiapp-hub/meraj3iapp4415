@@ -1,10 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:video_player/video_player.dart';
 import '../../../models/video_lesson_models.dart';
 import 'video_web_embed.dart';
 
@@ -44,6 +45,10 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
   bool _isFullscreen = false;
   bool _isLocked = false;
   bool _showUnlockHint = false;
+
+  VideoPlayerController? _videoPlayerController;
+  bool _isVideoControllerInitialized = false;
+  bool _isLoadingVideo = false;
 
   // الإيماءات والمؤثرات التفاعلية
   bool _showRewindIndicator = false;
@@ -99,6 +104,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
 
   @override
   void dispose() {
+    _videoPlayerController?.dispose();
     _controlsTimer?.cancel();
     _playbackTicker?.cancel();
     _rewindTimer?.cancel();
@@ -122,9 +128,78 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
     }
   }
 
+  Future<void> _initializeNativePlayer() async {
+    setState(() => _isLoadingVideo = true);
+    try {
+      if (widget.localFilePath != null && File(widget.localFilePath!).existsSync()) {
+        _videoPlayerController = VideoPlayerController.file(File(widget.localFilePath!));
+      } else {
+        final streamUrl = (widget.lesson.driveFileId != null && widget.lesson.driveFileId!.isNotEmpty)
+            ? 'https://drive.google.com/uc?export=download&id=${widget.lesson.driveFileId}'
+            : widget.lesson.videoUrl;
+        _videoPlayerController = VideoPlayerController.networkUrl(Uri.parse(streamUrl));
+      }
+
+      await _videoPlayerController!.initialize();
+      _videoPlayerController!.addListener(() {
+        if (!mounted || _videoPlayerController == null) return;
+        final pos = _videoPlayerController!.value.position.inSeconds.toDouble();
+        final dur = _videoPlayerController!.value.duration.inSeconds.toDouble();
+        if (dur > 0) _totalDurationSeconds = dur;
+        setState(() {
+          _currentSeconds = pos;
+          _isPlaying = _videoPlayerController!.value.isPlaying;
+        });
+        widget.onPositionChanged?.call(pos.toInt());
+      });
+
+      if (widget.initialPositionSeconds > 0) {
+        await _videoPlayerController!.seekTo(Duration(seconds: widget.initialPositionSeconds));
+      }
+      await _videoPlayerController!.setPlaybackSpeed(_playbackSpeed);
+      await _videoPlayerController!.setVolume(_isMuted ? 0.0 : 1.0);
+      await _videoPlayerController!.play();
+
+      if (mounted) {
+        setState(() {
+          _isVideoControllerInitialized = true;
+          _isLoadingVideo = false;
+          _isPlaying = true;
+        });
+        widget.onPlayStarted?.call();
+      }
+    } catch (e) {
+      debugPrint('[VideoPlayerWidget] Native video init error: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingVideo = false;
+          _isPlaying = true;
+        });
+        widget.onPlayStarted?.call();
+      }
+    }
+  }
+
   void _togglePlay() {
     if (widget.lesson.isPro && !widget.isProUser) {
       widget.onUpgradeToPro?.call();
+      return;
+    }
+
+    if (!kIsWeb) {
+      if (_videoPlayerController == null || !_isVideoControllerInitialized) {
+        _initializeNativePlayer();
+        return;
+      }
+      if (_videoPlayerController!.value.isPlaying) {
+        _videoPlayerController!.pause();
+        setState(() => _isPlaying = false);
+      } else {
+        _videoPlayerController!.play();
+        setState(() => _isPlaying = true);
+        widget.onPlayStarted?.call();
+      }
+      _resetControlsTimer();
       return;
     }
 
@@ -163,10 +238,14 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
 
   void _seekBy(double delta) {
     if (_isLocked) return;
+    final newSec = (_currentSeconds + delta).clamp(0.0, _totalDurationSeconds);
     setState(() {
-      _currentSeconds = (_currentSeconds + delta).clamp(0.0, _totalDurationSeconds);
+      _currentSeconds = newSec;
       _isControlsVisible = true;
     });
+    if (!kIsWeb && _videoPlayerController != null && _isVideoControllerInitialized) {
+      _videoPlayerController!.seekTo(Duration(seconds: newSec.toInt()));
+    }
     widget.onPositionChanged?.call(_currentSeconds.toInt());
     _resetControlsTimer();
   }
@@ -228,15 +307,6 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
     return '${m.toString().padLeft(2, '0')}:${remainingS.toString().padLeft(2, '0')}';
   }
 
-  Future<void> _openExternalOrInApp() async {
-    widget.onPlayStarted?.call();
-    final url = widget.lesson.previewUrl;
-    final uri = Uri.tryParse(url);
-    if (uri != null) {
-      await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final isProLocked = widget.lesson.isPro && !widget.isProUser;
@@ -267,6 +337,17 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
                   title: widget.lesson.title,
                 ),
               )
+            else if (!kIsWeb && _isVideoControllerInitialized && _videoPlayerController != null)
+              Positioned.fill(
+                child: Center(
+                  child: AspectRatio(
+                    aspectRatio: _videoPlayerController!.value.aspectRatio > 0
+                        ? _videoPlayerController!.value.aspectRatio
+                        : 16 / 9,
+                    child: VideoPlayer(_videoPlayerController!),
+                  ),
+                ),
+              )
             else
               Positioned.fill(
                 child: widget.lesson.effectiveThumbnailUrl.isNotEmpty
@@ -285,6 +366,16 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
                         errorWidget: (_, __, ___) => _buildFallbackGraphic(),
                       )
                     : _buildFallbackGraphic(),
+              ),
+
+            if (_isLoadingVideo)
+              const Positioned.fill(
+                child: Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Color(0xFF14B8A6),
+                  ),
+                ),
               ),
 
             // ── 2. مناطق اللمس الحساسة للإيماءات (Double Tap) ───────────────
@@ -477,6 +568,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
                         tooltip: _isMuted ? 'إلغاء كتم الصوت' : 'كتم الصوت',
                         onTap: () {
                           setState(() => _isMuted = !_isMuted);
+                          _videoPlayerController?.setVolume(_isMuted ? 0.0 : 1.0);
                           _resetControlsTimer();
                         },
                       ),
@@ -555,13 +647,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
                       child: Material(
                         color: Colors.transparent,
                         child: InkWell(
-                          onTap: () {
-                            if (!kIsWeb && defaultTargetPlatform != TargetPlatform.windows) {
-                              _openExternalOrInApp();
-                            } else {
-                              _togglePlay();
-                            }
-                          },
+                          onTap: _togglePlay,
                           borderRadius: BorderRadius.circular(50),
                           child: Container(
                             width: 68,
@@ -801,6 +887,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
       ),
       onSelected: (val) {
         setState(() => _playbackSpeed = val);
+        _videoPlayerController?.setPlaybackSpeed(val);
         if (_isPlaying) _startTicker();
         _resetControlsTimer();
       },

@@ -141,6 +141,27 @@ class _VideoLevelsScreenState extends State<VideoLevelsScreen>
     super.dispose();
   }
 
+  bool _matchesCategory(VideoLesson l, String category) {
+    if (category == 'all' || category == 'الكل') return true;
+    final lvl = l.levelId.toLowerCase();
+    switch (category) {
+      case 'BAC C':
+        return lvl == 'bac_c' || lvl.contains('bac_c') || lvl.contains('bac c') || l.title.contains('BAC C') || l.title.contains('رياضيات');
+      case 'BAC D':
+        return lvl == 'bac_d' || lvl.contains('bac_d') || lvl.contains('bac d') || l.title.contains('BAC D') || l.title.contains('علوم');
+      case '3AS':
+        return lvl == '3as' || lvl.contains('3as') || l.title.contains('3AS') || l.title.contains('الثالثة');
+      case '4AS':
+        return lvl == '4as' || lvl.contains('4as') || l.title.contains('4AS') || l.title.contains('الرابعة') || l.title.contains('بريفيه') || l.title.contains('ختم الدروس');
+      case 'كونكور':
+        return lvl == 'concours' || lvl.contains('concours') || lvl.contains('konkour') || l.title.contains('كونكور') || l.title.contains('دخول السنة الأولى');
+      case '6AF':
+        return lvl == '6af' || lvl.contains('6af') || l.title.contains('6AF') || l.title.contains('السادسة');
+      default:
+        return lvl.contains(category.toLowerCase()) || l.title.contains(category);
+    }
+  }
+
   void _openFilterModal(bool isDark) {
     showModalBottomSheet(
       context: context,
@@ -239,17 +260,19 @@ class _VideoLevelsScreenState extends State<VideoLevelsScreen>
                 const SizedBox(height: 20),
 
                 // 4. قسم "أكمل المشاهدة" (Continue Watching)
-                _buildContinueWatchingSection(userId, isDark),
-
-                const SizedBox(height: 24),
+                if (_selectedCategory == 'all' || _selectedCategory == 'الكل') ...[
+                  _buildContinueWatchingSection(userId, isDark),
+                  const SizedBox(height: 24),
+                ],
 
                 // 5. قسم "أحدث الدروس المميزة" (Featured Lessons)
                 _buildFeaturedLessonsSection(isDark, auth.isPro),
 
-                const SizedBox(height: 24),
-
-                // 6. قسم "الأكثر مشاهدة هذا الأسبوع" (Most Watched)
-                _buildMostWatchedSection(isDark),
+                if (_selectedCategory == 'all' || _selectedCategory == 'الكل') ...[
+                  const SizedBox(height: 24),
+                  // 6. قسم "الأكثر مشاهدة هذا الأسبوع" (Most Watched)
+                  _buildMostWatchedSection(isDark),
+                ],
 
                 const SizedBox(height: 24),
 
@@ -632,12 +655,9 @@ class _VideoLevelsScreenState extends State<VideoLevelsScreen>
       builder: (context, snap) {
         var lessons = snap.data ?? [];
 
-        // تصفية حسب القسم المختار
-        if (_selectedCategory != 'all') {
-          lessons = lessons.where((l) {
-            return l.levelId.contains(_selectedCategory.toLowerCase()) ||
-                l.title.contains(_selectedCategory);
-          }).toList();
+        // تصفية حسب القسم المختار مع الفصل الصارم بين المسابقات
+        if (_selectedCategory != 'all' && _selectedCategory != 'الكل') {
+          lessons = lessons.where((l) => _matchesCategory(l, _selectedCategory)).toList();
         }
 
         // تصفية حسب نوع المحتوى (مجاني / Pro)
@@ -655,8 +675,36 @@ class _VideoLevelsScreenState extends State<VideoLevelsScreen>
           }).toList();
         }
 
-        // إذا كانت القائمة فارغة نوفر درسين نموذجيين يطابقان التصميم المرفق في الصورة بدقة
         if (lessons.isEmpty) {
+          if (_selectedCategory != 'all' && _selectedCategory != 'الكل') {
+            return Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+              margin: const EdgeInsets.only(top: 8),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  Icon(Icons.video_library_outlined, size: 44, color: isDark ? Colors.white38 : Colors.black26),
+                  const SizedBox(height: 12),
+                  Text(
+                    'لا توجد فيديوهات مضافة حالياً لمرحلة / مسابقة «$_selectedCategory»',
+                    style: GoogleFonts.tajawal(fontWeight: FontWeight.bold, fontSize: 14, color: isDark ? Colors.white70 : Colors.black87),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'سيتم إضافة دروس وشروحات نموذجية خاصة بهذه المسابقة قريباً',
+                    style: GoogleFonts.cairo(fontSize: 12, color: isDark ? Colors.white54 : Colors.black54),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            );
+          }
+          // إذا كان الكل فارغاً، نعرض النماذج الافتراضية
           lessons = [
             VideoLesson(
               id: 'mock_lesson_pro_1',
